@@ -1,0 +1,36 @@
+<resources>
+  <color name="surface">#120A18</color>
+  <color name="panel">#16101E</color>
+  <color name="ink">#FFFFFF</color>
+  <color name="muted">#BDB5CF</color>
+  <color name="tv_black">#060507</color>
+  <color name="tv_selector_hint">#B7A8D9</color>
+  <color name="tv_selector_button_fill">#F4ECFF</color>
+  <color name="tv_selector_button_text">#7862C6</color>
+  <color name="tv_schedule_background">#5E0C11</color>
+  <color name="tv_schedule_card">#111111</color>
+  <color name="tv_badge_red">#E11111</color>
+  <color name="tv_text_main">#FFFFFF</color>
+  <color name="tv_text_subtle">#D4CCD9</color>
+  <color name="tv_text_muted">#A39CAD</color>
+  <color name="tv_divider">#8F7070</color>
+  <color name="tv_outline">#5F576B</color>
+  <color name="tv_screen_chip_fill">#2A1427</color>
+  <color name="tv_logo_fill">#1B151E</color>
+  <color name="tv_playback_background">#290040</color>
+  <color name="tv_playback_blue">#1599DB</color>
+  <color name="tv_playback_ready">#F84A3D</color>
+  <color name="tv_playback_move_station">#22C06A</color>
+  <color name="tv_playback_move_zone">#000000</color>
+  <color name="tv_playback_purple">#4D0788</color>
+  <color name="tv_playback_purple_dark">#220035</color>
+  <color name="tv_horizontal_progress_active">#FFFFFF</color>
+  <color name="tv_horizontal_progress_inactive">#3A3640</color>
+  <color name="tv_horizontal_transition_circle_fill">#33FFFFFF</color>
+  <color name="tv_playback_surface">#FFFFFF</color>
+  <color name="tv_playback_border">#56189B</color>
+  <color name="tv_playback_dim">#A3000000</color>
+  <color name="tv_playback_caption">#A0120620</color>
+  <color name="tv_playback_text_dark">#1A1420</color>
+  <color name="tv_training_card_inactive">#1A1520</color>
+</resources>
