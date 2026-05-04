@@ -59,22 +59,6 @@ interface NoticeState {
 }
 
 type CoachPageKey = "console" | "screens";
-type AccountPresetKey = (typeof ACCOUNT_PRESETS)[number]["key"];
-
-const ACCOUNT_PRESETS = [
-  {
-    key: "formal",
-    label: "13689547720",
-    username: "13689547720",
-    password: "REDACTED_CONFIGURE_LOCALLY"
-  },
-  {
-    key: "testing",
-    label: "zhiyou",
-    username: "zhiyou",
-    password: "REDACTED_CONFIGURE_LOCALLY"
-  }
-] as const;
 
 const AUTH_STORAGE_KEY = "infini-coach-web-auth";
 const LEGACY_BASIC_AUTH = "Basic REDACTED_CONFIGURE_LOCALLY";
@@ -121,7 +105,9 @@ function getErrorMessage(error: unknown): string {
 }
 
 function isAuthExpiredMessage(message: string): boolean {
-  return /登录已失效|重新登录|refresh token 已失效|用户名或密码错误/i.test(String(message || ""));
+  return /登录已失效|重新登录|refresh token 已失效|客户端凭证无效|请求失败 \(401\)|请求失败 \(403\)|用户名或密码错误/i.test(
+    String(message || "")
+  );
 }
 
 export default function CoachWebApp() {
@@ -134,8 +120,8 @@ export default function CoachWebApp() {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [activePage, setActivePage] = useState<CoachPageKey>("console");
   const [loginForm, setLoginForm] = useState<LoginFormState>({
-    username: "13689547720",
-    password: "REDACTED_CONFIGURE_LOCALLY"
+    username: "",
+    password: ""
   });
 
   const pushNotice = useCallback((message: string, tone: NoticeTone = "success") => {
@@ -150,7 +136,13 @@ export default function CoachWebApp() {
     removeStorageItem(AUTH_STORAGE_KEY);
     setAuthSession(null);
     setCurrentWeekSchedules([]);
+    setActivePage("console");
     setBusyText("");
+    setPasswordVisible(false);
+    setLoginForm((current) => ({
+      username: current.username,
+      password: ""
+    }));
     pushNotice(message, "error");
   }, [pushNotice]);
 
@@ -217,17 +209,6 @@ export default function CoachWebApp() {
     };
   }, []);
 
-  function applyAccountPreset(accountKey: AccountPresetKey) {
-    const preset = ACCOUNT_PRESETS.find((item) => item.key === accountKey);
-    if (!preset) {
-      return;
-    }
-    setLoginForm({
-      username: preset.username,
-      password: preset.password
-    });
-  }
-
   useEffect(() => {
     return () => {
       if (noticeTimerRef.current) {
@@ -259,7 +240,7 @@ export default function CoachWebApp() {
 
   async function handleLogin() {
     if (!loginForm.username.trim() || !loginForm.password.trim()) {
-      pushNotice("请输入手机号和密码。", "error");
+      pushNotice("请输入账号和密码。", "error");
       return;
     }
 
@@ -294,7 +275,7 @@ export default function CoachWebApp() {
       setLoginForm((current) => ({
         ...current,
         username: nextAuth.username,
-        password: current.password || "REDACTED_CONFIGURE_LOCALLY"
+        password: ""
       }));
       pushNotice("登录成功。");
     } catch (error) {
@@ -309,14 +290,12 @@ export default function CoachWebApp() {
     setAuthSession(null);
     setCurrentWeekSchedules([]);
     setLoginForm({
-      username: "13689547720",
-      password: "REDACTED_CONFIGURE_LOCALLY"
+      username: "",
+      password: ""
     });
     setPasswordVisible(false);
     pushNotice("已退出登录。");
   }
-
-  const selectedAccountOption = ACCOUNT_PRESETS.find((item) => item.username === loginForm.username)?.key || "formal";
 
   async function loadMeta(label = "") {
     if (label) {
@@ -327,7 +306,12 @@ export default function CoachWebApp() {
       const payload = await requestJson<MetaPayload>("/api/meta");
       setCurrentWeekSchedules(payload.schedules?.currentWeek || []);
     } catch (error) {
-      pushNotice(getErrorMessage(error), "error");
+      const message = getErrorMessage(error);
+      if (isAuthExpiredMessage(message)) {
+        handleSessionExpired(message);
+        return;
+      }
+      pushNotice(message, "error");
     } finally {
       setBusyText("");
     }
@@ -350,21 +334,18 @@ export default function CoachWebApp() {
           <div className="coach-login-form">
             <label className="coach-login-field">
               <span>账号</span>
-              <div className="coach-account-select">
-                <select
-                  aria-label="选择账号"
-                  value={selectedAccountOption}
-                  onChange={(event) => {
-                    applyAccountPreset(event.target.value as AccountPresetKey);
-                  }}
-                >
-                  {ACCOUNT_PRESETS.map((preset) => (
-                    <option key={preset.key} value={preset.key}>
-                      {preset.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <input
+                type="text"
+                value={loginForm.username}
+                onChange={(event) => setLoginForm((current) => ({ ...current, username: event.target.value }))}
+                placeholder="请输入账号"
+                autoComplete="username"
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    void handleLogin();
+                  }
+                }}
+              />
             </label>
 
             <label className="coach-login-field">
@@ -375,6 +356,7 @@ export default function CoachWebApp() {
                   value={loginForm.password}
                   onChange={(event) => setLoginForm((current) => ({ ...current, password: event.target.value }))}
                   placeholder="请输入密码"
+                  autoComplete="current-password"
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
                       void handleLogin();

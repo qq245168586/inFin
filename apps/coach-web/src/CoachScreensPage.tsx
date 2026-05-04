@@ -79,7 +79,8 @@ interface BarcodeDetectorConstructorShape {
 }
 
 const COURSE_TIME_ZONE = "Asia/Shanghai";
-const POLL_INTERVAL_MS = 60_000;
+const POLL_INTERVAL_MS = 5000;
+const HIDDEN_POLL_INTERVAL_MS = 15000;
 const DEFAULT_PAIR_INPUT = "";
 const DEFAULT_PAIR_SCREEN = "1";
 
@@ -335,7 +336,10 @@ export default function CoachScreensPage({
         }
       } finally {
         if (!cancelled) {
-          timer = window.setTimeout(() => void loop(false), POLL_INTERVAL_MS);
+          timer = window.setTimeout(
+            () => void loop(false),
+            document.visibilityState === "visible" ? POLL_INTERVAL_MS : HIDDEN_POLL_INTERVAL_MS
+          );
         }
       }
     }

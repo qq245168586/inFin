@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type TouchEvent } from "react";
 
 type NoticeTone = "success" | "error";
-type CoachSessionState = "IDLE" | "PREVIEW" | "RUNNING" | "PAUSED";
+type CoachSessionState = "IDLE" | "PREVIEW" | "SCHEDULED" | "RUNNING" | "PAUSED" | "ENDED" | "TERMINATED";
+type ActiveCoachSessionState = Exclude<CoachSessionState, "IDLE">;
 
 interface WeekScheduleRecord {
   id: number;
@@ -90,6 +91,43 @@ interface CoachPreviewItem {
   id: string;
   mediaUrl: string;
   actionName: string;
+}
+
+interface PlaybackSession {
+  id: string;
+  state: ActiveCoachSessionState;
+  version: number;
+  scheduleId: string;
+  courseId: number;
+  courseName?: string;
+  bundleChecksum: string;
+  scheduledStartAtMs: number;
+  serverStartAtMs: number;
+  pausedAccumulatedMs: number;
+  pausedAtMs: number;
+  endedAtMs?: number;
+  terminatedAtMs?: number;
+  elapsedMs?: number;
+  serverNowMs: number;
+  updatedAtMs?: number;
+  startDelayMs?: number;
+  lastCommandId?: string;
+  lastCommand?: {
+    commandId?: string;
+    action?: string;
+    state?: string;
+    resultVersion?: number;
+  } | null;
+}
+
+interface PlaybackSessionEnvelope {
+  ok?: boolean;
+  serverNowMs?: number;
+  session?: PlaybackSession | null;
+  data?: PlaybackSession | null;
+  mqtt?: {
+    errors?: string[];
+  };
 }
 
 const COURSE_TIME_ZONE = "Asia/Shanghai";
@@ -209,12 +247,46 @@ function buildScheduleRange(schedule: TvDailySchedule): string {
   return `${formatTime(start)} - ${formatTime(end)}`;
 }
 
-function createPlaybackSessionId(schedule: TvDailySchedule): string {
-  const base = `schedule-${schedule.id}-${Date.now()}`;
+function createCommandId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return `${base}-${crypto.randomUUID()}`;
+    return crypto.randomUUID();
   }
-  return `${base}-${Math.random().toString(36).slice(2, 10)}`;
+  return `cmd-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function activeSessionState(value: unknown): CoachSessionState {
+  const state = String(value || "").toUpperCase();
+  if (["PREVIEW", "SCHEDULED", "RUNNING", "PAUSED", "ENDED", "TERMINATED"].includes(state)) {
+    return state as CoachSessionState;
+  }
+  return "IDLE";
+}
+
+function isActiveSessionState(value: CoachSessionState): boolean {
+  return value === "PREVIEW" || value === "SCHEDULED" || value === "RUNNING" || value === "PAUSED";
+}
+
+function normalizePlaybackSession(payload: PlaybackSessionEnvelope | null): PlaybackSession | null {
+  const session = payload?.session || payload?.data || null;
+  if (!session?.id) {
+    return null;
+  }
+  return {
+    ...session,
+    state: activeSessionState(session.state) === "IDLE" ? "PREVIEW" : (activeSessionState(session.state) as ActiveCoachSessionState),
+    scheduleId: String(session.scheduleId || ""),
+    courseId: Number(session.courseId || 0),
+    version: Math.max(1, Number(session.version || 1)),
+    serverNowMs: Number(payload?.serverNowMs || session.serverNowMs || Date.now())
+  };
+}
+
+function shortSessionId(value?: string): string {
+  const text = String(value || "");
+  if (!text) {
+    return "--";
+  }
+  return text.length > 12 ? `${text.slice(0, 6)}…${text.slice(-4)}` : text;
 }
 
 async function requestJson<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -228,7 +300,13 @@ async function requestJson<T>(path: string, options: RequestInit = {}): Promise<
   const payload = (await response.json().catch(() => null)) as T | { message?: string } | null;
 
   if (!response.ok) {
-    throw new Error((payload as { message?: string } | null)?.message || `请求失败 (${response.status})`);
+    const error = new Error((payload as { message?: string } | null)?.message || `请求失败 (${response.status})`) as Error & {
+      status?: number;
+      payload?: unknown;
+    };
+    error.status = response.status;
+    error.payload = payload;
+    throw error;
   }
 
   return payload as T;
@@ -253,6 +331,9 @@ export default function CoachConsole({
   const [sessionState, setSessionState] = useState<CoachSessionState>("IDLE");
   const [selectedScheduleId, setSelectedScheduleId] = useState<string>("");
   const [selectedPlaybackSessionId, setSelectedPlaybackSessionId] = useState<string>("");
+  const [playbackSession, setPlaybackSession] = useState<PlaybackSession | null>(null);
+  const [pendingAction, setPendingAction] = useState("");
+  const [serverClockBase, setServerClockBase] = useState<{ serverNowMs: number; localNowMs: number } | null>(null);
   const [previewIndex, setPreviewIndex] = useState(0);
   const touchStartXRef = useRef<number | null>(null);
   const previewVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -264,6 +345,37 @@ export default function CoachConsole({
   const authHeaders = {
     Authorization: `${authSession.token_type} ${authSession.access_token}`
   };
+  const displayServerNowMs =
+    serverClockBase && typeof performance !== "undefined"
+      ? serverClockBase.serverNowMs + Math.max(0, performance.now() - serverClockBase.localNowMs)
+      : playbackSession?.serverNowMs || Date.now();
+  const displayElapsedMs =
+    playbackSession && playbackSession.serverStartAtMs > 0
+      ? Math.max(
+          0,
+          (sessionState === "PAUSED" && playbackSession.pausedAtMs > 0
+            ? playbackSession.pausedAtMs
+            : displayServerNowMs) -
+            playbackSession.serverStartAtMs -
+            Number(playbackSession.pausedAccumulatedMs || 0)
+        )
+      : 0;
+  const selectedScheduleSessionState =
+    playbackSession && String(playbackSession.scheduleId) === String(selectedScheduleId)
+      ? sessionState
+      : "IDLE";
+
+  function applyPlaybackSession(session: PlaybackSession | null) {
+    setPlaybackSession(session);
+    setSelectedPlaybackSessionId(session?.id || "");
+    setSessionState(session ? activeSessionState(session.state) : "IDLE");
+    if (session?.scheduleId && (!selectedScheduleId || String(selectedScheduleId) === String(session.scheduleId))) {
+      setSelectedScheduleId(String(session.scheduleId));
+    }
+    if (session?.serverNowMs) {
+      setServerClockBase({ serverNowMs: session.serverNowMs, localNowMs: performance.now() });
+    }
+  }
 
   function handleRequestError(error: unknown, fallbackMessage: string) {
     const message = error instanceof Error ? error.message : fallbackMessage;
@@ -298,6 +410,8 @@ export default function CoachConsole({
         if (!payload.schedules.some((item) => String(item.id) === String(selectedScheduleId))) {
           setSelectedScheduleId("");
           setSelectedPlaybackSessionId("");
+          setPlaybackSession(null);
+          setServerClockBase(null);
           setSessionState("IDLE");
           setPreviewIndex(0);
         }
@@ -350,6 +464,32 @@ export default function CoachConsole({
     return () => window.clearTimeout(timer);
   }, [activePreviewItem?.id, activePreviewItem?.mediaUrl]);
 
+  useEffect(() => {
+    let cancelled = false;
+    let timer = 0;
+
+    const scheduleNextPoll = () => {
+      const delay = document.visibilityState === "visible" ? 2000 : 15000;
+      timer = window.setTimeout(async () => {
+        if (!cancelled) {
+          await fetchCurrentPlaybackSession(false);
+          scheduleNextPoll();
+        }
+      }, delay);
+    };
+
+    void fetchCurrentPlaybackSession(false).finally(() => {
+      if (!cancelled) {
+        scheduleNextPoll();
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [authSession.access_token, authSession.token_type]);
+
   async function publishControl(payload: Record<string, unknown>, busyText: string) {
     onBusyTextChange(busyText);
 
@@ -364,6 +504,61 @@ export default function CoachConsole({
       handleRequestError(error, "TV 控制指令发送失败。");
       return false;
     } finally {
+      onBusyTextChange("");
+    }
+  }
+
+  async function fetchCurrentPlaybackSession(showError = false): Promise<PlaybackSession | null> {
+    try {
+      const payload = await requestJson<PlaybackSessionEnvelope>("/api/tv/playback-sessions/current", {
+        headers: authHeaders
+      });
+      const session = normalizePlaybackSession(payload);
+      if (session) {
+        applyPlaybackSession(session);
+      } else if (isActiveSessionState(sessionState)) {
+        applyPlaybackSession(null);
+        setSelectedScheduleId("");
+        setPreviewIndex(0);
+      }
+      return session;
+    } catch (error) {
+      if (showError) {
+        handleRequestError(error, "同步课程 session 失败。");
+      } else {
+        const message = error instanceof Error ? error.message : "";
+        if (isAuthExpiredMessage(message)) {
+          onAuthExpired(message);
+        }
+      }
+      return null;
+    }
+  }
+
+  async function requestPlaybackSession(
+    path: string,
+    body: Record<string, unknown>,
+    busyText: string,
+    fallbackMessage: string
+  ): Promise<PlaybackSession | null> {
+    setPendingAction(String(body.commandId || path));
+    onBusyTextChange(busyText);
+    try {
+      const payload = await requestJson<PlaybackSessionEnvelope>(path, {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify(body)
+      });
+      const session = normalizePlaybackSession(payload);
+      if (session) {
+        applyPlaybackSession(session);
+      }
+      return session;
+    } catch (error) {
+      handleRequestError(error, fallbackMessage);
+      return null;
+    } finally {
+      setPendingAction("");
       onBusyTextChange("");
     }
   }
@@ -400,143 +595,183 @@ export default function CoachConsole({
     }
   }
 
-  async function enterPreview(schedule: TvDailySchedule) {
-    const playbackSessionId = createPlaybackSessionId(schedule);
-    const success = await publishControl(
-      {
-        type: "preview_course",
-        source: "coach-web",
-        scheduleId: String(schedule.id),
-        courseId: schedule.courseId,
-        scheduledStartAtMs: scheduleStartAtMs(schedule),
-        playbackSessionId,
-        bundleChecksum: String(schedule.contentChecksum || ""),
-        requestedAt: Date.now()
-      },
-      "正在同步课程预览到 TV..."
-    );
+  async function enterPreview(schedule: TvDailySchedule): Promise<PlaybackSession | null> {
+    const commandId = createCommandId();
+    setPendingAction(commandId);
+    onBusyTextChange("正在同步课程预览到 TV...");
+    try {
+      const payload = await requestJson<PlaybackSessionEnvelope>("/api/tv/playback-sessions/preview", {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify({
+          commandId,
+          scheduleId: String(schedule.id),
+          courseId: schedule.courseId,
+          scheduledStartAtMs: scheduleStartAtMs(schedule),
+          bundleChecksum: String(schedule.contentChecksum || "")
+        })
+      });
+      const session = normalizePlaybackSession(payload);
+      if (session) {
+        applyPlaybackSession(session);
+      }
+      setSelectedScheduleId(String(schedule.id));
+      setPreviewIndex(0);
+      onNotice("课程预览已同步到 TV。再次点击同一节课程即可正式开始。");
+      return session;
+    } catch (error) {
+      const requestError = error as Error & { status?: number };
+      if (requestError.status === 409) {
+        const current = playbackSession || (await fetchCurrentPlaybackSession(false));
+        if (!window.confirm("当前已有未结束课程。切换预览会终止当前课程，是否继续？")) {
+          return null;
+        }
+        if (current?.id) {
+          const terminated = await requestPlaybackSession(
+            `/api/tv/playback-sessions/${encodeURIComponent(current.id)}/terminate`,
+            { commandId: createCommandId() },
+            "正在终止当前课程...",
+            "终止当前课程失败。"
+          );
+          if (!terminated) {
+            return null;
+          }
+        }
+        return enterPreview(schedule);
+      }
+      handleRequestError(error, "同步课程预览失败。");
+      return null;
+    } finally {
+      setPendingAction("");
+      onBusyTextChange("");
+    }
+  }
 
-    if (!success) {
+  async function startCourse(schedule: TvDailySchedule) {
+    setSelectedScheduleId(String(schedule.id));
+
+    if (
+      playbackSession?.id &&
+      isActiveSessionState(sessionState) &&
+      String(playbackSession.scheduleId) !== String(schedule.id)
+    ) {
+      if (!window.confirm("当前已有未结束课程。开始这节课会终止当前课程，是否继续？")) {
+        return;
+      }
+      const terminated = await requestPlaybackSession(
+        `/api/tv/playback-sessions/${encodeURIComponent(playbackSession.id)}/terminate`,
+        { commandId: createCommandId() },
+        "正在终止当前课程...",
+        "终止当前课程失败。"
+      );
+      if (!terminated) {
+        return;
+      }
+      applyPlaybackSession(null);
+    }
+
+    const session =
+      playbackSession?.id && String(playbackSession.scheduleId) === String(schedule.id)
+        ? playbackSession
+        : await enterPreview(schedule);
+    const sessionId = session?.id || selectedPlaybackSessionId;
+    if (!sessionId) {
+      onNotice("还没有可开始的课程 session，请先进入 preview。", "error");
       return;
     }
 
-    setSelectedScheduleId(String(schedule.id));
-    setSelectedPlaybackSessionId(playbackSessionId);
-    setSessionState("PREVIEW");
-    setPreviewIndex(0);
-    onNotice("课程预览已同步到 TV。再次点击同一节课程即可正式开始。");
+    const nextSession = await requestPlaybackSession(
+      `/api/tv/playback-sessions/${encodeURIComponent(sessionId)}/start`,
+      {
+        commandId: createCommandId(),
+        startDelayMs: 5000
+      },
+      "正在发送开始课程指令...",
+      "开始课程失败。"
+    );
+
+    if (!nextSession) {
+      return;
+    }
+
+    onNotice("课程开始指令已发送，TV 端会按服务端时间同步开始。");
   }
 
   async function startSelectedCourse() {
     if (!selectedSchedule) {
       return;
     }
-
-    const playbackSessionId = selectedPlaybackSessionId || createPlaybackSessionId(selectedSchedule);
-    const playbackStartAtMs = Date.now() + 2000;
-    const success = await publishControl(
-      {
-        type: "start_course",
-        source: "coach-web",
-        scheduleId: String(selectedSchedule.id),
-        courseId: selectedSchedule.courseId,
-        scheduledStartAtMs: scheduleStartAtMs(selectedSchedule),
-        playbackSessionId,
-        bundleChecksum: String(selectedSchedule.contentChecksum || ""),
-        playbackStartAtMs,
-        requestedAt: Date.now()
-      },
-      "正在发送开始课程指令..."
-    );
-
-    if (!success) {
-      return;
-    }
-
-    setSelectedPlaybackSessionId(playbackSessionId);
-    setSessionState("RUNNING");
-    onNotice("课程开始指令已发送，TV 端会按统一时间同步开始。");
+    await startCourse(selectedSchedule);
   }
 
   async function pauseSelectedCourse() {
-    if (!selectedSchedule) {
+    if (!selectedSchedule || !playbackSession?.id) {
+      return;
+    }
+    if (sessionState === "PAUSED") {
       return;
     }
 
-    const success = await publishControl(
+    const session = await requestPlaybackSession(
+      `/api/tv/playback-sessions/${encodeURIComponent(playbackSession.id)}/pause`,
       {
-        type: "pause_course",
-        source: "coach-web",
-        scheduleId: String(selectedSchedule.id),
-        courseId: selectedSchedule.courseId,
-        scheduledStartAtMs: scheduleStartAtMs(selectedSchedule),
-        playbackSessionId: selectedPlaybackSessionId,
-        pausedAtMs: Date.now(),
-        requestedAt: Date.now()
+        commandId: createCommandId()
       },
-      "正在暂停课程..."
+      "正在暂停课程...",
+      "暂停课程失败。"
     );
 
-    if (!success) {
+    if (!session) {
       return;
     }
 
-    setSessionState("PAUSED");
     onNotice("课程已暂停，TV 端会停在当前状态。");
   }
 
   async function resumeSelectedCourse() {
-    if (!selectedSchedule) {
+    if (!selectedSchedule || !playbackSession?.id) {
       return;
     }
 
-    const success = await publishControl(
+    const session = await requestPlaybackSession(
+      `/api/tv/playback-sessions/${encodeURIComponent(playbackSession.id)}/resume`,
       {
-        type: "resume_course",
-        source: "coach-web",
-        scheduleId: String(selectedSchedule.id),
-        courseId: selectedSchedule.courseId,
-        scheduledStartAtMs: scheduleStartAtMs(selectedSchedule),
-        playbackSessionId: selectedPlaybackSessionId,
-        resumedAtMs: Date.now(),
-        requestedAt: Date.now()
+        commandId: createCommandId()
       },
-      "正在继续课程..."
+      "正在继续课程...",
+      "继续课程失败。"
     );
 
-    if (!success) {
+    if (!session) {
       return;
     }
 
-    setSessionState("RUNNING");
     onNotice("课程已继续。");
   }
 
   async function terminateSelectedCourse(nextSchedule?: TvDailySchedule) {
-    if (!selectedSchedule) {
+    if (!selectedSchedule || !playbackSession?.id) {
       if (nextSchedule) {
         await enterPreview(nextSchedule);
       }
       return;
     }
 
-    const success = await publishControl(
+    const session = await requestPlaybackSession(
+      `/api/tv/playback-sessions/${encodeURIComponent(playbackSession.id)}/terminate`,
       {
-        type: "terminate_course",
-        source: "coach-web",
-        scheduleId: String(selectedSchedule.id),
-        courseId: selectedSchedule.courseId,
-        scheduledStartAtMs: scheduleStartAtMs(selectedSchedule),
-        playbackSessionId: selectedPlaybackSessionId,
-        requestedAt: Date.now()
+        commandId: createCommandId()
       },
-      nextSchedule ? "正在终止当前课程并切换预览..." : "正在终止课程..."
+      nextSchedule ? "正在终止当前课程并切换预览..." : "正在终止课程...",
+      "终止课程失败。"
     );
 
-    if (!success) {
+    if (!session) {
       return;
     }
 
+    setPlaybackSession(null);
+    setServerClockBase(null);
     setSessionState("IDLE");
     setSelectedScheduleId("");
     setSelectedPlaybackSessionId("");
@@ -552,24 +787,8 @@ export default function CoachConsole({
   }
 
   async function handleScheduleClick(schedule: TvDailySchedule) {
-    const isCurrent = String(schedule.id) === String(selectedScheduleId);
-
-    if (!isCurrent && (sessionState === "RUNNING" || sessionState === "PAUSED")) {
-      if (!window.confirm("切换到另一节课程会终止当前课程，是否继续？")) {
-        return;
-      }
-      await terminateSelectedCourse(schedule);
-      return;
-    }
-
-    if (isCurrent && sessionState === "PREVIEW") {
-      await startSelectedCourse();
-      return;
-    }
-
-    if (!isCurrent || sessionState === "IDLE") {
-      await enterPreview(schedule);
-    }
+    setSelectedScheduleId(String(schedule.id));
+    setPreviewIndex(0);
   }
 
   function handlePrimaryAction() {
@@ -577,17 +796,17 @@ export default function CoachConsole({
       return;
     }
 
-    if (sessionState === "PREVIEW") {
+    if (selectedScheduleSessionState === "PREVIEW" || selectedScheduleSessionState === "IDLE") {
       void startSelectedCourse();
       return;
     }
 
-    if (sessionState === "RUNNING") {
+    if (selectedScheduleSessionState === "SCHEDULED" || selectedScheduleSessionState === "RUNNING") {
       void pauseSelectedCourse();
       return;
     }
 
-    if (sessionState === "PAUSED") {
+    if (selectedScheduleSessionState === "PAUSED") {
       void resumeSelectedCourse();
     }
   }
@@ -617,17 +836,30 @@ export default function CoachConsole({
     }
   }
 
+  function sessionStateForSchedule(schedule: TvDailySchedule): CoachSessionState {
+    if (playbackSession && String(playbackSession.scheduleId) === String(schedule.id)) {
+      return sessionState;
+    }
+    return "IDLE";
+  }
+
   function buildScheduleBadge(schedule: TvDailySchedule): { label: string; tone: string } {
-    const isSelected = String(schedule.id) === String(selectedScheduleId);
-    if (isSelected) {
-      if (sessionState === "RUNNING") {
+    const scheduleSessionState = sessionStateForSchedule(schedule);
+    if (scheduleSessionState !== "IDLE") {
+      if (scheduleSessionState === "SCHEDULED") {
+        return { label: "SYNCING", tone: "scheduled" };
+      }
+      if (scheduleSessionState === "RUNNING") {
         return { label: "LIVE", tone: "live" };
       }
-      if (sessionState === "PAUSED") {
+      if (scheduleSessionState === "PAUSED") {
         return { label: "PAUSED", tone: "paused" };
       }
-      if (sessionState === "PREVIEW") {
+      if (scheduleSessionState === "PREVIEW") {
         return { label: "PREVIEW", tone: "preview" };
+      }
+      if (scheduleSessionState === "ENDED" || scheduleSessionState === "TERMINATED") {
+        return { label: "已结束", tone: "ended" };
       }
     }
 
@@ -687,21 +919,86 @@ export default function CoachConsole({
             filteredSchedules.map((schedule) => {
               const badge = buildScheduleBadge(schedule);
               const isSelected = String(schedule.id) === String(selectedScheduleId);
+              const scheduleSessionState = sessionStateForSchedule(schedule);
+              const showRunningActions =
+                scheduleSessionState === "SCHEDULED" ||
+                scheduleSessionState === "RUNNING" ||
+                scheduleSessionState === "PAUSED";
 
               return (
-                <button
+                <article
                   key={schedule.id}
-                  type="button"
                   className={`coach-schedule-card ${isSelected ? "is-selected" : ""}`}
-                  onClick={() => void handleScheduleClick(schedule)}
                 >
-                  <div className="coach-schedule-logo">{buildCourseLogo(schedule.courseName)}</div>
-                  <div className="coach-schedule-copy">
-                    <strong>{schedule.courseName}</strong>
-                    <span>{buildScheduleRange(schedule)}</span>
-                  </div>
-                  <span className={`coach-schedule-badge is-${badge.tone}`}>{badge.label}</span>
-                </button>
+                  <button
+                    type="button"
+                    className="coach-schedule-main"
+                    disabled={Boolean(pendingAction)}
+                    onClick={() => void handleScheduleClick(schedule)}
+                  >
+                    <div className="coach-schedule-logo">{buildCourseLogo(schedule.courseName)}</div>
+                    <div className="coach-schedule-copy">
+                      <strong>{schedule.courseName}</strong>
+                      <span>{buildScheduleRange(schedule)}</span>
+                    </div>
+                    <span className={`coach-schedule-badge is-${badge.tone}`}>{badge.label}</span>
+                  </button>
+
+                  {isSelected ? (
+                    <div className="coach-schedule-actions">
+                      {showRunningActions ? (
+                        <>
+                          <button
+                            type="button"
+                            className="primary-button"
+                            disabled={Boolean(pendingAction)}
+                            onClick={() => {
+                              if (scheduleSessionState === "PAUSED") {
+                                void resumeSelectedCourse();
+                                return;
+                              }
+                              void pauseSelectedCourse();
+                            }}
+                          >
+                            {pendingAction ? "处理中..." : scheduleSessionState === "PAUSED" ? "继续" : "暂停"}
+                          </button>
+                          <button
+                            type="button"
+                            className="ghost-button danger"
+                            disabled={Boolean(pendingAction)}
+                            onClick={() => {
+                              if (!window.confirm("是否结束当前课程？")) {
+                                return;
+                              }
+                              void terminateSelectedCourse();
+                            }}
+                          >
+                            结束
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            className="ghost-button"
+                            disabled={Boolean(pendingAction)}
+                            onClick={() => void enterPreview(schedule)}
+                          >
+                            预览
+                          </button>
+                          <button
+                            type="button"
+                            className="primary-button"
+                            disabled={Boolean(pendingAction)}
+                            onClick={() => void startCourse(schedule)}
+                          >
+                            {pendingAction ? "处理中..." : "开始"}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  ) : null}
+                </article>
               );
             })
           ) : (
@@ -720,16 +1017,30 @@ export default function CoachConsole({
                   {formatDateLabel(selectedSchedule.beginTime)} · {buildScheduleRange(selectedSchedule)}
                 </p>
               </div>
-              <span className={`coach-preview-state is-${sessionState.toLowerCase()}`}>
-                {sessionState === "RUNNING"
+              <span className={`coach-preview-state is-${selectedScheduleSessionState.toLowerCase()}`}>
+                {selectedScheduleSessionState === "SCHEDULED"
+                  ? "SYNCING"
+                  : selectedScheduleSessionState === "RUNNING"
                   ? "LIVE"
-                  : sessionState === "PAUSED"
+                  : selectedScheduleSessionState === "PAUSED"
                     ? "PAUSED"
-                    : sessionState === "PREVIEW"
+                    : selectedScheduleSessionState === "PREVIEW"
                       ? "PREVIEW"
-                      : "IDLE"}
+                      : selectedScheduleSessionState === "ENDED" || selectedScheduleSessionState === "TERMINATED"
+                        ? "ENDED"
+                        : "IDLE"}
               </span>
             </div>
+            {playbackSession && String(playbackSession.scheduleId) === String(selectedScheduleId) ? (
+              <div className="coach-session-meta">
+                <span>Session {shortSessionId(playbackSession.id)}</span>
+                <span>v{playbackSession.version}</span>
+                <span>{playbackSession.lastCommandId ? `cmd ${shortSessionId(playbackSession.lastCommandId)}` : "cmd --"}</span>
+                {playbackSession.serverStartAtMs > 0 ? (
+                  <span>elapsed {Math.floor(displayElapsedMs / 1000)}s</span>
+                ) : null}
+              </div>
+            ) : null}
 
             <div className="coach-preview-stage">
               <div
@@ -792,7 +1103,7 @@ export default function CoachConsole({
                   </span>
                 ) : null}
                 <span>
-                  左右滑动切换正式组动作。点一次课程进入 preview，再点开始正式上课。
+                  左右滑动切换正式组动作。课程卡片里的按钮负责预览、开始和课堂控制。
                 </span>
               </div>
             </div>
@@ -815,25 +1126,25 @@ export default function CoachConsole({
               <button
                 type="button"
                 className="primary-button coach-primary-button"
-                disabled={!selectedSchedule || sessionState === "IDLE"}
+                disabled={!selectedSchedule || Boolean(pendingAction)}
                 onClick={handlePrimaryAction}
               >
-                {sessionState === "RUNNING"
+                {pendingAction
+                  ? "处理中..."
+                  : selectedScheduleSessionState === "SCHEDULED" || selectedScheduleSessionState === "RUNNING"
                   ? "暂停课程"
-                  : sessionState === "PAUSED"
+                  : selectedScheduleSessionState === "PAUSED"
                     ? "继续课程"
                     : "开始课程"}
               </button>
               <button
                 type="button"
                 className={`ghost-button coach-terminate-button ${
-                  sessionState === "PREVIEW" || sessionState === "RUNNING" || sessionState === "PAUSED"
+                  isActiveSessionState(selectedScheduleSessionState)
                     ? "is-enabled"
                     : ""
                 }`}
-                disabled={
-                  sessionState !== "PREVIEW" && sessionState !== "RUNNING" && sessionState !== "PAUSED"
-                }
+                disabled={!isActiveSessionState(selectedScheduleSessionState) || Boolean(pendingAction)}
                 onClick={() => {
                   if (!window.confirm("是否终止当前课程？")) {
                     return;
