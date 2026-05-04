@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type CSSProperties, type InputHTMLAttributes, type ReactNode } from "react";
 import AppVersionsPage from "./AppVersionsPage.tsx";
+import VenueManagementPage from "./VenueManagementPage.tsx";
 
-type NavKey = "home" | "courses" | "actions" | "templates" | "appVersions";
+type NavKey = "home" | "courses" | "actions" | "templates" | "venues" | "appVersions";
 type HomeTabKey = "currentWeek" | "lastWeek" | "history";
 type TypeDialogKind = "action" | "lesson";
 type CourseEditorTitle = "添加课程" | "编辑课程";
@@ -179,6 +180,14 @@ interface ScheduleCollection {
   history: ScheduleRecord[];
 }
 
+interface VenueRecord {
+  id: string;
+  name: string;
+  accountNamespace: string;
+  createTime: string;
+  updateTime: string;
+}
+
 interface WaterfallTemplateRecord {
   id: number;
   kind: "warmup" | "cooldown";
@@ -325,6 +334,12 @@ interface PodCopyDialogState {
   selectedSourceScreenId: string;
 }
 
+interface PodConfigCopyDialogState {
+  targetPodId: string;
+  targetPodName: string;
+  selectedSourcePodId: string;
+}
+
 interface FilterState {
   search: string;
   typeIds: number[];
@@ -394,6 +409,7 @@ const NAV_ITEMS: Array<{ key: NavKey; label: string; short: string }> = [
   { key: "courses", label: "课程", short: "C" },
   { key: "actions", label: "动作库", short: "A" },
   { key: "templates", label: "课程模板", short: "T" },
+  { key: "venues", label: "场馆管理", short: "M" },
   { key: "appVersions", label: "应用版本", short: "V" }
 ];
 
@@ -424,21 +440,8 @@ const CALENDAR_START_HOUR = 0;
 const CALENDAR_END_HOUR = 24;
 const CALENDAR_HOUR_HEIGHT = 70;
 const AUTH_STORAGE_KEY = "infini-admin-auth";
+const ACTIVE_VENUE_STORAGE_KEY = "infini-admin-active-venue-id";
 const LEGACY_BASIC_AUTH = "Basic REDACTED_CONFIGURE_LOCALLY";
-const CONSOLE_ACCOUNT_PRESETS = [
-  {
-    key: "formal",
-    label: "13689547720",
-    username: "13689547720",
-    password: "REDACTED_CONFIGURE_LOCALLY"
-  },
-  {
-    key: "testing",
-    label: "zhiyou",
-    username: "zhiyou",
-    password: "REDACTED_CONFIGURE_LOCALLY"
-  }
-] as const;
 
 function uid(prefix: string): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
@@ -711,6 +714,10 @@ function hasCustomPodRules(screen: Partial<PodScreen> & { segments?: Array<{ wor
     (Array.isArray(screen.setConfigs) && screen.setConfigs.length > 0) ||
     (Array.isArray(screen.segments) && screen.segments.length > 0)
   );
+}
+
+function podHasCustomizedRules(pod: Pod | null | undefined): boolean {
+  return Boolean(pod?.screens?.some((screen) => Boolean(screen?.isCustomized)));
 }
 
 function createPodScreen(
@@ -1662,7 +1669,18 @@ async function requestJson<T>(path: string, options: RequestInit = {}): Promise<
   const payload = (await response.json().catch(() => null)) as T | { message?: string } | null;
 
   if (!response.ok) {
-    throw new Error((payload as { message?: string } | null)?.message || `请求失败 (${response.status})`);
+    const message = (payload as { message?: string } | null)?.message || `请求失败 (${response.status})`;
+    const shouldExpire =
+      (response.status === 401 || response.status === 403) &&
+      (String(message || "").includes("登录已失效") || String(message || "").includes("refresh token 已失效"));
+    if (shouldExpire) {
+      try {
+        window.dispatchEvent(new CustomEvent("infini-auth-expired", { detail: { message } }));
+      } catch {
+        // Ignore dispatch failures.
+      }
+    }
+    throw new Error(message);
   }
 
   return payload as T;
@@ -2016,9 +2034,12 @@ export default function App() {
     username: "13689547720",
     password: "REDACTED_CONFIGURE_LOCALLY"
   });
-  const [passwordVisible, setPasswordVisible] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activePage, setActivePage] = useState<NavKey>("home");
+  const [venues, setVenues] = useState<VenueRecord[]>([]);
+  const [activeVenueId, setActiveVenueId] = useState<string>("");
+  const [venuesReady, setVenuesReady] = useState(false);
+  const metaVenueIdRef = useRef<string>("");
   const [homeTab, setHomeTab] = useState<HomeTabKey>("currentWeek");
   const [actionFiltersDraft, setActionFiltersDraft] = useState<FilterState>({ search: "", typeIds: [] });
   const [actionFilters, setActionFilters] = useState<FilterState>({ search: "", typeIds: [] });
@@ -2046,6 +2067,7 @@ export default function App() {
   const [typeDialog, setTypeDialog] = useState<TypeDialogState | null>(null);
   const [podRuleDialog, setPodRuleDialog] = useState<PodRuleDialogState | null>(null);
   const [podCopyDialog, setPodCopyDialog] = useState<PodCopyDialogState | null>(null);
+  const [podConfigCopyDialog, setPodConfigCopyDialog] = useState<PodConfigCopyDialogState | null>(null);
   const [notice, setNotice] = useState<NoticeState | null>(null);
   const [selectedScheduleDate, setSelectedScheduleDate] = useState<string>("all");
   const activeCourseEditorTab = courseEditorTabs.find((tab) => tab.tabId === activeCourseTabId) ?? null;
@@ -2062,7 +2084,8 @@ export default function App() {
     Boolean(scheduleDraft) ||
     Boolean(typeDialog) ||
     Boolean(podRuleDialog) ||
-    Boolean(podCopyDialog);
+    Boolean(podCopyDialog) ||
+    Boolean(podConfigCopyDialog);
 
   useEffect(() => {
     const storedAuth = readStorageJson<AuthSession>(AUTH_STORAGE_KEY);
@@ -2090,12 +2113,78 @@ export default function App() {
   }, [authReady, authSession]);
 
   useEffect(() => {
+    function handleAuthExpired(event: Event) {
+      const detail = (event as CustomEvent<{ message?: string }>).detail;
+      const message = String(detail?.message || "");
+      if (!message.includes("登录已失效") && !message.includes("refresh token 已失效")) {
+        return;
+      }
+      forceLogout("登录已过期，请重新登录。", "error");
+    }
+
+    window.addEventListener("infini-auth-expired", handleAuthExpired as EventListener);
+    return () => window.removeEventListener("infini-auth-expired", handleAuthExpired as EventListener);
+  }, []);
+
+  useEffect(() => {
     if (!authReady || !authSession) {
       return;
     }
 
-    loadMeta("正在加载页面...");
+    let alive = true;
+
+    (async () => {
+      const authHeader = `${authSession.token_type} ${authSession.access_token}`;
+      let venueList: VenueRecord[] = [];
+
+      setVenuesReady(false);
+      setBusyText("正在加载场馆...");
+      try {
+        const payload = await requestJson<{ data: VenueRecord[] }>("/api/admin/venues", {
+          headers: { Authorization: authHeader }
+        });
+        venueList = payload.data || [];
+      } catch (error) {
+        venueList = [];
+        pushNotice(getErrorMessage(error), "error");
+      } finally {
+        setBusyText("");
+      }
+
+      if (!alive) return;
+
+      setVenues(venueList);
+
+      const storedVenueId = String(window.localStorage.getItem(ACTIVE_VENUE_STORAGE_KEY) || "").trim();
+      const nextVenueId =
+        venueList.find((item) => String(item.id) === storedVenueId)?.id || venueList[0]?.id || "";
+
+      metaVenueIdRef.current = nextVenueId;
+      setActiveVenueId(String(nextVenueId || ""));
+      setVenuesReady(true);
+
+      await loadMeta("正在加载页面...", String(nextVenueId || ""));
+    })();
+
+    return () => {
+      alive = false;
+    };
   }, [authReady, authSession?.access_token]);
+
+  useEffect(() => {
+    if (!authReady || !authSession || !venuesReady) {
+      return;
+    }
+
+    const venueId = String(activeVenueId || "").trim();
+    if (metaVenueIdRef.current === venueId) {
+      return;
+    }
+
+    metaVenueIdRef.current = venueId;
+    window.localStorage.setItem(ACTIVE_VENUE_STORAGE_KEY, venueId);
+    loadMeta("正在切换场馆...", venueId);
+  }, [activeVenueId, authReady, authSession?.access_token, venuesReady]);
 
   useEffect(() => {
     if (!hasRecoverableDraft) {
@@ -2217,6 +2306,7 @@ export default function App() {
     setTypeDialog(null);
     setPodRuleDialog(null);
     setPodCopyDialog(null);
+    setPodConfigCopyDialog(null);
     setSelectedScheduleDate("all");
   }
 
@@ -2268,25 +2358,54 @@ export default function App() {
   }
 
   function handleLogout() {
+    forceLogout("已退出登录。");
+  }
+
+  function forceLogout(message?: string, tone: "success" | "error" = "success") {
     removeStorageItem(AUTH_STORAGE_KEY);
     setAuthSession(null);
     setAppData(null);
+    setVenues([]);
+    setActiveVenueId("");
+    setVenuesReady(false);
+    metaVenueIdRef.current = "";
     resetEditorState();
-    setLoginForm({
-      username: "13689547720",
-      password: "REDACTED_CONFIGURE_LOCALLY"
-    });
-    setPasswordVisible(false);
-    pushNotice("已退出登录。");
+    setLoginForm((current) => ({
+      username: current.username || "13689547720",
+      password: ""
+    }));
+    if (message) {
+      pushNotice(message, tone);
+    }
   }
 
-  async function loadMeta(label = ""): Promise<void> {
+  function handleVenuesChange(nextVenues: VenueRecord[]) {
+    const list = nextVenues || [];
+    setVenues(list);
+    setVenuesReady(true);
+    setActiveVenueId((current) => {
+      const currentId = String(current || "").trim();
+      if (currentId && list.some((venue) => String(venue.id) === currentId)) {
+        return currentId;
+      }
+      const storedVenueId = String(window.localStorage.getItem(ACTIVE_VENUE_STORAGE_KEY) || "").trim();
+      if (storedVenueId && list.some((venue) => String(venue.id) === storedVenueId)) {
+        return storedVenueId;
+      }
+      return String(list[0]?.id || "");
+    });
+  }
+
+  async function loadMeta(label = "", venueIdOverride?: string): Promise<void> {
     if (label) {
       setBusyText(label);
     }
 
     try {
-      const payload = await requestJson<MetaPayload>("/api/meta");
+      const venueId =
+        typeof venueIdOverride === "string" ? String(venueIdOverride || "").trim() : String(activeVenueId || "").trim();
+      const endpoint = venueId ? `/api/meta?venueId=${encodeURIComponent(venueId)}` : "/api/meta";
+      const payload = await requestJson<MetaPayload>(endpoint);
       setAppData(payload);
     } catch (error) {
       pushNotice(getErrorMessage(error), "error");
@@ -2321,7 +2440,9 @@ export default function App() {
 
   const weekDays = getWeekDays(homeTab === "lastWeek" ? -1 : 0);
   const weekDayKeysSignature = weekDays.map((day) => day.key).join("|");
-  const schedules = appData?.schedules || { currentWeek: [], lastWeek: [], history: [] };
+  const schedules = String(activeVenueId || "").trim()
+    ? appData?.schedules || { currentWeek: [], lastWeek: [], history: [] }
+    : { currentWeek: [], lastWeek: [], history: [] };
   const visibleSchedules =
     homeTab === "currentWeek"
       ? schedules.currentWeek
@@ -2542,6 +2663,7 @@ export default function App() {
     setCourseEditorTabsState(nextTabs);
     setPodRuleDialog(null);
     setPodCopyDialog(null);
+    setPodConfigCopyDialog(null);
 
     if (activeCourseTabId === tabId) {
       const fallbackTab = nextTabs[currentIndex - 1] || nextTabs[currentIndex] || null;
@@ -2562,6 +2684,16 @@ export default function App() {
       targetScreenIndex: screen.screenIndex,
       targetScreenLabel: screenLabel,
       selectedSourceScreenId: firstAvailableSource?.id || ""
+    });
+  }
+
+  function openPodConfigCopyDialog(pod: Pod, podLabel: string) {
+    const pods = courseEditor?.script.training.pods || [];
+    const firstAvailableSource = pods.find((candidate) => candidate.id !== pod.id && podHasCustomizedRules(candidate));
+    setPodConfigCopyDialog({
+      targetPodId: pod.id,
+      targetPodName: podLabel || pod.name || "Pod",
+      selectedSourcePodId: firstAvailableSource?.id || ""
     });
   }
 
@@ -2645,7 +2777,86 @@ export default function App() {
     setPodCopyDialog(null);
   }
 
+  function confirmPodConfigCopyDialog() {
+    if (!podConfigCopyDialog?.selectedSourcePodId) {
+      return;
+    }
+
+    updateCourseScript((current) => {
+      const sourcePod = current.training.pods.find((pod) => pod.id === podConfigCopyDialog.selectedSourcePodId) || null;
+      if (!sourcePod) {
+        return current;
+      }
+
+      return {
+        ...current,
+        training: {
+          ...current.training,
+          pods: current.training.pods.map((pod) => {
+            if (pod.id !== podConfigCopyDialog.targetPodId) {
+              return pod;
+            }
+
+            const linkedGroup = current.training.videoGroups.find((group) => group.id === pod.videoGroupId) || null;
+            const targetIsSingleScreen = linkedGroup?.screenCount === 1;
+            const sourceIsSingleScreen = sourcePod.screens.length === 1;
+
+            const resolveSourceForTarget = (screenIndex: number) => {
+              if (sourceIsSingleScreen) {
+                return sourcePod.screens[0] || null;
+              }
+              return (
+                sourcePod.screens.find((screen) => screen.screenIndex === screenIndex)
+                || sourcePod.screens[0]
+                || null
+              );
+            };
+
+            return {
+              ...pod,
+              ending: sourcePod.ending,
+              screens: pod.screens.map((screen) => {
+                const sourceScreen = resolveSourceForTarget(screen.screenIndex);
+                if (!sourceScreen) {
+                  return screen;
+                }
+
+                const linkedScreen =
+                  linkedGroup?.screens.find((entry) => entry.screenIndex === screen.screenIndex) || null;
+                const isSingleScreenRule = targetIsSingleScreen || linkedScreen?.layout === "WATERFALL";
+
+                return {
+                  ...screen,
+                  loopCount: sourceScreen.loopCount,
+                  stationRestSeconds: sourceScreen.stationRestSeconds,
+                  setConfigs: normalizePodSetConfigsForLayout(sourceScreen.setConfigs, isSingleScreenRule, 1),
+                  isCustomized: true
+                };
+              })
+            };
+          })
+        }
+      };
+    });
+
+    setPodConfigCopyDialog(null);
+    pushNotice("Pod 配置已复制。");
+  }
+
   function openScheduleDialog() {
+    if (!venuesReady) {
+      pushNotice("正在加载场馆信息，请稍后重试。", "error");
+      return;
+    }
+    if (!venues.length) {
+      pushNotice("请先新建场馆，再开始排课。", "error");
+      setActivePage("venues");
+      return;
+    }
+    if (!String(activeVenueId || "").trim()) {
+      pushNotice("请选择场馆后再开始排课。", "error");
+      return;
+    }
     if (!(appData?.courses || []).length) {
       pushNotice("请先在课程页创建课程。", "error");
       return;
@@ -2910,6 +3121,10 @@ export default function App() {
       pushNotice("请选择课程。", "error");
       return;
     }
+    if (!String(activeVenueId || "").trim()) {
+      pushNotice("请选择场馆后再保存排课。", "error");
+      return;
+    }
     if (!scheduleDraft.date || !scheduleDraft.time) {
       pushNotice("请选择课程日期和开始时间。", "error");
       return;
@@ -2925,6 +3140,7 @@ export default function App() {
       await requestJson("/api/schedules", {
         method: "POST",
         body: JSON.stringify({
+          venueId: String(activeVenueId || "").trim(),
           courseId: Number(scheduleDraft.courseId),
           version: scheduleDraft.version,
           beginTime: composeCnDateTime(scheduleDraft.date, scheduleDraft.time),
@@ -2942,6 +3158,10 @@ export default function App() {
   }
 
   async function copyLastWeekSchedule() {
+    if (!String(activeVenueId || "").trim()) {
+      pushNotice("请选择场馆后再复制排课。", "error");
+      return;
+    }
     if (schedules.currentWeek.length && !window.confirm("本周已有排课，确认用上周排课覆盖本周吗？")) {
       return;
     }
@@ -2949,7 +3169,7 @@ export default function App() {
     setBusyText("正在复制上周排课...");
 
     try {
-      await requestJson("/api/schedules/copy-last-week", {
+      await requestJson(`/api/schedules/copy-last-week?venueId=${encodeURIComponent(String(activeVenueId || "").trim())}`, {
         method: "POST"
       });
       await loadMeta();
@@ -3019,9 +3239,6 @@ export default function App() {
   }
 
   function renderLogin() {
-    const selectedAccountKey =
-      CONSOLE_ACCOUNT_PRESETS.find((preset) => preset.username === loginForm.username)?.key ?? "formal";
-
     return (
       <div className="login-shell">
         <section className="login-stage">
@@ -3034,63 +3251,50 @@ export default function App() {
             <div className="brand-wordmark">INFINI</div>
           </div>
 
-          <div className="login-panel">
-            <div className="login-panel-copy">
-              <p className="workspace-kicker">Infini Admin</p>
-              <h1>欢迎登录</h1>
-              <p>先选择帐户，再进入首页、课程和动作库。</p>
-            </div>
+            <div className="login-panel">
+              <div className="login-panel-copy">
+                <p className="workspace-kicker">Infini Admin</p>
+                <h1>欢迎登录</h1>
+                <p>输入账号和密码后进入后台。</p>
+              </div>
 
-            <div className="login-form old-login-form">
-              <label className="login-select-field">
-                <span>账号</span>
-                <div className="login-select-wrap">
-                  <select
-                    aria-label="选择账号"
-                    value={selectedAccountKey}
-                    onChange={(event) => {
-                      const preset = CONSOLE_ACCOUNT_PRESETS.find((item) => item.key === event.target.value);
-                      if (!preset) {
-                        return;
-                      }
-                      setLoginForm({
-                        username: preset.username,
-                        password: preset.password
-                      });
-                    }}
-                  >
-                    {CONSOLE_ACCOUNT_PRESETS.map((preset) => (
-                      <option key={preset.key} value={preset.key}>
-                        {preset.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </label>
+              <div className="login-form old-login-form">
+                <label className="login-select-field">
+                  <span>账号</span>
+                  <div className="login-password-row">
+                    <input
+                      value={loginForm.username}
+                      onChange={(event) => setLoginForm((current) => ({ ...current, username: event.target.value }))}
+                      placeholder="手机号或自定义账号"
+                      autoComplete="username"
+                      inputMode="text"
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          handleLogin();
+                        }
+                      }}
+                    />
+                  </div>
+                </label>
 
               <label className="login-select-field">
                 <span>密码</span>
                 <div className="login-password-row">
                   <input
-                    type={passwordVisible ? "text" : "password"}
+                    type="password"
                     value={loginForm.password}
                     onChange={(event) =>
                       setLoginForm((current) => ({ ...current, password: event.target.value }))
                     }
                     placeholder="请输入密码"
+                    autoComplete="current-password"
+                    inputMode="text"
                     onKeyDown={(event) => {
                       if (event.key === "Enter") {
                         handleLogin();
                       }
                     }}
                   />
-                  <button
-                    type="button"
-                    className="login-password-toggle"
-                    onClick={() => setPasswordVisible((current) => !current)}
-                  >
-                    {passwordVisible ? "隐藏" : "显示"}
-                  </button>
                 </div>
               </label>
 
@@ -3109,6 +3313,7 @@ export default function App() {
   }
 
   function renderHome() {
+    const activeVenue = venues.find((item) => String(item.id) === String(activeVenueId || "")) ?? null;
     const calendarDays =
       selectedScheduleDate === "all"
         ? weekDays
@@ -3119,13 +3324,45 @@ export default function App() {
         <div className="page-card-head">
           <div>
             <p className="page-eyebrow">Scheduling</p>
-            <h1>本周课程</h1>
+            <h1>{activeVenue ? `${activeVenue.name} · 课表` : "场馆课表"}</h1>
           </div>
           <div className="toolbar-actions">
-            <button type="button" className="primary-button" onClick={openScheduleDialog}>
+            {venues.length ? (
+              <label className="toolbar-field">
+                <span>场馆</span>
+                <select
+                  value={String(activeVenueId || "")}
+                  onChange={(event) => {
+                    const nextVenueId = String(event.target.value || "");
+                    if (hasRecoverableDraft && !window.confirm("当前页面有未保存操作，切换场馆会丢失。是否继续？")) {
+                      return;
+                    }
+                    setSelectedScheduleDate("all");
+                    setActiveVenueId(nextVenueId);
+                  }}
+                >
+                  {venues.map((venue) => (
+                    <option key={venue.id} value={venue.id}>
+                      {venue.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            <button
+              type="button"
+              className="primary-button"
+              onClick={openScheduleDialog}
+              disabled={!String(activeVenueId || "").trim()}
+            >
               + 添加课程
             </button>
-            <button type="button" className="ghost-button" onClick={copyLastWeekSchedule}>
+            <button
+              type="button"
+              className="ghost-button"
+              onClick={copyLastWeekSchedule}
+              disabled={!String(activeVenueId || "").trim()}
+            >
               一键复制上周排课
             </button>
           </div>
@@ -3138,6 +3375,7 @@ export default function App() {
               type="button"
               className={`tab-button ${homeTab === tab.key ? "is-active" : ""}`}
               onClick={() => setHomeTab(tab.key)}
+              disabled={!String(activeVenueId || "").trim()}
             >
               {tab.label}
             </button>
@@ -3146,6 +3384,23 @@ export default function App() {
 
         <div className="divider" />
 
+        {venuesReady && !venues.length ? (
+          <div className="page-content">
+            <EmptyBlock title="还没有场馆" copy="请先到「场馆管理」新建场馆，然后再为场馆排课。" />
+            <div className="toolbar-actions" style={{ marginTop: 16 }}>
+              <button type="button" className="primary-button" onClick={() => setActivePage("venues")}>
+                去新建场馆
+              </button>
+            </div>
+          </div>
+        ) : !String(activeVenueId || "").trim() ? (
+          <div className="page-content">
+            <EmptyBlock title="请选择场馆" copy="选择一个场馆后才能查看和编辑对应的课表。" />
+          </div>
+        ) : null}
+
+        {(!venuesReady || !venues.length || !String(activeVenueId || "").trim()) ? null : (
+          <>
         {homeTab === "history" ? (
           <div className="table-wrap">
             <table className="data-table">
@@ -3208,6 +3463,8 @@ export default function App() {
 
             <CalendarBoard weekDays={calendarDays} schedules={visibleSchedules} onDelete={removeSchedule} />
           </div>
+        )}
+          </>
         )}
       </section>
     );
@@ -4647,28 +4904,42 @@ export default function App() {
                               {linkedGroup?.name || "未绑定视频组"} · {linkedGroup?.screenCount === 1 ? "单屏瀑布" : "多屏站点"}
                             </span>
                           </div>
-                          <button
-                            type="button"
-                            className="table-link danger"
-                            onClick={() => {
-                              if (courseEditor.script.training.pods.length <= 1) {
-                                pushNotice("至少保留一个 Pod。", "error");
-                                return;
+                          <div className="module-card-actions">
+                            <button
+                              type="button"
+                              className="ghost-button small"
+                              disabled={
+                                !courseEditor.script.training.pods.some(
+                                  (candidate) => candidate.id !== pod.id && podHasCustomizedRules(candidate)
+                                )
                               }
-
-                              updateCourseScript((current) => ({
-                                ...current,
-                                training: {
-                                  ...current.training,
-                                  pods: rebalancePodEndings(
-                                    current.training.pods.filter((entry) => entry.id !== pod.id)
-                                  )
+                              onClick={() => openPodConfigCopyDialog(pod, pod.name || createPodName(podIndex))}
+                            >
+                              复制 Pod
+                            </button>
+                            <button
+                              type="button"
+                              className="table-link danger"
+                              onClick={() => {
+                                if (courseEditor.script.training.pods.length <= 1) {
+                                  pushNotice("至少保留一个 Pod。", "error");
+                                  return;
                                 }
-                              }));
-                            }}
-                          >
-                            删除
-                          </button>
+
+                                updateCourseScript((current) => ({
+                                  ...current,
+                                  training: {
+                                    ...current.training,
+                                    pods: rebalancePodEndings(
+                                      current.training.pods.filter((entry) => entry.id !== pod.id)
+                                    )
+                                  }
+                                }));
+                              }}
+                            >
+                              删除
+                            </button>
+                          </div>
                         </div>
 
                         <div className={`form-row ${pod.ending === "FINISH" ? "three" : "four"}`}>
@@ -5052,6 +5323,35 @@ export default function App() {
             disabled: !screen.isCustomized
           }))
       : [];
+  const podConfigCopyTargetPod =
+    podConfigCopyDialog && courseEditor
+      ? courseEditor.script.training.pods.find((pod) => pod.id === podConfigCopyDialog.targetPodId) || null
+      : null;
+  const podConfigCopyOptions =
+    podConfigCopyDialog && courseEditor
+      ? courseEditor.script.training.pods
+          .filter((pod) => pod.id !== podConfigCopyDialog.targetPodId)
+          .map((pod, index) => {
+            const linkedGroup =
+              courseEditor.script.training.videoGroups.find((group) => group.id === pod.videoGroupId) || null;
+            const isSingleScreenRule = linkedGroup?.screenCount === 1;
+            const firstScreen = pod.screens[0] || null;
+            const effectiveSetConfigs = firstScreen
+              ? normalizePodSetConfigsForLayout(firstScreen.setConfigs, isSingleScreenRule, 1)
+              : [];
+            const copiedWorkStrategy = effectiveSetConfigs.length
+              ? formatSecondsStrategy(effectiveSetConfigs.map((setConfig) => setConfig.workSeconds))
+              : "--";
+            const label = pod.name || createPodName(index);
+            const customized = podHasCustomizedRules(pod);
+            return {
+              id: pod.id,
+              label,
+              disabled: !customized,
+              hint: customized ? `已编辑 · ${copiedWorkStrategy}` : "未编辑，暂不可复制"
+            };
+          })
+      : [];
   const templateUseOptions = templateUseDialog ? templateCollections[templateUseDialog.target] || [] : [];
 
   if (!authReady) {
@@ -5132,6 +5432,14 @@ export default function App() {
           {activePage === "courses" ? renderCourses() : null}
           {activePage === "actions" ? renderActions() : null}
           {activePage === "templates" ? renderTemplates() : null}
+          {activePage === "venues" ? (
+            <VenueManagementPage
+              tokenType={authSession.token_type}
+              accessToken={authSession.access_token}
+              onNotice={pushNotice}
+              onVenuesChange={handleVenuesChange}
+            />
+          ) : null}
           {activePage === "appVersions" ? (
             <AppVersionsPage onBusyTextChange={setBusyText} onNotice={pushNotice} />
           ) : null}
@@ -5344,6 +5652,42 @@ export default function App() {
               </div>
             ) : (
               <EmptyBlock title="没有可复制的屏幕" copy="当前 Pod 还没有其他屏幕规则可供复制。" />
+            )}
+          </div>
+        </Dialog>
+      ) : null}
+
+      {podConfigCopyDialog ? (
+        <Dialog
+          title={`${podConfigCopyDialog.targetPodName} · 复制 Pod 配置`}
+          width={640}
+          onClose={() => setPodConfigCopyDialog(null)}
+          onConfirm={confirmPodConfigCopyDialog}
+          confirmText="复制"
+          confirmDisabled={!podConfigCopyDialog.selectedSourcePodId}
+        >
+          <div className="dialog-form">
+            {podConfigCopyOptions.length ? (
+              <div className="copy-screen-options">
+                {podConfigCopyOptions.map((pod) => (
+                  <button
+                    key={pod.id}
+                    type="button"
+                    className={`copy-screen-option ${podConfigCopyDialog.selectedSourcePodId === pod.id ? "is-selected" : ""}`}
+                    disabled={pod.disabled}
+                    onClick={() =>
+                      setPodConfigCopyDialog((current) =>
+                        current ? { ...current, selectedSourcePodId: pod.id } : current
+                      )
+                    }
+                  >
+                    <strong>{pod.label}</strong>
+                    <span>{pod.hint}</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <EmptyBlock title="没有可复制的 Pod" copy="先编辑一个 Pod 的规则，再到其他 Pod 点击“复制 Pod”。" />
             )}
           </div>
         </Dialog>
