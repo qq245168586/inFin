@@ -10,6 +10,8 @@ import {
   bindTvScreenByPairing,
   createAppPackageFilename,
   copyLastWeekSchedules,
+  createPreviewPlaybackSession,
+  endExpiredPlaybackSessions,
   createMediaFilename,
   createConsoleUser,
   createUploadedMedia,
@@ -22,11 +24,26 @@ import {
   getAppPackageById,
   getAppPackageRoot,
   getUserByAccessToken,
+  isSuperAdminUser,
+  listVenues,
+  createVenue,
+  updateVenue,
+  deleteVenue,
+  listVenueUsers,
+  createVenueUser,
+  listAdminConsoleUsers,
+  bindUserToVenue,
+  unbindUserFromVenue,
+  updateUser,
+  getVenueById,
   getCourseById,
   getMediaRecord,
   getMediaRoot,
   getMetaPayload,
   getTemplateById,
+  getCurrentPlaybackSession,
+  getCurrentPlaybackSessionForTv,
+  getPlaybackSession,
   getTvDailyBundle,
   getTvDailyChecksum,
   getTvScheduleBundle,
@@ -49,15 +66,18 @@ import {
   saveCourse,
   saveTemplate,
   saveSchedule,
-  unbindTvScreen
+  unbindTvScreen,
+  updatePlaybackSessionState
 } from "./data/store.js";
 import { buildStorageKey, getMediaStorageMode, uploadBufferToOss } from "./services/media-storage.js";
-import { getTvControlConfig, publishTvControl } from "./services/tv-control.js";
+import { getTvControlConfig, publishTvControl, publishTvSessionEvent } from "./services/tv-control.js";
+import { readOpsEvents, startOpsMqttSubscriber, subscribeOpsEvents } from "./services/mqtt-ops-log.js";
 import { readJsonBody, readRequestBuffer, sendFile, sendJson, sendNoContent } from "./utils/http.js";
 
 const host = process.env.HOST || "127.0.0.1";
 const port = Number(process.env.PORT || 3100);
 const legacyBasicAuth = "Basic REDACTED_CONFIGURE_LOCALLY";
+const PLAYBACK_SESSION_SWEEP_INTERVAL_MS = 20 * 1000;
 
 const mimeByExtension = {
   ".jpg": "image/jpeg",
@@ -127,6 +147,39 @@ function requireAuthorizedConsoleUser(request, response) {
   return user;
 }
 
+function requireSuperAdmin(request, response) {
+  const user = requireAuthorizedConsoleUser(request, response);
+  if (!user) {
+    return null;
+  }
+  if (!isSuperAdminUser(user)) {
+    unauthorized(response, "当前账号没有管理权限。");
+    return null;
+  }
+  return user;
+}
+
+function getAuthorizedConsoleUserFromQuery(request, url) {
+  const tokenType = String(url.searchParams.get("tokenType") || "").trim();
+  const accessToken = String(url.searchParams.get("accessToken") || "").trim();
+  if (!accessToken) return null;
+  if (tokenType && tokenType.toLowerCase() !== "bearer") return null;
+  return getUserByAccessToken(accessToken);
+}
+
+function requireSuperAdminFromHeaderOrQuery(request, response, url) {
+  const user = getAuthorizedConsoleUser(request) || getAuthorizedConsoleUserFromQuery(request, url);
+  if (!user) {
+    unauthorized(response);
+    return null;
+  }
+  if (!isSuperAdminUser(user)) {
+    unauthorized(response, "当前账号没有管理权限。");
+    return null;
+  }
+  return user;
+}
+
 function resolveAccountNamespace(value, fallback = "13689547720") {
   const text = String(value || "").trim().toLowerCase();
   return text || fallback;
@@ -134,6 +187,19 @@ function resolveAccountNamespace(value, fallback = "13689547720") {
 
 function resolveOptionalAccountNamespace(value) {
   return String(value || "").trim().toLowerCase();
+}
+
+function resolveRequestAccountNamespace(user, url) {
+  const requestedVenueId = String(url?.searchParams?.get("venueId") || "").trim();
+  const requestedVenueNamespace = requestedVenueId
+    ? resolveOptionalAccountNamespace(getVenueById(requestedVenueId)?.accountNamespace || "")
+    : "";
+  const requestedAccountNamespace =
+    requestedVenueNamespace || resolveOptionalAccountNamespace(url?.searchParams?.get("accountNamespace") || "");
+  if (requestedAccountNamespace && isSuperAdminUser(user)) {
+    return requestedAccountNamespace;
+  }
+  return resolveAccountNamespace(user?.accountNamespace, user?.username);
 }
 
 function isValidTvControlType(value) {
@@ -188,6 +254,104 @@ function validateTvControlPayload(payload) {
   }
 
   return "";
+}
+
+function requireCommandId(payload) {
+  const commandId = String(payload?.commandId || "").trim();
+  if (!commandId) {
+    return "";
+  }
+  return commandId;
+}
+
+function buildPlaybackSessionControlPayload(type, session, commandId, extra = {}) {
+  const serverNowMs = Date.now();
+  const accountNamespace = resolveOptionalAccountNamespace(session.accountNamespace);
+  return {
+    type,
+    source: "coach-web",
+    commandId,
+    accountNamespace,
+    venueId: accountNamespace,
+    sessionId: session.id,
+    playbackSessionId: session.id,
+    sessionVersion: session.version,
+    state: session.state,
+    scheduleId: String(session.scheduleId || ""),
+    courseId: Number(session.courseId),
+    courseName: String(session.courseName || ""),
+    scheduledStartAtMs: Number(session.scheduledStartAtMs) || 0,
+    bundleChecksum: String(session.bundleChecksum || ""),
+    timingMode: "server_session",
+    serverStartAtMs: Number(session.serverStartAtMs) || 0,
+    playbackStartAtMs: Number(session.serverStartAtMs) || 0,
+    expectedDurationMs: Number(session.expectedDurationMs) || 0,
+    expectedEndAtMs: Number(session.expectedEndAtMs) || 0,
+    pausedAccumulatedMs: Number(session.pausedAccumulatedMs) || 0,
+    pausedAtMs: Number(session.pausedAtMs) || 0,
+    endedAtMs: Number(session.endedAtMs) || 0,
+    terminatedAtMs: Number(session.terminatedAtMs) || 0,
+    elapsedMs: Number(session.elapsedMs) || 0,
+    serverNowMs,
+    requestedAt: serverNowMs,
+    ...extra
+  };
+}
+
+async function publishPlaybackSessionControl(response, accountNamespace, type, session, commandId, extra = {}) {
+  const result = {
+    sessionEvent: null,
+    legacyControl: null,
+    errors: []
+  };
+
+  try {
+    result.sessionEvent = await publishTvSessionEvent(session, accountNamespace);
+  } catch (error) {
+    result.errors.push(error instanceof Error ? error.message : "session MQTT 发布失败。");
+  }
+
+  try {
+    result.legacyControl = await publishTvControl(
+      buildPlaybackSessionControlPayload(type, session, commandId, extra),
+      accountNamespace
+    );
+  } catch (error) {
+    result.errors.push(error instanceof Error ? error.message : "legacy MQTT 发布失败。");
+  }
+
+  return result;
+}
+
+async function publishAutoEndedPlaybackSession(session) {
+  const accountNamespace = resolveOptionalAccountNamespace(session?.accountNamespace);
+  try {
+    await publishTvSessionEvent(session, accountNamespace);
+  } catch (error) {
+    console.warn(
+      "Failed to publish auto-ended playback session:",
+      error instanceof Error ? error.message : String(error)
+    );
+  }
+}
+
+function startPlaybackSessionSweeper() {
+  const sweep = async () => {
+    let endedSessions = [];
+    try {
+      endedSessions = endExpiredPlaybackSessions();
+    } catch (error) {
+      console.warn("Playback session sweep failed:", error instanceof Error ? error.message : String(error));
+      return;
+    }
+
+    for (const session of endedSessions) {
+      await publishAutoEndedPlaybackSession(session);
+    }
+  };
+
+  setInterval(sweep, PLAYBACK_SESSION_SWEEP_INTERVAL_MS).unref?.();
+  sweep();
 }
 
 function validateTvScreenPayload(payload) {
@@ -271,6 +435,26 @@ function validateAppPackageUploadParams(url) {
   return "";
 }
 
+function validateVenuePayload(payload) {
+  const name = String(payload?.name || "").trim();
+  if (!name) {
+    return "场馆名称不能为空。";
+  }
+  return "";
+}
+
+function validateVenueUserPayload(payload) {
+  const username = String(payload?.username || "").trim();
+  const password = String(payload?.password || "").trim();
+  if (!username) {
+    return "账号不能为空。";
+  }
+  if (!password) {
+    return "密码不能为空。";
+  }
+  return "";
+}
+
 function findTargetScreen(payload, accountNamespace) {
   const screensPayload = listTvScreens(resolveAccountNamespace(accountNamespace));
   const candidates = [...screensPayload.screens, ...(screensPayload.unboundDevices || [])];
@@ -314,22 +498,303 @@ const server = http.createServer(async (request, response) => {
       return;
     }
 
+    if (request.method === "GET" && url.pathname === "/api/ops/mqtt/events") {
+      const user = requireSuperAdmin(request, response);
+      if (!user) return;
+      const items = readOpsEvents({
+        namespace: url.searchParams.get("namespace") || "",
+        deviceId: url.searchParams.get("deviceId") || "",
+        topic: url.searchParams.get("topic") || "",
+        type: url.searchParams.get("type") || "",
+        date: url.searchParams.get("date") || "",
+        limit: url.searchParams.get("limit") || "200"
+      });
+      sendJson(response, 200, { data: { items } });
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/ops/mqtt/stream") {
+      const user = requireSuperAdminFromHeaderOrQuery(request, response, url);
+      if (!user) return;
+
+      const filter = {
+        namespace: String(url.searchParams.get("namespace") || "").trim().toLowerCase(),
+        deviceId: String(url.searchParams.get("deviceId") || "").trim().toUpperCase(),
+        topic: String(url.searchParams.get("topic") || "").trim(),
+        type: String(url.searchParams.get("type") || "").trim()
+      };
+
+      response.writeHead(200, {
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        Connection: "keep-alive",
+        "X-Accel-Buffering": "no",
+        "Access-Control-Allow-Origin": "*"
+      });
+
+      response.write(`event: ready\ndata: ${JSON.stringify({ ok: true, now: Date.now() })}\n\n`);
+
+      const unsubscribe = subscribeOpsEvents((event) => {
+        try {
+          if (filter.namespace && String(event.namespace || "").toLowerCase() !== filter.namespace) return;
+          if (filter.deviceId && String(event.deviceId || "").toUpperCase() !== filter.deviceId) return;
+          if (filter.topic && !String(event.topic || "").includes(filter.topic)) return;
+          if (filter.type && !String(event.type || "").includes(filter.type)) return;
+          response.write(`data: ${JSON.stringify(event)}\n\n`);
+        } catch {
+          // ignore write errors
+        }
+      });
+
+      request.on("close", () => {
+        try {
+          unsubscribe();
+        } catch {
+          // ignore
+        }
+      });
+      return;
+    }
+
     if (request.method === "GET" && (url.pathname === "/api/meta" || url.pathname === "/api/editor/bootstrap")) {
-      sendJson(response, 200, getMetaPayload());
+      const venueId = url.searchParams.get("venueId") || "";
+      sendJson(response, 200, getMetaPayload(venueId));
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/admin/venues") {
+      const user = requireSuperAdmin(request, response);
+      if (!user) return;
+      sendJson(response, 200, { data: listVenues() });
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/admin/venues") {
+      const user = requireSuperAdmin(request, response);
+      if (!user) return;
+      const payload = await readJsonBody(request);
+      const issue = validateVenuePayload(payload);
+      if (issue) {
+        badRequest(response, issue);
+        return;
+      }
+      try {
+        sendJson(response, 201, { data: createVenue(payload) });
+      } catch (error) {
+        badRequest(response, error instanceof Error ? error.message : "创建场馆失败。");
+      }
+      return;
+    }
+
+    if (request.method === "PATCH" && url.pathname.startsWith("/api/admin/venues/")) {
+      const user = requireSuperAdmin(request, response);
+      if (!user) return;
+      const venueId = url.pathname.replace("/api/admin/venues/", "");
+      if (!venueId || venueId.includes("/")) {
+        sendJson(response, 404, { message: "Route not found." });
+        return;
+      }
+      const payload = await readJsonBody(request);
+      try {
+        const updated = updateVenue(venueId, payload);
+        if (!updated) {
+          sendJson(response, 404, { message: "场馆不存在。" });
+          return;
+        }
+        sendJson(response, 200, { data: updated });
+      } catch (error) {
+        badRequest(response, error instanceof Error ? error.message : "更新场馆失败。");
+      }
+      return;
+    }
+
+    if (request.method === "DELETE" && url.pathname.startsWith("/api/admin/venues/")) {
+      const user = requireSuperAdmin(request, response);
+      if (!user) return;
+      const venueId = url.pathname.replace("/api/admin/venues/", "");
+      if (!venueId || venueId.includes("/")) {
+        sendJson(response, 404, { message: "Route not found." });
+        return;
+      }
+      const venue = getVenueById(venueId);
+      const venueNamespace = resolveOptionalAccountNamespace(venue?.accountNamespace || "");
+      const venueScreens = venueNamespace
+        ? listTvScreens(venueNamespace).screens.filter((screen) => String(screen.deviceId || "").trim())
+        : [];
+      const result = deleteVenue(venueId);
+      if (!result.ok) {
+        badRequest(response, result.message || "删除场馆失败。");
+        return;
+      }
+      for (const screen of venueScreens) {
+        try {
+          await publishTvControl(
+            {
+              type: "venue_deleted",
+              source: "admin-web",
+              deviceId: String(screen.deviceId || "").trim(),
+              screenNumber: Number(screen.screenNumber) || 0,
+              accountNamespace: venueNamespace,
+              venueId: venueNamespace,
+              requestedAt: Date.now()
+            },
+            venueNamespace
+          );
+        } catch {
+          // Venue deletion must not fail because a TV is offline or MQTT is temporarily unavailable.
+        }
+      }
+      sendNoContent(response);
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname.startsWith("/api/admin/venues/") && url.pathname.endsWith("/users")) {
+      const user = requireSuperAdmin(request, response);
+      if (!user) return;
+      const venueId = url.pathname.replace("/api/admin/venues/", "").replace("/users", "");
+      sendJson(response, 200, { data: listVenueUsers(venueId) });
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname.startsWith("/api/admin/venues/") && url.pathname.endsWith("/users")) {
+      const user = requireSuperAdmin(request, response);
+      if (!user) return;
+      const venueId = url.pathname.replace("/api/admin/venues/", "").replace("/users", "");
+      const payload = await readJsonBody(request);
+      const issue = validateVenueUserPayload(payload);
+      if (issue) {
+        badRequest(response, issue);
+        return;
+      }
+      try {
+        sendJson(response, 201, { data: createVenueUser(venueId, payload) });
+      } catch (error) {
+        badRequest(response, error instanceof Error ? error.message : "创建账号失败。");
+      }
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname.startsWith("/api/admin/venues/") && url.pathname.endsWith("/screens")) {
+      const user = requireSuperAdmin(request, response);
+      if (!user) return;
+      const venueId = url.pathname.replace("/api/admin/venues/", "").replace("/screens", "");
+      const venue = getVenueById(venueId);
+      if (!venue) {
+        sendJson(response, 404, { message: "场馆不存在。" });
+        return;
+      }
+      sendJson(response, 200, { data: listTvScreens(resolveAccountNamespace(venue.accountNamespace)) });
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/admin/users") {
+      const user = requireSuperAdmin(request, response);
+      if (!user) return;
+      const query = url.searchParams.get("q") || url.searchParams.get("query") || "";
+      const unboundOnly = String(url.searchParams.get("unbound") || "").trim() === "1";
+      const role = String(url.searchParams.get("role") || "").trim().toLowerCase();
+      let users = listAdminConsoleUsers(query);
+      if (role === "venue") {
+        users = users.filter((item) => String(item.role || "").trim() === "venue");
+      }
+      if (unboundOnly) {
+        users = users.filter((item) => !String(item.venueId || "").trim());
+      }
+      sendJson(response, 200, { data: users });
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/admin/users") {
+      const user = requireSuperAdmin(request, response);
+      if (!user) return;
+      const payload = await readJsonBody(request);
+      const issue = validateVenueUserPayload(payload);
+      if (issue) {
+        badRequest(response, issue);
+        return;
+      }
+      try {
+        sendJson(response, 201, {
+          data: createConsoleUser({
+            username: String(payload.username || "").trim(),
+            password: String(payload.password || "").trim(),
+            nickname: String(payload.nickname || "").trim(),
+            role: "venue",
+            venueId: "",
+            allowedClients: ["coach-web"]
+          })
+        });
+      } catch (error) {
+        badRequest(response, error instanceof Error ? error.message : "创建账号失败。");
+      }
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname.startsWith("/api/admin/venues/") && url.pathname.endsWith("/bind-user")) {
+      const user = requireSuperAdmin(request, response);
+      if (!user) return;
+      const venueId = url.pathname.replace("/api/admin/venues/", "").replace("/bind-user", "");
+      if (!venueId || venueId.includes("/")) {
+        sendJson(response, 404, { message: "Route not found." });
+        return;
+      }
+      const payload = await readJsonBody(request);
+      const userId = Number(payload?.userId);
+      if (!Number.isFinite(userId) || userId <= 0) {
+        badRequest(response, "请提供有效的 userId。");
+        return;
+      }
+      try {
+        sendJson(response, 200, { data: bindUserToVenue(userId, venueId) });
+      } catch (error) {
+        badRequest(response, error instanceof Error ? error.message : "绑定账号失败。");
+      }
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname.startsWith("/api/admin/users/") && url.pathname.endsWith("/unbind")) {
+      const user = requireSuperAdmin(request, response);
+      if (!user) return;
+      const userId = url.pathname.replace("/api/admin/users/", "").replace("/unbind", "");
+      if (!userId || userId.includes("/")) {
+        sendJson(response, 404, { message: "Route not found." });
+        return;
+      }
+      try {
+        sendJson(response, 200, { data: unbindUserFromVenue(userId) });
+      } catch (error) {
+        badRequest(response, error instanceof Error ? error.message : "解绑账号失败。");
+      }
+      return;
+    }
+
+    if (request.method === "PATCH" && url.pathname.startsWith("/api/admin/users/")) {
+      const user = requireSuperAdmin(request, response);
+      if (!user) return;
+      const userId = url.pathname.replace("/api/admin/users/", "");
+      const payload = await readJsonBody(request);
+      const updated = updateUser(userId, payload);
+      if (!updated) {
+        sendJson(response, 404, { message: "账号不存在。" });
+        return;
+      }
+      sendJson(response, 200, { data: updated });
       return;
     }
 
     if (request.method === "GET" && url.pathname === "/api/tv/daily-bundle") {
       const date = url.searchParams.get("date") || "";
       const timeZone = url.searchParams.get("timeZone") || "Asia/Shanghai";
-      sendJson(response, 200, getTvDailyBundle(date, timeZone));
+      const accountNamespace = url.searchParams.get("accountNamespace") || "";
+      sendJson(response, 200, getTvDailyBundle(date, timeZone, accountNamespace));
       return;
     }
 
     if (request.method === "GET" && url.pathname === "/api/tv/daily-checksum") {
       const date = url.searchParams.get("date") || "";
       const timeZone = url.searchParams.get("timeZone") || "Asia/Shanghai";
-      sendJson(response, 200, getTvDailyChecksum(date, timeZone));
+      const accountNamespace = url.searchParams.get("accountNamespace") || "";
+      sendJson(response, 200, getTvDailyChecksum(date, timeZone, accountNamespace));
       return;
     }
 
@@ -351,8 +816,162 @@ const server = http.createServer(async (request, response) => {
       if (!user) {
         return;
       }
-      sendJson(response, 200, listTvScreens(resolveAccountNamespace(user.accountNamespace, user.username)));
+      sendJson(response, 200, listTvScreens(resolveRequestAccountNamespace(user, url)));
       return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/tv/playback-sessions/current") {
+      const user = getAuthorizedConsoleUser(request);
+      const accountNamespace = user
+        ? resolveRequestAccountNamespace(user, url)
+        : resolveOptionalAccountNamespace(url.searchParams.get("accountNamespace") || "");
+      const session = user || accountNamespace
+        ? getCurrentPlaybackSession(accountNamespace)
+        : getCurrentPlaybackSessionForTv({
+            deviceId: url.searchParams.get("deviceId") || "",
+            screenNumber: url.searchParams.get("screenNumber") || "",
+            accountNamespace
+          });
+      const serverNowMs = Date.now();
+      sendJson(response, 200, {
+        ok: true,
+        serverNowMs,
+        session,
+        data: session
+      });
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/tv/playback-sessions/preview") {
+      const user = requireAuthorizedConsoleUser(request, response);
+      if (!user) {
+        return;
+      }
+      const payload = await readJsonBody(request);
+      const commandId = requireCommandId(payload);
+      if (!commandId) {
+        badRequest(response, "commandId 不能为空。");
+        return;
+      }
+
+      const accountNamespace = resolveAccountNamespace(user.accountNamespace, user.username);
+      let session;
+      try {
+        session = createPreviewPlaybackSession(
+          {
+            ...payload,
+            createdBy: user.username
+          },
+          accountNamespace
+        );
+      } catch (error) {
+        sendJson(response, error?.code === "ACTIVE_PLAYBACK_SESSION" ? 409 : 400, {
+          message: error instanceof Error ? error.message : "创建预览 session 失败。"
+        });
+        return;
+      }
+
+      const publishResult = await publishPlaybackSessionControl(
+        response,
+        accountNamespace,
+        "preview_course",
+        session,
+        commandId
+      );
+      if (!publishResult) {
+        return;
+      }
+      sendJson(response, 200, {
+        ok: true,
+        serverNowMs: Date.now(),
+        session,
+        data: session,
+        mqtt: publishResult
+      });
+      return;
+    }
+
+    if (url.pathname.startsWith("/api/tv/playback-sessions/")) {
+      const match = url.pathname.match(/^\/api\/tv\/playback-sessions\/([^/]+)(?:\/([^/]+))?$/);
+      if (match) {
+        const user = requireAuthorizedConsoleUser(request, response);
+        if (!user) {
+          return;
+        }
+        const accountNamespace = resolveAccountNamespace(user.accountNamespace, user.username);
+        const sessionId = decodeURIComponent(match[1]);
+        const action = String(match[2] || "").trim();
+
+        if (request.method === "GET" && !action) {
+          const session = getPlaybackSession(sessionId, accountNamespace);
+          if (!session) {
+            sendJson(response, 404, { message: "playback session 不存在。" });
+            return;
+          }
+          sendJson(response, 200, {
+            ok: true,
+            serverNowMs: Date.now(),
+            session,
+            data: session
+          });
+          return;
+        }
+
+        if (request.method === "POST" && ["start", "pause", "resume", "end", "terminate"].includes(action)) {
+          const payload = await readJsonBody(request);
+          const commandId = requireCommandId(payload);
+          if (!commandId) {
+            badRequest(response, "commandId 不能为空。");
+            return;
+          }
+
+          let session;
+          try {
+            session = updatePlaybackSessionState(sessionId, action, payload, accountNamespace);
+          } catch (error) {
+            badRequest(response, error instanceof Error ? error.message : "更新 playback session 失败。");
+            return;
+          }
+          if (!session) {
+            sendJson(response, 404, { message: "playback session 不存在。" });
+            return;
+          }
+
+          const typeByAction = {
+            start: "start_course",
+            pause: "pause_course",
+            resume: "resume_course",
+            end: "terminate_course",
+            terminate: "terminate_course"
+          };
+          const publishResult = await publishPlaybackSessionControl(
+            response,
+            accountNamespace,
+            typeByAction[action],
+            session,
+            commandId,
+            action === "pause"
+              ? { pausedAtMs: session.pausedAtMs }
+              : action === "resume"
+                ? { resumedAtMs: Date.now() }
+                : action === "start"
+                  ? { startDelayMs: Number(session.startDelayMs) || 0 }
+                  : {}
+          );
+          if (!publishResult) {
+            return;
+          }
+
+          sendJson(response, 200, {
+            ok: true,
+            serverNowMs: Date.now(),
+            session,
+            data: session,
+            mqtt: publishResult
+          });
+          return;
+        }
+      }
     }
 
     if (request.method === "POST" && url.pathname === "/api/tv/screens/bind") {
@@ -410,6 +1029,7 @@ const server = http.createServer(async (request, response) => {
             deviceId: String(payload.deviceId || "").trim(),
             screenNumber: Number(payload.screenNumber),
             accountNamespace,
+            venueId: accountNamespace,
             requestedAt: Date.now()
           },
           "__unbound__"
@@ -457,6 +1077,8 @@ const server = http.createServer(async (request, response) => {
           source: "coach-web",
           deviceId: currentScreen.deviceId,
           screenNumber: currentScreen.screenNumber,
+          accountNamespace,
+          venueId: accountNamespace,
           requestedAt: Date.now()
         }, accountNamespace);
       } catch (error) {
@@ -491,6 +1113,7 @@ const server = http.createServer(async (request, response) => {
           deviceId: String(payload.deviceId || "").trim(),
           screenNumber: Number(payload.screenNumber),
           accountNamespace,
+          venueId: accountNamespace,
           requestedAt: Date.now()
         }, resolveTvControlNamespace(findTargetScreen(payload, accountNamespace), accountNamespace));
       } catch (error) {
@@ -561,6 +1184,8 @@ const server = http.createServer(async (request, response) => {
           source: "coach-web",
           deviceId: currentScreen.deviceId,
           screenNumber: Number(currentScreen.screenNumber) || 0,
+          accountNamespace,
+          venueId: accountNamespace,
           requestedAt: Date.now()
         }, accountNamespace);
         sendJson(response, 200, {
@@ -637,6 +1262,8 @@ const server = http.createServer(async (request, response) => {
           source: "coach-web",
           deviceId: currentScreen.deviceId,
           screenNumber: Number(currentScreen.screenNumber) || 0,
+          accountNamespace,
+          venueId: accountNamespace,
           packageId: appPackage.id,
           platform: appPackage.platform,
           version: appPackage.version,
@@ -681,6 +1308,7 @@ const server = http.createServer(async (request, response) => {
         type: String(payload.type),
         source: String(payload.source || "coach-web"),
         accountNamespace: normalizedAccountNamespace,
+        venueId: normalizedAccountNamespace,
         playbackSessionId: String(payload.playbackSessionId || "").trim(),
         bundleChecksum: String(payload.bundleChecksum || "").trim(),
         requestedAt: Number(payload.requestedAt) || Date.now()
@@ -783,6 +1411,10 @@ const server = http.createServer(async (request, response) => {
       const result = loginConsoleUser(payload?.username, payload?.password, clientName);
       if (result?.error === "CLIENT_NOT_ALLOWED") {
         unauthorized(response, "当前账号不能登录这个端口。");
+        return;
+      }
+      if (result?.error === "VENUE_NOT_BOUND") {
+        unauthorized(response, "该账号尚未绑定场馆，请先在场馆管理中完成绑定。");
         return;
       }
       if (!result) {
@@ -1135,7 +1767,8 @@ const server = http.createServer(async (request, response) => {
 
     if (request.method === "GET" && url.pathname === "/api/schedules") {
       const scope = url.searchParams.get("scope") || "CURRENTWEEK";
-      sendJson(response, 200, { data: listSchedulesByScope(scope) });
+      const venueId = url.searchParams.get("venueId") || "";
+      sendJson(response, 200, { data: listSchedulesByScope(scope, venueId) });
       return;
     }
 
@@ -1147,7 +1780,13 @@ const server = http.createServer(async (request, response) => {
         return;
       }
 
-      const schedule = saveSchedule(payload);
+      let schedule = null;
+      try {
+        schedule = saveSchedule(payload);
+      } catch (error) {
+        badRequest(response, error instanceof Error ? error.message : "排课保存失败。");
+        return;
+      }
 
       if (!schedule) {
         sendJson(response, 404, { message: "课程不存在。" });
@@ -1159,7 +1798,8 @@ const server = http.createServer(async (request, response) => {
     }
 
     if (request.method === "POST" && url.pathname === "/api/schedules/copy-last-week") {
-      sendJson(response, 200, { data: copyLastWeekSchedules() });
+      const venueId = url.searchParams.get("venueId") || "";
+      sendJson(response, 200, { data: copyLastWeekSchedules(venueId) });
       return;
     }
 
@@ -1177,6 +1817,9 @@ const server = http.createServer(async (request, response) => {
     });
   }
 });
+
+startOpsMqttSubscriber();
+startPlaybackSessionSweeper();
 
 server.listen(port, host, () => {
   console.log(`Infini server listening on http://${host}:${port}`);

@@ -1,0 +1,1032 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Infini Platform Server API",
+    "version": "1.0.0",
+    "description": "Infini 课程编辑端、Coach Web、TV App、场馆管理和 MQTT 调试共用的 Server API。本文档按当前 server.js 实际路由整理。"
+  },
+  "servers": [
+    {
+      "url": "https://api.infintraining.work",
+      "description": "Production API domain"
+    },
+    {
+      "url": "http://8.130.65.113",
+      "description": "Production IP / TV HTTP compatibility"
+    },
+    {
+      "url": "http://127.0.0.1:3100",
+      "description": "Local development"
+    }
+  ],
+  "tags": [
+    { "name": "Health", "description": "服务健康检查" },
+    { "name": "Auth", "description": "登录、刷新 token、用户信息" },
+    { "name": "Meta", "description": "编辑端启动基础数据" },
+    { "name": "Admin Venues", "description": "场馆、场馆账号、场馆屏幕管理" },
+    { "name": "Ops MQTT", "description": "MQTT 调试日志和实时流" },
+    { "name": "TV Resources", "description": "TV 拉课表、课程资源和 checksum" },
+    { "name": "Playback Sessions", "description": "课程预览、开始、暂停、恢复、终止的统一播放会话" },
+    { "name": "TV Screens", "description": "TV 绑定、心跳、解绑、清缓存、安装包下发和控制指令" },
+    { "name": "App Packages", "description": "TV APK 等应用安装包管理" },
+    { "name": "Uploads", "description": "视频、图片和媒体文件" },
+    { "name": "Actions", "description": "动作库和动作分类" },
+    { "name": "Courses", "description": "课程、课程分类、课程模板" },
+    { "name": "Schedules", "description": "排课" },
+    { "name": "Legacy Users", "description": "兼容旧版用户接口" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "access_token"
+      },
+      "LegacyBasicAuth": {
+        "type": "http",
+        "scheme": "basic",
+        "description": "固定客户端凭证：REDACTED_CONFIGURE_LOCALLY / REDACTED_CONFIGURE_LOCALLY"
+      }
+    },
+    "parameters": {
+      "VenueId": {
+        "name": "venueId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" },
+        "description": "场馆 ID"
+      },
+      "UserId": {
+        "name": "userId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" },
+        "description": "账号 ID"
+      },
+      "ActionId": {
+        "name": "actionId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" },
+        "description": "动作 ID"
+      },
+      "CourseId": {
+        "name": "courseId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" },
+        "description": "课程 ID"
+      },
+      "TemplateId": {
+        "name": "templateId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" },
+        "description": "模板 ID"
+      },
+      "ScheduleId": {
+        "name": "scheduleId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" },
+        "description": "排课 ID"
+      },
+      "SessionId": {
+        "name": "sessionId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" },
+        "description": "Playback Session ID"
+      },
+      "Filename": {
+        "name": "filename",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" },
+        "description": "文件名"
+      }
+    },
+    "schemas": {
+      "AnyObject": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "message": { "type": "string" },
+          "msg": { "type": "string" },
+          "code": { "type": "integer" },
+          "error": { "type": "string" }
+        }
+      },
+      "DataEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": { "$ref": "#/components/schemas/AnyObject" }
+        },
+        "additionalProperties": true
+      },
+      "LegacyEnvelope": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "integer", "example": 200 },
+          "message": { "type": "string", "example": "success" },
+          "msg": { "type": "string", "example": "success" },
+          "data": {}
+        },
+        "additionalProperties": true
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["username", "password"],
+        "properties": {
+          "username": { "type": "string", "example": "13689547720" },
+          "password": { "type": "string", "example": "REDACTED_CONFIGURE_LOCALLY" },
+          "client": { "type": "string", "example": "editor-web" },
+          "clientType": { "type": "string", "example": "coach-web" }
+        },
+        "additionalProperties": true
+      },
+      "RefreshTokenRequest": {
+        "type": "object",
+        "properties": {
+          "refresh_token": { "type": "string" },
+          "refreshToken": { "type": "string" },
+          "client": { "type": "string", "example": "editor-web" }
+        },
+        "additionalProperties": true
+      },
+      "VenueRequest": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string", "example": "场馆 A" },
+          "description": { "type": "string" }
+        },
+        "additionalProperties": true
+      },
+      "VenueUserRequest": {
+        "type": "object",
+        "required": ["username", "password"],
+        "properties": {
+          "username": { "type": "string", "example": "venue_account" },
+          "password": { "type": "string", "example": "password" },
+          "nickname": { "type": "string", "example": "场馆账号" }
+        },
+        "additionalProperties": true
+      },
+      "BindUserRequest": {
+        "type": "object",
+        "required": ["userId"],
+        "properties": {
+          "userId": { "type": "integer", "example": 12 }
+        }
+      },
+      "TvScreenRequest": {
+        "type": "object",
+        "required": ["deviceId", "screenNumber"],
+        "properties": {
+          "deviceId": { "type": "string", "example": "TV-EE6C8126" },
+          "screenNumber": { "type": "integer", "minimum": 1, "maximum": 5, "example": 1 },
+          "accountNamespace": { "type": "string", "example": "13689547720" },
+          "pairToken": { "type": "string", "example": "B69FAAE7" }
+        },
+        "additionalProperties": true
+      },
+      "TvHeartbeatRequest": {
+        "type": "object",
+        "required": ["deviceId"],
+        "properties": {
+          "deviceId": { "type": "string", "example": "TV-EE6C8126" },
+          "screenNumber": { "type": "integer", "example": 1 },
+          "accountNamespace": { "type": "string", "example": "13689547720" },
+          "appVersion": { "type": "string", "example": "1.0.0-debug" },
+          "playbackState": { "type": "string", "example": "IDLE" },
+          "cacheBytes": { "type": "integer", "example": 12345678 }
+        },
+        "additionalProperties": true
+      },
+      "TvControlRequest": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["refresh_checksum", "preview_course", "start_course", "pause_course", "resume_course", "terminate_course"]
+          },
+          "scheduleId": { "type": "string" },
+          "playbackSessionId": { "type": "string" },
+          "commandId": { "type": "string" },
+          "requestedAt": { "type": "integer", "format": "int64" }
+        },
+        "additionalProperties": true
+      },
+      "PlaybackPreviewRequest": {
+        "type": "object",
+        "required": ["commandId", "scheduleId"],
+        "properties": {
+          "commandId": { "type": "string", "example": "cmd_123" },
+          "scheduleId": { "type": "string" },
+          "startDelayMs": { "type": "integer", "example": 1500 }
+        },
+        "additionalProperties": true
+      },
+      "PlaybackActionRequest": {
+        "type": "object",
+        "required": ["commandId"],
+        "properties": {
+          "commandId": { "type": "string", "example": "cmd_123" },
+          "startDelayMs": { "type": "integer", "example": 1500 },
+          "reason": { "type": "string" }
+        },
+        "additionalProperties": true
+      },
+      "NameRequest": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" }
+        }
+      },
+      "ScheduleRequest": {
+        "type": "object",
+        "required": ["courseId", "beginTime", "duration"],
+        "properties": {
+          "courseId": { "type": "string" },
+          "venueId": { "type": "string" },
+          "beginTime": { "type": "string", "example": "2026-05-03T10:00:00+08:00" },
+          "duration": { "type": "integer", "example": 45 }
+        },
+        "additionalProperties": true
+      },
+      "AppPackageUploadQuery": {
+        "type": "object",
+        "properties": {
+          "platform": { "type": "string", "example": "tv" },
+          "version": { "type": "string", "example": "1.0.1" },
+          "label": { "type": "string", "example": "TV 1.0.1" },
+          "filename": { "type": "string", "example": "app-debug.apk" },
+          "notes": { "type": "string" }
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "请求参数错误",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "Unauthorized": {
+        "description": "登录失效或没有权限",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "NotFound": {
+        "description": "资源不存在",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "Conflict": {
+        "description": "当前状态冲突",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      }
+    }
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "服务健康检查",
+        "description": "返回 DB 安全状态、媒体存储模式、TV 控制配置和服务器当前时间。",
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/meta": {
+      "get": {
+        "tags": ["Meta"],
+        "summary": "获取编辑端基础元数据",
+        "parameters": [{ "name": "venueId", "in": "query", "schema": { "type": "string" }, "description": "可选场馆 ID" }],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/editor/bootstrap": {
+      "get": {
+        "tags": ["Meta"],
+        "summary": "编辑端启动数据",
+        "description": "编辑端初始化时获取动作类型、课程类型等基础数据。",
+        "parameters": [{ "name": "venueId", "in": "query", "schema": { "type": "string" }, "description": "可选场馆 ID" }],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/app/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "旧版登录入口",
+        "security": [{ "LegacyBasicAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LoginRequest" } } } },
+        "responses": { "200": { "description": "登录成功" }, "403": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/api/app/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "新版登录入口",
+        "security": [{ "LegacyBasicAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LoginRequest" } } } },
+        "responses": { "200": { "description": "登录成功" }, "403": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/app/refresh": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "旧版刷新 token",
+        "security": [{ "LegacyBasicAuth": [] }],
+        "parameters": [{ "name": "refresh_token", "in": "query", "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "刷新成功" }, "403": { "$ref": "#/components/responses/Unauthorized" } }
+      },
+      "post": {
+        "tags": ["Auth"],
+        "summary": "旧版刷新 token",
+        "security": [{ "LegacyBasicAuth": [] }],
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RefreshTokenRequest" } } } },
+        "responses": { "200": { "description": "刷新成功" }, "403": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/api/app/refresh": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "新版刷新 token",
+        "security": [{ "LegacyBasicAuth": [] }],
+        "parameters": [{ "name": "refresh_token", "in": "query", "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "刷新成功" }, "403": { "$ref": "#/components/responses/Unauthorized" } }
+      },
+      "post": {
+        "tags": ["Auth"],
+        "summary": "新版刷新 token",
+        "security": [{ "LegacyBasicAuth": [] }],
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RefreshTokenRequest" } } } },
+        "responses": { "200": { "description": "刷新成功" }, "403": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/user/info": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "旧版获取当前用户信息",
+        "security": [{ "BearerAuth": [] }],
+        "responses": { "200": { "description": "OK" }, "403": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/api/user/info": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "新版获取当前用户信息",
+        "security": [{ "BearerAuth": [] }],
+        "responses": { "200": { "description": "OK" }, "403": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/user/list": {
+      "get": {
+        "tags": ["Legacy Users"],
+        "summary": "旧版用户列表",
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/user/list": {
+      "get": {
+        "tags": ["Legacy Users"],
+        "summary": "新版用户列表",
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/user/insert": {
+      "post": {
+        "tags": ["Legacy Users"],
+        "summary": "旧版创建用户",
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AnyObject" } } } },
+        "responses": { "200": { "description": "OK" }, "400": { "$ref": "#/components/responses/BadRequest" } }
+      }
+    },
+    "/api/user/insert": {
+      "post": {
+        "tags": ["Legacy Users"],
+        "summary": "新版创建用户",
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AnyObject" } } } },
+        "responses": { "200": { "description": "OK" }, "400": { "$ref": "#/components/responses/BadRequest" } }
+      }
+    },
+    "/api/admin/venues": {
+      "get": {
+        "tags": ["Admin Venues"],
+        "summary": "获取全部场馆",
+        "security": [{ "BearerAuth": [] }],
+        "responses": { "200": { "description": "OK" }, "403": { "$ref": "#/components/responses/Unauthorized" } }
+      },
+      "post": {
+        "tags": ["Admin Venues"],
+        "summary": "新建场馆",
+        "description": "命名空间由服务端根据场馆名称生成，操作者不需要手动填写。",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/VenueRequest" } } } },
+        "responses": { "201": { "description": "创建成功" }, "400": { "$ref": "#/components/responses/BadRequest" }, "403": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/api/admin/venues/{venueId}": {
+      "patch": {
+        "tags": ["Admin Venues"],
+        "summary": "更新场馆",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/VenueId" }],
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AnyObject" } } } },
+        "responses": { "200": { "description": "OK" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      },
+      "delete": {
+        "tags": ["Admin Venues"],
+        "summary": "删除场馆",
+        "description": "删除场馆后会尝试通过 MQTT 通知该场馆 TV 回到二维码页。",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/VenueId" }],
+        "responses": { "204": { "description": "删除成功" }, "400": { "$ref": "#/components/responses/BadRequest" } }
+      }
+    },
+    "/api/admin/venues/{venueId}/users": {
+      "get": {
+        "tags": ["Admin Venues"],
+        "summary": "获取场馆账号",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/VenueId" }],
+        "responses": { "200": { "description": "OK" } }
+      },
+      "post": {
+        "tags": ["Admin Venues"],
+        "summary": "在场馆下创建账号",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/VenueId" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/VenueUserRequest" } } } },
+        "responses": { "201": { "description": "创建成功" }, "400": { "$ref": "#/components/responses/BadRequest" } }
+      }
+    },
+    "/api/admin/venues/{venueId}/screens": {
+      "get": {
+        "tags": ["Admin Venues"],
+        "summary": "获取场馆 TV 屏幕状态",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/VenueId" }],
+        "responses": { "200": { "description": "OK" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/api/admin/users": {
+      "get": {
+        "tags": ["Admin Venues"],
+        "summary": "管理端账号列表",
+        "description": "支持搜索、只看未绑定账号、按角色筛选，用于场馆绑定账号。",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "q", "in": "query", "schema": { "type": "string" }, "description": "搜索关键词" },
+          { "name": "query", "in": "query", "schema": { "type": "string" }, "description": "搜索关键词，兼容 q" },
+          { "name": "unbound", "in": "query", "schema": { "type": "string", "enum": ["0", "1"] }, "description": "1 表示只返回未绑定场馆的账号" },
+          { "name": "role", "in": "query", "schema": { "type": "string", "example": "venue" }, "description": "角色筛选" }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      },
+      "post": {
+        "tags": ["Admin Venues"],
+        "summary": "创建场馆账号",
+        "description": "创建后暂不绑定场馆，需要调用 bind-user。",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/VenueUserRequest" } } } },
+        "responses": { "201": { "description": "创建成功" }, "400": { "$ref": "#/components/responses/BadRequest" } }
+      }
+    },
+    "/api/admin/venues/{venueId}/bind-user": {
+      "post": {
+        "tags": ["Admin Venues"],
+        "summary": "绑定账号到场馆",
+        "description": "当前一个账号只能绑定一个场馆。",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/VenueId" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BindUserRequest" } } } },
+        "responses": { "200": { "description": "OK" }, "400": { "$ref": "#/components/responses/BadRequest" } }
+      }
+    },
+    "/api/admin/users/{userId}/unbind": {
+      "post": {
+        "tags": ["Admin Venues"],
+        "summary": "账号解绑场馆",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/UserId" }],
+        "responses": { "200": { "description": "OK" }, "400": { "$ref": "#/components/responses/BadRequest" } }
+      }
+    },
+    "/api/admin/users/{userId}": {
+      "patch": {
+        "tags": ["Admin Venues"],
+        "summary": "修改账号",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/UserId" }],
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AnyObject" } } } },
+        "responses": { "200": { "description": "OK" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/api/ops/mqtt/events": {
+      "get": {
+        "tags": ["Ops MQTT"],
+        "summary": "查询 MQTT 历史日志",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "namespace", "in": "query", "schema": { "type": "string" } },
+          { "name": "deviceId", "in": "query", "schema": { "type": "string" } },
+          { "name": "topic", "in": "query", "schema": { "type": "string" } },
+          { "name": "type", "in": "query", "schema": { "type": "string" } },
+          { "name": "date", "in": "query", "schema": { "type": "string", "example": "2026-05-03" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 200 } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/ops/mqtt/stream": {
+      "get": {
+        "tags": ["Ops MQTT"],
+        "summary": "订阅 MQTT 实时日志 SSE",
+        "description": "EventSource 无法设置 Authorization Header 时，可用 accessToken 和 tokenType=Bearer 查询参数。",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "namespace", "in": "query", "schema": { "type": "string" } },
+          { "name": "deviceId", "in": "query", "schema": { "type": "string" } },
+          { "name": "topic", "in": "query", "schema": { "type": "string" } },
+          { "name": "type", "in": "query", "schema": { "type": "string" } },
+          { "name": "accessToken", "in": "query", "schema": { "type": "string" } },
+          { "name": "tokenType", "in": "query", "schema": { "type": "string", "example": "Bearer" } }
+        ],
+        "responses": { "200": { "description": "text/event-stream" } }
+      }
+    },
+    "/api/tv/daily-bundle": {
+      "get": {
+        "tags": ["TV Resources"],
+        "summary": "TV 获取当天课程资源包",
+        "parameters": [
+          { "name": "date", "in": "query", "schema": { "type": "string", "example": "2026-05-03" } },
+          { "name": "timeZone", "in": "query", "schema": { "type": "string", "default": "Asia/Shanghai" } },
+          { "name": "accountNamespace", "in": "query", "schema": { "type": "string" }, "description": "场馆命名空间" }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/tv/daily-checksum": {
+      "get": {
+        "tags": ["TV Resources"],
+        "summary": "TV 检查当天资源 checksum",
+        "parameters": [
+          { "name": "date", "in": "query", "schema": { "type": "string", "example": "2026-05-03" } },
+          { "name": "timeZone", "in": "query", "schema": { "type": "string", "default": "Asia/Shanghai" } },
+          { "name": "accountNamespace", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/tv/schedule-bundle": {
+      "get": {
+        "tags": ["TV Resources"],
+        "summary": "TV 获取单节排课完整资源",
+        "parameters": [{ "name": "scheduleId", "in": "query", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "OK" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/api/tv/playback-sessions/current": {
+      "get": {
+        "tags": ["Playback Sessions"],
+        "summary": "获取当前播放会话",
+        "description": "Coach 带 Bearer 时按账号/场馆取；TV 可通过 deviceId、screenNumber、accountNamespace 查询自己的当前 session。",
+        "parameters": [
+          { "name": "accountNamespace", "in": "query", "schema": { "type": "string" } },
+          { "name": "deviceId", "in": "query", "schema": { "type": "string" } },
+          { "name": "screenNumber", "in": "query", "schema": { "type": "integer" } },
+          { "name": "venueId", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/tv/playback-sessions/preview": {
+      "post": {
+        "tags": ["Playback Sessions"],
+        "summary": "创建课程预览 session",
+        "description": "Coach 端点击课程进入 preview 时调用，并发布 MQTT 给 TV。",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PlaybackPreviewRequest" } } } },
+        "responses": { "200": { "description": "OK" }, "400": { "$ref": "#/components/responses/BadRequest" }, "409": { "$ref": "#/components/responses/Conflict" } }
+      }
+    },
+    "/api/tv/playback-sessions/{sessionId}": {
+      "get": {
+        "tags": ["Playback Sessions"],
+        "summary": "获取指定 playback session",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/SessionId" }],
+        "responses": { "200": { "description": "OK" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/api/tv/playback-sessions/{sessionId}/start": {
+      "post": {
+        "tags": ["Playback Sessions"],
+        "summary": "正式开始课程",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/SessionId" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PlaybackActionRequest" } } } },
+        "responses": { "200": { "description": "OK" }, "400": { "$ref": "#/components/responses/BadRequest" } }
+      }
+    },
+    "/api/tv/playback-sessions/{sessionId}/pause": {
+      "post": {
+        "tags": ["Playback Sessions"],
+        "summary": "暂停课程",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/SessionId" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PlaybackActionRequest" } } } },
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/tv/playback-sessions/{sessionId}/resume": {
+      "post": {
+        "tags": ["Playback Sessions"],
+        "summary": "恢复课程",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/SessionId" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PlaybackActionRequest" } } } },
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/tv/playback-sessions/{sessionId}/end": {
+      "post": {
+        "tags": ["Playback Sessions"],
+        "summary": "结束课程",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/SessionId" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PlaybackActionRequest" } } } },
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/tv/playback-sessions/{sessionId}/terminate": {
+      "post": {
+        "tags": ["Playback Sessions"],
+        "summary": "强制终止课程",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/SessionId" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PlaybackActionRequest" } } } },
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/tv/screens": {
+      "get": {
+        "tags": ["TV Screens"],
+        "summary": "查看 TV 屏幕状态",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "venueId", "in": "query", "schema": { "type": "string" } },
+          { "name": "accountNamespace", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "OK" }, "403": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/api/tv/screens/bind": {
+      "post": {
+        "tags": ["TV Screens"],
+        "summary": "旧式绑定 TV 屏幕",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TvScreenRequest" } } } },
+        "responses": { "200": { "description": "OK" }, "400": { "$ref": "#/components/responses/BadRequest" } }
+      }
+    },
+    "/api/tv/screens/heartbeat": {
+      "post": {
+        "tags": ["TV Screens"],
+        "summary": "TV 心跳上报",
+        "description": "TV 定时上报在线状态、版本、播放状态、缓存占用等。",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TvHeartbeatRequest" } } } },
+        "responses": { "200": { "description": "OK" }, "400": { "$ref": "#/components/responses/BadRequest" } }
+      }
+    },
+    "/api/tv/screens/pair-bind": {
+      "post": {
+        "tags": ["TV Screens"],
+        "summary": "扫码绑定 TV 到屏幕",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TvScreenRequest" } } } },
+        "responses": { "200": { "description": "OK" }, "404": { "$ref": "#/components/responses/NotFound" }, "502": { "description": "MQTT 发布失败" } }
+      }
+    },
+    "/api/tv/screens/unbind": {
+      "post": {
+        "tags": ["TV Screens"],
+        "summary": "解绑 TV 屏幕",
+        "description": "解绑后通过 MQTT 通知 TV 回二维码页。",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TvScreenRequest" } } } },
+        "responses": { "200": { "description": "OK" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/api/tv/screens/reassign": {
+      "post": {
+        "tags": ["TV Screens"],
+        "summary": "调整 TV 屏幕编号",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TvScreenRequest" } } } },
+        "responses": { "200": { "description": "OK" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/api/tv/screens/clear-cache": {
+      "post": {
+        "tags": ["TV Screens"],
+        "summary": "下发清理 TV 缓存命令",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TvScreenRequest" } } } },
+        "responses": { "200": { "description": "OK" }, "409": { "$ref": "#/components/responses/Conflict" } }
+      }
+    },
+    "/api/tv/screens/install-package": {
+      "post": {
+        "tags": ["TV Screens"],
+        "summary": "下发 TV 安装包更新命令",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  { "$ref": "#/components/schemas/TvScreenRequest" },
+                  {
+                    "type": "object",
+                    "required": ["packageId"],
+                    "properties": { "packageId": { "type": "integer", "example": 1 } }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "OK" }, "409": { "$ref": "#/components/responses/Conflict" } }
+      }
+    },
+    "/api/tv/control": {
+      "post": {
+        "tags": ["TV Screens"],
+        "summary": "兼容 TV 控制指令入口",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TvControlRequest" } } } },
+        "responses": { "200": { "description": "OK" }, "400": { "$ref": "#/components/responses/BadRequest" }, "502": { "description": "MQTT 发布失败" } }
+      }
+    },
+    "/api/app-packages": {
+      "get": {
+        "tags": ["App Packages"],
+        "summary": "获取安装包版本列表",
+        "parameters": [{ "name": "platform", "in": "query", "schema": { "type": "string", "example": "tv" } }],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/app-packages/scan": {
+      "post": {
+        "tags": ["App Packages"],
+        "summary": "扫描安装包目录",
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/app-packages/upload": {
+      "post": {
+        "tags": ["App Packages"],
+        "summary": "上传 APK 安装包",
+        "parameters": [
+          { "name": "platform", "in": "query", "schema": { "type": "string", "example": "tv" } },
+          { "name": "version", "in": "query", "required": true, "schema": { "type": "string", "example": "1.0.1" } },
+          { "name": "label", "in": "query", "schema": { "type": "string" } },
+          { "name": "filename", "in": "query", "schema": { "type": "string", "example": "app-debug.apk" } },
+          { "name": "notes", "in": "query", "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.android.package-archive": { "schema": { "type": "string", "format": "binary" } },
+            "application/octet-stream": { "schema": { "type": "string", "format": "binary" } }
+          }
+        },
+        "responses": { "201": { "description": "上传成功" }, "400": { "$ref": "#/components/responses/BadRequest" } }
+      }
+    },
+    "/api/app-packages/files/{filename}": {
+      "get": {
+        "tags": ["App Packages"],
+        "summary": "下载安装包",
+        "parameters": [{ "$ref": "#/components/parameters/Filename" }],
+        "responses": { "200": { "description": "APK 文件" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      },
+      "head": {
+        "tags": ["App Packages"],
+        "summary": "检查安装包文件",
+        "parameters": [{ "$ref": "#/components/parameters/Filename" }],
+        "responses": { "200": { "description": "文件存在" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/api/upload/video": {
+      "post": {
+        "tags": ["Uploads"],
+        "summary": "上传动作视频",
+        "parameters": [{ "name": "filename", "in": "query", "schema": { "type": "string", "example": "划船-hyrox.mp4" } }],
+        "requestBody": { "required": true, "content": { "video/mp4": { "schema": { "type": "string", "format": "binary" } }, "application/octet-stream": { "schema": { "type": "string", "format": "binary" } } } },
+        "responses": { "201": { "description": "上传成功" } }
+      }
+    },
+    "/api/upload/image": {
+      "post": {
+        "tags": ["Uploads"],
+        "summary": "上传图片",
+        "parameters": [{ "name": "filename", "in": "query", "schema": { "type": "string", "example": "cover.png" } }],
+        "requestBody": { "required": true, "content": { "image/png": { "schema": { "type": "string", "format": "binary" } }, "application/octet-stream": { "schema": { "type": "string", "format": "binary" } } } },
+        "responses": { "201": { "description": "上传成功" } }
+      }
+    },
+    "/api/media/{filename}": {
+      "get": {
+        "tags": ["Uploads"],
+        "summary": "获取媒体文件",
+        "parameters": [{ "$ref": "#/components/parameters/Filename" }],
+        "responses": { "200": { "description": "媒体文件" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      },
+      "head": {
+        "tags": ["Uploads"],
+        "summary": "检查媒体文件",
+        "parameters": [{ "$ref": "#/components/parameters/Filename" }],
+        "responses": { "200": { "description": "文件存在" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/api/action-types": {
+      "get": {
+        "tags": ["Actions"],
+        "summary": "动作分类列表",
+        "responses": { "200": { "description": "OK" } }
+      },
+      "post": {
+        "tags": ["Actions"],
+        "summary": "新增动作分类",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NameRequest" } } } },
+        "responses": { "201": { "description": "创建成功" }, "400": { "$ref": "#/components/responses/BadRequest" } }
+      }
+    },
+    "/api/actions": {
+      "get": {
+        "tags": ["Actions"],
+        "summary": "动作库列表",
+        "responses": { "200": { "description": "OK" } }
+      },
+      "post": {
+        "tags": ["Actions"],
+        "summary": "新增动作",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AnyObject" } } } },
+        "responses": { "201": { "description": "创建成功" }, "400": { "$ref": "#/components/responses/BadRequest" } }
+      }
+    },
+    "/api/actions/{actionId}": {
+      "get": {
+        "tags": ["Actions"],
+        "summary": "动作详情",
+        "parameters": [{ "$ref": "#/components/parameters/ActionId" }],
+        "responses": { "200": { "description": "OK" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      },
+      "put": {
+        "tags": ["Actions"],
+        "summary": "更新动作",
+        "parameters": [{ "$ref": "#/components/parameters/ActionId" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AnyObject" } } } },
+        "responses": { "200": { "description": "OK" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      },
+      "delete": {
+        "tags": ["Actions"],
+        "summary": "删除动作",
+        "description": "如果动作被课程引用，会返回冲突。",
+        "parameters": [{ "$ref": "#/components/parameters/ActionId" }],
+        "responses": { "200": { "description": "OK" }, "409": { "$ref": "#/components/responses/Conflict" } }
+      }
+    },
+    "/api/lesson-types": {
+      "get": {
+        "tags": ["Courses"],
+        "summary": "课程分类列表",
+        "responses": { "200": { "description": "OK" } }
+      },
+      "post": {
+        "tags": ["Courses"],
+        "summary": "新增课程分类",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NameRequest" } } } },
+        "responses": { "201": { "description": "创建成功" }, "400": { "$ref": "#/components/responses/BadRequest" } }
+      }
+    },
+    "/api/courses/options": {
+      "get": {
+        "tags": ["Courses"],
+        "summary": "课程编辑选项",
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/courses": {
+      "get": {
+        "tags": ["Courses"],
+        "summary": "课程列表",
+        "responses": { "200": { "description": "OK" } }
+      },
+      "post": {
+        "tags": ["Courses"],
+        "summary": "新建课程",
+        "description": "课程本身可跨场馆复用，不直接绑定场馆。",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AnyObject" } } } },
+        "responses": { "201": { "description": "创建成功" }, "400": { "$ref": "#/components/responses/BadRequest" } }
+      }
+    },
+    "/api/courses/{courseId}": {
+      "get": {
+        "tags": ["Courses"],
+        "summary": "课程详情",
+        "parameters": [{ "$ref": "#/components/parameters/CourseId" }],
+        "responses": { "200": { "description": "OK" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      },
+      "put": {
+        "tags": ["Courses"],
+        "summary": "更新课程",
+        "parameters": [{ "$ref": "#/components/parameters/CourseId" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AnyObject" } } } },
+        "responses": { "200": { "description": "OK" }, "400": { "$ref": "#/components/responses/BadRequest" } }
+      },
+      "delete": {
+        "tags": ["Courses"],
+        "summary": "删除课程",
+        "description": "如果课程已经被排课引用，会返回冲突。",
+        "parameters": [{ "$ref": "#/components/parameters/CourseId" }],
+        "responses": { "200": { "description": "OK" }, "409": { "$ref": "#/components/responses/Conflict" } }
+      }
+    },
+    "/api/templates": {
+      "get": {
+        "tags": ["Courses"],
+        "summary": "课程模板列表",
+        "responses": { "200": { "description": "OK" } }
+      },
+      "post": {
+        "tags": ["Courses"],
+        "summary": "新建课程模板",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AnyObject" } } } },
+        "responses": { "201": { "description": "创建成功" }, "400": { "$ref": "#/components/responses/BadRequest" } }
+      }
+    },
+    "/api/templates/{templateId}": {
+      "get": {
+        "tags": ["Courses"],
+        "summary": "模板详情",
+        "parameters": [{ "$ref": "#/components/parameters/TemplateId" }],
+        "responses": { "200": { "description": "OK" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      },
+      "put": {
+        "tags": ["Courses"],
+        "summary": "更新模板",
+        "parameters": [{ "$ref": "#/components/parameters/TemplateId" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AnyObject" } } } },
+        "responses": { "200": { "description": "OK" }, "400": { "$ref": "#/components/responses/BadRequest" } }
+      },
+      "delete": {
+        "tags": ["Courses"],
+        "summary": "删除模板",
+        "parameters": [{ "$ref": "#/components/parameters/TemplateId" }],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/schedules": {
+      "get": {
+        "tags": ["Schedules"],
+        "summary": "排课列表",
+        "description": "通过 scope 和 venueId 获取当前周、上周、历史等排课。",
+        "parameters": [
+          { "name": "scope", "in": "query", "schema": { "type": "string", "default": "CURRENTWEEK" } },
+          { "name": "venueId", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      },
+      "post": {
+        "tags": ["Schedules"],
+        "summary": "新增排课",
+        "description": "把可复用课程排入指定场馆的课表。",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ScheduleRequest" } } } },
+        "responses": { "201": { "description": "创建成功" }, "400": { "$ref": "#/components/responses/BadRequest" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/api/schedules/copy-last-week": {
+      "post": {
+        "tags": ["Schedules"],
+        "summary": "复制上周排课",
+        "parameters": [{ "name": "venueId", "in": "query", "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/schedules/{scheduleId}": {
+      "delete": {
+        "tags": ["Schedules"],
+        "summary": "删除排课",
+        "parameters": [{ "$ref": "#/components/parameters/ScheduleId" }],
+        "responses": { "200": { "description": "OK" } }
+      }
+    }
+  }
+}

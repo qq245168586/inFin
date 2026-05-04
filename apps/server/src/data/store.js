@@ -23,25 +23,38 @@ const REFRESH_TOKEN_TTL_SECONDS = 15 * 24 * 60 * 60;
 const TV_SCREEN_COUNT = 5;
 const TV_ONLINE_THRESHOLD_MS = 35 * 1000;
 const DB_BACKUP_RETENTION = 120;
+const PLAYBACK_ACTIVE_STATES = new Set(["PREVIEW", "SCHEDULED", "RUNNING", "PAUSED"]);
+const PLAYBACK_TERMINAL_STATES = new Set(["ENDED", "TERMINATED"]);
+const PLAYBACK_WARMUP_READY_SECONDS = 15;
+const PLAYBACK_TRAINING_READY_SECONDS = 15;
+const PLAYBACK_COOLDOWN_READY_SECONDS = 10;
 const DEFAULT_ACCOUNT_NAMESPACE = "13689547720";
+const SUPERADMIN_USERNAMES = new Set(["13689547720", "zhiyou"]);
 const CONSOLE_ACCOUNT_PRESETS = [
   {
     username: "13689547720",
     password: "REDACTED_CONFIGURE_LOCALLY",
-    nickname: "正式环境",
+    nickname: "13689547720",
     accountNamespace: "13689547720",
-    environmentLabel: "正式环境",
-    allowedClients: ["coach-web", "editor-web"]
+    environmentLabel: "13689547720",
+    allowedClients: ["coach-web", "editor-web"],
+    role: "superadmin"
   },
   {
     username: "zhiyou",
     password: "REDACTED_CONFIGURE_LOCALLY",
-    nickname: "测试环境",
+    nickname: "zhiyou",
     accountNamespace: "zhiyou",
-    environmentLabel: "测试环境",
-    allowedClients: ["coach-web", "editor-web"]
+    environmentLabel: "zhiyou",
+    allowedClients: ["coach-web", "editor-web"],
+    role: "superadmin"
   }
 ];
+
+function isLegacyEnvironmentLabel(label = "") {
+  const normalized = trimText(label);
+  return normalized === "正式环境" || normalized === "测试环境" || normalized === "自定义环境";
+}
 
 ensureDir(storageRoot);
 ensureDir(mediaRoot);
@@ -233,6 +246,27 @@ function normalizeScreenAccountNamespace(value) {
   return trimText(value).toLowerCase();
 }
 
+function normalizeVenueAccountNamespace(value) {
+  return trimText(value).toLowerCase();
+}
+
+function normalizeVenueId(value) {
+  return trimText(value);
+}
+
+function normalizeScheduleEntry(entry) {
+  const raw = entry && typeof entry === "object" ? entry : {};
+  return {
+    id: Number(raw.id) || 0,
+    venueId: normalizeVenueId(raw.venueId),
+    courseId: Number(raw.courseId) || 0,
+    courseName: trimText(raw.courseName),
+    version: trimText(raw.version),
+    beginTime: trimText(raw.beginTime),
+    duration: Number(raw.duration) || 0
+  };
+}
+
 function normalizeClientName(value, fallback = "editor-web") {
   const text = trimText(value).toLowerCase();
   if (text === "coach-web") {
@@ -255,7 +289,7 @@ function userAllowsClient(user, clientName = "editor-web") {
 function environmentLabelForNamespace(accountNamespace = DEFAULT_ACCOUNT_NAMESPACE) {
   const normalized = normalizeAccountNamespace(accountNamespace);
   const matched = CONSOLE_ACCOUNT_PRESETS.find((item) => item.accountNamespace === normalized);
-  return matched?.environmentLabel || "自定义环境";
+  return trimText(matched?.environmentLabel) || normalized || DEFAULT_ACCOUNT_NAMESPACE;
 }
 
 function normalizeAppPlatform(value, fallback = "tv") {
@@ -419,6 +453,8 @@ function createDefaultState() {
     templates,
     schedules,
     tvScreens: [],
+    playbackSessions: [],
+    venues: [],
     users: [],
     authSessions: []
   };
@@ -429,7 +465,10 @@ function ensureConsoleAccountSeeds() {
 
   state.users = (state.users || []).map((user) => {
     const normalizedAccountNamespace = normalizeAccountNamespace(user.accountNamespace || user.username);
-    const environmentLabel = trimText(user.environmentLabel) || environmentLabelForNamespace(normalizedAccountNamespace);
+    const rawEnvLabel = trimText(user.environmentLabel);
+    const environmentLabel = isLegacyEnvironmentLabel(rawEnvLabel)
+      ? environmentLabelForNamespace(normalizedAccountNamespace)
+      : rawEnvLabel || environmentLabelForNamespace(normalizedAccountNamespace);
     if (
       normalizedAccountNamespace === trimText(user.accountNamespace)
       && environmentLabel === trimText(user.environmentLabel)
@@ -460,20 +499,27 @@ function ensureConsoleAccountSeeds() {
     const existing = state.users.find((user) => user.username === preset.username);
     if (existing) {
       const nextAccountNamespace = normalizeAccountNamespace(existing.accountNamespace || preset.accountNamespace);
-      const nextEnvironmentLabel = trimText(existing.environmentLabel) || preset.environmentLabel;
-      const nextNickname = trimText(existing.nickname) || preset.nickname;
+      const existingEnvLabel = trimText(existing.environmentLabel);
+      const nextEnvironmentLabel = isLegacyEnvironmentLabel(existingEnvLabel)
+        ? preset.environmentLabel
+        : existingEnvLabel || preset.environmentLabel;
+      const existingNickname = trimText(existing.nickname);
+      const nextNickname = isLegacyEnvironmentLabel(existingNickname) ? preset.nickname : existingNickname || preset.nickname;
       const nextPasswordDigest = existing.passwordDigest || normalizePassword(preset.password);
+      const nextRole = trimText(existing.role) || preset.role || (SUPERADMIN_USERNAMES.has(preset.username) ? "superadmin" : "venue");
       if (
         nextAccountNamespace !== trimText(existing.accountNamespace)
         || nextEnvironmentLabel !== trimText(existing.environmentLabel)
         || nextNickname !== trimText(existing.nickname)
         || nextPasswordDigest !== existing.passwordDigest
+        || nextRole !== trimText(existing.role)
         || JSON.stringify(normalizeAllowedClients(existing.allowedClients)) !== JSON.stringify(normalizeAllowedClients(preset.allowedClients))
       ) {
         existing.accountNamespace = nextAccountNamespace;
         existing.environmentLabel = nextEnvironmentLabel;
         existing.nickname = nextNickname;
         existing.passwordDigest = nextPasswordDigest;
+        existing.role = nextRole;
         existing.allowedClients = normalizeAllowedClients(existing.allowedClients || preset.allowedClients);
         changed = true;
       }
@@ -490,11 +536,47 @@ function ensureConsoleAccountSeeds() {
       passwordDigest: normalizePassword(preset.password),
       accountNamespace: preset.accountNamespace,
       environmentLabel: preset.environmentLabel,
+      role: preset.role || (SUPERADMIN_USERNAMES.has(preset.username) ? "superadmin" : "venue"),
+      venueId: "",
       allowedClients: normalizeAllowedClients(preset.allowedClients),
       createTime: nowIso(),
       lastLoginTime: null
     });
     changed = true;
+  }
+
+  // Venue records are now created explicitly via the "场馆管理" UI.
+  // Cleanup legacy auto-seeded venues (e.g. 正式环境/测试环境) so that
+  // superadmin accounts start with zero venues by default.
+  state.venues = state.venues || [];
+  if (state.venues.length) {
+    const namespacesToCleanup = new Set(CONSOLE_ACCOUNT_PRESETS.map((preset) => normalizeAccountNamespace(preset.accountNamespace || preset.username)));
+    const keep = [];
+    let didRemove = false;
+    for (const venue of state.venues) {
+      const ns = normalizeAccountNamespace(venue.accountNamespace);
+      const venueId = trimText(venue.id);
+      const shouldCleanup =
+        namespacesToCleanup.has(ns) &&
+        (isLegacyEnvironmentLabel(venue.name) || trimText(venue.name) === ns);
+      if (shouldCleanup) {
+        didRemove = true;
+        // Detach any legacy venue users/screens so the newly created venue can
+        // re-bind them explicitly later.
+        state.users = (state.users || []).map((user) =>
+          trimText(user.venueId) === venueId ? { ...user, venueId: "" } : user
+        );
+        state.tvScreens = (state.tvScreens || []).map((screen) =>
+          normalizeScreenAccountNamespace(screen.accountNamespace) === ns ? { ...screen, accountNamespace: "" } : screen
+        );
+        continue;
+      }
+      keep.push(venue);
+    }
+    if (didRemove) {
+      state.venues = keep;
+      changed = true;
+    }
   }
 
   if (changed) {
@@ -524,6 +606,42 @@ function stripSeedCourseExamples(source) {
   };
 }
 
+function attachLegacySchedulesToSingleVenue(source) {
+  const venues = Array.isArray(source?.venues) ? source.venues : [];
+  const schedules = Array.isArray(source?.schedules) ? source.schedules : [];
+
+  if (venues.length !== 1 || schedules.length === 0) {
+    return { state: source, changed: false };
+  }
+
+  const venueId = trimText(venues[0]?.id || "");
+  if (!venueId) {
+    return { state: source, changed: false };
+  }
+
+  let changed = false;
+  const nextSchedules = schedules.map((schedule) => {
+    const existingVenueId = normalizeVenueId(schedule?.venueId);
+    if (existingVenueId) {
+      return schedule;
+    }
+    changed = true;
+    return { ...schedule, venueId };
+  });
+
+  if (!changed) {
+    return { state: source, changed: false };
+  }
+
+  return {
+    changed: true,
+    state: {
+      ...source,
+      schedules: nextSchedules
+    }
+  };
+}
+
 function normalizeLoadedState(parsed) {
   return {
     media: Array.isArray(parsed.media) ? parsed.media : [],
@@ -533,20 +651,37 @@ function normalizeLoadedState(parsed) {
     actions: Array.isArray(parsed.actions) ? parsed.actions : clone(defaultState.actions),
     courses: Array.isArray(parsed.courses) ? parsed.courses : clone(defaultState.courses),
     templates: Array.isArray(parsed.templates) ? parsed.templates : clone(defaultState.templates),
-    schedules: Array.isArray(parsed.schedules) ? parsed.schedules : clone(defaultState.schedules),
+    schedules: Array.isArray(parsed.schedules)
+      ? parsed.schedules.map(normalizeScheduleEntry)
+      : clone(defaultState.schedules),
     tvScreens: Array.isArray(parsed.tvScreens)
       ? parsed.tvScreens.map((item) => ({
           ...item,
           accountNamespace: normalizeScreenAccountNamespace(item?.accountNamespace)
         }))
       : clone(defaultState.tvScreens),
+    playbackSessions: Array.isArray(parsed.playbackSessions)
+      ? parsed.playbackSessions.map(normalizePlaybackSessionEntry)
+      : clone(defaultState.playbackSessions),
+    venues: Array.isArray(parsed.venues)
+      ? parsed.venues.map((item) => ({
+          ...item,
+          id: trimText(item?.id) || String(item?.id || ""),
+          name: trimText(item?.name),
+          accountNamespace: normalizeAccountNamespace(item?.accountNamespace),
+          createTime: trimText(item?.createTime),
+          updateTime: trimText(item?.updateTime)
+        }))
+      : clone(defaultState.venues),
     users: Array.isArray(parsed.users)
       ? parsed.users.map((item) => ({
           ...item,
           accountNamespace: normalizeAccountNamespace(item?.accountNamespace || item?.username),
           environmentLabel:
             trimText(item?.environmentLabel)
-            || environmentLabelForNamespace(item?.accountNamespace || item?.username)
+            || environmentLabelForNamespace(item?.accountNamespace || item?.username),
+          role: trimText(item?.role) || (SUPERADMIN_USERNAMES.has(trimText(item?.username)) ? "superadmin" : "venue"),
+          venueId: trimText(item?.venueId) || ""
         }))
       : clone(defaultState.users),
     authSessions: Array.isArray(parsed.authSessions) ? parsed.authSessions : clone(defaultState.authSessions)
@@ -560,10 +695,13 @@ function tryLoadStateFile(targetFile) {
 
   const raw = fs.readFileSync(targetFile, "utf8");
   const parsed = JSON.parse(raw);
-  const cleaned = stripSeedCourseExamples(normalizeLoadedState(parsed));
+  const normalized = normalizeLoadedState(parsed);
+  const stripped = stripSeedCourseExamples(normalized);
+  const migrated = attachLegacySchedulesToSingleVenue(stripped.state);
+  const changed = stripped.changed || migrated.changed;
   return {
-    state: cleaned.state,
-    changed: cleaned.changed
+    state: migrated.state,
+    changed
   };
 }
 
@@ -640,6 +778,8 @@ function publicUserInfo(user) {
     gender: user.gender,
     accountNamespace: normalizeAccountNamespace(user.accountNamespace || user.username),
     environmentLabel: trimText(user.environmentLabel) || environmentLabelForNamespace(user.accountNamespace || user.username),
+    role: trimText(user.role) || (SUPERADMIN_USERNAMES.has(trimText(user.username)) ? "superadmin" : "venue"),
+    venueId: trimText(user.venueId) || "",
     allowedClients: normalizeAllowedClients(user.allowedClients)
   };
 }
@@ -694,7 +834,7 @@ function normalizeActionPayload(payload = {}, existing = null) {
 
 function normalizeTvPlaybackState(value) {
   const stateText = trimText(value).toUpperCase();
-  if (["IDLE", "SYNCING", "PREVIEW", "RUNNING", "PAUSED"].includes(stateText)) {
+  if (["IDLE", "SYNCING", "PREVIEW", "SCHEDULED", "RUNNING", "PAUSED", "ENDED", "TERMINATED"].includes(stateText)) {
     return stateText;
   }
   return "IDLE";
@@ -706,6 +846,210 @@ function normalizeTvUpdateState(value) {
     return stateText;
   }
   return "IDLE";
+}
+
+function normalizePlaybackState(value, fallback = "PREVIEW") {
+  const stateText = trimText(value).toUpperCase();
+  if (["PREVIEW", "SCHEDULED", "RUNNING", "PAUSED", "ENDED", "TERMINATED"].includes(stateText)) {
+    return stateText;
+  }
+  return fallback;
+}
+
+function createPlaybackSessionId() {
+  return `ps_${Date.now().toString(36)}_${randomToken().slice(0, 10)}`;
+}
+
+function safeTimeMs(value, fallback = Date.now()) {
+  const numeric = Number(value);
+  if (Number.isFinite(numeric) && numeric >= 0) {
+    return numeric;
+  }
+  const parsed = new Date(trimText(value)).getTime();
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function normalizePlaybackCommand(command = {}) {
+  return {
+    commandId: trimText(command.commandId),
+    action: trimText(command.action),
+    state: normalizePlaybackState(command.state, "PREVIEW"),
+    version: safeNumber(command.version),
+    resultVersion: safeNumber(command.resultVersion, safeNumber(command.version)),
+    createdAt: trimText(command.createdAt) || nowIso()
+  };
+}
+
+function normalizePlaybackSessionEntry(entry = {}) {
+  const serverStartAtMs = safeNumber(entry.serverStartAtMs);
+  const state = normalizePlaybackState(entry.state, serverStartAtMs > 0 ? "RUNNING" : "PREVIEW");
+  const createdAtMs = safeTimeMs(entry.createdAtMs || entry.createTime);
+  const updatedAtMs = safeTimeMs(entry.updatedAtMs || entry.updateTime, createdAtMs);
+  const endedAtMs = safeNumber(entry.endedAtMs, entry.endTime ? safeTimeMs(entry.endTime, 0) : 0);
+  const terminatedAtMs = safeNumber(entry.terminatedAtMs);
+  return {
+    id: trimText(entry.id) || createPlaybackSessionId(),
+    accountNamespace: normalizeAccountNamespace(entry.accountNamespace),
+    scheduleId: trimText(entry.scheduleId),
+    courseId: safeNumber(entry.courseId),
+    duration: safeNumber(entry.duration),
+    expectedDurationMs: safeNumber(entry.expectedDurationMs),
+    bundleChecksum: trimText(entry.bundleChecksum),
+    state,
+    version: Math.max(1, safeNumber(entry.version, 1)),
+    courseName: trimText(entry.courseName),
+    scheduledStartAtMs: safeNumber(entry.scheduledStartAtMs),
+    serverStartAtMs,
+    pausedAccumulatedMs: safeNumber(entry.pausedAccumulatedMs),
+    pausedAtMs: safeNumber(entry.pausedAtMs),
+    endedAtMs,
+    terminatedAtMs,
+    createdBy: trimText(entry.createdBy),
+    createdAtMs,
+    updatedAtMs,
+    startDelayMs: safeNumber(entry.startDelayMs),
+    createTime: trimText(entry.createTime) || nowIso(),
+    updateTime: trimText(entry.updateTime) || nowIso(),
+    endTime: trimText(entry.endTime),
+    lastCommandId: trimText(entry.lastCommandId),
+    metadata: entry.metadata && typeof entry.metadata === "object" ? clone(entry.metadata) : {},
+    commandLog: Array.isArray(entry.commandLog) ? entry.commandLog.map(normalizePlaybackCommand).filter((item) => item.commandId) : []
+  };
+}
+
+function materializePlaybackSession(session) {
+  if (!session) {
+    return null;
+  }
+  const serverNowMs = Date.now();
+  if (session.state === "SCHEDULED" && session.serverStartAtMs > 0 && serverNowMs >= session.serverStartAtMs) {
+    session.state = "RUNNING";
+    session.version = Math.max(1, safeNumber(session.version, 1)) + 1;
+    session.updatedAtMs = serverNowMs;
+    session.updateTime = nowIso();
+    persist();
+  }
+  const durationMs = getPlaybackSessionDurationMs(session);
+  if (session.state === "RUNNING" && durationMs > 0 && calculatePlaybackElapsedMs(session, serverNowMs) >= durationMs) {
+    session.state = "ENDED";
+    session.endedAtMs = serverNowMs;
+    session.endTime = nowIso();
+    session.version = Math.max(1, safeNumber(session.version, 1)) + 1;
+    session.updatedAtMs = serverNowMs;
+    session.updateTime = nowIso();
+    persist();
+  }
+  return session;
+}
+
+function getPlaybackSessionDurationMs(session) {
+  const explicitDurationMs = safeNumber(session?.expectedDurationMs);
+  if (explicitDurationMs > 0) {
+    return explicitDurationMs;
+  }
+  return safeNumber(session?.duration) * 60 * 1000;
+}
+
+function calculatePlaybackElapsedMs(session, serverNowMs = Date.now()) {
+  if (!session || !safeNumber(session.serverStartAtMs)) {
+    return 0;
+  }
+
+  const serverStartAtMs = safeNumber(session.serverStartAtMs);
+  const pausedAccumulatedMs = safeNumber(session.pausedAccumulatedMs);
+  const stateText = normalizePlaybackState(session.state);
+  if (stateText === "PAUSED") {
+    return Math.max(0, safeNumber(session.pausedAtMs, serverStartAtMs) - serverStartAtMs - pausedAccumulatedMs);
+  }
+  if (stateText === "ENDED") {
+    return Math.max(0, safeNumber(session.endedAtMs, serverNowMs) - serverStartAtMs - pausedAccumulatedMs);
+  }
+  if (stateText === "TERMINATED") {
+    return Math.max(0, safeNumber(session.terminatedAtMs, serverNowMs) - serverStartAtMs - pausedAccumulatedMs);
+  }
+  return Math.max(0, serverNowMs - serverStartAtMs - pausedAccumulatedMs);
+}
+
+function serializePlaybackSession(session) {
+  const current = materializePlaybackSession(session);
+  if (!current) {
+    return null;
+  }
+  const serverNowMs = Date.now();
+  return {
+    id: current.id,
+    accountNamespace: normalizeAccountNamespace(current.accountNamespace),
+    state: normalizePlaybackState(current.state),
+    version: Math.max(1, safeNumber(current.version, 1)),
+    scheduleId: trimText(current.scheduleId),
+    courseId: safeNumber(current.courseId),
+    duration: safeNumber(current.duration),
+    expectedDurationMs: getPlaybackSessionDurationMs(current),
+    expectedEndAtMs: safeNumber(current.serverStartAtMs)
+      ? safeNumber(current.serverStartAtMs) + getPlaybackSessionDurationMs(current) + safeNumber(current.pausedAccumulatedMs)
+      : 0,
+    courseName: trimText(current.courseName),
+    bundleChecksum: trimText(current.bundleChecksum),
+    scheduledStartAtMs: safeNumber(current.scheduledStartAtMs),
+    serverStartAtMs: safeNumber(current.serverStartAtMs),
+    pausedAccumulatedMs: safeNumber(current.pausedAccumulatedMs),
+    pausedAtMs: safeNumber(current.pausedAtMs),
+    endedAtMs: safeNumber(current.endedAtMs),
+    terminatedAtMs: safeNumber(current.terminatedAtMs),
+    createdBy: trimText(current.createdBy),
+    createdAtMs: safeNumber(current.createdAtMs),
+    updatedAtMs: safeNumber(current.updatedAtMs),
+    elapsedMs: calculatePlaybackElapsedMs(current, serverNowMs),
+    serverNowMs,
+    startDelayMs: safeNumber(current.startDelayMs),
+    metadata: current.metadata && typeof current.metadata === "object" ? clone(current.metadata) : {},
+    createTime: trimText(current.createTime),
+    updateTime: trimText(current.updateTime),
+    endTime: trimText(current.endTime),
+    lastCommandId: trimText(current.lastCommandId),
+    lastCommand: current.commandLog?.length ? current.commandLog[current.commandLog.length - 1] : null
+  };
+}
+
+function findPlaybackSessionById(sessionId, accountNamespace = "") {
+  const id = trimText(sessionId);
+  const ns = normalizeAccountNamespace(accountNamespace);
+  const session = (state.playbackSessions || []).find((item) => trimText(item.id) === id && normalizeAccountNamespace(item.accountNamespace) === ns);
+  return materializePlaybackSession(session || null);
+}
+
+function getActivePlaybackSessionEntry(accountNamespace = "") {
+  const ns = normalizeAccountNamespace(accountNamespace);
+  const sessions = (state.playbackSessions || [])
+    .filter((item) => normalizeAccountNamespace(item.accountNamespace) === ns)
+    .map(materializePlaybackSession)
+    .filter((item) => item && PLAYBACK_ACTIVE_STATES.has(item.state))
+    .sort((left, right) => new Date(right.updateTime || right.createTime || 0).getTime() - new Date(left.updateTime || left.createTime || 0).getTime());
+  return sessions[0] || null;
+}
+
+function recordPlaybackCommand(session, action, commandId) {
+  const id = trimText(commandId);
+  if (!id) {
+    throw new Error("commandId 不能为空。");
+  }
+  const existing = (session.commandLog || []).find((item) => trimText(item.commandId) === id);
+  if (existing) {
+    return { duplicate: true, command: existing };
+  }
+  session.commandLog = Array.isArray(session.commandLog) ? session.commandLog : [];
+  const command = {
+    commandId: id,
+    action,
+    state: session.state,
+    version: session.version,
+    resultVersion: session.version,
+    createdAt: nowIso()
+  };
+  session.commandLog.push(command);
+  session.commandLog = session.commandLog.slice(-30);
+  session.lastCommandId = id;
+  return { duplicate: false, command };
 }
 
 function buildTvScreenSnapshot(entry = null) {
@@ -1137,6 +1481,28 @@ function courseSummaryFromScript(script) {
   };
 }
 
+function hasWaterfallPlaybackItems(section) {
+  return Array.isArray(section?.items) && section.items.length > 0;
+}
+
+function hasTrainingPlaybackPods(script) {
+  return Array.isArray(script?.training?.pods) && script.training.pods.length > 0;
+}
+
+function estimateCoursePlaybackDurationMs(script) {
+  if (!script || typeof script !== "object") {
+    return 0;
+  }
+
+  const summary = summarizeCourseScript(script);
+  const readySeconds =
+    (hasWaterfallPlaybackItems(script.sections?.warmup) ? PLAYBACK_WARMUP_READY_SECONDS : 0)
+    + (hasTrainingPlaybackPods(script) ? PLAYBACK_TRAINING_READY_SECONDS : 0)
+    + (hasWaterfallPlaybackItems(script.sections?.cooldown) ? PLAYBACK_COOLDOWN_READY_SECONDS : 0);
+  const totalSeconds = safeNumber(summary.totalSeconds) + readySeconds;
+  return totalSeconds > 0 ? totalSeconds * 1000 : 0;
+}
+
 function normalizeCoursePayload(payload = {}, existing = null) {
   const timestamp = nowIso();
   const script = coerceCourseScript({
@@ -1212,11 +1578,13 @@ function formatCalendarDate(dateValue, timeZone = "Asia/Shanghai") {
   }).format(new Date(dateValue));
 }
 
-function listSchedulesByDate(dateText, timeZone = "Asia/Shanghai") {
+function listSchedulesByDate(dateText, timeZone = "Asia/Shanghai", venueId = "") {
   const targetDate = normalizeCalendarDate(dateText, timeZone);
+  const venueFilterId = normalizeVenueId(venueId);
 
   return state.schedules
     .map(attachCourseBasics)
+    .filter((item) => (venueFilterId ? normalizeVenueId(item.venueId) === venueFilterId : true))
     .filter((item) => formatCalendarDate(item.beginTime, timeZone) === targetDate)
     .sort((left, right) => new Date(left.beginTime).getTime() - new Date(right.beginTime).getTime());
 }
@@ -1481,7 +1849,8 @@ export function createUploadedMedia({
   return record;
 }
 
-export function getMetaPayload() {
+export function getMetaPayload(venueId = "") {
+  const venueFilterId = normalizeVenueId(venueId);
   return {
     actionTypes: clone(state.actionTypes),
     lessonTypes: clone(state.lessonTypes),
@@ -1493,9 +1862,9 @@ export function getMetaPayload() {
       training: listTemplatesByKind("training")
     },
     schedules: {
-      currentWeek: listSchedulesByScope("CURRENTWEEK"),
-      lastWeek: listSchedulesByScope("LASTWEEK"),
-      history: listSchedulesByScope("HISTORY")
+      currentWeek: listSchedulesByScope("CURRENTWEEK", venueFilterId),
+      lastWeek: listSchedulesByScope("LASTWEEK", venueFilterId),
+      history: listSchedulesByScope("HISTORY", venueFilterId)
     }
   };
 }
@@ -1538,7 +1907,14 @@ export function createConsoleUser(payload = {}) {
     environmentLabel:
       trimText(payload.environmentLabel)
       || environmentLabelForNamespace(payload.accountNamespace || username),
-    allowedClients: normalizeAllowedClients(payload.allowedClients),
+    role: trimText(payload.role) || (SUPERADMIN_USERNAMES.has(username) ? "superadmin" : "venue"),
+    venueId: trimText(payload.venueId) || "",
+    allowedClients:
+      payload.allowedClients
+      ? normalizeAllowedClients(payload.allowedClients)
+      : SUPERADMIN_USERNAMES.has(username) || trimText(payload.role) === "superadmin"
+        ? ["coach-web", "editor-web"]
+        : ["coach-web"],
     createTime: nowIso(),
     lastLoginTime: null
   };
@@ -1568,10 +1944,236 @@ export function upsertConsoleUser(payload = {}) {
     trimText(payload.environmentLabel)
     || trimText(existing.environmentLabel)
     || environmentLabelForNamespace(existing.accountNamespace || username);
+  existing.role = trimText(payload.role) || trimText(existing.role) || (SUPERADMIN_USERNAMES.has(username) ? "superadmin" : "venue");
+  existing.venueId = trimText(payload.venueId) || trimText(existing.venueId) || "";
   existing.allowedClients = normalizeAllowedClients(payload.allowedClients || existing.allowedClients);
   if (payload.password) {
     existing.passwordDigest = normalizePassword(payload.password);
   }
+  persist();
+  return publicUserInfo(existing);
+}
+
+export function isSuperAdminUser(user) {
+  return Boolean(user) && (trimText(user.role) === "superadmin" || SUPERADMIN_USERNAMES.has(trimText(user.username)));
+}
+
+export function listVenues() {
+  return clone(state.venues || []).sort((left, right) => {
+    const leftTime = new Date(left.updateTime || left.createTime || 0).getTime();
+    const rightTime = new Date(right.updateTime || right.createTime || 0).getTime();
+    return rightTime - leftTime;
+  });
+}
+
+export function getVenueById(venueId) {
+  const id = trimText(venueId);
+  return (state.venues || []).find((item) => trimText(item.id) === id) ?? null;
+}
+
+export function getVenueByAccountNamespace(accountNamespace) {
+  const ns = normalizeAccountNamespace(accountNamespace);
+  return (state.venues || []).find((item) => normalizeAccountNamespace(item.accountNamespace) === ns) ?? null;
+}
+
+export function createVenue(payload = {}) {
+  const name = trimText(payload.name);
+  let accountNamespace = normalizeVenueAccountNamespace(payload.accountNamespace || payload.namespace || payload.ns || "");
+  if (!name) {
+    throw new Error("场馆名称不能为空。");
+  }
+
+  if (!accountNamespace) {
+    // Deterministic namespace: stable for same venue name, with collision suffix.
+    const base = `venue-${md5Text(name).slice(0, 8)}`;
+    accountNamespace = base;
+    let suffix = 2;
+    while (getVenueByAccountNamespace(accountNamespace)) {
+      accountNamespace = `${base}-${suffix}`;
+      suffix += 1;
+    }
+  }
+  if (getVenueByAccountNamespace(accountNamespace)) {
+    throw new Error("场馆命名空间已存在。");
+  }
+
+  const now = nowIso();
+  const next = {
+    id: String(nextId(state.venues || [])),
+    name,
+    accountNamespace,
+    themeConfig: payload.themeConfig && typeof payload.themeConfig === "object" ? payload.themeConfig : {},
+    createTime: now,
+    updateTime: now
+  };
+  state.venues = state.venues || [];
+  state.venues.push(next);
+  persist();
+  return next;
+}
+
+export function updateVenue(venueId, payload = {}) {
+  const existing = getVenueById(venueId);
+  if (!existing) {
+    return null;
+  }
+  const nextName = trimText(payload.name) || existing.name;
+  const nextNs = payload.accountNamespace ? normalizeAccountNamespace(payload.accountNamespace) : existing.accountNamespace;
+  if (nextNs !== normalizeAccountNamespace(existing.accountNamespace)) {
+    if (getVenueByAccountNamespace(nextNs)) {
+      throw new Error("场馆命名空间已存在。");
+    }
+  }
+  existing.name = nextName;
+  existing.accountNamespace = nextNs;
+  if (payload.themeConfig && typeof payload.themeConfig === "object") {
+    existing.themeConfig = payload.themeConfig;
+  }
+  existing.updateTime = nowIso();
+  persist();
+  return existing;
+}
+
+export function deleteVenue(venueId) {
+  const id = trimText(venueId);
+  const existing = getVenueById(id);
+  if (!existing) {
+    return { ok: false, message: "场馆不存在。" };
+  }
+
+  // Deleting a venue should be operationally simple: detach accounts/devices
+  // so the operator can recreate from scratch.
+  const venueNs = normalizeAccountNamespace(existing.accountNamespace);
+  const venueIdValue = trimText(existing.id);
+  state.users = (state.users || []).map((user) => {
+    if (trimText(user.venueId) !== venueIdValue) return user;
+    if (isSuperAdminUser(user)) return { ...user, venueId: "" };
+    return {
+      ...user,
+      venueId: "",
+      accountNamespace: "",
+      environmentLabel: ""
+    };
+  });
+
+  state.tvScreens = (state.tvScreens || []).map((screen) => {
+    if (normalizeScreenAccountNamespace(screen.accountNamespace) !== venueNs) return screen;
+    return { ...screen, accountNamespace: "" };
+  });
+
+  state.schedules = (state.schedules || []).filter((schedule) => normalizeVenueId(schedule.venueId) !== venueIdValue);
+  state.venues = (state.venues || []).filter((item) => trimText(item.id) !== id);
+  persist();
+  return { ok: true };
+}
+
+export function listVenueUsers(venueId) {
+  const id = trimText(venueId);
+  return clone(state.users || [])
+    .filter((user) => trimText(user.venueId) === id)
+    .map(publicUserInfo)
+    .sort((left, right) => left.username.localeCompare(right.username));
+}
+
+export function createVenueUser(venueId, payload = {}) {
+  const venue = getVenueById(venueId);
+  if (!venue) {
+    throw new Error("场馆不存在。");
+  }
+  const username = trimText(payload.username);
+  const password = trimText(payload.password);
+  if (!username) {
+    throw new Error("账号不能为空。");
+  }
+  if (!password) {
+    throw new Error("密码不能为空。");
+  }
+  return createConsoleUser({
+    username,
+    password,
+    nickname: trimText(payload.nickname) || username,
+    accountNamespace: normalizeAccountNamespace(venue.accountNamespace),
+    environmentLabel: trimText(payload.environmentLabel) || trimText(venue.name),
+    role: "venue",
+    venueId: trimText(venue.id),
+    allowedClients: ["coach-web"]
+  });
+}
+
+export function updateUser(userId, payload = {}) {
+  const id = Number(userId);
+  const existing = (state.users || []).find((user) => Number(user.id) === id) ?? null;
+  if (!existing) {
+    return null;
+  }
+  if (payload.password) {
+    existing.passwordDigest = normalizePassword(payload.password);
+  }
+  if (payload.nickname != null) {
+    existing.nickname = trimText(payload.nickname) || existing.nickname || existing.username;
+  }
+  if (payload.allowedClients) {
+    existing.allowedClients = normalizeAllowedClients(payload.allowedClients);
+  }
+  if (payload.venueId != null) {
+    existing.venueId = trimText(payload.venueId);
+  }
+  if (payload.role != null) {
+    existing.role = trimText(payload.role);
+  }
+  persist();
+  return publicUserInfo(existing);
+}
+
+export function listAdminConsoleUsers(query = "") {
+  const q = trimText(query);
+  const users = clone(state.users || [])
+    .filter((user) => trimText(user.userType) === "CONSOLE")
+    .map(publicUserInfo);
+  return users
+    .filter((user) => (q ? String(user.username || "").includes(q) : true))
+    .sort((left, right) => String(left.username).localeCompare(String(right.username)));
+}
+
+export function bindUserToVenue(userId, venueId) {
+  const id = Number(userId);
+  const venue = getVenueById(venueId);
+  if (!venue) {
+    throw new Error("场馆不存在。");
+  }
+  const existing = (state.users || []).find((user) => Number(user.id) === id) ?? null;
+  if (!existing) {
+    throw new Error("账号不存在。");
+  }
+  if (isSuperAdminUser(existing)) {
+    throw new Error("管理员账号不能绑定为场馆账号。");
+  }
+  const currentVenueId = trimText(existing.venueId);
+  if (currentVenueId && currentVenueId !== trimText(venue.id)) {
+    throw new Error("该账号已绑定其他场馆，请先解绑。");
+  }
+  existing.role = "venue";
+  existing.venueId = trimText(venue.id);
+  existing.accountNamespace = normalizeAccountNamespace(venue.accountNamespace, "");
+  existing.environmentLabel = existing.accountNamespace || trimText(existing.environmentLabel) || "";
+  existing.allowedClients = ["coach-web"];
+  persist();
+  return publicUserInfo(existing);
+}
+
+export function unbindUserFromVenue(userId) {
+  const id = Number(userId);
+  const existing = (state.users || []).find((user) => Number(user.id) === id) ?? null;
+  if (!existing) {
+    throw new Error("账号不存在。");
+  }
+  if (isSuperAdminUser(existing)) {
+    throw new Error("管理员账号无需解绑。");
+  }
+  existing.venueId = "";
+  existing.accountNamespace = "";
+  existing.environmentLabel = "";
+  existing.allowedClients = ["coach-web"];
   persist();
   return publicUserInfo(existing);
 }
@@ -1595,6 +2197,12 @@ export function loginConsoleUser(username, password, clientName = "editor-web") 
 
   if (!userAllowsClient(user, clientName)) {
     return { error: "CLIENT_NOT_ALLOWED" };
+  }
+
+  // Venue accounts must be bound to a venue before login, otherwise they'd
+  // accidentally fall back to the default namespace.
+  if (trimText(user.role) === "venue" && !trimText(user.venueId)) {
+    return { error: "VENUE_NOT_BOUND" };
   }
 
   user.lastLoginTime = nowIso();
@@ -1777,13 +2385,18 @@ export function listCourseOptions() {
   });
 }
 
-export function listSchedulesByScope(scope = "CURRENTWEEK") {
+export function listSchedulesByScope(scope = "CURRENTWEEK", venueId = "") {
   const monday = startOfWeek(new Date());
   const nextMonday = endOfWeek(new Date());
   const lastMonday = new Date(monday);
   lastMonday.setDate(lastMonday.getDate() - 7);
 
   let list = state.schedules.map(attachCourseBasics);
+  const venueFilterId = normalizeVenueId(venueId);
+
+  if (venueFilterId) {
+    list = list.filter((item) => normalizeVenueId(item.venueId) === venueFilterId);
+  }
 
   if (scope === "CURRENTWEEK") {
     list = list.filter((item) => inRange(item.beginTime, monday, nextMonday));
@@ -1798,9 +2411,11 @@ export function listSchedulesByScope(scope = "CURRENTWEEK") {
   });
 }
 
-export function getTvDailyBundle(dateText, timeZone = "Asia/Shanghai") {
+export function getTvDailyBundle(dateText, timeZone = "Asia/Shanghai", accountNamespace = "") {
   const date = normalizeCalendarDate(dateText, timeZone);
-  const schedules = listSchedulesByDate(date, timeZone)
+  const ns = trimText(accountNamespace);
+  const venueId = ns ? trimText(getVenueByAccountNamespace(ns)?.id) : "";
+  const schedules = listSchedulesByDate(date, timeZone, venueId)
     .map(buildTvScheduleEntry)
     .filter(Boolean);
 
@@ -1837,8 +2452,8 @@ export function getTvDailyBundle(dateText, timeZone = "Asia/Shanghai") {
   };
 }
 
-export function getTvDailyChecksum(dateText, timeZone = "Asia/Shanghai") {
-  const bundle = getTvDailyBundle(dateText, timeZone);
+export function getTvDailyChecksum(dateText, timeZone = "Asia/Shanghai", accountNamespace = "") {
+  const bundle = getTvDailyBundle(dateText, timeZone, accountNamespace);
   return {
     date: bundle.date,
     timeZone: bundle.timeZone,
@@ -1890,6 +2505,245 @@ export function getTvScheduleBundle(scheduleId) {
   };
 }
 
+export function getCurrentPlaybackSession(accountNamespace = "") {
+  return serializePlaybackSession(getActivePlaybackSessionEntry(accountNamespace));
+}
+
+export function getCurrentPlaybackSessionForTv(payload = {}) {
+  const requestedAccountNamespace = normalizeScreenAccountNamespace(payload.accountNamespace);
+  const requestedDeviceId = trimText(payload.deviceId);
+  const requestedScreenNumber = Number(payload.screenNumber) || 0;
+  const matchedScreen =
+    (state.tvScreens || []).find((item) => {
+      const sameDevice = requestedDeviceId && trimText(item.deviceId) === requestedDeviceId;
+      const sameScreen =
+        requestedScreenNumber >= 1
+        && normalizeScreenAccountNamespace(item.accountNamespace) === requestedAccountNamespace
+        && Number(item.screenNumber) === requestedScreenNumber;
+      return sameDevice || sameScreen;
+    }) || null;
+  const accountNamespace =
+    requestedAccountNamespace
+    || normalizeScreenAccountNamespace(matchedScreen?.accountNamespace)
+    || DEFAULT_ACCOUNT_NAMESPACE;
+  return serializePlaybackSession(getActivePlaybackSessionEntry(accountNamespace));
+}
+
+export function getPlaybackSession(sessionId, accountNamespace = "") {
+  return serializePlaybackSession(findPlaybackSessionById(sessionId, accountNamespace));
+}
+
+export function createPreviewPlaybackSession(payload = {}, accountNamespace = "") {
+  const ns = normalizeAccountNamespace(accountNamespace);
+  const scheduleId = trimText(payload.scheduleId);
+  const commandId = trimText(payload.commandId);
+  if (!commandId) {
+    throw new Error("commandId 不能为空。");
+  }
+  const scheduleBundle = getTvScheduleBundle(scheduleId);
+  if (!scheduleBundle?.schedule) {
+    throw new Error("未找到对应的课程排课。");
+  }
+
+  const active = getActivePlaybackSessionEntry(ns);
+  const nextChecksum = trimText(payload.bundleChecksum) || trimText(scheduleBundle.schedule.contentChecksum) || trimText(scheduleBundle.checksum);
+  if (active) {
+    const samePreview =
+      trimText(active.scheduleId) === String(scheduleBundle.schedule.id)
+      && safeNumber(active.courseId) === safeNumber(scheduleBundle.schedule.courseId)
+      && trimText(active.bundleChecksum) === nextChecksum
+      && normalizePlaybackState(active.state) === "PREVIEW";
+    if (samePreview) {
+      const commandResult = recordPlaybackCommand(active, "preview", commandId);
+      if (!commandResult.duplicate) {
+        active.updatedAtMs = Date.now();
+        active.updateTime = nowIso();
+      }
+      persist();
+      return serializePlaybackSession(active);
+    }
+    const error = new Error("当前已有未结束课程，请先终止当前课程。");
+    error.code = "ACTIVE_PLAYBACK_SESSION";
+    throw error;
+  }
+
+  const now = nowIso();
+  const nowMs = Date.now();
+  const session = normalizePlaybackSessionEntry({
+    id: createPlaybackSessionId(),
+    accountNamespace: ns,
+    state: "PREVIEW",
+    version: 1,
+    scheduleId: String(scheduleBundle.schedule.id),
+    courseId: scheduleBundle.schedule.courseId,
+    courseName: scheduleBundle.schedule.courseName,
+    duration: scheduleBundle.schedule.duration,
+    expectedDurationMs:
+      safeNumber(payload.expectedDurationMs)
+      || estimateCoursePlaybackDurationMs(scheduleBundle.schedule.course?.script)
+      || safeNumber(scheduleBundle.schedule.duration) * 60 * 1000,
+    bundleChecksum: nextChecksum,
+    scheduledStartAtMs: safeNumber(payload.scheduledStartAtMs, new Date(scheduleBundle.schedule.beginTime).getTime()),
+    serverStartAtMs: 0,
+    pausedAccumulatedMs: 0,
+    pausedAtMs: 0,
+    createdBy: trimText(payload.createdBy),
+    createdAtMs: nowMs,
+    updatedAtMs: nowMs,
+    metadata: payload.metadata && typeof payload.metadata === "object" ? payload.metadata : {},
+    createTime: now,
+    updateTime: now
+  });
+
+  recordPlaybackCommand(session, "preview", commandId);
+
+  state.playbackSessions = state.playbackSessions || [];
+  state.playbackSessions.push(session);
+  persist();
+  return serializePlaybackSession(session);
+}
+
+export function updatePlaybackSessionState(sessionId, action, payload = {}, accountNamespace = "") {
+  const ns = normalizeAccountNamespace(accountNamespace);
+  const session = findPlaybackSessionById(sessionId, ns);
+  if (!session) {
+    return null;
+  }
+
+  const normalizedAction = trimText(action).toLowerCase();
+  const commandId = trimText(payload.commandId);
+  const existingCommand = commandId
+    ? (session.commandLog || []).find((item) => trimText(item.commandId) === commandId)
+    : null;
+  if (existingCommand) {
+    return serializePlaybackSession(session);
+  }
+  if (!commandId) {
+    throw new Error("commandId 不能为空。");
+  }
+
+  const nowMs = Date.now();
+  if (normalizedAction === "start") {
+    if (safeNumber(session.serverStartAtMs) > 0 && ["SCHEDULED", "RUNNING"].includes(session.state)) {
+      const commandResult = recordPlaybackCommand(session, normalizedAction, commandId);
+      if (!commandResult.duplicate) {
+        session.updatedAtMs = nowMs;
+        session.updateTime = nowIso();
+      }
+      persist();
+      return serializePlaybackSession(session);
+    }
+    if (!["PREVIEW", "SCHEDULED"].includes(session.state)) {
+      if (session.state === "RUNNING") {
+        const commandResult = recordPlaybackCommand(session, normalizedAction, commandId);
+        if (!commandResult.duplicate) {
+          session.updatedAtMs = nowMs;
+          session.updateTime = nowIso();
+        }
+        persist();
+        return serializePlaybackSession(session);
+      }
+      throw new Error("当前 session 状态不允许开始课程。");
+    }
+    const startDelayMs = Math.max(3000, Math.min(30000, safeNumber(payload.startDelayMs, 5000)));
+    session.state = "RUNNING";
+    session.startDelayMs = startDelayMs;
+    session.serverStartAtMs = nowMs + startDelayMs;
+    session.pausedAccumulatedMs = 0;
+    session.pausedAtMs = 0;
+  } else if (normalizedAction === "pause") {
+    if (session.state === "PAUSED") {
+      const commandResult = recordPlaybackCommand(session, normalizedAction, commandId);
+      if (!commandResult.duplicate) {
+        session.updatedAtMs = nowMs;
+        session.updateTime = nowIso();
+      }
+      persist();
+      return serializePlaybackSession(session);
+    }
+    if (!["SCHEDULED", "RUNNING"].includes(session.state)) {
+      throw new Error("当前 session 状态不允许暂停。");
+    }
+    session.state = "PAUSED";
+    session.pausedAtMs =
+      session.serverStartAtMs > 0 && nowMs < session.serverStartAtMs
+        ? session.serverStartAtMs
+        : nowMs;
+  } else if (normalizedAction === "resume") {
+    if (session.state === "RUNNING") {
+      const commandResult = recordPlaybackCommand(session, normalizedAction, commandId);
+      if (!commandResult.duplicate) {
+        session.updatedAtMs = nowMs;
+        session.updateTime = nowIso();
+      }
+      persist();
+      return serializePlaybackSession(session);
+    }
+    if (session.state !== "PAUSED") {
+      throw new Error("当前 session 状态不允许继续。");
+    }
+    if (session.pausedAtMs > 0) {
+      session.pausedAccumulatedMs = safeNumber(session.pausedAccumulatedMs) + Math.max(0, nowMs - session.pausedAtMs);
+    }
+    session.state = "RUNNING";
+    session.pausedAtMs = 0;
+  } else if (normalizedAction === "end" || normalizedAction === "terminate") {
+    if (PLAYBACK_TERMINAL_STATES.has(session.state)) {
+      const commandResult = recordPlaybackCommand(session, normalizedAction, commandId);
+      if (!commandResult.duplicate) {
+        session.updatedAtMs = nowMs;
+        session.updateTime = nowIso();
+      }
+      persist();
+      return serializePlaybackSession(session);
+    }
+    if (!PLAYBACK_TERMINAL_STATES.has(session.state)) {
+      session.state = normalizedAction === "end" ? "ENDED" : "TERMINATED";
+      session.endTime = nowIso();
+      if (normalizedAction === "end") {
+        session.endedAtMs = nowMs;
+      } else {
+        session.terminatedAtMs = nowMs;
+      }
+    }
+  } else {
+    throw new Error("未知 playback session 操作。");
+  }
+
+  session.version = Math.max(1, safeNumber(session.version, 1)) + 1;
+  session.updatedAtMs = nowMs;
+  session.updateTime = nowIso();
+  recordPlaybackCommand(session, normalizedAction, commandId);
+  persist();
+  return serializePlaybackSession(session);
+}
+
+export function endExpiredPlaybackSessions() {
+  const endedSessions = [];
+  const sessions = Array.isArray(state.playbackSessions) ? state.playbackSessions : [];
+
+  for (const session of sessions) {
+    if (!session || typeof session !== "object") {
+      continue;
+    }
+    const beforeState = normalizePlaybackState(session.state);
+    const beforeVersion = safeNumber(session.version);
+    const wasActive = PLAYBACK_ACTIVE_STATES.has(beforeState);
+    if (!wasActive) {
+      continue;
+    }
+
+    materializePlaybackSession(session);
+
+    const afterState = normalizePlaybackState(session.state);
+    if (afterState === "ENDED" && (beforeState !== afterState || safeNumber(session.version) !== beforeVersion)) {
+      endedSessions.push(serializePlaybackSession(session));
+    }
+  }
+
+  return endedSessions;
+}
+
 export function bindTvScreen(payload = {}, accountNamespace = "") {
   return upsertTvScreen({
     ...payload,
@@ -1898,10 +2752,26 @@ export function bindTvScreen(payload = {}, accountNamespace = "") {
 }
 
 export function heartbeatTvScreen(payload = {}, accountNamespace = "") {
-  return upsertTvScreen({
+  const screen = upsertTvScreen({
     ...payload,
     accountNamespace: normalizeScreenAccountNamespace(payload.accountNamespace ?? accountNamespace)
   });
+  const activeSession = getActivePlaybackSessionEntry(screen?.accountNamespace || payload.accountNamespace || accountNamespace);
+  const reportedSessionId = trimText(payload.playbackSessionId);
+  const reportedVersion = safeNumber(payload.sessionVersion, safeNumber(payload.playbackSessionVersion));
+  const sessionOutdated =
+    Boolean(activeSession)
+    && (
+      reportedSessionId !== trimText(activeSession.id)
+      || reportedVersion < safeNumber(activeSession.version)
+    );
+
+  return {
+    ...screen,
+    serverNowMs: Date.now(),
+    sessionOutdated,
+    session: sessionOutdated ? serializePlaybackSession(activeSession) : null
+  };
 }
 
 export function unbindTvScreen(payload = {}, accountNamespace = "") {
@@ -2042,8 +2912,20 @@ export function saveSchedule(payload) {
     return null;
   }
 
+  const existing = payload.id ? state.schedules.find((item) => item.id === Number(payload.id)) ?? null : null;
+  const venueIdInput = normalizeVenueId(payload.venueId);
+  const venueId = venueIdInput || normalizeVenueId(existing?.venueId);
+
+  if ((state.venues || []).length && !venueId) {
+    throw new Error("请选择场馆后再排课。");
+  }
+  if (venueId && !getVenueById(venueId)) {
+    throw new Error("场馆不存在。");
+  }
+
   const next = {
     id: payload.id ? Number(payload.id) : nextId(state.schedules),
+    venueId,
     courseId,
     courseName: course.name,
     version: trimText(payload.version) || course.version,
@@ -2070,12 +2952,17 @@ export function deleteSchedule(scheduleId) {
   return { ok: true };
 }
 
-export function copyLastWeekSchedules() {
+export function copyLastWeekSchedules(venueId = "") {
   const monday = startOfWeek(new Date());
   const nextMonday = endOfWeek(new Date());
-  const lastWeek = listSchedulesByScope("LASTWEEK");
+  const venueFilterId = normalizeVenueId(venueId);
+  const lastWeek = listSchedulesByScope("LASTWEEK", venueFilterId);
 
-  state.schedules = state.schedules.filter((item) => !inRange(item.beginTime, monday, nextMonday));
+  state.schedules = state.schedules.filter((item) => {
+    const matchesVenue = venueFilterId ? normalizeVenueId(item.venueId) === venueFilterId : true;
+    if (!matchesVenue) return true;
+    return !inRange(item.beginTime, monday, nextMonday);
+  });
 
   let nextScheduleId = nextId(state.schedules);
 
@@ -2085,6 +2972,7 @@ export function copyLastWeekSchedules() {
 
     return {
       id: nextScheduleId++,
+      venueId: normalizeVenueId(item.venueId),
       courseId: item.courseId,
       courseName: item.courseName,
       version: item.version,
