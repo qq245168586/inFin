@@ -122,6 +122,55 @@ public class TvScriptRepository {
     }
   }
 
+  public static class PlaybackSessionSnapshot {
+    public final String id;
+    public final String state;
+    public final int version;
+    public final String scheduleId;
+    public final int courseId;
+    public final String bundleChecksum;
+    public final long serverStartAtMs;
+    public final long pausedAccumulatedMs;
+    public final long pausedAtMs;
+    public final long endedAtMs;
+    public final long terminatedAtMs;
+
+    public PlaybackSessionSnapshot(
+        String id,
+        String state,
+        int version,
+        String scheduleId,
+        int courseId,
+        String bundleChecksum,
+        long serverStartAtMs,
+        long pausedAccumulatedMs,
+        long pausedAtMs,
+        long endedAtMs,
+        long terminatedAtMs) {
+      this.id = id == null ? "" : id;
+      this.state = state == null ? "" : state;
+      this.version = version;
+      this.scheduleId = scheduleId == null ? "" : scheduleId;
+      this.courseId = courseId;
+      this.bundleChecksum = bundleChecksum == null ? "" : bundleChecksum;
+      this.serverStartAtMs = serverStartAtMs;
+      this.pausedAccumulatedMs = pausedAccumulatedMs;
+      this.pausedAtMs = pausedAtMs;
+      this.endedAtMs = endedAtMs;
+      this.terminatedAtMs = terminatedAtMs;
+    }
+  }
+
+  public static class CurrentPlaybackSession {
+    public final long serverNowMs;
+    public final PlaybackSessionSnapshot session;
+
+    public CurrentPlaybackSession(long serverNowMs, PlaybackSessionSnapshot session) {
+      this.serverNowMs = serverNowMs;
+      this.session = session;
+    }
+  }
+
   private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
   private final Context context;
   private final File mediaCacheRoot;
@@ -203,6 +252,19 @@ public class TvScriptRepository {
     return parseScheduleItem(scheduleObject, localMediaMap, false);
   }
 
+  public CurrentPlaybackSession loadCurrentPlaybackSession(
+      String accountNamespace, String deviceId, int screenNumber) throws IOException {
+    JSONObject payload =
+        requestJson(
+            "/tv/playback-sessions/current?accountNamespace="
+                + encode(accountNamespace == null ? "" : accountNamespace)
+                + "&deviceId="
+                + encode(deviceId == null ? "" : deviceId)
+                + "&screenNumber="
+                + Math.max(screenNumber, 0));
+    return parseCurrentPlaybackSession(payload);
+  }
+
   public ScreenRegistration bindScreen(
       String accountNamespace,
       String deviceId,
@@ -214,6 +276,7 @@ public class TvScriptRepository {
       String activeScheduleId,
       boolean previewMode,
       String playbackSessionId,
+      int sessionVersion,
       String bundleChecksum,
       long playbackElapsedMs,
       String updateState,
@@ -236,6 +299,7 @@ public class TvScriptRepository {
             activeScheduleId,
             previewMode,
             playbackSessionId,
+            sessionVersion,
             bundleChecksum,
             playbackElapsedMs,
             updateState,
@@ -255,6 +319,7 @@ public class TvScriptRepository {
       String activeScheduleId,
       boolean previewMode,
       String playbackSessionId,
+      int sessionVersion,
       String bundleChecksum,
       long playbackElapsedMs,
       String updateState,
@@ -277,6 +342,7 @@ public class TvScriptRepository {
             activeScheduleId,
             previewMode,
             playbackSessionId,
+            sessionVersion,
             bundleChecksum,
             playbackElapsedMs,
             updateState,
@@ -781,6 +847,7 @@ public class TvScriptRepository {
       String activeScheduleId,
       boolean previewMode,
       String playbackSessionId,
+      int sessionVersion,
       String bundleChecksum,
       long playbackElapsedMs,
       String updateState,
@@ -803,6 +870,7 @@ public class TvScriptRepository {
           .put("activeScheduleId", activeScheduleId == null ? "" : activeScheduleId)
           .put("previewMode", previewMode)
           .put("playbackSessionId", playbackSessionId == null ? "" : playbackSessionId)
+          .put("sessionVersion", Math.max(sessionVersion, 0))
           .put("bundleChecksum", bundleChecksum == null ? "" : bundleChecksum)
           .put("playbackElapsedMs", Math.max(playbackElapsedMs, 0L))
           .put("updateState", updateState == null ? "" : updateState)
@@ -839,6 +907,43 @@ public class TvScriptRepository {
         data.optInt("screenNumber", 0),
         data.optString("deviceId", ""),
         data.optBoolean("online", false));
+  }
+
+  private CurrentPlaybackSession parseCurrentPlaybackSession(JSONObject response) {
+    if (response == null) {
+      return new CurrentPlaybackSession(0L, null);
+    }
+    long serverNowMs = response.optLong("serverNowMs", 0L);
+    JSONObject sessionObject = response.optJSONObject("session");
+    if (sessionObject == null) {
+      JSONObject dataObject = response.optJSONObject("data");
+      if (dataObject != null) {
+        serverNowMs = dataObject.optLong("serverNowMs", serverNowMs);
+        sessionObject = dataObject.optJSONObject("session");
+      }
+    }
+    if (sessionObject == null) {
+      return new CurrentPlaybackSession(serverNowMs, null);
+    }
+    return new CurrentPlaybackSession(serverNowMs, parsePlaybackSessionSnapshot(sessionObject));
+  }
+
+  private PlaybackSessionSnapshot parsePlaybackSessionSnapshot(JSONObject sessionObject) {
+    if (sessionObject == null) {
+      return null;
+    }
+    return new PlaybackSessionSnapshot(
+        sessionObject.optString("id", sessionObject.optString("sessionId", "")),
+        sessionObject.optString("state", ""),
+        sessionObject.optInt("version", 0),
+        sessionObject.optString("scheduleId", ""),
+        sessionObject.optInt("courseId", 0),
+        sessionObject.optString("bundleChecksum", ""),
+        sessionObject.optLong("serverStartAtMs", 0L),
+        sessionObject.optLong("pausedAccumulatedMs", 0L),
+        sessionObject.optLong("pausedAtMs", 0L),
+        sessionObject.optLong("endedAtMs", 0L),
+        sessionObject.optLong("terminatedAtMs", 0L));
   }
 
   private JSONObject requestJson(String relativePath, String method, JSONObject body) throws IOException {

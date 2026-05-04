@@ -52,6 +52,7 @@ import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -75,7 +76,8 @@ public class MainActivity extends AppCompatActivity {
   private static final String EXTRA_AUTO_START_FIRST_SCHEDULE = "autoStartFirstSchedule";
   private static final long CHECKSUM_POLL_INTERVAL_MS = 5 * 60 * 1000L;
   private static final long SCREEN_HEARTBEAT_INTERVAL_MS = 15 * 1000L;
-  private static final long FINISH_RETURN_DELAY_MS = 15 * 1000L;
+  private static final long PAIRING_PRESENCE_INTERVAL_MS = 10 * 1000L;
+  private static final long FINISH_RETURN_DELAY_MS = 60 * 1000L;
   private static final int WARMUP_READY_SECONDS = 15;
   private static final int TRAINING_READY_SECONDS = 15;
   private static final int COOLDOWN_READY_SECONDS = 10;
@@ -93,6 +95,7 @@ public class MainActivity extends AppCompatActivity {
   private final Handler playbackHandler = new Handler(Looper.getMainLooper());
   private final Handler syncHandler = new Handler(Looper.getMainLooper());
   private final Handler screenHeartbeatHandler = new Handler(Looper.getMainLooper());
+  private final Handler pairingPresenceHandler = new Handler(Looper.getMainLooper());
   private ConnectivityManager connectivityManager;
   private ConnectivityManager.NetworkCallback networkCallback;
   private final Runnable playbackTicker =
@@ -143,6 +146,17 @@ public class MainActivity extends AppCompatActivity {
         }
       };
 
+  private final Runnable pairingPresenceTicker =
+      new Runnable() {
+        @Override
+        public void run() {
+          if (mqttManager != null && selectorPanel != null && selectorPanel.getVisibility() == View.VISIBLE) {
+            mqttManager.publishPairingPresence(deviceId, currentPairToken);
+            pairingPresenceHandler.postDelayed(this, PAIRING_PRESENCE_INTERVAL_MS);
+          }
+        }
+      };
+
   private View selectorPanel;
   private LinearLayout contentPanel;
   private View contentTopBar;
@@ -183,11 +197,27 @@ public class MainActivity extends AppCompatActivity {
   private LinearLayout playbackStageDotsRow;
   private View horizontalContentPanel;
   private View horizontalTransitionPanel;
+  private View transitionDesignPanel;
+  private ImageView transitionDesignIcon;
+  private View transitionDesignRingContainer;
+  private com.infini.tv.ui.RingProgressView transitionDesignRing;
+  private TextView transitionDesignCountdown;
+  private TextView transitionDesignTitle;
+  private TextView transitionDesignSubtitle;
+  private TextView transitionDesignLogo;
+  private String transitionDesignProgressKey = "";
+  private int transitionDesignTotalSeconds = 0;
+  private View horizontalRingContainer;
+  private View horizontalStateColumn;
+  private View horizontalTransitionCircle;
   private TextView horizontalCountdownText;
+  private com.infini.tv.ui.RingProgressView horizontalRingProgress;
+  private ImageView horizontalStateIcon;
   private TextView horizontalStateText;
   private TextView horizontalStateSecondary;
   private LinearLayout horizontalStateDotsRow;
   private LinearLayout horizontalProgressRow;
+  private TextView horizontalLogoText;
   private TextView horizontalTransitionCountdownText;
   private TextView horizontalTransitionTitle;
   private TextView horizontalTransitionHint;
@@ -196,6 +226,7 @@ public class MainActivity extends AppCompatActivity {
   private TextView getReadyCountdownText;
   private TextView getReadyLabelText;
   private TextView getReadySubtext;
+  private View getReadyCircle;
   private TextView finishFallbackText;
   private TextView updateTitleText;
   private TextView updateVersionText;
@@ -237,6 +268,17 @@ public class MainActivity extends AppCompatActivity {
   private long pauseStartedElapsedRealtimeMs = 0L;
   private long frozenElapsedMs = 0L;
   private String activePlaybackSessionId = "";
+  private int activePlaybackSessionVersion = 0;
+  private String activePlaybackSessionState = "";
+  private boolean sessionDrivenPlayback = false;
+  private long sessionServerNowBaseMs = 0L;
+  private long sessionServerNowBaseElapsedRealtimeMs = 0L;
+  private long sessionServerStartAtMs = 0L;
+  private long sessionPausedAccumulatedMs = 0L;
+  private long sessionPausedAtMs = 0L;
+  private long sessionEndedAtMs = 0L;
+  private long sessionTerminatedAtMs = 0L;
+  private boolean sessionRestoreInFlight = false;
   private String activeBundleChecksum = "";
   private String currentUpdateState = "IDLE";
   private String currentUpdateTargetVersion = "";
@@ -248,6 +290,8 @@ public class MainActivity extends AppCompatActivity {
   private int currentCourseTotalSeconds = 0;
   private int currentTrainingElapsedSeconds = 0;
   private int currentTrainingTotalSeconds = 0;
+  private String horizontalRingProgressKey = "";
+  private int horizontalRingTotalSeconds = 0;
   private boolean playbackLoopRunning = false;
   private final List<TvScheduleItem> syncedTodaySchedules = new ArrayList<>();
   private SoundPool cueSoundPool;
@@ -255,12 +299,10 @@ public class MainActivity extends AppCompatActivity {
   private int warmCueSoundId = 0;
   private int coolCueSoundId = 0;
   private int dingCueSoundId = 0;
-  private int endCueSoundId = 0;
   private String lastWaterfallAudioMode = "";
   private int lastWaterfallAudioIndex = -1;
   private String lastTrainingAudioRenderKey = "";
   private String lastTrainingAudioPhase = "";
-  private boolean finishCuePlayed = false;
 
   private interface RemoteScheduleAction {
     void apply(TvScheduleItem item);
@@ -313,6 +355,7 @@ public class MainActivity extends AppCompatActivity {
                           && (isVerticalCourseScreen(activeScreenNumber)
                               || isHorizontalInfoScreen(activeScreenNumber))) {
                         requestTodayChecksumCheck(activeScreenNumber);
+                        requestCurrentPlaybackSession("mqtt_connected");
                       }
                     });
               }
@@ -358,7 +401,7 @@ public class MainActivity extends AppCompatActivity {
               public void onUnbindScreenRequested(String targetDeviceId) {
                 runOnUiThread(
                     () -> {
-                      if (!deviceId.equalsIgnoreCase(targetDeviceId)) {
+                      if (!TextUtils.isEmpty(targetDeviceId) && !deviceId.equalsIgnoreCase(targetDeviceId)) {
                         return;
                       }
                       clearCurrentScreenBinding();
@@ -442,6 +485,22 @@ public class MainActivity extends AppCompatActivity {
                 runOnUiThread(
                     () -> terminateCourseFromRemote(scheduleId, courseId, playbackSessionId));
               }
+
+              @Override
+              public void onPlaybackSessionUpdated(
+                  String sessionId, int version, String state, long serverNowMs) {
+                runOnUiThread(
+                    () -> {
+                      if (version > 0
+                          && activePlaybackSessionVersion > 0
+                          && version <= activePlaybackSessionVersion
+                          && !TextUtils.isEmpty(sessionId)
+                          && TextUtils.equals(sessionId, activePlaybackSessionId)) {
+                        return;
+                      }
+                      requestCurrentPlaybackSession("mqtt_session_updated");
+                    });
+              }
             });
     mqttManager.connect();
     registerNetworkMonitoring();
@@ -487,11 +546,25 @@ public class MainActivity extends AppCompatActivity {
     playbackStageDotsRow = findViewById(R.id.playbackStageDotsRow);
     horizontalContentPanel = findViewById(R.id.horizontalContentPanel);
     horizontalTransitionPanel = findViewById(R.id.horizontalTransitionPanel);
+    transitionDesignPanel = findViewById(R.id.transitionDesignPanel);
+    transitionDesignIcon = findViewById(R.id.transitionDesignIcon);
+    transitionDesignRingContainer = findViewById(R.id.transitionDesignRingContainer);
+    transitionDesignRing = findViewById(R.id.transitionDesignRing);
+    transitionDesignCountdown = findViewById(R.id.transitionDesignCountdown);
+    transitionDesignTitle = findViewById(R.id.transitionDesignTitle);
+    transitionDesignSubtitle = findViewById(R.id.transitionDesignSubtitle);
+    transitionDesignLogo = findViewById(R.id.transitionDesignLogo);
+    horizontalRingContainer = findViewById(R.id.horizontalRingContainer);
+    horizontalStateColumn = findViewById(R.id.horizontalStateColumn);
+    horizontalTransitionCircle = findViewById(R.id.horizontalTransitionCircle);
     horizontalCountdownText = findViewById(R.id.horizontalCountdownText);
+    horizontalRingProgress = findViewById(R.id.horizontalRingProgress);
+    horizontalStateIcon = findViewById(R.id.horizontalStateIcon);
     horizontalStateText = findViewById(R.id.horizontalStateText);
     horizontalStateSecondary = findViewById(R.id.horizontalStateSecondary);
     horizontalStateDotsRow = findViewById(R.id.horizontalStateDotsRow);
     horizontalProgressRow = findViewById(R.id.horizontalProgressRow);
+    horizontalLogoText = findViewById(R.id.horizontalLogoText);
     horizontalTransitionCountdownText = findViewById(R.id.horizontalTransitionCountdownText);
     horizontalTransitionTitle = findViewById(R.id.horizontalTransitionTitle);
     horizontalTransitionHint = findViewById(R.id.horizontalTransitionHint);
@@ -500,6 +573,7 @@ public class MainActivity extends AppCompatActivity {
     getReadyCountdownText = findViewById(R.id.getReadyCountdownText);
     getReadyLabelText = findViewById(R.id.getReadyLabelText);
     getReadySubtext = findViewById(R.id.getReadySubtext);
+    getReadyCircle = findViewById(R.id.getReadyCircle);
     finishFallbackText = findViewById(R.id.finishFallbackText);
     updateTitleText = findViewById(R.id.updateTitleText);
     updateVersionText = findViewById(R.id.updateVersionText);
@@ -549,9 +623,7 @@ public class MainActivity extends AppCompatActivity {
   protected void onNewIntent(Intent intent) {
     super.onNewIntent(intent);
     setIntent(intent);
-    if (!handleLaunchIntent()) {
-      showSelector();
-    }
+    handleLaunchIntent();
   }
 
   @Override
@@ -621,6 +693,7 @@ public class MainActivity extends AppCompatActivity {
     selectorPanel.setVisibility(View.GONE);
     contentPanel.setVisibility(View.VISIBLE);
     contentPanel.post(this::applyResponsiveLayout);
+    stopPairingPresence();
     dispatchScreenHeartbeat(true);
     scheduleScreenHeartbeat();
 
@@ -629,6 +702,7 @@ public class MainActivity extends AppCompatActivity {
     } else {
       renderHorizontalScreen(screenNumber);
     }
+    requestCurrentPlaybackSession("open_screen");
   }
 
   private void showSelector() {
@@ -648,6 +722,7 @@ public class MainActivity extends AppCompatActivity {
     updateSelectorPairingUi();
     selectorPanel.setVisibility(View.VISIBLE);
     contentPanel.setVisibility(View.GONE);
+    startPairingPresence();
     dispatchScreenHeartbeat(false);
     scheduleScreenHeartbeat();
   }
@@ -701,10 +776,16 @@ public class MainActivity extends AppCompatActivity {
   }
 
   private void clearCurrentScreenBinding() {
+    String previousNamespace = activeAccountNamespace;
+    int previousScreenNumber = activeScreenNumber;
+    String previousPairToken = currentPairToken;
     clearSavedAccountNamespace();
     saveScreenNumber(0);
     activeAccountNamespace = "";
     currentPairToken = readOrCreatePairToken();
+    if (mqttManager != null) {
+      mqttManager.publishUnboundEvent(deviceId, previousNamespace, previousScreenNumber, previousPairToken);
+    }
     showSelector();
   }
 
@@ -1226,7 +1307,6 @@ public class MainActivity extends AppCompatActivity {
     warmCueSoundId = cueSoundPool.load(this, R.raw.warm, 1);
     coolCueSoundId = cueSoundPool.load(this, R.raw.cool, 1);
     dingCueSoundId = cueSoundPool.load(this, R.raw.ding, 1);
-    endCueSoundId = cueSoundPool.load(this, R.raw.end, 1);
   }
 
   private void releaseCueSounds() {
@@ -1234,7 +1314,6 @@ public class MainActivity extends AppCompatActivity {
     warmCueSoundId = 0;
     coolCueSoundId = 0;
     dingCueSoundId = 0;
-    endCueSoundId = 0;
     if (cueSoundPool != null) {
       cueSoundPool.release();
       cueSoundPool = null;
@@ -1256,9 +1335,6 @@ public class MainActivity extends AppCompatActivity {
       case DING:
         sampleId = dingCueSoundId;
         break;
-      case END:
-        sampleId = endCueSoundId;
-        break;
       default:
         break;
     }
@@ -1273,7 +1349,6 @@ public class MainActivity extends AppCompatActivity {
     lastWaterfallAudioIndex = -1;
     lastTrainingAudioRenderKey = "";
     lastTrainingAudioPhase = "";
-    finishCuePlayed = false;
   }
 
   private void scheduleFinishReturn() {
@@ -1463,6 +1538,9 @@ public class MainActivity extends AppCompatActivity {
       return "PAUSED";
     }
     if (activePlaybackItem != null) {
+      if (sessionDrivenPlayback && !TextUtils.isEmpty(activePlaybackSessionState)) {
+        return activePlaybackSessionState;
+      }
       return "RUNNING";
     }
     return "IDLE";
@@ -1480,6 +1558,9 @@ public class MainActivity extends AppCompatActivity {
     if (activePlaybackItem == null || previewMode) {
       return 0L;
     }
+    if (sessionDrivenPlayback) {
+      return currentSessionPlaybackElapsedMs();
+    }
     if (playbackPaused) {
       return Math.max(frozenElapsedMs, 0L);
     }
@@ -1488,6 +1569,31 @@ public class MainActivity extends AppCompatActivity {
             - playbackStartElapsedRealtimeMs
             - accumulatedPauseElapsedRealtimeMs,
         0L);
+  }
+
+  private long correctedServerNowMs() {
+    if (sessionServerNowBaseMs <= 0L || sessionServerNowBaseElapsedRealtimeMs <= 0L) {
+      return System.currentTimeMillis();
+    }
+    return sessionServerNowBaseMs + Math.max(SystemClock.elapsedRealtime() - sessionServerNowBaseElapsedRealtimeMs, 0L);
+  }
+
+  private long currentSessionPlaybackElapsedMs() {
+    if (sessionServerStartAtMs <= 0L) {
+      return 0L;
+    }
+    String state = activePlaybackSessionState == null ? "" : activePlaybackSessionState.toUpperCase(Locale.US);
+    long effectiveNowMs;
+    if ("PAUSED".equals(state) && sessionPausedAtMs > 0L) {
+      effectiveNowMs = sessionPausedAtMs;
+    } else if ("ENDED".equals(state) && sessionEndedAtMs > 0L) {
+      effectiveNowMs = sessionEndedAtMs;
+    } else if ("TERMINATED".equals(state) && sessionTerminatedAtMs > 0L) {
+      effectiveNowMs = sessionTerminatedAtMs;
+    } else {
+      effectiveNowMs = correctedServerNowMs();
+    }
+    return Math.max(effectiveNowMs - sessionServerStartAtMs - Math.max(sessionPausedAccumulatedMs, 0L), 0L);
   }
 
   private void dispatchScreenHeartbeat(boolean bind) {
@@ -1509,6 +1615,7 @@ public class MainActivity extends AppCompatActivity {
     final String heartbeatScheduleId = activePlaybackItem != null ? activePlaybackItem.id : "";
     final boolean heartbeatPreviewMode = previewMode;
     final String heartbeatPlaybackSessionId = activePlaybackSessionId;
+    final int heartbeatSessionVersion = activePlaybackSessionVersion;
     final String heartbeatBundleChecksum = activeBundleChecksum;
     final long heartbeatPlaybackElapsedMs = currentPlaybackElapsedMs();
     final String heartbeatUpdateState = currentUpdateState;
@@ -1545,6 +1652,7 @@ public class MainActivity extends AppCompatActivity {
                       heartbeatScheduleId,
                       heartbeatPreviewMode,
                       heartbeatPlaybackSessionId,
+                      heartbeatSessionVersion,
                       heartbeatBundleChecksum,
                       heartbeatPlaybackElapsedMs,
                       heartbeatUpdateState,
@@ -1563,6 +1671,7 @@ public class MainActivity extends AppCompatActivity {
                       heartbeatScheduleId,
                       heartbeatPreviewMode,
                       heartbeatPlaybackSessionId,
+                      heartbeatSessionVersion,
                       heartbeatBundleChecksum,
                       heartbeatPlaybackElapsedMs,
                       heartbeatUpdateState,
@@ -1609,6 +1718,7 @@ public class MainActivity extends AppCompatActivity {
                     mqttManager.connect();
                   }
                   dispatchScreenHeartbeat(false);
+                  requestCurrentPlaybackSession("network_available");
                   requestNetworkRecoverySync();
                 });
           }
@@ -1626,6 +1736,7 @@ public class MainActivity extends AppCompatActivity {
                     mqttManager.connect();
                   }
                   dispatchScreenHeartbeat(false);
+                  requestCurrentPlaybackSession("network_capabilities");
                   requestNetworkRecoverySync();
                 });
           }
@@ -1678,8 +1789,161 @@ public class MainActivity extends AppCompatActivity {
     openScreen(serverScreenNumber, false);
   }
 
+  private void requestCurrentPlaybackSession(String reason) {
+    if (sessionRestoreInFlight
+        || TextUtils.isEmpty(activeAccountNamespace)
+        || activeScreenNumber < 1
+        || activeScreenNumber > 5
+        || selectorPanel == null
+        || selectorPanel.getVisibility() == View.VISIBLE) {
+      return;
+    }
+
+    final String requestAccountNamespace = activeAccountNamespace;
+    final String requestDeviceId = deviceId;
+    final int requestScreenNumber = activeScreenNumber;
+    sessionRestoreInFlight = true;
+    new Thread(
+            () -> {
+              try {
+                TvScriptRepository.CurrentPlaybackSession result =
+                    repository.loadCurrentPlaybackSession(
+                        requestAccountNamespace, requestDeviceId, requestScreenNumber);
+                runOnUiThread(() -> applyCurrentPlaybackSession(result, reason));
+              } catch (Exception error) {
+                Log.d(TAG, "Current playback session unavailable reason=" + reason, error);
+              } finally {
+                sessionRestoreInFlight = false;
+              }
+            })
+        .start();
+  }
+
+  private void applyCurrentPlaybackSession(
+      TvScriptRepository.CurrentPlaybackSession result, String reason) {
+    if (result == null || result.session == null) {
+      return;
+    }
+    TvScriptRepository.PlaybackSessionSnapshot session = result.session;
+    if (TextUtils.isEmpty(session.id)) {
+      return;
+    }
+    if (activePlaybackSessionVersion > 0
+        && session.version > 0
+        && session.version <= activePlaybackSessionVersion
+        && TextUtils.equals(session.id, activePlaybackSessionId)) {
+      return;
+    }
+
+    Log.d(
+        TAG,
+        "Applying playback session reason="
+            + reason
+            + " id="
+            + session.id
+            + " version="
+            + session.version
+            + " state="
+            + session.state);
+
+    updateSessionClock(result.serverNowMs);
+    String state = session.state == null ? "" : session.state.toUpperCase(Locale.US);
+    if ("ENDED".equals(state) || "TERMINATED".equals(state)) {
+      if (TextUtils.equals(session.id, activePlaybackSessionId) && activePlaybackItem != null) {
+        applyPlaybackSessionFields(session);
+        showFinishState();
+        stopPlaybackLoop();
+      }
+      return;
+    }
+
+    resolveRemoteSchedule(
+        session.scheduleId,
+        session.courseId,
+        0L,
+        session.bundleChecksum,
+        item -> applyPlaybackSessionToSchedule(item, session, result.serverNowMs));
+  }
+
+  private void applyPlaybackSessionToSchedule(
+      TvScheduleItem item, TvScriptRepository.PlaybackSessionSnapshot session, long serverNowMs) {
+    if (item == null || session == null) {
+      return;
+    }
+    updateSessionClock(serverNowMs);
+    applyPlaybackSessionFields(session);
+    activePlaybackItem = item;
+    activeBundleChecksum =
+        !TextUtils.isEmpty(session.bundleChecksum) ? session.bundleChecksum : item.contentChecksum;
+    resetAudioCueTracking();
+    resetPlaybackStateCaches();
+
+    String state = activePlaybackSessionState.toUpperCase(Locale.US);
+    if ("PREVIEW".equals(state)) {
+      previewMode = true;
+      playbackPaused = false;
+      playbackLoopRunning = false;
+      playbackHandler.removeCallbacks(playbackTicker);
+      renderPreviewState();
+      dispatchScreenHeartbeat(false);
+      return;
+    }
+
+    previewMode = false;
+    playbackPaused = "PAUSED".equals(state);
+    accumulatedPauseElapsedRealtimeMs = 0L;
+    pauseStartedElapsedRealtimeMs = 0L;
+    frozenElapsedMs = currentSessionPlaybackElapsedMs();
+    refreshPlayback();
+    playbackHandler.removeCallbacks(playbackTicker);
+    playbackLoopRunning = !playbackPaused;
+    if (playbackLoopRunning) {
+      playbackHandler.postDelayed(playbackTicker, 400L);
+    }
+    dispatchScreenHeartbeat(false);
+  }
+
+  private void updateSessionClock(long serverNowMs) {
+    if (serverNowMs <= 0L) {
+      return;
+    }
+    sessionServerNowBaseMs = serverNowMs;
+    sessionServerNowBaseElapsedRealtimeMs = SystemClock.elapsedRealtime();
+  }
+
+  private void applyPlaybackSessionFields(TvScriptRepository.PlaybackSessionSnapshot session) {
+    activePlaybackSessionId = session.id;
+    activePlaybackSessionVersion = Math.max(session.version, 0);
+    activePlaybackSessionState = session.state == null ? "" : session.state.toUpperCase(Locale.US);
+    sessionDrivenPlayback = true;
+    sessionServerStartAtMs = Math.max(session.serverStartAtMs, 0L);
+    sessionPausedAccumulatedMs = Math.max(session.pausedAccumulatedMs, 0L);
+    sessionPausedAtMs = Math.max(session.pausedAtMs, 0L);
+    sessionEndedAtMs = Math.max(session.endedAtMs, 0L);
+    sessionTerminatedAtMs = Math.max(session.terminatedAtMs, 0L);
+  }
+
+  private void clearPlaybackSessionTiming() {
+    sessionServerNowBaseMs = 0L;
+    sessionServerNowBaseElapsedRealtimeMs = 0L;
+    sessionServerStartAtMs = 0L;
+    sessionPausedAccumulatedMs = 0L;
+    sessionPausedAtMs = 0L;
+    sessionEndedAtMs = 0L;
+    sessionTerminatedAtMs = 0L;
+  }
+
   private void stopScreenHeartbeat() {
     screenHeartbeatHandler.removeCallbacks(screenHeartbeatTicker);
+  }
+
+  private void startPairingPresence() {
+    stopPairingPresence();
+    pairingPresenceHandler.post(pairingPresenceTicker);
+  }
+
+  private void stopPairingPresence() {
+    pairingPresenceHandler.removeCallbacks(pairingPresenceTicker);
   }
 
   private String resolveAppVersion() {
@@ -1700,11 +1964,13 @@ public class MainActivity extends AppCompatActivity {
 
   private void applyScreenOrientation(int screenNumber) {
     if (isVerticalCourseScreen(screenNumber)) {
-      setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
+      // Some TV boxes do not honor sensor-based orientation properly (especially when the
+      // physical display is rotated). Force a deterministic orientation per "screen".
+      setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
       return;
     }
     if (isHorizontalInfoScreen(screenNumber)) {
-      setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+      setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
       return;
     }
     setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
@@ -1742,7 +2008,8 @@ public class MainActivity extends AppCompatActivity {
     stopChecksumPolling();
     stopPlayback();
     applyResponsiveLayout();
-    contentPanel.setBackgroundColor(getColor(R.color.tv_playback_background));
+    contentPanel.setBackgroundColor(getColor(R.color.tv_black));
+    contentPanel.setPadding(0, 0, 0, 0);
     showHorizontalChrome();
     if (horizontalLoadingText != null) {
       horizontalLoadingText.setVisibility(View.VISIBLE);
@@ -1825,6 +2092,10 @@ public class MainActivity extends AppCompatActivity {
     pauseStartedElapsedRealtimeMs = 0L;
     frozenElapsedMs = 0L;
     activePlaybackSessionId = playbackSessionId == null ? "" : playbackSessionId;
+    activePlaybackSessionVersion = 0;
+    activePlaybackSessionState = "PREVIEW";
+    sessionDrivenPlayback = false;
+    clearPlaybackSessionTiming();
     activeBundleChecksum =
         !TextUtils.isEmpty(bundleChecksum)
             ? bundleChecksum
@@ -1874,6 +2145,10 @@ public class MainActivity extends AppCompatActivity {
     }
     previewMode = false;
     playbackPaused = false;
+    sessionDrivenPlayback = false;
+    activePlaybackSessionVersion = 0;
+    activePlaybackSessionState = "RUNNING";
+    clearPlaybackSessionTiming();
     resetAudioCueTracking();
     playbackStartElapsedRealtimeMs = SystemClock.elapsedRealtime();
     accumulatedPauseElapsedRealtimeMs = 0L;
@@ -1893,7 +2168,21 @@ public class MainActivity extends AppCompatActivity {
       long scheduledStartAtMs,
       String playbackSessionId,
       String bundleChecksum) {
+    Log.d(
+        TAG,
+        "Remote preview requested scheduleId="
+            + scheduleId
+            + " courseId="
+            + courseId
+            + " session="
+            + playbackSessionId
+            + " checksum="
+            + bundleChecksum
+            + " sync="
+            + syncInProgress);
+    bringPlaybackUiToFront();
     if (syncInProgress) {
+      requestCurrentPlaybackSession("preview_while_syncing");
       return;
     }
     resolveRemoteSchedule(
@@ -1915,112 +2204,104 @@ public class MainActivity extends AppCompatActivity {
       long playbackStartAtMs,
       String playbackSessionId,
       String bundleChecksum) {
-    if (syncInProgress) {
-      return;
-    }
-    resolveRemoteSchedule(
-        scheduleId,
-        courseId,
-        scheduledStartAtMs,
-        bundleChecksum,
-        item -> {
-          if (item == null) {
-            return;
-          }
-
-          if (activePlaybackItem == null
-              || !activePlaybackItem.id.equals(item.id)
-              || !previewMode
-              || !TextUtils.equals(activePlaybackSessionId, playbackSessionId)
-              || !TextUtils.equals(activeBundleChecksum, bundleChecksum)) {
-            startCourse(item, playbackSessionId, bundleChecksum);
-          }
-
-          activePlaybackSessionId = playbackSessionId == null ? "" : playbackSessionId;
-          activeBundleChecksum =
-              !TextUtils.isEmpty(bundleChecksum) ? bundleChecksum : item.contentChecksum;
-          previewMode = false;
-          playbackPaused = false;
-          resetAudioCueTracking();
-          playbackStartElapsedRealtimeMs =
-              resolveElapsedRealtimeForWallClock(
-                  playbackStartAtMs > 0 ? playbackStartAtMs : System.currentTimeMillis());
-          accumulatedPauseElapsedRealtimeMs = 0L;
-          pauseStartedElapsedRealtimeMs = 0L;
-          frozenElapsedMs = 0L;
-          resetPlaybackStateCaches();
-          refreshPlayback();
-          playbackLoopRunning = true;
-          playbackHandler.removeCallbacks(playbackTicker);
-          playbackHandler.postDelayed(playbackTicker, 400L);
-          dispatchScreenHeartbeat(false);
-        });
+    Log.d(
+        TAG,
+        "Remote start requested scheduleId="
+            + scheduleId
+            + " courseId="
+            + courseId
+            + " session="
+            + playbackSessionId
+            + " checksum="
+            + bundleChecksum
+            + " preview="
+            + previewMode
+            + " active="
+            + (activePlaybackItem == null ? "" : activePlaybackItem.id)
+            + " sync="
+            + syncInProgress);
+    bringPlaybackUiToFront();
+    requestCurrentPlaybackSession("start_course");
   }
 
-  private void pauseCourseFromRemote(
-      String scheduleId, int courseId, long pausedAtMs, String playbackSessionId) {
-    if (previewMode
-        || activePlaybackItem == null
-        || !matchesActiveSchedule(scheduleId, courseId)
-        || !matchesActiveSession(playbackSessionId)) {
-      return;
-    }
-    if (playbackPaused) {
-      return;
+  private boolean canStartActivePreviewFromRemote(
+      String scheduleId, int courseId, String playbackSessionId, String bundleChecksum) {
+    if (!previewMode || activePlaybackItem == null) {
+      return false;
     }
 
-    long effectivePauseAt =
-        resolveElapsedRealtimeForWallClock(pausedAtMs > 0 ? pausedAtMs : System.currentTimeMillis());
-    frozenElapsedMs =
-        Math.max(
-            effectivePauseAt - playbackStartElapsedRealtimeMs - accumulatedPauseElapsedRealtimeMs,
-            0L);
-    playbackPaused = true;
-    pauseStartedElapsedRealtimeMs = effectivePauseAt;
-    refreshPlayback();
-    playbackHandler.removeCallbacks(playbackTicker);
-    dispatchScreenHeartbeat(false);
+    boolean hasScheduleIdentity = !TextUtils.isEmpty(scheduleId) || courseId > 0;
+    boolean scheduleMatches = !hasScheduleIdentity || matchesActiveSchedule(scheduleId, courseId);
+    boolean sessionMatches =
+        TextUtils.isEmpty(playbackSessionId)
+            || TextUtils.isEmpty(activePlaybackSessionId)
+            || TextUtils.equals(playbackSessionId, activePlaybackSessionId);
+    boolean checksumMatches =
+        TextUtils.isEmpty(bundleChecksum)
+            || TextUtils.equals(bundleChecksum, activeBundleChecksum)
+            || TextUtils.equals(bundleChecksum, activePlaybackItem.contentChecksum);
+    return scheduleMatches && sessionMatches && checksumMatches;
   }
 
-  private void resumeCourseFromRemote(
-      String scheduleId, int courseId, long resumedAtMs, String playbackSessionId) {
-    if (previewMode
-        || activePlaybackItem == null
-        || !matchesActiveSchedule(scheduleId, courseId)
-        || !matchesActiveSession(playbackSessionId)) {
+  private void beginRemoteCoursePlayback(
+      TvScheduleItem item, long playbackStartAtMs, String playbackSessionId, String bundleChecksum) {
+    if (item == null) {
       return;
     }
-    if (!playbackPaused) {
-      return;
-    }
-
-    long effectiveResumeAt =
-        resolveElapsedRealtimeForWallClock(
-            resumedAtMs > 0 ? resumedAtMs : System.currentTimeMillis());
-    if (pauseStartedElapsedRealtimeMs > 0 && effectiveResumeAt > pauseStartedElapsedRealtimeMs) {
-      accumulatedPauseElapsedRealtimeMs += (effectiveResumeAt - pauseStartedElapsedRealtimeMs);
-    }
+    activePlaybackItem = item;
+    activePlaybackSessionId = playbackSessionId == null ? "" : playbackSessionId;
+    activePlaybackSessionVersion = 0;
+    activePlaybackSessionState = "RUNNING";
+    sessionDrivenPlayback = false;
+    clearPlaybackSessionTiming();
+    activeBundleChecksum =
+        !TextUtils.isEmpty(bundleChecksum) ? bundleChecksum : item.contentChecksum;
+    previewMode = false;
     playbackPaused = false;
+    resetAudioCueTracking();
+    playbackStartElapsedRealtimeMs =
+        resolveElapsedRealtimeForWallClock(
+            playbackStartAtMs > 0 ? playbackStartAtMs : System.currentTimeMillis());
+    accumulatedPauseElapsedRealtimeMs = 0L;
     pauseStartedElapsedRealtimeMs = 0L;
+    frozenElapsedMs = 0L;
+    resetPlaybackStateCaches();
     refreshPlayback();
+    playbackLoopRunning = true;
     playbackHandler.removeCallbacks(playbackTicker);
     playbackHandler.postDelayed(playbackTicker, 400L);
     dispatchScreenHeartbeat(false);
   }
 
+  private void bringPlaybackUiToFront() {
+    try {
+      Intent intent = new Intent(this, MainActivity.class);
+      intent.addFlags(
+          Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+              | Intent.FLAG_ACTIVITY_CLEAR_TOP
+              | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+      startActivity(intent);
+    } catch (Exception error) {
+      Log.w(TAG, "Unable to bring TV activity to foreground", error);
+    }
+  }
+
+  private void pauseCourseFromRemote(
+      String scheduleId, int courseId, long pausedAtMs, String playbackSessionId) {
+    bringPlaybackUiToFront();
+    requestCurrentPlaybackSession("pause_course");
+  }
+
+  private void resumeCourseFromRemote(
+      String scheduleId, int courseId, long resumedAtMs, String playbackSessionId) {
+    bringPlaybackUiToFront();
+    requestCurrentPlaybackSession("resume_course");
+  }
+
   private void terminateCourseFromRemote(
       String scheduleId, int courseId, String playbackSessionId) {
-    if (activePlaybackItem == null
-        || !matchesActiveSchedule(scheduleId, courseId)
-        || !matchesActiveSession(playbackSessionId)) {
-      return;
-    }
-
-    if (isVerticalCourseScreen(activeScreenNumber)) {
-      renderVerticalSchedule(activeScreenNumber);
-      return;
-    }
-    renderHorizontalScreen(activeScreenNumber);
+    bringPlaybackUiToFront();
+    requestCurrentPlaybackSession("terminate_course");
   }
 
   private TvScheduleItem findSyncedSchedule(String scheduleId, int courseId, long scheduledStartAtMs) {
@@ -2066,6 +2347,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     if (scheduleId == null || scheduleId.trim().isEmpty()) {
+      Log.w(
+          TAG,
+          "Remote schedule resolve skipped because scheduleId is empty courseId="
+              + courseId
+              + " scheduledStartAt="
+              + scheduledStartAtMs);
       return;
     }
 
@@ -2074,6 +2361,7 @@ public class MainActivity extends AppCompatActivity {
               try {
                 TvScheduleItem remoteItem = repository.loadScheduleById(scheduleId);
                 if (remoteItem == null) {
+                  Log.w(TAG, "Remote schedule resolve returned empty scheduleId=" + scheduleId);
                   return;
                 }
 
@@ -2084,6 +2372,7 @@ public class MainActivity extends AppCompatActivity {
                       action.apply(remoteItem);
                     });
               } catch (Exception ignored) {
+                Log.w(TAG, "Remote schedule resolve failed scheduleId=" + scheduleId, ignored);
                 // Keep the current screen unchanged if remote schedule fetch fails.
               }
             })
@@ -2202,6 +2491,8 @@ public class MainActivity extends AppCompatActivity {
     lastPlaybackMode = "";
     lastTrainingSignature = "";
     lastWaterfallSignature = "";
+    horizontalRingProgressKey = "";
+    horizontalRingTotalSeconds = 0;
   }
 
   private void syncTodaySchedule(int screenNumber, boolean immediate) {
@@ -2244,6 +2535,7 @@ public class MainActivity extends AppCompatActivity {
                       bindScheduleItems(result.schedules);
                       dispatchScreenHeartbeat(false);
                       scheduleChecksumPolling();
+                      requestCurrentPlaybackSession("vertical_sync_complete");
                     });
               } catch (Exception error) {
                 Log.e(TAG, "Vertical schedule sync failed for screen " + screenNumber, error);
@@ -2403,6 +2695,10 @@ public class MainActivity extends AppCompatActivity {
   }
 
   private void showHorizontalChrome() {
+    hideTransitionDesign();
+    if (contentPanel != null) {
+      contentPanel.setPadding(0, 0, 0, 0);
+    }
     contentTopBar.setVisibility(View.GONE);
     pageTitle.setVisibility(View.GONE);
     pageSubtitle.setVisibility(View.GONE);
@@ -2502,12 +2798,7 @@ public class MainActivity extends AppCompatActivity {
             FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
     badgeParams.gravity = android.view.Gravity.END | android.view.Gravity.TOP;
     badge.setLayoutParams(badgeParams);
-    badge.setBackgroundResource(R.drawable.bg_today_badge);
-    badge.setPadding(dp(18), dp(10), dp(18), dp(10));
-    badge.setText(item.isLive ? "今日课" : "待开始");
-    badge.setTextColor(getColor(R.color.tv_text_main));
-    badge.setTextSize(16f);
-    badge.setTypeface(badge.getTypeface(), android.graphics.Typeface.BOLD);
+    applyScheduleBadgeStyle(badge, item, 16f, dp(18), dp(10), dp(112));
     card.addView(badge);
 
     return card;
@@ -2521,7 +2812,7 @@ public class MainActivity extends AppCompatActivity {
     cardParams.topMargin = dp(18);
     card.setLayoutParams(cardParams);
     card.setBackgroundResource(R.drawable.bg_schedule_card);
-    card.setPadding(dp(20), dp(20), dp(20), dp(20));
+    card.setPadding(dp(18), dp(14), dp(14), dp(14));
     card.setClickable(true);
     card.setFocusable(true);
     card.setOnClickListener(v -> startCourse(item));
@@ -2531,16 +2822,34 @@ public class MainActivity extends AppCompatActivity {
     row.setGravity(android.view.Gravity.CENTER_VERTICAL);
     card.addView(row);
 
-    TextView logo = new TextView(this);
-    LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(dp(72), dp(72));
-    logo.setLayoutParams(logoParams);
-    logo.setBackgroundResource(R.drawable.bg_logo_panel);
-    logo.setText(item.logoText);
-    logo.setTextColor(getColor(R.color.tv_text_main));
-    logo.setTextSize(11f);
-    logo.setLineSpacing(0f, 0.9f);
-    logo.setGravity(android.view.Gravity.CENTER);
-    row.addView(logo);
+    FrameLayout imageCircle = new FrameLayout(this);
+    LinearLayout.LayoutParams imageCircleParams = new LinearLayout.LayoutParams(dp(58), dp(58));
+    imageCircle.setLayoutParams(imageCircleParams);
+    imageCircle.setBackgroundResource(R.drawable.bg_schedule_course_image_circle);
+    imageCircle.setPadding(dp(6), dp(6), dp(6), dp(6));
+
+    ImageView courseImage = new ImageView(this);
+    FrameLayout.LayoutParams courseImageParams =
+        new FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
+    courseImage.setLayoutParams(courseImageParams);
+    courseImage.setAdjustViewBounds(true);
+    courseImage.setScaleType(ImageView.ScaleType.FIT_CENTER);
+    imageCircle.addView(courseImage);
+
+    TextView imageFallback = new TextView(this);
+    imageFallback.setLayoutParams(
+        new FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+    imageFallback.setGravity(android.view.Gravity.CENTER);
+    imageFallback.setText(item.logoText);
+    imageFallback.setTextColor(getColor(R.color.tv_black));
+    imageFallback.setTextSize(9f);
+    imageFallback.setTypeface(imageFallback.getTypeface(), android.graphics.Typeface.BOLD);
+    imageFallback.setMaxLines(2);
+    imageCircle.addView(imageFallback);
+    row.addView(imageCircle);
+    bindScheduleCourseImage(courseImage, imageFallback, item.logoSource);
 
     LinearLayout content = new LinearLayout(this);
     LinearLayout.LayoutParams contentParams =
@@ -2552,13 +2861,11 @@ public class MainActivity extends AppCompatActivity {
     row.addView(content);
 
     TextView name = new TextView(this);
-    String versionSuffix =
-        item.version == null || item.version.trim().isEmpty() ? "" : " (" + item.version + ")";
-    name.setText(item.courseName + versionSuffix);
+    name.setText(item.courseName);
     name.setTextColor(getColor(R.color.tv_text_main));
     name.setTextSize(18f);
     name.setTypeface(name.getTypeface(), android.graphics.Typeface.BOLD);
-    name.setMaxLines(2);
+    name.setMaxLines(1);
     name.setEllipsize(TextUtils.TruncateAt.END);
     content.addView(name);
 
@@ -2580,12 +2887,7 @@ public class MainActivity extends AppCompatActivity {
             FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
     badgeParams.gravity = android.view.Gravity.END | android.view.Gravity.TOP;
     badge.setLayoutParams(badgeParams);
-    badge.setBackgroundResource(R.drawable.bg_today_badge);
-    badge.setPadding(dp(14), dp(8), dp(14), dp(8));
-    badge.setText(item.isLive ? "今日课" : "待开始");
-    badge.setTextColor(getColor(R.color.tv_text_main));
-    badge.setTextSize(12f);
-    badge.setTypeface(badge.getTypeface(), android.graphics.Typeface.BOLD);
+    applyScheduleBadgeStyle(badge, item, 12f, dp(14), dp(7), dp(68));
     card.addView(badge);
 
     return card;
@@ -2594,44 +2896,64 @@ public class MainActivity extends AppCompatActivity {
   private View createHorizontalScheduleCard(TvScheduleItem item) {
     FrameLayout card = new FrameLayout(this);
     card.setBackgroundResource(R.drawable.bg_schedule_card);
-    card.setPadding(dp(18), dp(18), dp(18), dp(18));
+    card.setPadding(dp(22), dp(18), dp(20), dp(18));
     card.setClickable(true);
     card.setFocusable(true);
     card.setOnClickListener(v -> startCourse(item));
 
     LinearLayout row = new LinearLayout(this);
+    FrameLayout.LayoutParams rowParams =
+        new FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
+    row.setLayoutParams(rowParams);
     row.setOrientation(LinearLayout.HORIZONTAL);
     row.setGravity(android.view.Gravity.CENTER_VERTICAL);
     card.addView(row);
 
-    TextView logo = new TextView(this);
-    LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(dp(68), dp(68));
-    logo.setLayoutParams(logoParams);
-    logo.setBackgroundResource(R.drawable.bg_logo_panel);
-    logo.setText(item.logoText);
-    logo.setTextColor(getColor(R.color.tv_text_main));
-    logo.setTextSize(10f);
-    logo.setLineSpacing(0f, 0.9f);
-    logo.setGravity(android.view.Gravity.CENTER);
-    row.addView(logo);
+    FrameLayout imageCircle = new FrameLayout(this);
+    LinearLayout.LayoutParams imageCircleParams = new LinearLayout.LayoutParams(dp(86), dp(86));
+    imageCircle.setLayoutParams(imageCircleParams);
+    imageCircle.setBackgroundResource(R.drawable.bg_schedule_course_image_circle);
+    imageCircle.setPadding(dp(8), dp(8), dp(8), dp(8));
+
+    ImageView courseImage = new ImageView(this);
+    FrameLayout.LayoutParams courseImageParams =
+        new FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
+    courseImage.setLayoutParams(courseImageParams);
+    courseImage.setAdjustViewBounds(true);
+    courseImage.setScaleType(ImageView.ScaleType.FIT_CENTER);
+    imageCircle.addView(courseImage);
+
+    TextView imageFallback = new TextView(this);
+    imageFallback.setLayoutParams(
+        new FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+    imageFallback.setGravity(android.view.Gravity.CENTER);
+    imageFallback.setText(item.logoText);
+    imageFallback.setTextColor(getColor(R.color.tv_black));
+    imageFallback.setTextSize(12f);
+    imageFallback.setTypeface(imageFallback.getTypeface(), android.graphics.Typeface.BOLD);
+    imageFallback.setMaxLines(2);
+    imageCircle.addView(imageFallback);
+    row.addView(imageCircle);
+    bindScheduleCourseImage(courseImage, imageFallback, item.logoSource);
 
     LinearLayout content = new LinearLayout(this);
     LinearLayout.LayoutParams contentParams =
         new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-    contentParams.leftMargin = dp(14);
-    contentParams.rightMargin = dp(68);
+    contentParams.leftMargin = dp(24);
+    contentParams.rightMargin = dp(112);
     content.setLayoutParams(contentParams);
     content.setOrientation(LinearLayout.VERTICAL);
     row.addView(content);
 
     TextView name = new TextView(this);
-    String versionSuffix =
-        item.version == null || item.version.trim().isEmpty() ? "" : " (" + item.version + ")";
-    name.setText(item.courseName + versionSuffix);
+    name.setText(item.courseName);
     name.setTextColor(getColor(R.color.tv_text_main));
-    name.setTextSize(16f);
+    name.setTextSize(30f);
     name.setTypeface(name.getTypeface(), android.graphics.Typeface.BOLD);
-    name.setMaxLines(2);
+    name.setMaxLines(1);
     name.setEllipsize(TextUtils.TruncateAt.END);
     content.addView(name);
 
@@ -2643,7 +2965,7 @@ public class MainActivity extends AppCompatActivity {
     time.setLayoutParams(timeParams);
     time.setText("◷  " + formatTimeRange(item));
     time.setTextColor(getColor(R.color.tv_text_main));
-    time.setTextSize(13f);
+    time.setTextSize(24f);
     time.setTypeface(time.getTypeface(), android.graphics.Typeface.BOLD);
     content.addView(time);
 
@@ -2653,15 +2975,89 @@ public class MainActivity extends AppCompatActivity {
             FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
     badgeParams.gravity = android.view.Gravity.END | android.view.Gravity.TOP;
     badge.setLayoutParams(badgeParams);
-    badge.setBackgroundResource(R.drawable.bg_today_badge);
-    badge.setPadding(dp(12), dp(7), dp(12), dp(7));
-    badge.setText(item.isLive ? "今日课" : "待开始");
-    badge.setTextColor(getColor(R.color.tv_text_main));
-    badge.setTextSize(11f);
-    badge.setTypeface(badge.getTypeface(), android.graphics.Typeface.BOLD);
+    applyScheduleBadgeStyle(badge, item, 20f, dp(20), dp(10), dp(124));
     card.addView(badge);
 
     return card;
+  }
+
+  private void bindScheduleCourseImage(ImageView imageView, TextView fallbackView, String source) {
+    if (imageView == null || fallbackView == null) {
+      return;
+    }
+    String requestKey = source == null ? "" : source.trim();
+    imageView.setTag(requestKey);
+    imageView.setImageDrawable(null);
+    imageView.setVisibility(View.GONE);
+    fallbackView.setVisibility(View.VISIBLE);
+    if (requestKey.isEmpty()) {
+      return;
+    }
+
+    new Thread(
+            () -> {
+              Bitmap bitmap = loadBitmapFromSource(requestKey, dp(180), dp(180));
+              runOnUiThread(
+                  () -> {
+                    Object latestTag = imageView.getTag();
+                    if (!(latestTag instanceof String) || !requestKey.equals(latestTag)) {
+                      return;
+                    }
+                    if (bitmap == null) {
+                      imageView.setVisibility(View.GONE);
+                      fallbackView.setVisibility(View.VISIBLE);
+                      return;
+                    }
+                    imageView.setImageBitmap(bitmap);
+                    imageView.setVisibility(View.VISIBLE);
+                    fallbackView.setVisibility(View.GONE);
+                  });
+            })
+        .start();
+  }
+
+  private String resolveScheduleBadgeText(TvScheduleItem item) {
+    if (item == null || item.startTime == null || item.endTime == null) {
+      return "即将开始";
+    }
+    java.time.LocalDateTime now =
+        java.time.LocalDateTime.now(java.time.ZoneId.of(ServerConfig.COURSE_TIME_ZONE));
+    if (now.isAfter(item.endTime)) {
+      return "已结束";
+    }
+    if (now.isBefore(item.startTime)) {
+      return "即将开始";
+    }
+    return "进行中";
+  }
+
+  private void applyScheduleBadgeStyle(
+      TextView badge,
+      TvScheduleItem item,
+      float textSize,
+      int horizontalPadding,
+      int verticalPadding,
+      int minWidth) {
+    if (badge == null) {
+      return;
+    }
+    String status = resolveScheduleBadgeText(item);
+    badge.setText(status);
+    badge.setTextColor(getColor(R.color.tv_text_main));
+    badge.setTextSize(textSize);
+    badge.setGravity(android.view.Gravity.CENTER);
+    badge.setMinWidth(minWidth);
+    badge.setPadding(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding);
+    badge.setTypeface(badge.getTypeface(), android.graphics.Typeface.BOLD);
+    if ("已结束".equals(status)) {
+      badge.setBackgroundResource(R.drawable.bg_schedule_badge_ended);
+      return;
+    }
+    if ("进行中".equals(status)) {
+      badge.setBackgroundResource(R.drawable.bg_schedule_badge_live);
+      return;
+    }
+    badge.setBackgroundResource(R.drawable.bg_schedule_badge_upcoming);
   }
 
   private void syncHorizontalCourse(int screenNumber, boolean immediate) {
@@ -2713,6 +3109,7 @@ public class MainActivity extends AppCompatActivity {
                       bindHorizontalSchedule(result.schedules);
                       dispatchScreenHeartbeat(false);
                       scheduleChecksumPolling();
+                      requestCurrentPlaybackSession("horizontal_sync_complete");
                     });
               } catch (Exception error) {
                 Log.e(TAG, "Horizontal schedule sync failed for screen " + screenNumber, error);
@@ -2768,7 +3165,8 @@ public class MainActivity extends AppCompatActivity {
       horizontalLoadingText.setVisibility(View.GONE);
     }
     if (horizontalScheduleSubtitle != null) {
-      horizontalScheduleSubtitle.setText(LocalDate.now().format(dateFormatter));
+      horizontalScheduleSubtitle.setText("");
+      horizontalScheduleSubtitle.setVisibility(View.GONE);
     }
     if (horizontalScheduleScroll != null) {
       horizontalScheduleScroll.setVisibility(View.VISIBLE);
@@ -2786,30 +3184,30 @@ public class MainActivity extends AppCompatActivity {
       row.setOrientation(LinearLayout.HORIZONTAL);
       LinearLayout.LayoutParams rowParams =
           new LinearLayout.LayoutParams(
-              LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+              LinearLayout.LayoutParams.MATCH_PARENT, calculateHorizontalScheduleRowHeight());
       if (index > 0) {
-        rowParams.topMargin = dp(16);
+        rowParams.topMargin = dp(8);
       }
       row.setLayoutParams(rowParams);
 
       View firstCard = createHorizontalScheduleCard(scheduleItems.get(index));
       LinearLayout.LayoutParams firstParams =
-          new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+          new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f);
       firstCard.setLayoutParams(firstParams);
       row.addView(firstCard);
 
       if (index + 1 < scheduleItems.size()) {
         View secondCard = createHorizontalScheduleCard(scheduleItems.get(index + 1));
         LinearLayout.LayoutParams secondParams =
-            new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        secondParams.leftMargin = dp(16);
+            new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f);
+        secondParams.leftMargin = dp(8);
         secondCard.setLayoutParams(secondParams);
         row.addView(secondCard);
       } else {
         View spacer = new View(this);
         LinearLayout.LayoutParams spacerParams =
             new LinearLayout.LayoutParams(0, 0, 1f);
-        spacerParams.leftMargin = dp(16);
+        spacerParams.leftMargin = dp(8);
         spacer.setLayoutParams(spacerParams);
         row.addView(spacer);
       }
@@ -2818,6 +3216,13 @@ public class MainActivity extends AppCompatActivity {
         horizontalScheduleList.addView(row);
       }
     }
+  }
+
+  private int calculateHorizontalScheduleRowHeight() {
+    int screenWidth = getResources().getDisplayMetrics().widthPixels;
+    int screenHeight = getResources().getDisplayMetrics().heightPixels;
+    int shortSide = Math.min(screenWidth, screenHeight);
+    return clamp(Math.round(shortSide * 0.145f), dp(132), dp(154));
   }
 
   private TvScheduleItem selectHorizontalSchedule(List<TvScheduleItem> scheduleItems) {
@@ -3283,7 +3688,27 @@ public class MainActivity extends AppCompatActivity {
   }
 
   private void showPlaybackScroller() {
+    hideTransitionDesign();
     hideFinishPanel();
+    scheduleScrollView.setVisibility(View.GONE);
+    verticalSchedulePanel.setVisibility(View.GONE);
+    verticalPlaybackPanel.setVisibility(View.VISIBLE);
+    horizontalPlaceholderPanel.setVisibility(View.GONE);
+    if (horizontalPlaybackPanel != null) {
+      horizontalPlaybackPanel.setVisibility(View.GONE);
+    }
+    if (horizontalScheduleScroll != null) {
+      horizontalScheduleScroll.setVisibility(View.GONE);
+    }
+    if (horizontalLoadingText != null) {
+      horizontalLoadingText.setVisibility(View.GONE);
+    }
+    if (horizontalContentPanel != null) {
+      horizontalContentPanel.setVisibility(View.GONE);
+    }
+    if (horizontalTransitionPanel != null) {
+      horizontalTransitionPanel.setVisibility(View.GONE);
+    }
     if (getReadyPanel != null) {
       getReadyPanel.setVisibility(View.GONE);
     }
@@ -3382,7 +3807,8 @@ public class MainActivity extends AppCompatActivity {
       int completedDots,
       int totalDots) {
     configureHorizontalMainLayout(false);
-    contentPanel.setBackgroundColor(getColor(R.color.tv_black));
+    contentPanel.setBackgroundColor(getColor(R.color.tv_playback_background));
+    contentPanel.setPadding(0, 0, 0, 0);
     scheduleScrollView.setVisibility(View.GONE);
     verticalSchedulePanel.setVisibility(View.GONE);
     verticalPlaybackPanel.setVisibility(View.GONE);
@@ -3402,13 +3828,44 @@ public class MainActivity extends AppCompatActivity {
     if (horizontalContentPanel != null) {
       horizontalContentPanel.setVisibility(View.VISIBLE);
     }
+    hideTransitionDesign();
     if (horizontalCountdownText != null) {
       horizontalCountdownText.setText(String.valueOf(Math.max(remainingSeconds, 0)));
     }
+    String safePrimary = primaryText == null || primaryText.trim().isEmpty() ? "WAITING" : primaryText;
+    if (horizontalRingProgress != null) {
+      int ringProgressColor =
+          isHorizontalReadyRingState(safePrimary)
+              ? getColor(R.color.tv_playback_ready)
+              : getColor(R.color.tv_horizontal_progress_active);
+      horizontalRingProgress.setColors(
+          getColor(R.color.tv_horizontal_progress_inactive),
+          ringProgressColor,
+          getColor(R.color.tv_text_main));
+      int safeRemaining = Math.max(remainingSeconds, 0);
+      String ringKey =
+          safePrimary
+              + "|"
+              + (secondaryText == null ? "" : secondaryText)
+              + "|"
+              + completedDots
+              + "|"
+              + totalDots;
+      if (!ringKey.equals(horizontalRingProgressKey)
+          || safeRemaining > horizontalRingTotalSeconds
+          || horizontalRingTotalSeconds <= 0) {
+        horizontalRingProgressKey = ringKey;
+        horizontalRingTotalSeconds = Math.max(safeRemaining, 1);
+      }
+      float p = safeRemaining <= 0 ? 0f : (safeRemaining / (float) Math.max(horizontalRingTotalSeconds, 1));
+      horizontalRingProgress.setProgress(p);
+    }
     if (horizontalStateText != null) {
-      horizontalStateText.setText(
-          primaryText == null || primaryText.trim().isEmpty() ? "WAITING" : primaryText);
+      horizontalStateText.setText(safePrimary);
       horizontalStateText.setMaxLines(totalDots > 0 ? 2 : 3);
+      if (horizontalStateIcon != null) {
+        horizontalStateIcon.setVisibility("WORK".equalsIgnoreCase(safePrimary.trim()) ? View.VISIBLE : View.GONE);
+      }
     }
     if (horizontalStateSecondary != null) {
       if (secondaryText == null || secondaryText.trim().isEmpty() || totalDots > 0) {
@@ -3416,10 +3873,19 @@ public class MainActivity extends AppCompatActivity {
       } else {
         horizontalStateSecondary.setVisibility(View.VISIBLE);
         horizontalStateSecondary.setText(secondaryText);
+        horizontalStateSecondary.setGravity(android.view.Gravity.CENTER);
       }
     }
     renderHorizontalDots(completedDots, totalDots);
     renderHorizontalProgressBar(course, currentTrainingElapsedSeconds, currentTrainingTotalSeconds);
+  }
+
+  private boolean isHorizontalReadyRingState(String primaryText) {
+    String normalized =
+        primaryText == null
+            ? ""
+            : primaryText.trim().toUpperCase(Locale.US).replaceAll("\\s+", " ");
+    return "READY FOR WARM UP".equals(normalized) || "READY FOR WORKOUT".equals(normalized);
   }
 
   private void showHorizontalTrainingState(CourseScript course, TrainingPlaybackState state) {
@@ -3442,21 +3908,309 @@ public class MainActivity extends AppCompatActivity {
   }
 
   private void showHorizontalTransitionState(TrainingPlaybackState state) {
-    showHorizontalMainState(
-        activePlaybackItem == null ? null : activePlaybackItem.course,
-        Math.max(state == null ? 0 : state.remainingSeconds, 0),
-        formatHorizontalStateTitle(state == null ? "" : state.stageProgress),
-        "",
-        0,
-        0);
+    showTransitionDesignState(state, true);
   }
 
-  private void showHorizontalFinishState() {
-    configureHorizontalMainLayout(true);
-    contentPanel.setBackgroundColor(getColor(R.color.tv_black));
+  private void showTransitionDesignState(TrainingPlaybackState state, boolean horizontal) {
+    if (!isSupportedTransitionDesign(state == null ? "" : state.transitionType) || transitionDesignPanel == null) {
+      showHorizontalMainState(
+          activePlaybackItem == null ? null : activePlaybackItem.course,
+          Math.max(state == null ? 0 : state.remainingSeconds, 0),
+          formatHorizontalStateTitle(state == null ? "" : state.stageProgress),
+          "",
+          0,
+          0);
+      return;
+    }
+
+    String transitionType = state == null ? "" : state.transitionType;
+    contentPanel.setBackgroundColor(getTransitionBackgroundColor(transitionType));
+    contentPanel.setPadding(0, 0, 0, 0);
+    showPlaybackChrome(false, false);
     scheduleScrollView.setVisibility(View.GONE);
     verticalSchedulePanel.setVisibility(View.GONE);
     verticalPlaybackPanel.setVisibility(View.GONE);
+    horizontalPlaceholderPanel.setVisibility(View.GONE);
+    if (horizontalPlaybackPanel != null) {
+      horizontalPlaybackPanel.setVisibility(View.GONE);
+    }
+    if (horizontalScheduleScroll != null) {
+      horizontalScheduleScroll.setVisibility(View.GONE);
+    }
+    if (horizontalLoadingText != null) {
+      horizontalLoadingText.setVisibility(View.GONE);
+    }
+    if (horizontalContentPanel != null) {
+      horizontalContentPanel.setVisibility(View.GONE);
+    }
+    if (horizontalTransitionPanel != null) {
+      horizontalTransitionPanel.setVisibility(View.GONE);
+    }
+    if (playbackScrollView != null) {
+      playbackScrollView.setVisibility(View.GONE);
+    }
+    if (getReadyPanel != null) {
+      getReadyPanel.setVisibility(View.GONE);
+    }
+    hideFinishPanel();
+    transitionDesignPanel.setBackgroundColor(getTransitionBackgroundColor(transitionType));
+    transitionDesignPanel.setVisibility(View.VISIBLE);
+    transitionDesignPanel.bringToFront();
+    updateTransitionDesignControls(
+        Math.max(state == null ? 0 : state.remainingSeconds, 0),
+        transitionType,
+        state == null ? "" : state.renderKey,
+        state == null ? "" : state.hintText,
+        horizontal);
+    lastPlaybackMode = "TRANSITION_DESIGN|" + (state == null ? "" : state.transitionType);
+    lastTrainingSignature = "";
+    lastWaterfallSignature = "";
+  }
+
+  private void updateTransitionDesignControls(
+      int remainingSeconds, String transitionType, String renderKey, String subtitle, boolean horizontal) {
+    if (transitionDesignCountdown == null || transitionDesignRingContainer == null || transitionDesignPanel == null) {
+      return;
+    }
+    View parentView = transitionDesignPanel;
+    int screenWidth =
+        parentView != null && parentView.getWidth() > 0
+            ? parentView.getWidth()
+            : getResources().getDisplayMetrics().widthPixels;
+    int screenHeight =
+        parentView != null && parentView.getHeight() > 0
+            ? parentView.getHeight()
+            : getResources().getDisplayMetrics().heightPixels;
+    int shortSide = Math.min(screenWidth, screenHeight);
+    int ringSize =
+        horizontal
+            ? clamp(Math.round(shortSide * 0.56f), dp(420), dp(620))
+            : clamp(
+                Math.round(shortSide * 0.62f),
+                Math.round(shortSide * 0.48f),
+                Math.round(shortSide * 0.68f));
+    float centerX = horizontal ? 0.282f : 0.5f;
+    float centerY =
+        horizontal
+            ? 0.50f
+            : ("HYDRATE".equals(transitionType) ? 0.44f : ("REST".equals(transitionType) ? 0.47f : 0.46f));
+    FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(ringSize, ringSize);
+    params.leftMargin = Math.round(screenWidth * centerX - ringSize / 2f);
+    params.topMargin = Math.round(screenHeight * centerY - ringSize / 2f);
+    transitionDesignRingContainer.setLayoutParams(params);
+    transitionDesignRingContainer.setVisibility(View.VISIBLE);
+    if (transitionDesignRing != null) {
+      transitionDesignRing.setStrokeWidthPx(
+          horizontal
+              ? clampPx(shortSide * 0.05f, dp(36), dp(58))
+              : clampPx(shortSide * 0.055f, shortSide * 0.04f, shortSide * 0.07f));
+      transitionDesignRing.setColors(0x55ffffff, 0xffffffff, 0x00ffffff);
+      transitionDesignRing.setDrawThumb(false);
+      String progressKey = transitionType + "|" + renderKey;
+      if (!progressKey.equals(transitionDesignProgressKey)
+          || remainingSeconds > transitionDesignTotalSeconds
+          || transitionDesignTotalSeconds <= 0) {
+        transitionDesignProgressKey = progressKey;
+        transitionDesignTotalSeconds = Math.max(remainingSeconds, 1);
+      }
+      float progress =
+          remainingSeconds <= 0
+              ? 0f
+              : remainingSeconds / (float) Math.max(transitionDesignTotalSeconds, 1);
+      transitionDesignRing.setProgress(progress);
+    }
+    transitionDesignCountdown.setText(String.valueOf(Math.max(remainingSeconds, 0)));
+    transitionDesignCountdown.setTextSize(
+        TypedValue.COMPLEX_UNIT_PX,
+        horizontal
+            ? clampPx(shortSide * 0.18f, sp(120), sp(210))
+            : clampPx(shortSide * 0.22f, shortSide * 0.16f, shortSide * 0.28f));
+    bindTransitionDesignIcon(transitionType, horizontal, screenWidth, screenHeight, shortSide);
+    bindTransitionDesignTitle(transitionType, horizontal, screenWidth, screenHeight, shortSide);
+    bindTransitionDesignSubtitle(subtitle, transitionType, horizontal, screenWidth, screenHeight, shortSide);
+    if (transitionDesignLogo != null) {
+      transitionDesignLogo.setVisibility(View.GONE);
+    }
+  }
+
+  private void bindTransitionDesignIcon(
+      String transitionType, boolean horizontal, int screenWidth, int screenHeight, int shortSide) {
+    if (transitionDesignIcon == null) {
+      return;
+    }
+    int iconRes =
+        "HYDRATE".equals(transitionType)
+            ? R.drawable.icon_water
+            : ("REST".equals(transitionType) ? R.drawable.icon_heart : R.drawable.icon_cicle);
+    transitionDesignIcon.setImageResource(iconRes);
+    transitionDesignIcon.setColorFilter(getColor(R.color.tv_text_main));
+    int width;
+    int height;
+    float centerX;
+    float centerY;
+    if ("HYDRATE".equals(transitionType)) {
+      width = horizontal ? clamp(Math.round(shortSide * 0.12f), dp(96), dp(150))
+          : clamp(
+              Math.round(shortSide * 0.18f),
+              Math.round(shortSide * 0.13f),
+              Math.round(shortSide * 0.22f));
+      height = Math.round(width * (450f / 282f));
+      centerX = horizontal ? 0.72f : 0.5f;
+      centerY = horizontal ? 0.28f : 0.15f;
+    } else if ("REST".equals(transitionType)) {
+      width =
+          horizontal
+              ? clamp(Math.round(shortSide * 0.18f), dp(140), dp(220))
+              : clamp(Math.round(shortSide * 0.28f), Math.round(shortSide * 0.20f), Math.round(shortSide * 0.34f));
+      height = Math.round(width * (338f / 360f));
+      centerX = horizontal ? 0.72f : 0.5f;
+      centerY = horizontal ? 0.23f : 0.18f;
+    } else {
+      width = horizontal ? clamp(Math.round(screenWidth * 0.30f), dp(440), dp(640))
+          : clamp(
+              Math.round(shortSide * 0.58f),
+              Math.round(shortSide * 0.46f),
+              Math.round(shortSide * 0.70f));
+      height = Math.round(width * (476f / 1050f));
+      centerX = horizontal ? 0.72f : 0.5f;
+      centerY = horizontal ? 0.30f : 0.16f;
+    }
+    FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(width, height);
+    params.leftMargin = Math.round(screenWidth * centerX - width / 2f);
+    params.topMargin = Math.round(screenHeight * centerY - height / 2f);
+    transitionDesignIcon.setLayoutParams(params);
+    transitionDesignIcon.setVisibility(View.VISIBLE);
+    transitionDesignIcon.bringToFront();
+  }
+
+  private void bindTransitionDesignTitle(
+      String transitionType, boolean horizontal, int screenWidth, int screenHeight, int shortSide) {
+    if (transitionDesignTitle == null) {
+      return;
+    }
+    String title =
+        "HYDRATE".equals(transitionType)
+            ? "HYDRATE"
+            : ("REST".equals(transitionType) ? "REST" : "MOVE\nSTATION");
+    transitionDesignTitle.setText(title);
+    transitionDesignTitle.setTextSize(
+        TypedValue.COMPLEX_UNIT_PX,
+        horizontal
+            ? clampPx(shortSide * ("REST".equals(transitionType) ? 0.12f : 0.105f), sp(70), sp(124))
+            : clampPx(shortSide * ("REST".equals(transitionType) ? 0.13f : 0.13f), shortSide * 0.085f, shortSide * 0.16f));
+    int width = horizontal ? clamp(Math.round(screenWidth * 0.44f), dp(560), dp(860))
+        : FrameLayout.LayoutParams.MATCH_PARENT;
+    int height = FrameLayout.LayoutParams.WRAP_CONTENT;
+    FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(width, height);
+    if (horizontal) {
+      params.leftMargin = Math.round(screenWidth * 0.51f);
+      params.topMargin =
+          Math.round(
+              screenHeight
+                  * ("HYDRATE".equals(transitionType) ? 0.56f : ("REST".equals(transitionType) ? 0.58f : 0.50f)));
+      transitionDesignTitle.setGravity(android.view.Gravity.CENTER);
+    } else {
+      params.leftMargin = 0;
+      params.rightMargin = 0;
+      params.topMargin =
+          Math.round(
+              screenHeight
+                  * ("HYDRATE".equals(transitionType) ? 0.66f : ("REST".equals(transitionType) ? 0.65f : 0.63f)));
+      transitionDesignTitle.setGravity(android.view.Gravity.CENTER);
+    }
+    transitionDesignTitle.setLayoutParams(params);
+    transitionDesignTitle.setVisibility(View.VISIBLE);
+    transitionDesignTitle.bringToFront();
+  }
+
+  private void bindTransitionDesignSubtitle(
+      String subtitle, String transitionType, boolean horizontal, int screenWidth, int screenHeight, int shortSide) {
+    if (transitionDesignSubtitle == null) {
+      return;
+    }
+    if (subtitle == null || subtitle.trim().isEmpty() || !"REST".equals(transitionType)) {
+      transitionDesignSubtitle.setVisibility(View.GONE);
+      transitionDesignSubtitle.setText("");
+      return;
+    }
+    transitionDesignSubtitle.setText(subtitle.trim());
+    transitionDesignSubtitle.setTextSize(
+        TypedValue.COMPLEX_UNIT_PX,
+        horizontal
+            ? clampPx(shortSide * 0.07f, sp(34), sp(72))
+            : clampPx(shortSide * 0.095f, shortSide * 0.065f, shortSide * 0.12f));
+    int width = horizontal ? clamp(Math.round(screenWidth * 0.44f), dp(560), dp(860))
+        : FrameLayout.LayoutParams.MATCH_PARENT;
+    FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(width, FrameLayout.LayoutParams.WRAP_CONTENT);
+    if (horizontal) {
+      params.leftMargin = Math.round(screenWidth * 0.51f);
+      params.topMargin = Math.round(screenHeight * 0.73f);
+    } else {
+      params.leftMargin = 0;
+      params.rightMargin = 0;
+      params.topMargin = Math.round(screenHeight * 0.765f);
+    }
+    transitionDesignSubtitle.setGravity(android.view.Gravity.CENTER);
+    transitionDesignSubtitle.setLayoutParams(params);
+    transitionDesignSubtitle.setVisibility(View.VISIBLE);
+    transitionDesignSubtitle.bringToFront();
+  }
+
+  private void hideTransitionDesign() {
+    if (transitionDesignPanel != null) {
+      transitionDesignPanel.setVisibility(View.GONE);
+    }
+    if (transitionDesignCountdown != null) {
+      transitionDesignCountdown.setText("");
+    }
+    if (transitionDesignRingContainer != null) {
+      transitionDesignRingContainer.setVisibility(View.GONE);
+    }
+    if (transitionDesignIcon != null) {
+      transitionDesignIcon.setVisibility(View.GONE);
+      transitionDesignIcon.setImageDrawable(null);
+    }
+    if (transitionDesignTitle != null) {
+      transitionDesignTitle.setVisibility(View.GONE);
+      transitionDesignTitle.setText("");
+    }
+    if (transitionDesignSubtitle != null) {
+      transitionDesignSubtitle.setVisibility(View.GONE);
+      transitionDesignSubtitle.setText("");
+    }
+    if (transitionDesignLogo != null) {
+      transitionDesignLogo.setVisibility(View.GONE);
+    }
+    transitionDesignProgressKey = "";
+    transitionDesignTotalSeconds = 0;
+  }
+
+  private boolean isSupportedTransitionDesign(String transitionType) {
+    return "HYDRATE".equals(transitionType)
+        || "REST".equals(transitionType)
+        || "MOVE_STATION".equals(transitionType)
+        || "MOVE_ZONE".equals(transitionType);
+  }
+
+  private void showHorizontalFinishState() {
+    hideTransitionDesign();
+    contentPanel.setBackgroundColor(getColor(R.color.tv_black));
+    contentPanel.setPadding(0, 0, 0, 0);
+    scheduleScrollView.setVisibility(View.GONE);
+    verticalSchedulePanel.setVisibility(View.GONE);
+    verticalPlaybackPanel.setVisibility(View.VISIBLE);
+    if (playbackStatusGroup != null) {
+      playbackStatusGroup.setVisibility(View.GONE);
+    }
+    if (playbackHint != null) {
+      playbackHint.setVisibility(View.GONE);
+    }
+    if (playbackScrollView != null) {
+      playbackScrollView.setVisibility(View.GONE);
+    }
+    if (getReadyPanel != null) {
+      getReadyPanel.setVisibility(View.GONE);
+    }
     horizontalPlaceholderPanel.setVisibility(View.GONE);
     if (horizontalScheduleScroll != null) {
       horizontalScheduleScroll.setVisibility(View.GONE);
@@ -3468,25 +4222,16 @@ public class MainActivity extends AppCompatActivity {
       horizontalTransitionPanel.setVisibility(View.GONE);
     }
     if (horizontalPlaybackPanel != null) {
-      horizontalPlaybackPanel.setVisibility(View.VISIBLE);
+      horizontalPlaybackPanel.setVisibility(View.GONE);
     }
     if (horizontalContentPanel != null) {
-      horizontalContentPanel.setVisibility(View.VISIBLE);
+      horizontalContentPanel.setVisibility(View.GONE);
     }
-    if (horizontalCountdownText != null) {
-      horizontalCountdownText.setText("");
+    if (finishPanel != null) {
+      finishPanel.setVisibility(View.VISIBLE);
     }
-    if (horizontalStateText != null) {
-      horizontalStateText.setText("CONGRATULATION");
-    }
-    if (horizontalStateSecondary != null) {
-      horizontalStateSecondary.setVisibility(View.GONE);
-    }
-    renderHorizontalDots(0, 0);
-    if (horizontalProgressRow != null) {
-      horizontalProgressRow.removeAllViews();
-      horizontalProgressRow.setVisibility(View.GONE);
-    }
+    bindFinishContent(activePlaybackItem == null ? "" : activePlaybackItem.logoSource);
+    lastTrainingSignature = "";
   }
 
   private void renderHorizontalDots(int completedDots, int totalDots) {
@@ -3499,6 +4244,7 @@ public class MainActivity extends AppCompatActivity {
       return;
     }
     horizontalStateDotsRow.setVisibility(View.VISIBLE);
+    horizontalStateDotsRow.setGravity(android.view.Gravity.CENTER);
     int shortSide =
         Math.min(
             getResources().getDisplayMetrics().widthPixels,
@@ -3537,11 +4283,11 @@ public class MainActivity extends AppCompatActivity {
         Math.min(
             getResources().getDisplayMetrics().widthPixels,
             getResources().getDisplayMetrics().heightPixels);
-    int segmentHeight = clamp(Math.round(shortSide * 0.022f), dp(10), dp(18));
-    int markerHeight = clamp(Math.round(shortSide * 0.05f), dp(26), dp(40));
+    int segmentHeight = clamp(Math.round(shortSide * 0.03f), dp(24), dp(34));
+    int markerHeight = clamp(Math.round(shortSide * 0.078f), dp(56), dp(88));
     int markerWidth =
-        clamp(Math.round(markerHeight * WATER_ICON_ASPECT_RATIO), dp(16), dp(28));
-    int markerMargin = clamp(Math.round(shortSide * 0.012f), dp(8), dp(14));
+        clamp(Math.round(markerHeight * WATER_ICON_ASPECT_RATIO), dp(36), dp(58));
+    int markerMargin = clamp(Math.round(shortSide * 0.024f), dp(24), dp(46));
     int safeElapsed = clamp(Math.max(elapsedSeconds, 0), 0, Math.max(totalSeconds, 0));
     int consumed = 0;
     for (int index = 0; index < segments.size(); index += 1) {
@@ -3586,6 +4332,7 @@ public class MainActivity extends AppCompatActivity {
         marker.setAdjustViewBounds(true);
         marker.setScaleType(ImageView.ScaleType.FIT_CENTER);
         marker.setImageResource(R.drawable.icon_water);
+        marker.setColorFilter(getColor(R.color.tv_text_main));
         marker.setAlpha(1f);
         horizontalProgressRow.addView(marker);
       }
@@ -3619,12 +4366,12 @@ public class MainActivity extends AppCompatActivity {
       playbackTimerCard.setVisibility(View.VISIBLE);
       if (timerParams != null) {
         timerParams.width = 0;
-        timerParams.weight = 0.28f;
+        timerParams.weight = 0.25f;
         playbackTimerCard.setLayoutParams(timerParams);
       }
       if (stageParams != null) {
         stageParams.width = 0;
-        stageParams.weight = 0.72f;
+        stageParams.weight = 0.75f;
         stageParams.leftMargin = clamp(Math.round(
             Math.min(
                     getResources().getDisplayMetrics().widthPixels,
@@ -3641,48 +4388,48 @@ public class MainActivity extends AppCompatActivity {
       return;
     }
 
-    View stateColumn = (View) horizontalStateText.getParent();
-    LinearLayout.LayoutParams countdownParams =
-        (LinearLayout.LayoutParams) horizontalCountdownText.getLayoutParams();
-    LinearLayout.LayoutParams stateParams =
-        stateColumn instanceof View
-            ? (LinearLayout.LayoutParams) stateColumn.getLayoutParams()
-            : null;
+    View countdownColumn =
+        horizontalRingContainer != null ? horizontalRingContainer : horizontalCountdownText;
+    View stateColumn =
+        horizontalStateColumn != null
+            ? horizontalStateColumn
+            : (horizontalStateText.getParent() instanceof View ? (View) horizontalStateText.getParent() : null);
     if (finishMode) {
-      horizontalCountdownText.setVisibility(View.GONE);
-      if (countdownParams != null) {
-        countdownParams.width = 0;
-        countdownParams.weight = 0f;
-        horizontalCountdownText.setLayoutParams(countdownParams);
-      }
-      if (stateParams != null) {
-        stateParams.width = 0;
-        stateParams.weight = 1f;
-        stateColumn.setLayoutParams(stateParams);
+      countdownColumn.setVisibility(View.GONE);
+      if (horizontalLogoText != null) {
+        horizontalLogoText.setVisibility(View.GONE);
       }
       if (stateColumn instanceof LinearLayout) {
         ((LinearLayout) stateColumn).setGravity(android.view.Gravity.CENTER);
         ((LinearLayout) stateColumn).setPadding(0, 0, 0, 0);
       }
-      horizontalStateText.setGravity(android.view.Gravity.CENTER);
-      horizontalStateText.setMaxLines(2);
-    } else {
-      horizontalCountdownText.setVisibility(View.VISIBLE);
-      if (countdownParams != null) {
-        countdownParams.width = 0;
-        countdownParams.weight = 0.42f;
-        horizontalCountdownText.setLayoutParams(countdownParams);
-      }
-      if (stateParams != null) {
-        stateParams.width = 0;
-        stateParams.weight = 0.58f;
+      ViewGroup.LayoutParams rawStateParams = stateColumn == null ? null : stateColumn.getLayoutParams();
+      if (rawStateParams instanceof FrameLayout.LayoutParams) {
+        FrameLayout.LayoutParams stateParams = (FrameLayout.LayoutParams) rawStateParams;
+        stateParams.width = FrameLayout.LayoutParams.MATCH_PARENT;
+        stateParams.height = FrameLayout.LayoutParams.MATCH_PARENT;
+        stateParams.gravity = android.view.Gravity.CENTER;
+        stateParams.leftMargin = dp(48);
+        stateParams.topMargin = 0;
+        stateParams.rightMargin = dp(48);
+        stateParams.bottomMargin = 0;
         stateColumn.setLayoutParams(stateParams);
       }
-      if (stateColumn instanceof LinearLayout) {
-        ((LinearLayout) stateColumn).setGravity(android.view.Gravity.CENTER_VERTICAL);
-        ((LinearLayout) stateColumn).setPadding(dp(24), 0, dp(8), 0);
+      horizontalStateText.setGravity(android.view.Gravity.CENTER);
+      horizontalStateText.setSingleLine(false);
+      horizontalStateText.setMaxLines(1);
+    } else {
+      countdownColumn.setVisibility(View.VISIBLE);
+      horizontalCountdownText.setVisibility(View.VISIBLE);
+      if (horizontalLogoText != null) {
+        horizontalLogoText.setVisibility(View.GONE);
       }
-      horizontalStateText.setGravity(android.view.Gravity.START);
+      if (stateColumn instanceof LinearLayout) {
+        ((LinearLayout) stateColumn).setGravity(android.view.Gravity.CENTER_HORIZONTAL);
+        ((LinearLayout) stateColumn).setPadding(0, 0, 0, 0);
+      }
+      horizontalStateText.setGravity(android.view.Gravity.CENTER);
+      horizontalStateText.setSingleLine(false);
       horizontalStateText.setMaxLines(3);
     }
   }
@@ -3767,6 +4514,9 @@ public class MainActivity extends AppCompatActivity {
     if ("MOVE_STATION".equals(state.transitionType)) {
       return "准备前往下一个站点";
     }
+    if ("REST".equals(state.transitionType)) {
+      return buildRestTransitionHint(state.completedDots, state.totalDots);
+    }
     return "";
   }
 
@@ -3782,20 +4532,23 @@ public class MainActivity extends AppCompatActivity {
       return R.drawable.icon_water;
     }
     if ("MOVE_STATION".equals(transitionType) || "MOVE_ZONE".equals(transitionType)) {
-      return R.drawable.ic_horizontal_move;
+      return R.drawable.icon_cicle;
+    }
+    if ("REST".equals(transitionType)) {
+      return R.drawable.icon_heart;
     }
     return 0;
   }
 
   private int getHorizontalTransitionBackgroundColor(String transitionType) {
-    if ("MOVE_STATION".equals(transitionType)) {
+    if ("MOVE_STATION".equals(transitionType) || "MOVE_ZONE".equals(transitionType)) {
       return getColor(R.color.tv_playback_move_station);
     }
     if ("HYDRATE".equals(transitionType)) {
       return getColor(R.color.tv_playback_blue);
     }
-    if ("MOVE_ZONE".equals(transitionType)) {
-      return getColor(R.color.tv_black);
+    if ("REST".equals(transitionType)) {
+      return getColor(R.color.tv_playback_ready);
     }
     return getColor(R.color.tv_black);
   }
@@ -3816,23 +4569,24 @@ public class MainActivity extends AppCompatActivity {
       showHorizontalMainState(
           course,
           Math.max(remainingSeconds, 0),
-          "GET READY FOR\nWARM UP",
+          "READY FOR\nWARM UP",
           "",
           0,
           0);
       return;
     }
 
+    applyResponsiveLayout();
     updateWaterfallPlayback(
         course == null ? null : course.warmup,
         0,
-        "REMAINING",
+        "",
         "WARMUP_READY",
         "热身即将开始");
     applyPlaybackTheme(PlaybackTheme.READY);
     playbackCountdownText.setText(String.valueOf(Math.max(remainingSeconds, 0)));
     playbackStageLabel.setText("");
-    playbackStageProgress.setText("GET READY FOR\nWARM UP");
+    playbackStageProgress.setText("READY FOR\nWARM UP");
     renderStageMeta("", 0, 0);
   }
 
@@ -3841,18 +4595,19 @@ public class MainActivity extends AppCompatActivity {
       showHorizontalMainState(
           course,
           Math.max(remainingSeconds, 0),
-          "GET READY FOR\nWORKOUT",
+          "READY FOR\nWORKOUT",
           "",
           0,
           0);
       return;
     }
 
+    applyResponsiveLayout();
     updateTrainingPlayback(course, 0);
     applyPlaybackTheme(PlaybackTheme.READY);
     playbackCountdownText.setText(String.valueOf(Math.max(remainingSeconds, 0)));
     playbackStageLabel.setText("");
-    playbackStageProgress.setText("GET READY FOR\nWORKOUT");
+    playbackStageProgress.setText("READY FOR\nWORKOUT");
     renderStageMeta("", 0, 0);
   }
 
@@ -3861,13 +4616,14 @@ public class MainActivity extends AppCompatActivity {
       showHorizontalMainState(
           course,
           Math.max(remainingSeconds, 0),
-          "GET READY FOR\nCOOL DOWN",
+          "READY FOR\nCOOL DOWN",
           "",
           0,
           0);
       return;
     }
 
+    applyResponsiveLayout();
     updateWaterfallPlayback(
         course == null ? null : course.cooldown,
         0,
@@ -3877,7 +4633,7 @@ public class MainActivity extends AppCompatActivity {
     applyPlaybackTheme(PlaybackTheme.READY);
     playbackCountdownText.setText(String.valueOf(Math.max(remainingSeconds, 0)));
     playbackStageLabel.setText("");
-    playbackStageProgress.setText("GET READY FOR\nCOOL DOWN");
+    playbackStageProgress.setText("READY FOR\nCOOL DOWN");
     renderStageMeta("", 0, 0);
   }
 
@@ -3891,34 +4647,7 @@ public class MainActivity extends AppCompatActivity {
       return;
     }
 
-    contentPanel.setBackgroundColor(getTransitionBackgroundColor(state.transitionType));
-    showPlaybackChrome(false, false);
-    clearWaterfallRows();
-    trainingCardsContainer.removeAllViews();
-    trainingCardsContainer.setVisibility(View.GONE);
-    warmupRowsContainer.setVisibility(View.GONE);
-    playbackScrollView.setVisibility(View.GONE);
-    hideFinishPanel();
-    if (getReadyPanel != null) {
-      getReadyPanel.setVisibility(View.VISIBLE);
-    }
-    if (getReadyCountdownText != null) {
-      getReadyCountdownText.setText(String.valueOf(Math.max(state.remainingSeconds, 0)));
-    }
-    if (getReadyLabelText != null) {
-      getReadyLabelText.setText(formatTransitionTitle(state.stageProgress));
-    }
-    if (getReadySubtext != null) {
-      if (state.hintText == null || state.hintText.trim().isEmpty()) {
-        getReadySubtext.setVisibility(View.GONE);
-      } else {
-        getReadySubtext.setVisibility(View.VISIBLE);
-        getReadySubtext.setText(state.hintText);
-      }
-    }
-    lastPlaybackMode = "FULLSCREEN_TRANSITION|" + state.transitionType;
-    lastTrainingSignature = "";
-    lastWaterfallSignature = "";
+    showTransitionDesignState(state, false);
     lastWaterfallIndex = -1;
     lastWaterfallWindowStart = -1;
   }
@@ -3964,7 +4693,9 @@ public class MainActivity extends AppCompatActivity {
       screenTag.setTextSize(TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.03f, sp(12), sp(18)));
     }
 
-    int statusHeight = clamp(Math.round(shortSide * 0.3f), dp(112), dp(220));
+    // Keep the header compact while preserving the larger type sizing users read from distance.
+    int statusHeight = clamp(Math.round(shortSide * 0.28f), dp(120), dp(280));
+    int statusTextBasisHeight = clamp(Math.round(shortSide * 0.42f), dp(180), dp(420));
     if (playbackStatusGroup != null) {
       ViewGroup.LayoutParams params = playbackStatusGroup.getLayoutParams();
       if (params != null) {
@@ -3977,7 +4708,7 @@ public class MainActivity extends AppCompatActivity {
       if (params != null) {
         params.height = statusHeight;
         params.width = 0;
-        params.weight = 0.28f;
+        params.weight = 0.25f;
         playbackTimerCard.setLayoutParams(params);
       }
     }
@@ -3986,7 +4717,7 @@ public class MainActivity extends AppCompatActivity {
       if (params != null) {
         params.height = statusHeight;
         params.width = 0;
-        params.weight = 0.72f;
+        params.weight = 0.75f;
         params.leftMargin = clamp(Math.round(shortSide * 0.02f), dp(8), dp(16));
         playbackStageCard.setLayoutParams(params);
       }
@@ -3994,26 +4725,37 @@ public class MainActivity extends AppCompatActivity {
 
     if (playbackCountdownText != null) {
       playbackCountdownText.setTextSize(
-          TypedValue.COMPLEX_UNIT_PX, clampPx(statusHeight * 0.78f, sp(48), sp(108)));
+          TypedValue.COMPLEX_UNIT_PX, clampPx(statusTextBasisHeight * 1.9f, sp(180), sp(560)));
     }
     if (playbackStageProgress != null) {
-      playbackStageProgress.setTextSize(TypedValue.COMPLEX_UNIT_PX, clampPx(statusHeight * 0.28f, sp(18), sp(34)));
+      playbackStageProgress.setTextSize(
+          TypedValue.COMPLEX_UNIT_PX, clampPx(statusTextBasisHeight * 0.34f, sp(26), sp(82)));
     }
     if (playbackStageSecondary != null) {
-      playbackStageSecondary.setTextSize(TypedValue.COMPLEX_UNIT_PX, clampPx(statusHeight * 0.14f, sp(11), sp(18)));
+      playbackStageSecondary.setTextSize(
+          TypedValue.COMPLEX_UNIT_PX, clampPx(statusTextBasisHeight * 0.16f, sp(14), sp(28)));
     }
     if (playbackHint != null) {
-      playbackHint.setTextSize(TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.032f, sp(14), sp(22)));
+      playbackHint.setTextSize(TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.034f, sp(16), sp(28)));
     }
     if (getReadyCountdownText != null) {
       getReadyCountdownText.setTextSize(
-          TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.34f, sp(84), sp(168)));
+          TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.46f, sp(120), sp(260)));
     }
     if (getReadyLabelText != null) {
-      getReadyLabelText.setTextSize(TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.085f, sp(28), sp(44)));
+      getReadyLabelText.setTextSize(TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.105f, sp(34), sp(64)));
     }
     if (getReadySubtext != null) {
-      getReadySubtext.setTextSize(TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.04f, sp(16), sp(24)));
+      getReadySubtext.setTextSize(TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.048f, sp(18), sp(30)));
+    }
+    if (getReadyCircle != null) {
+      ViewGroup.LayoutParams params = getReadyCircle.getLayoutParams();
+      if (params != null) {
+        int size = clamp(Math.round(shortSide * 0.44f), dp(220), dp(460));
+        params.width = size;
+        params.height = size;
+        getReadyCircle.setLayoutParams(params);
+      }
     }
     if (finishFallbackText != null) {
       finishFallbackText.setTextSize(TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.085f, sp(30), sp(52)));
@@ -4022,21 +4764,66 @@ public class MainActivity extends AppCompatActivity {
       finishLogoImage.setMaxWidth(clamp(Math.round(shortSide * 0.7f), dp(220), dp(560)));
       finishLogoImage.setMaxHeight(clamp(Math.round(shortSide * 0.38f), dp(120), dp(320)));
     }
+    if (horizontalRingContainer != null) {
+      ViewGroup.LayoutParams rawParams = horizontalRingContainer.getLayoutParams();
+      if (rawParams instanceof FrameLayout.LayoutParams) {
+        FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) rawParams;
+        int ringSize = clamp(Math.round(shortSide * 0.52f), dp(360), dp(620));
+        params.width = ringSize;
+        params.height = ringSize;
+        params.gravity = android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL;
+        params.topMargin = clamp(Math.round(shortSide * 0.12f), dp(54), dp(132));
+        horizontalRingContainer.setLayoutParams(params);
+      }
+    }
+    if (horizontalRingProgress != null) {
+      horizontalRingProgress.setStrokeWidthPx(clampPx(shortSide * 0.054f, dp(34), dp(62)));
+      horizontalRingProgress.setColors(
+          getColor(R.color.tv_horizontal_progress_inactive),
+          getColor(R.color.tv_horizontal_progress_active),
+          getColor(R.color.tv_text_main));
+    }
     if (horizontalCountdownText != null) {
       horizontalCountdownText.setTextSize(
-          TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.42f, sp(88), sp(220)));
+          TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.18f, sp(120), sp(210)));
+    }
+    if (horizontalStateColumn != null) {
+      ViewGroup.LayoutParams rawParams = horizontalStateColumn.getLayoutParams();
+      if (rawParams instanceof FrameLayout.LayoutParams) {
+        FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) rawParams;
+        int ringSize = clamp(Math.round(shortSide * 0.52f), dp(360), dp(620));
+        int ringTop = clamp(Math.round(shortSide * 0.12f), dp(54), dp(132));
+        int stateTop = ringTop + ringSize + clamp(Math.round(shortSide * 0.036f), dp(24), dp(44));
+        params.width = clamp(Math.round(screenWidth * 0.44f), dp(360), dp(720));
+        params.height = FrameLayout.LayoutParams.WRAP_CONTENT;
+        params.gravity = android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL;
+        params.topMargin = stateTop;
+        params.leftMargin = 0;
+        params.rightMargin = 0;
+        params.bottomMargin = 0;
+        horizontalStateColumn.setLayoutParams(params);
+      }
+    }
+    if (horizontalStateIcon != null) {
+      ViewGroup.LayoutParams params = horizontalStateIcon.getLayoutParams();
+      if (params != null) {
+        int iconSize = clamp(Math.round(shortSide * 0.066f), dp(54), dp(78));
+        params.width = iconSize;
+        params.height = iconSize;
+        horizontalStateIcon.setLayoutParams(params);
+      }
     }
     if (horizontalStateText != null) {
       horizontalStateText.setTextSize(
-          TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.13f, sp(30), sp(64)));
+          TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.08f, sp(46), sp(82)));
     }
     if (horizontalStateSecondary != null) {
       horizontalStateSecondary.setTextSize(
-          TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.05f, sp(16), sp(28)));
+          TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.058f, sp(18), sp(34)));
     }
     if (horizontalTransitionCountdownText != null) {
       horizontalTransitionCountdownText.setTextSize(
-          TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.3f, sp(92), sp(180)));
+          TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.34f, sp(110), sp(240)));
     }
     if (horizontalTransitionTitle != null) {
       horizontalTransitionTitle.setTextSize(
@@ -4045,6 +4832,37 @@ public class MainActivity extends AppCompatActivity {
     if (horizontalTransitionHint != null) {
       horizontalTransitionHint.setTextSize(
           TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.042f, sp(14), sp(24)));
+    }
+    if (horizontalTransitionCircle != null) {
+      ViewGroup.LayoutParams params = horizontalTransitionCircle.getLayoutParams();
+      if (params != null) {
+        int size = clamp(Math.round(shortSide * 0.32f), dp(260), dp(480));
+        params.width = size;
+        params.height = size;
+        horizontalTransitionCircle.setLayoutParams(params);
+      }
+    }
+    if (horizontalProgressRow != null) {
+      ViewGroup.LayoutParams rawParams = horizontalProgressRow.getLayoutParams();
+      if (rawParams instanceof FrameLayout.LayoutParams) {
+        FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) rawParams;
+        params.width = FrameLayout.LayoutParams.MATCH_PARENT;
+        params.height = FrameLayout.LayoutParams.WRAP_CONTENT;
+        params.gravity = android.view.Gravity.BOTTOM;
+        params.leftMargin = clamp(Math.round(shortSide * 0.038f), dp(28), dp(70));
+        params.rightMargin = clamp(Math.round(shortSide * 0.038f), dp(28), dp(70));
+        params.bottomMargin = clamp(Math.round(shortSide * 0.16f), dp(120), dp(180));
+        horizontalProgressRow.setLayoutParams(params);
+      }
+    }
+    if (horizontalLogoText != null) {
+      horizontalLogoText.setTextSize(TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.035f, sp(24), sp(38)));
+      ViewGroup.LayoutParams rawParams = horizontalLogoText.getLayoutParams();
+      if (rawParams instanceof FrameLayout.LayoutParams) {
+        FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) rawParams;
+        params.bottomMargin = clamp(Math.round(shortSide * 0.025f), dp(18), dp(34));
+        horizontalLogoText.setLayoutParams(params);
+      }
     }
     if (horizontalScheduleTitle != null) {
       horizontalScheduleTitle.setTextSize(
@@ -4087,7 +4905,7 @@ public class MainActivity extends AppCompatActivity {
       ViewGroup.LayoutParams rawParams = horizontalScheduleList.getLayoutParams();
       if (rawParams instanceof LinearLayout.LayoutParams) {
         LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) rawParams;
-        params.width = Math.min(Math.round(screenWidth * 0.92f), dp(1080));
+        params.width = LinearLayout.LayoutParams.MATCH_PARENT;
         horizontalScheduleList.setLayoutParams(params);
       }
     }
@@ -4152,11 +4970,11 @@ public class MainActivity extends AppCompatActivity {
   }
 
   private int getTransitionBackgroundColor(String transitionType) {
-    if ("MOVE_STATION".equals(transitionType)) {
-      return getColor(R.color.tv_playback_move_station);
+    if ("REST".equals(transitionType)) {
+      return getColor(R.color.tv_playback_ready);
     }
-    if ("MOVE_ZONE".equals(transitionType)) {
-      return getColor(R.color.tv_playback_move_zone);
+    if ("MOVE_STATION".equals(transitionType) || "MOVE_ZONE".equals(transitionType)) {
+      return getColor(R.color.tv_playback_move_station);
     }
     return getColor(R.color.tv_playback_blue);
   }
@@ -4165,7 +4983,14 @@ public class MainActivity extends AppCompatActivity {
     if (transitionTitle == null || transitionTitle.trim().isEmpty()) {
       return "READY";
     }
-    return transitionTitle.replace(" ", "\n");
+    return stripLeadingGet(transitionTitle).replace(" ", "\n");
+  }
+
+  private String stripLeadingGet(String value) {
+    if (value == null) {
+      return "";
+    }
+    return value.trim().replaceFirst("(?i)^GET\\s+", "");
   }
 
   private void renderStageMeta(String secondaryText, int completedDots, int totalDots) {
@@ -4210,7 +5035,7 @@ public class MainActivity extends AppCompatActivity {
     maybePlayTrainingCue(state);
 
     if (isHorizontalInfoScreen(activeScreenNumber)) {
-      if (state.fullScreenTransition) {
+      if (state.transitionType != null && !state.transitionType.trim().isEmpty()) {
         showHorizontalTransitionState(state);
       } else {
         showHorizontalTrainingState(course, state);
@@ -4492,22 +5317,25 @@ public class MainActivity extends AppCompatActivity {
         int setRestSeconds = Math.max(setConfig.restSeconds, 0);
         if (hasNextSet && setRestSeconds > 0 && podElapsedSeconds < cursor + setRestSeconds) {
           int remainingSeconds = Math.max(cursor + setRestSeconds - podElapsedSeconds, 0);
+          int completedGroups = loopIndex * setConfigs.size() + setIndex + 1;
+          int totalGroups = safeLoops * setConfigs.size();
+          boolean fullScreenTransition = isInFirstTransitionThird(remainingSeconds, setRestSeconds);
           return new TrainingPlaybackState(
               pod.name + "|station-set-rest|" + loopIndex + "|" + setIndex,
               "REMAINING",
               "REST",
-              buildStationTrainingHint(pod.name, loopIndex + 1, safeLoops, setIndex + 1, setConfigs.size(), true, false),
+              buildRestTransitionHint(completedGroups, totalGroups),
               remainingSeconds,
               baseCards,
               -1,
               false,
               false,
               false,
-              false,
+              fullScreenTransition,
+              "REST",
               "",
-              "",
-              setIndex + 1,
-              setConfigs.size());
+              completedGroups,
+              totalGroups);
         }
         if (hasNextSet) {
           cursor += setRestSeconds;
@@ -4518,7 +5346,7 @@ public class MainActivity extends AppCompatActivity {
       int stationRestSeconds = Math.max(effectiveScreen.rule.stationRestSeconds, 0);
       if (hasNextLoop && stationRestSeconds > 0 && podElapsedSeconds < cursor + stationRestSeconds) {
         int remainingSeconds = Math.max(cursor + stationRestSeconds - podElapsedSeconds, 0);
-        boolean fullScreenTransition = remainingSeconds > Math.max((stationRestSeconds + 1) / 2, 1);
+        boolean fullScreenTransition = isInFirstTransitionThird(remainingSeconds, stationRestSeconds);
         return new TrainingPlaybackState(
             pod.name + "|station-move|" + loopIndex,
             "REMAINING",
@@ -4561,7 +5389,7 @@ public class MainActivity extends AppCompatActivity {
             ? new ArrayList<>()
             : previewScreen.videoCards;
     int remainingSeconds = Math.max(endingDurationSeconds - endingElapsedSeconds, 0);
-    boolean fullScreenTransition = remainingSeconds > Math.max((endingDurationSeconds + 1) / 2, 1);
+    boolean fullScreenTransition = isInFirstTransitionThird(remainingSeconds, endingDurationSeconds);
     boolean previewWaterfall = previewScreen != null && previewScreen.waterfallLayout;
 
     if ("MOVE_ZONE".equals(pod.ending)) {
@@ -4593,6 +5421,13 @@ public class MainActivity extends AppCompatActivity {
         false,
         fullScreenTransition,
         "HYDRATE");
+  }
+
+  private boolean isInFirstTransitionThird(int remainingSeconds, int totalSeconds) {
+    if (totalSeconds <= 0 || remainingSeconds <= 0) {
+      return false;
+    }
+    return remainingSeconds > Math.max(Math.round(totalSeconds * 2f / 3f), 1);
   }
 
   private String buildTrainingHint(
@@ -4632,6 +5467,14 @@ public class MainActivity extends AppCompatActivity {
       return prefix + " · 组间休息 · 第 " + setIndex + "/" + totalSets + " 组";
     }
     return prefix + " · 第 " + roundIndex + "/" + totalRounds + " 轮 · 第 " + setIndex + "/" + totalSets + " 组";
+  }
+
+  private String buildRestTransitionHint(int completedGroups, int totalGroups) {
+    int remainingGroups = Math.max(totalGroups - Math.max(completedGroups, 0), 0);
+    if (remainingGroups <= 1) {
+      return "最后 1 组，加油";
+    }
+    return "还剩 " + remainingGroups + " 组";
   }
 
   private void renderTrainingCards(TrainingPlaybackState state) {
@@ -4813,14 +5656,15 @@ public class MainActivity extends AppCompatActivity {
   private int calculateWideTrainingRowHeight() {
     int contentWidth = getResources().getDisplayMetrics().widthPixels - dp(36);
     int previewWidth = Math.max(contentWidth - dp(66), dp(220));
-    return Math.max(Math.round(previewWidth * 9f / 16f), dp(170));
+    // Bias towards taller cards so the training grid better fills TV screens.
+    return Math.max(Math.round(previewWidth * 10f / 16f), dp(200));
   }
 
   private int calculateGridTrainingRowHeight() {
     int contentWidth = getResources().getDisplayMetrics().widthPixels - dp(36);
     int columnWidth = Math.max((contentWidth - dp(10)) / 2, dp(180));
     int previewWidth = Math.max(columnWidth - dp(50), dp(120));
-    return Math.max(Math.round(previewWidth * 9f / 16f), dp(116));
+    return Math.max(Math.round(previewWidth * 10f / 16f), dp(150));
   }
 
   private String safeStationLabel(String stationNumber, int fallbackIndex) {
@@ -5021,11 +5865,8 @@ public class MainActivity extends AppCompatActivity {
   }
 
   private void showFinishState() {
-    if (!finishCuePlayed) {
-      playCueSound(CueSound.END);
-      finishCuePlayed = true;
-    }
     scheduleFinishReturn();
+    hideTransitionDesign();
     if (isHorizontalInfoScreen(activeScreenNumber)) {
       showHorizontalFinishState();
       return;
@@ -5068,8 +5909,12 @@ public class MainActivity extends AppCompatActivity {
       return;
     }
 
-    contentPanel.setBackgroundColor(getColor(R.color.tv_playback_background));
+    contentPanel.setBackgroundColor(getColor(R.color.tv_black));
+    contentPanel.setPadding(0, 0, 0, 0);
     showHorizontalChrome();
+    if (horizontalPlaybackPanel != null) {
+      horizontalPlaybackPanel.setVisibility(View.VISIBLE);
+    }
     bindHorizontalSchedule(new ArrayList<>(syncedTodaySchedules));
   }
 
@@ -5092,6 +5937,7 @@ public class MainActivity extends AppCompatActivity {
     if (finishFallbackText == null || finishLogoImage == null) {
       return;
     }
+    prepareFinishContentLayout();
 
     if (logoSource == null || logoSource.trim().isEmpty()) {
       showFinishFallback();
@@ -5106,7 +5952,11 @@ public class MainActivity extends AppCompatActivity {
 
     new Thread(
             () -> {
-              Bitmap bitmap = loadBitmapFromSource(requestKey);
+              Bitmap bitmap =
+                  loadBitmapFromSource(
+                      requestKey,
+                      resolveFinishLogoTargetWidth(),
+                      resolveFinishLogoTargetHeight());
               runOnUiThread(
                   () -> {
                     if (!safeEquals(finishLogoRequestKey, requestKey)) {
@@ -5127,6 +5977,7 @@ public class MainActivity extends AppCompatActivity {
   }
 
   private void showFinishFallback() {
+    prepareFinishContentLayout();
     if (finishLogoImage != null) {
       finishLogoImage.setImageDrawable(null);
       finishLogoImage.setVisibility(View.GONE);
@@ -5156,7 +6007,60 @@ public class MainActivity extends AppCompatActivity {
     finishFallbackText.setLayoutParams(params);
   }
 
-  private Bitmap loadBitmapFromSource(String source) {
+  private void prepareFinishContentLayout() {
+    int screenWidth = getResources().getDisplayMetrics().widthPixels;
+    int screenHeight = getResources().getDisplayMetrics().heightPixels;
+    int shortSide = Math.min(screenWidth, screenHeight);
+    if (finishPanel != null) {
+      ViewGroup.LayoutParams rawParams = finishPanel.getLayoutParams();
+      if (isHorizontalInfoScreen(activeScreenNumber)) {
+        rawParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
+        rawParams.height = ViewGroup.LayoutParams.MATCH_PARENT;
+        finishPanel.setLayoutParams(rawParams);
+        finishPanel.setPadding(dp(48), dp(48), dp(48), dp(48));
+      }
+    }
+    if (finishLogoImage != null) {
+      finishLogoImage.setMaxWidth(
+          isHorizontalInfoScreen(activeScreenNumber)
+              ? clamp(Math.round(screenWidth * 0.46f), dp(360), dp(900))
+              : clamp(Math.round(shortSide * 0.7f), dp(220), dp(560)));
+      finishLogoImage.setMaxHeight(
+          isHorizontalInfoScreen(activeScreenNumber)
+              ? clamp(Math.round(screenHeight * 0.38f), dp(220), dp(460))
+              : clamp(Math.round(shortSide * 0.38f), dp(120), dp(320)));
+    }
+    if (finishFallbackText != null) {
+      finishFallbackText.setTextSize(
+          TypedValue.COMPLEX_UNIT_PX,
+          isHorizontalInfoScreen(activeScreenNumber)
+              ? clampPx(shortSide * 0.09f, sp(46), sp(92))
+              : clampPx(shortSide * 0.085f, sp(30), sp(52)));
+      finishFallbackText.setGravity(android.view.Gravity.CENTER);
+      finishFallbackText.setSingleLine(true);
+      finishFallbackText.setMaxLines(1);
+    }
+  }
+
+  private int resolveFinishLogoTargetWidth() {
+    int screenWidth = getResources().getDisplayMetrics().widthPixels;
+    int screenHeight = getResources().getDisplayMetrics().heightPixels;
+    int shortSide = Math.min(screenWidth, screenHeight);
+    return isHorizontalInfoScreen(activeScreenNumber)
+        ? clamp(Math.round(screenWidth * 0.46f), dp(360), dp(900))
+        : clamp(Math.round(shortSide * 0.7f), dp(220), dp(560));
+  }
+
+  private int resolveFinishLogoTargetHeight() {
+    int screenWidth = getResources().getDisplayMetrics().widthPixels;
+    int screenHeight = getResources().getDisplayMetrics().heightPixels;
+    int shortSide = Math.min(screenWidth, screenHeight);
+    return isHorizontalInfoScreen(activeScreenNumber)
+        ? clamp(Math.round(screenHeight * 0.38f), dp(220), dp(460))
+        : clamp(Math.round(shortSide * 0.38f), dp(120), dp(320));
+  }
+
+  private Bitmap loadBitmapFromSource(String source, int targetWidth, int targetHeight) {
     if (source == null || source.trim().isEmpty()) {
       return null;
     }
@@ -5165,7 +6069,7 @@ public class MainActivity extends AppCompatActivity {
     try {
       File localFile = new File(normalized);
       if (localFile.isFile()) {
-        return BitmapFactory.decodeFile(localFile.getAbsolutePath());
+        return decodeSampledBitmapFromFile(localFile, targetWidth, targetHeight);
       }
 
       HttpURLConnection connection = (HttpURLConnection) new URL(normalized).openConnection();
@@ -5181,13 +6085,96 @@ public class MainActivity extends AppCompatActivity {
       }
 
       try (InputStream inputStream = new BufferedInputStream(connection.getInputStream())) {
-        return BitmapFactory.decodeStream(inputStream);
+        return decodeSampledBitmapFromBytes(readAllBytes(inputStream), targetWidth, targetHeight);
       } finally {
         connection.disconnect();
       }
     } catch (Exception ignored) {
       return null;
     }
+  }
+
+  private Bitmap decodeSampledBitmapFromFile(File file, int targetWidth, int targetHeight) {
+    if (file == null || !file.isFile()) {
+      return null;
+    }
+    BitmapFactory.Options bounds = new BitmapFactory.Options();
+    bounds.inJustDecodeBounds = true;
+    BitmapFactory.decodeFile(file.getAbsolutePath(), bounds);
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+      return null;
+    }
+
+    BitmapFactory.Options options = new BitmapFactory.Options();
+    options.inSampleSize =
+        calculateBitmapSampleSize(bounds.outWidth, bounds.outHeight, targetWidth, targetHeight);
+    options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+    Bitmap bitmap = BitmapFactory.decodeFile(file.getAbsolutePath(), options);
+    return scaleBitmapToTarget(bitmap, targetWidth, targetHeight);
+  }
+
+  private Bitmap decodeSampledBitmapFromBytes(byte[] bytes, int targetWidth, int targetHeight) {
+    if (bytes == null || bytes.length == 0) {
+      return null;
+    }
+    BitmapFactory.Options bounds = new BitmapFactory.Options();
+    bounds.inJustDecodeBounds = true;
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.length, bounds);
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+      return null;
+    }
+
+    BitmapFactory.Options options = new BitmapFactory.Options();
+    options.inSampleSize =
+        calculateBitmapSampleSize(bounds.outWidth, bounds.outHeight, targetWidth, targetHeight);
+    options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+    Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, options);
+    return scaleBitmapToTarget(bitmap, targetWidth, targetHeight);
+  }
+
+  private int calculateBitmapSampleSize(
+      int sourceWidth, int sourceHeight, int targetWidth, int targetHeight) {
+    int safeTargetWidth = Math.max(targetWidth, dp(64));
+    int safeTargetHeight = Math.max(targetHeight, dp(64));
+    int sampleSize = 1;
+    while ((sourceWidth / (sampleSize * 2)) >= safeTargetWidth
+        && (sourceHeight / (sampleSize * 2)) >= safeTargetHeight) {
+      sampleSize *= 2;
+    }
+    return Math.max(sampleSize, 1);
+  }
+
+  private Bitmap scaleBitmapToTarget(Bitmap bitmap, int targetWidth, int targetHeight) {
+    if (bitmap == null) {
+      return null;
+    }
+    int safeTargetWidth = Math.max(targetWidth, dp(64));
+    int safeTargetHeight = Math.max(targetHeight, dp(64));
+    if (bitmap.getWidth() <= safeTargetWidth && bitmap.getHeight() <= safeTargetHeight) {
+      return bitmap;
+    }
+
+    float scale =
+        Math.min(
+            safeTargetWidth / (float) Math.max(bitmap.getWidth(), 1),
+            safeTargetHeight / (float) Math.max(bitmap.getHeight(), 1));
+    int scaledWidth = Math.max(1, Math.round(bitmap.getWidth() * scale));
+    int scaledHeight = Math.max(1, Math.round(bitmap.getHeight() * scale));
+    Bitmap scaled = Bitmap.createScaledBitmap(bitmap, scaledWidth, scaledHeight, true);
+    if (scaled != bitmap) {
+      bitmap.recycle();
+    }
+    return scaled;
+  }
+
+  private byte[] readAllBytes(InputStream inputStream) throws java.io.IOException {
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    byte[] buffer = new byte[16 * 1024];
+    int read;
+    while ((read = inputStream.read(buffer)) != -1) {
+      output.write(buffer, 0, read);
+    }
+    return output.toByteArray();
   }
 
   private void clearWaterfallRows() {
@@ -5217,6 +6204,10 @@ public class MainActivity extends AppCompatActivity {
     pauseStartedElapsedRealtimeMs = 0L;
     frozenElapsedMs = 0L;
     activePlaybackSessionId = "";
+    activePlaybackSessionVersion = 0;
+    activePlaybackSessionState = "";
+    sessionDrivenPlayback = false;
+    clearPlaybackSessionTiming();
     activeBundleChecksum = "";
     currentCourseElapsedSeconds = 0;
     currentCourseTotalSeconds = 0;
@@ -5247,6 +6238,7 @@ public class MainActivity extends AppCompatActivity {
     if (horizontalTransitionPanel != null) {
       horizontalTransitionPanel.setVisibility(View.GONE);
     }
+    hideTransitionDesign();
     if (horizontalProgressRow != null) {
       horizontalProgressRow.removeAllViews();
     }
@@ -5270,6 +6262,7 @@ public class MainActivity extends AppCompatActivity {
   protected void onDestroy() {
     stopChecksumPolling();
     stopScreenHeartbeat();
+    stopPairingPresence();
     stopPlayback();
     unregisterNetworkMonitoring();
     if (mqttManager != null) {
@@ -5452,7 +6445,6 @@ public class MainActivity extends AppCompatActivity {
   private enum CueSound {
     WARM,
     COOL,
-    DING,
-    END
+    DING
   }
 }

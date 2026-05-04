@@ -11,6 +11,7 @@ public final class ServerConfig {
   public static final String MQTT_USERNAME = "tv1";
   public static final String MQTT_PASSWORD = "REDACTED_CONFIGURE_LOCALLY";
   public static final String MQTT_TOPIC_CONTROL = "infini/tv/control";
+  public static final String MQTT_TOPIC_SESSION = "infini/tv/session";
 
   private ServerConfig() {}
 
@@ -24,5 +25,13 @@ public final class ServerConfig {
       return MQTT_TOPIC_CONTROL + "/__unbound__";
     }
     return MQTT_TOPIC_CONTROL + "/" + normalized;
+  }
+
+  public static String buildSessionTopic(String namespace) {
+    String normalized = normalizeAccountNamespace(namespace);
+    if (normalized.isEmpty()) {
+      return MQTT_TOPIC_SESSION + "/__unbound__";
+    }
+    return MQTT_TOPIC_SESSION + "/" + normalized;
   }
 }
