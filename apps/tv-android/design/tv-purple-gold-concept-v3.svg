@@ -1,0 +1,202 @@
+<svg width="1800" height="1200" viewBox="0 0 1800 1200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1800" y2="1200" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#070812"/>
+      <stop offset=".55" stop-color="#151020"/>
+      <stop offset="1" stop-color="#050507"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#31055E"/>
+      <stop offset=".58" stop-color="#18002B"/>
+      <stop offset="1" stop-color="#080010"/>
+    </linearGradient>
+    <linearGradient id="video" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#1D1325"/>
+      <stop offset=".5" stop-color="#120B17"/>
+      <stop offset="1" stop-color="#08070B"/>
+    </linearGradient>
+    <linearGradient id="violet" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#8F22FF"/>
+      <stop offset="1" stop-color="#C91DFF"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#FFE8A5"/>
+      <stop offset=".42" stop-color="#D9A84A"/>
+      <stop offset="1" stop-color="#8D5A15"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#14BDF4"/>
+      <stop offset="1" stop-color="#0963CC"/>
+    </linearGradient>
+    <linearGradient id="red" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#FF4B39"/>
+      <stop offset="1" stop-color="#BB1523"/>
+    </linearGradient>
+    <filter id="shadow" x="-18%" y="-18%" width="136%" height="136%">
+      <feDropShadow dx="0" dy="18" stdDeviation="24" flood-color="#000" flood-opacity=".48"/>
+    </filter>
+    <filter id="glow" x="-35%" y="-35%" width="170%" height="170%">
+      <feGaussianBlur stdDeviation="18" result="b"/>
+      <feColorMatrix in="b" type="matrix" values="0.7 0 0 0 0.5 0 0.1 0 0 0.02 0 0 0.85 0 1 0 0 0 .45 0"/>
+      <feBlend in="SourceGraphic"/>
+    </filter>
+    <filter id="goldGlow" x="-45%" y="-45%" width="190%" height="190%">
+      <feGaussianBlur stdDeviation="9" result="b"/>
+      <feColorMatrix in="b" type="matrix" values="1 0 0 0 .9 0 .65 0 0 .45 0 0 .18 0 .05 0 0 0 .7 0"/>
+      <feBlend in="SourceGraphic"/>
+    </filter>
+    <style>
+      .font { font-family: "PingFang SC","Noto Sans CJK SC",Arial,sans-serif; }
+      .title { font-family: "PingFang SC","Noto Sans CJK SC",Arial,sans-serif; font-weight: 900; fill: #F8F3E7; }
+      .label { font-family: "PingFang SC","Noto Sans CJK SC",Arial,sans-serif; font-weight: 800; fill: #B9AFDF; letter-spacing: 4px; }
+      .muted { font-family: "PingFang SC","Noto Sans CJK SC",Arial,sans-serif; fill: #AFA5C7; }
+      .tv { font-family: "Arial Black","PingFang SC",Arial,sans-serif; font-weight: 900; fill: #FFFDF7; }
+      .goldText { font-family: "Arial Black","PingFang SC",Arial,sans-serif; font-weight: 900; fill: url(#gold); }
+    </style>
+  </defs>
+
+  <rect width="1800" height="1200" fill="url(#bg)"/>
+  <circle cx="1630" cy="104" r="150" fill="#21123A" opacity=".54"/>
+  <circle cx="185" cy="1085" r="220" fill="#170F28" opacity=".7"/>
+  <path d="M90 230 C320 80 600 112 850 245 C1090 372 1355 290 1698 86" stroke="#362257" stroke-width="2" opacity=".58"/>
+
+  <text x="72" y="76" class="label" font-size="22">INFINI TV DESIGN V3</text>
+  <text x="72" y="132" class="title" font-size="52">紫黑金 TV 卡片式视觉稿</text>
+  <text x="72" y="174" class="muted" font-size="22">重新计算画布位置：三个模块完整展示，不贴边、不裁切、不留白底。</text>
+
+  <!-- Column labels -->
+  <text x="80" y="245" class="title" font-size="30">竖屏训练页 · 站点视频</text>
+  <text x="560" y="245" class="title" font-size="30">横屏进度页 · 课程总节奏</text>
+  <text x="1365" y="245" class="title" font-size="30">过渡状态页</text>
+
+  <!-- Portrait workout screen -->
+  <g transform="translate(80 275)" filter="url(#shadow)">
+    <rect x="0" y="0" width="420" height="760" rx="32" fill="#07070C" stroke="#3B1D65" stroke-width="4"/>
+    <rect x="24" y="24" width="372" height="118" rx="12" fill="#0E0616"/>
+    <rect x="24" y="24" width="132" height="118" rx="12" fill="url(#blue)"/>
+    <circle cx="90" cy="83" r="44" stroke="#FFFDF7" stroke-width="8"/>
+    <path d="M90 39 A44 44 0 0 1 131 68" stroke="#83EAFF" stroke-width="8" stroke-linecap="round"/>
+    <text x="90" y="103" class="tv" font-size="64" text-anchor="middle">38</text>
+    <rect x="172" y="24" width="224" height="118" rx="12" fill="url(#panel)"/>
+    <text x="202" y="76" class="tv" font-size="42">WORK</text>
+    <text x="204" y="114" class="muted" font-size="23" font-weight="800">SET 1</text>
+    <circle cx="326" cy="100" r="7" fill="url(#gold)"/>
+    <circle cx="352" cy="100" r="8" stroke="#BE8E33" stroke-width="4"/>
+    <circle cx="380" cy="100" r="8" stroke="#BE8E33" stroke-width="4"/>
+
+    <g transform="translate(24 166)">
+      <g>
+        <rect width="372" height="162" rx="14" fill="#09090E"/>
+        <rect width="76" height="162" rx="14" fill="url(#violet)"/>
+        <rect x="76" width="5" height="162" fill="#050508"/>
+        <text x="38" y="102" class="tv" font-size="60" text-anchor="middle">1</text>
+        <rect x="96" y="14" width="252" height="134" rx="12" fill="url(#video)"/>
+        <rect x="136" y="14" width="172" height="134" fill="#25172F"/>
+        <circle cx="222" cy="81" r="37" fill="#FFFDF7" opacity=".09"/>
+        <path d="M211 58 L254 81 L211 104 Z" fill="url(#gold)"/>
+      </g>
+      <g transform="translate(0 182)" opacity=".46">
+        <rect width="372" height="162" rx="14" fill="#09090E"/>
+        <rect width="76" height="162" rx="14" fill="#6320A5"/>
+        <rect x="76" width="5" height="162" fill="#050508"/>
+        <text x="38" y="102" class="tv" font-size="60" text-anchor="middle">2</text>
+        <rect x="96" y="14" width="252" height="134" rx="12" fill="url(#video)"/>
+        <rect x="136" y="14" width="172" height="134" fill="#25172F"/>
+        <path d="M211 58 L254 81 L211 104 Z" fill="#B89B58"/>
+      </g>
+      <g transform="translate(0 364)" opacity=".46">
+        <rect width="372" height="162" rx="14" fill="#09090E"/>
+        <rect width="76" height="162" rx="14" fill="#6320A5"/>
+        <rect x="76" width="5" height="162" fill="#050508"/>
+        <text x="38" y="102" class="tv" font-size="60" text-anchor="middle">3</text>
+        <rect x="96" y="14" width="252" height="134" rx="12" fill="url(#video)"/>
+        <rect x="136" y="14" width="172" height="134" fill="#25172F"/>
+        <path d="M211 58 L254 81 L211 104 Z" fill="#B89B58"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- Landscape progress screen -->
+  <g transform="translate(560 275)" filter="url(#shadow)">
+    <rect x="0" y="0" width="760" height="428" rx="30" fill="#07070C" stroke="#3B1D65" stroke-width="4"/>
+    <rect x="22" y="22" width="716" height="384" rx="22" fill="url(#panel)"/>
+    <g transform="translate(70 64)" filter="url(#glow)">
+      <circle cx="190" cy="150" r="132" stroke="#3B1473" stroke-width="28"/>
+      <path d="M190 18 A132 132 0 1 1 68 201" stroke="#F34A37" stroke-width="28"/>
+      <circle cx="68" cy="201" r="23" fill="#FFFDF7"/>
+      <text x="190" y="191" class="tv" font-size="116" text-anchor="middle">38</text>
+    </g>
+    <g transform="translate(454 106)">
+      <circle cx="34" cy="40" r="29" fill="url(#gold)" filter="url(#goldGlow)"/>
+      <path d="M16 40 H30 L39 25 L50 58 L61 40 H78" stroke="#11071E" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="92" y="62" class="tv" font-size="66">WORK</text>
+      <text x="0" y="132" class="muted" font-size="28" font-weight="800">SET 1</text>
+      <text x="0" y="172" class="muted" font-size="22">正式训练进度</text>
+    </g>
+    <g transform="translate(56 344)">
+      <rect x="0" y="0" width="170" height="16" rx="8" fill="#FFFDF7"/>
+      <path d="M250 14 C250 -4 272 -42 272 -42 C272 -42 294 -4 294 14 C294 34 278 47 272 47 C266 47 250 34 250 14Z" fill="url(#gold)"/>
+      <rect x="350" y="0" width="170" height="16" rx="8" fill="#5D39AA"/>
+      <rect x="350" y="0" width="86" height="16" rx="8" fill="#FFFDF7"/>
+      <path d="M604 14 C604 -4 626 -42 626 -42 C626 -42 648 -4 648 14 C648 34 632 47 626 47 C620 47 604 34 604 14Z" fill="#7245C9"/>
+    </g>
+  </g>
+
+  <!-- Transition cards -->
+  <g transform="translate(1365 275)">
+    <g filter="url(#shadow)">
+      <rect width="360" height="178" rx="26" fill="#08080D" stroke="#3B1D65" stroke-width="4"/>
+      <rect x="20" y="20" width="320" height="138" rx="18" fill="url(#panel)"/>
+      <rect x="38" y="38" width="88" height="102" rx="14" fill="url(#red)"/>
+      <text x="82" y="106" class="tv" font-size="58" text-anchor="middle">15</text>
+      <text x="148" y="77" class="tv" font-size="32">GET READY</text>
+      <text x="148" y="119" class="goldText" font-size="30">WARM UP</text>
+    </g>
+
+    <g transform="translate(0 206)" filter="url(#shadow)">
+      <rect width="360" height="178" rx="26" fill="#08080D" stroke="#3B1D65" stroke-width="4"/>
+      <rect x="20" y="20" width="320" height="138" rx="18" fill="#C8322B"/>
+      <circle cx="84" cy="89" r="53" stroke="#FFFDF7" stroke-width="9" opacity=".94"/>
+      <text x="84" y="110" class="tv" font-size="58" text-anchor="middle">28</text>
+      <text x="166" y="86" class="tv" font-size="48">REST</text>
+      <circle cx="174" cy="118" r="7" fill="#FFFDF7"/>
+      <circle cx="202" cy="118" r="7" stroke="#FFFDF7" stroke-width="4"/>
+      <circle cx="230" cy="118" r="7" stroke="#FFFDF7" stroke-width="4"/>
+    </g>
+
+    <g transform="translate(0 412)" filter="url(#shadow)">
+      <rect width="360" height="178" rx="26" fill="#08080D" stroke="#3B1D65" stroke-width="4"/>
+      <rect x="20" y="20" width="320" height="138" rx="18" fill="#08B968"/>
+      <circle cx="84" cy="89" r="53" stroke="#FFFDF7" stroke-width="9" opacity=".94"/>
+      <text x="84" y="110" class="tv" font-size="58" text-anchor="middle">12</text>
+      <text x="166" y="78" class="tv" font-size="34">MOVE</text>
+      <text x="166" y="120" class="tv" font-size="34">STATION</text>
+    </g>
+
+    <g transform="translate(0 618)" filter="url(#shadow)">
+      <rect width="360" height="178" rx="26" fill="#08080D" stroke="#3B1D65" stroke-width="4"/>
+      <rect x="20" y="20" width="320" height="138" rx="18" fill="url(#blue)"/>
+      <circle cx="84" cy="89" r="53" stroke="#FFFDF7" stroke-width="9" opacity=".94"/>
+      <text x="84" y="110" class="tv" font-size="58" text-anchor="middle">24</text>
+      <path d="M188 43 C188 31 214 0 214 0 C214 0 240 31 240 43 C240 65 225 76 214 76 C203 76 188 65 188 43Z" fill="#FFFDF7" transform="translate(0 12)"/>
+      <text x="164" y="132" class="tv" font-size="38">HYDRATE</text>
+    </g>
+  </g>
+
+  <!-- Full-screen transition concept -->
+  <g transform="translate(560 760)" filter="url(#shadow)">
+    <text x="0" y="-30" class="title" font-size="30">全屏过渡页 · 前半段</text>
+    <rect width="760" height="276" rx="30" fill="#08080D" stroke="#3B1D65" stroke-width="4"/>
+    <rect x="22" y="22" width="716" height="232" rx="22" fill="#08B968"/>
+    <circle cx="220" cy="138" r="82" stroke="#FFFDF7" stroke-width="12"/>
+    <text x="220" y="170" class="tv" font-size="92" text-anchor="middle">12</text>
+    <text x="390" y="114" class="tv" font-size="58">MOVE</text>
+    <text x="390" y="180" class="tv" font-size="58">STATION</text>
+    <path d="M420 64 C475 24 548 24 604 64" stroke="#FFFDF7" stroke-width="5" stroke-linecap="round"/>
+    <path d="M604 212 C548 252 475 252 420 212" stroke="#FFFDF7" stroke-width="5" stroke-linecap="round"/>
+    <circle cx="420" cy="64" r="11" fill="#FFFDF7"/>
+    <circle cx="604" cy="212" r="11" fill="#FFFDF7"/>
+  </g>
+
+  <text x="80" y="1120" class="muted" font-size="22">方向：保留卡片边框和紫黑金质感，真实 TV 实现时按屏幕比例重算安全区，避免设计稿里出现裁切和错位。</text>
+</svg>

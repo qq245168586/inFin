@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-  <solid android:color="@color/tv_selector_button_fill" />
+  <gradient
+    android:angle="135"
+    android:startColor="#2F1848"
+    android:endColor="#130D1D" />
+  <stroke
+    android:width="2dp"
+    android:color="@color/tv_accent_gold" />
   <corners android:radius="28dp" />
 </shape>

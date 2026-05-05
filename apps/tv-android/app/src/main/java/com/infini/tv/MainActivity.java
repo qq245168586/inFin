@@ -9,7 +9,6 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.media.AudioAttributes;
 import android.media.SoundPool;
@@ -40,24 +39,21 @@ import android.widget.TextView;
 import android.widget.VideoView;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
+import com.infini.tv.component.HorizontalProgressBarComponent;
 import com.infini.tv.model.CourseScript;
 import com.infini.tv.model.TvScheduleItem;
 import com.infini.tv.mqtt.TvMqttManager;
 import com.infini.tv.repository.ServerConfig;
 import com.infini.tv.repository.TvScriptRepository;
+import com.infini.tv.service.ImageLoader;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.EncodeHintType;
 import com.google.zxing.WriterException;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
-import java.io.BufferedInputStream;
 import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashSet;
@@ -81,7 +77,6 @@ public class MainActivity extends AppCompatActivity {
   private static final int WARMUP_READY_SECONDS = 15;
   private static final int TRAINING_READY_SECONDS = 15;
   private static final int COOLDOWN_READY_SECONDS = 10;
-  private static final float WATER_ICON_ASPECT_RATIO = 282f / 450f;
   private static final String PREFS_NAME = "infini_tv_app";
   private static final String PREF_DEVICE_ID = "device_id";
   private static final String PREF_SCREEN_NUMBER = "screen_number";
@@ -2725,10 +2720,10 @@ public class MainActivity extends AppCompatActivity {
     LinearLayout.LayoutParams cardParams =
         new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-    cardParams.topMargin = dp(20);
+    cardParams.topMargin = dp(22);
     card.setLayoutParams(cardParams);
     card.setBackgroundResource(R.drawable.bg_schedule_card);
-    card.setPadding(dp(28), dp(28), dp(28), dp(28));
+    card.setPadding(dp(30), dp(30), dp(30), dp(30));
     card.setClickable(true);
     card.setFocusable(true);
     card.setOnClickListener(v -> startCourse(item));
@@ -2742,8 +2737,8 @@ public class MainActivity extends AppCompatActivity {
     logo.setLayoutParams(logoParams);
     logo.setBackgroundResource(R.drawable.bg_logo_panel);
     logo.setText(item.logoText);
-    logo.setTextColor(getColor(R.color.tv_text_main));
-    logo.setTextSize(16f);
+    logo.setTextColor(getColor(R.color.tv_accent_gold_bright));
+    logo.setTextSize(17f);
     logo.setLineSpacing(0f, 0.92f);
     logo.setGravity(android.view.Gravity.CENTER);
     row.addView(logo);
@@ -2762,7 +2757,7 @@ public class MainActivity extends AppCompatActivity {
         item.version == null || item.version.trim().isEmpty() ? "" : " (" + item.version + ")";
     name.setText(item.courseName + versionSuffix);
     name.setTextColor(getColor(R.color.tv_text_main));
-    name.setTextSize(22f);
+    name.setTextSize(24f);
     name.setTypeface(name.getTypeface(), android.graphics.Typeface.BOLD);
     name.setMaxLines(2);
     name.setEllipsize(TextUtils.TruncateAt.END);
@@ -2775,8 +2770,8 @@ public class MainActivity extends AppCompatActivity {
     timeParams.topMargin = dp(12);
     time.setLayoutParams(timeParams);
     time.setText("◷  " + formatTimeRange(item));
-    time.setTextColor(getColor(R.color.tv_text_main));
-    time.setTextSize(18f);
+    time.setTextColor(getColor(R.color.tv_accent_gold_bright));
+    time.setTextSize(19f);
     time.setTypeface(time.getTypeface(), android.graphics.Typeface.BOLD);
     content.addView(time);
 
@@ -2809,10 +2804,10 @@ public class MainActivity extends AppCompatActivity {
     LinearLayout.LayoutParams cardParams =
         new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-    cardParams.topMargin = dp(18);
+    cardParams.topMargin = dp(20);
     card.setLayoutParams(cardParams);
     card.setBackgroundResource(R.drawable.bg_schedule_card);
-    card.setPadding(dp(18), dp(14), dp(14), dp(14));
+    card.setPadding(dp(20), dp(18), dp(18), dp(18));
     card.setClickable(true);
     card.setFocusable(true);
     card.setOnClickListener(v -> startCourse(item));
@@ -2823,7 +2818,7 @@ public class MainActivity extends AppCompatActivity {
     card.addView(row);
 
     FrameLayout imageCircle = new FrameLayout(this);
-    LinearLayout.LayoutParams imageCircleParams = new LinearLayout.LayoutParams(dp(58), dp(58));
+    LinearLayout.LayoutParams imageCircleParams = new LinearLayout.LayoutParams(dp(66), dp(66));
     imageCircle.setLayoutParams(imageCircleParams);
     imageCircle.setBackgroundResource(R.drawable.bg_schedule_course_image_circle);
     imageCircle.setPadding(dp(6), dp(6), dp(6), dp(6));
@@ -2843,8 +2838,8 @@ public class MainActivity extends AppCompatActivity {
             FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
     imageFallback.setGravity(android.view.Gravity.CENTER);
     imageFallback.setText(item.logoText);
-    imageFallback.setTextColor(getColor(R.color.tv_black));
-    imageFallback.setTextSize(9f);
+    imageFallback.setTextColor(getColor(R.color.tv_playback_text_dark));
+    imageFallback.setTextSize(10f);
     imageFallback.setTypeface(imageFallback.getTypeface(), android.graphics.Typeface.BOLD);
     imageFallback.setMaxLines(2);
     imageCircle.addView(imageFallback);
@@ -2854,8 +2849,8 @@ public class MainActivity extends AppCompatActivity {
     LinearLayout content = new LinearLayout(this);
     LinearLayout.LayoutParams contentParams =
         new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-    contentParams.leftMargin = dp(16);
-    contentParams.rightMargin = dp(72);
+    contentParams.leftMargin = dp(18);
+    contentParams.rightMargin = dp(78);
     content.setLayoutParams(contentParams);
     content.setOrientation(LinearLayout.VERTICAL);
     row.addView(content);
@@ -2863,7 +2858,7 @@ public class MainActivity extends AppCompatActivity {
     TextView name = new TextView(this);
     name.setText(item.courseName);
     name.setTextColor(getColor(R.color.tv_text_main));
-    name.setTextSize(18f);
+    name.setTextSize(21f);
     name.setTypeface(name.getTypeface(), android.graphics.Typeface.BOLD);
     name.setMaxLines(1);
     name.setEllipsize(TextUtils.TruncateAt.END);
@@ -2876,8 +2871,8 @@ public class MainActivity extends AppCompatActivity {
     timeParams.topMargin = dp(10);
     time.setLayoutParams(timeParams);
     time.setText("◷  " + formatTimeRange(item));
-    time.setTextColor(getColor(R.color.tv_text_main));
-    time.setTextSize(14f);
+    time.setTextColor(getColor(R.color.tv_accent_gold_bright));
+    time.setTextSize(16f);
     time.setTypeface(time.getTypeface(), android.graphics.Typeface.BOLD);
     content.addView(time);
 
@@ -2896,7 +2891,7 @@ public class MainActivity extends AppCompatActivity {
   private View createHorizontalScheduleCard(TvScheduleItem item) {
     FrameLayout card = new FrameLayout(this);
     card.setBackgroundResource(R.drawable.bg_schedule_card);
-    card.setPadding(dp(22), dp(18), dp(20), dp(18));
+    card.setPadding(dp(28), dp(22), dp(24), dp(22));
     card.setClickable(true);
     card.setFocusable(true);
     card.setOnClickListener(v -> startCourse(item));
@@ -2911,7 +2906,7 @@ public class MainActivity extends AppCompatActivity {
     card.addView(row);
 
     FrameLayout imageCircle = new FrameLayout(this);
-    LinearLayout.LayoutParams imageCircleParams = new LinearLayout.LayoutParams(dp(86), dp(86));
+    LinearLayout.LayoutParams imageCircleParams = new LinearLayout.LayoutParams(dp(96), dp(96));
     imageCircle.setLayoutParams(imageCircleParams);
     imageCircle.setBackgroundResource(R.drawable.bg_schedule_course_image_circle);
     imageCircle.setPadding(dp(8), dp(8), dp(8), dp(8));
@@ -2931,8 +2926,8 @@ public class MainActivity extends AppCompatActivity {
             FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
     imageFallback.setGravity(android.view.Gravity.CENTER);
     imageFallback.setText(item.logoText);
-    imageFallback.setTextColor(getColor(R.color.tv_black));
-    imageFallback.setTextSize(12f);
+    imageFallback.setTextColor(getColor(R.color.tv_playback_text_dark));
+    imageFallback.setTextSize(13f);
     imageFallback.setTypeface(imageFallback.getTypeface(), android.graphics.Typeface.BOLD);
     imageFallback.setMaxLines(2);
     imageCircle.addView(imageFallback);
@@ -2942,8 +2937,8 @@ public class MainActivity extends AppCompatActivity {
     LinearLayout content = new LinearLayout(this);
     LinearLayout.LayoutParams contentParams =
         new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-    contentParams.leftMargin = dp(24);
-    contentParams.rightMargin = dp(112);
+    contentParams.leftMargin = dp(28);
+    contentParams.rightMargin = dp(128);
     content.setLayoutParams(contentParams);
     content.setOrientation(LinearLayout.VERTICAL);
     row.addView(content);
@@ -2951,7 +2946,7 @@ public class MainActivity extends AppCompatActivity {
     TextView name = new TextView(this);
     name.setText(item.courseName);
     name.setTextColor(getColor(R.color.tv_text_main));
-    name.setTextSize(30f);
+    name.setTextSize(34f);
     name.setTypeface(name.getTypeface(), android.graphics.Typeface.BOLD);
     name.setMaxLines(1);
     name.setEllipsize(TextUtils.TruncateAt.END);
@@ -2964,8 +2959,8 @@ public class MainActivity extends AppCompatActivity {
     timeParams.topMargin = dp(8);
     time.setLayoutParams(timeParams);
     time.setText("◷  " + formatTimeRange(item));
-    time.setTextColor(getColor(R.color.tv_text_main));
-    time.setTextSize(24f);
+    time.setTextColor(getColor(R.color.tv_accent_gold_bright));
+    time.setTextSize(26f);
     time.setTypeface(time.getTypeface(), android.graphics.Typeface.BOLD);
     content.addView(time);
 
@@ -2996,7 +2991,7 @@ public class MainActivity extends AppCompatActivity {
 
     new Thread(
             () -> {
-              Bitmap bitmap = loadBitmapFromSource(requestKey, dp(180), dp(180));
+              Bitmap bitmap = ImageLoader.loadBitmap(requestKey, dp(180), dp(180));
               runOnUiThread(
                   () -> {
                     Object latestTag = imageView.getTag();
@@ -3043,7 +3038,13 @@ public class MainActivity extends AppCompatActivity {
     }
     String status = resolveScheduleBadgeText(item);
     badge.setText(status);
-    badge.setTextColor(getColor(R.color.tv_text_main));
+    if ("进行中".equals(status)) {
+      badge.setTextColor(getColor(R.color.tv_playback_text_dark));
+    } else if ("已结束".equals(status)) {
+      badge.setTextColor(getColor(R.color.tv_text_subtle));
+    } else {
+      badge.setTextColor(getColor(R.color.tv_text_main));
+    }
     badge.setTextSize(textSize);
     badge.setGravity(android.view.Gravity.CENTER);
     badge.setMinWidth(minWidth);
@@ -3535,8 +3536,8 @@ public class MainActivity extends AppCompatActivity {
     placeholder.setGravity(android.view.Gravity.CENTER);
     placeholder.setPadding(dp(16), dp(16), dp(16), dp(16));
     placeholder.setText("暂无视频");
-    placeholder.setTextColor(getColor(R.color.tv_text_main));
-    placeholder.setTextSize(22f);
+    placeholder.setTextColor(getColor(R.color.tv_accent_gold_bright));
+    placeholder.setTextSize(26f);
     placeholder.setTypeface(placeholder.getTypeface(), android.graphics.Typeface.BOLD);
     container.addView(placeholder);
 
@@ -3562,7 +3563,7 @@ public class MainActivity extends AppCompatActivity {
     row.placeholderText.setText(placeholderText);
     row.placeholderText.setVisibility(View.VISIBLE);
     row.videoView.setVisibility(View.GONE);
-    row.dimOverlay.setAlpha(0.46f);
+    row.dimOverlay.setAlpha(0.54f);
     row.dimOverlay.setVisibility(View.VISIBLE);
   }
 
@@ -3641,7 +3642,8 @@ public class MainActivity extends AppCompatActivity {
     if (row == null) {
       return;
     }
-    row.dimOverlay.setAlpha(active ? 0f : 0.44f);
+    row.container.setSelected(active);
+    row.dimOverlay.setAlpha(active ? 0f : 0.56f);
   }
 
   private void syncWaterfallRowLayout() {
@@ -3657,10 +3659,10 @@ public class MainActivity extends AppCompatActivity {
             return;
           }
 
-          int rowGap = dp(8);
+          int rowGap = dp(12);
           int heightByWidth = Math.round(contentWidth * 9f / 16f);
-          int heightByViewport = Math.max((viewportHeight - rowGap * 2) / 3, dp(120));
-          int rowHeight = Math.max(Math.min(heightByWidth, heightByViewport), dp(120));
+          int heightByViewport = Math.max((viewportHeight - rowGap * 2) / 3, dp(150));
+          int rowHeight = Math.max(Math.min(heightByWidth, heightByViewport), dp(150));
           for (int index = 0; index < waterfallRows.size(); index += 1) {
             WaterfallRowView row = waterfallRows.get(index);
             LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) row.container.getLayoutParams();
@@ -3834,14 +3836,11 @@ public class MainActivity extends AppCompatActivity {
     }
     String safePrimary = primaryText == null || primaryText.trim().isEmpty() ? "WAITING" : primaryText;
     if (horizontalRingProgress != null) {
-      int ringProgressColor =
-          isHorizontalReadyRingState(safePrimary)
-              ? getColor(R.color.tv_playback_ready)
-              : getColor(R.color.tv_horizontal_progress_active);
       horizontalRingProgress.setColors(
           getColor(R.color.tv_horizontal_progress_inactive),
-          ringProgressColor,
-          getColor(R.color.tv_text_main));
+          getColor(R.color.tv_horizontal_progress_active),
+          getColor(R.color.tv_accent_gold_bright));
+      horizontalRingProgress.setDrawThumb(false);
       int safeRemaining = Math.max(remainingSeconds, 0);
       String ringKey =
           safePrimary
@@ -3984,12 +3983,12 @@ public class MainActivity extends AppCompatActivity {
     int shortSide = Math.min(screenWidth, screenHeight);
     int ringSize =
         horizontal
-            ? clamp(Math.round(shortSide * 0.56f), dp(420), dp(620))
+            ? clamp(Math.round(shortSide * 0.62f), dp(500), dp(760))
             : clamp(
-                Math.round(shortSide * 0.62f),
-                Math.round(shortSide * 0.48f),
-                Math.round(shortSide * 0.68f));
-    float centerX = horizontal ? 0.282f : 0.5f;
+                Math.round(shortSide * 0.72f),
+                Math.round(shortSide * 0.58f),
+                Math.round(shortSide * 0.82f));
+    float centerX = horizontal ? 0.30f : 0.5f;
     float centerY =
         horizontal
             ? 0.50f
@@ -4002,9 +4001,12 @@ public class MainActivity extends AppCompatActivity {
     if (transitionDesignRing != null) {
       transitionDesignRing.setStrokeWidthPx(
           horizontal
-              ? clampPx(shortSide * 0.05f, dp(36), dp(58))
-              : clampPx(shortSide * 0.055f, shortSide * 0.04f, shortSide * 0.07f));
-      transitionDesignRing.setColors(0x55ffffff, 0xffffffff, 0x00ffffff);
+              ? clampPx(shortSide * 0.06f, dp(44), dp(74))
+              : clampPx(shortSide * 0.065f, shortSide * 0.048f, shortSide * 0.08f));
+      transitionDesignRing.setColors(
+          getColor(R.color.tv_horizontal_progress_inactive),
+          getColor(R.color.tv_accent_gold_bright),
+          0x00ffffff);
       transitionDesignRing.setDrawThumb(false);
       String progressKey = transitionType + "|" + renderKey;
       if (!progressKey.equals(transitionDesignProgressKey)
@@ -4023,8 +4025,8 @@ public class MainActivity extends AppCompatActivity {
     transitionDesignCountdown.setTextSize(
         TypedValue.COMPLEX_UNIT_PX,
         horizontal
-            ? clampPx(shortSide * 0.18f, sp(120), sp(210))
-            : clampPx(shortSide * 0.22f, shortSide * 0.16f, shortSide * 0.28f));
+            ? clampPx(shortSide * 0.22f, sp(150), sp(280))
+            : clampPx(shortSide * 0.30f, shortSide * 0.20f, shortSide * 0.34f));
     bindTransitionDesignIcon(transitionType, horizontal, screenWidth, screenHeight, shortSide);
     bindTransitionDesignTitle(transitionType, horizontal, screenWidth, screenHeight, shortSide);
     bindTransitionDesignSubtitle(subtitle, transitionType, horizontal, screenWidth, screenHeight, shortSide);
@@ -4043,13 +4045,13 @@ public class MainActivity extends AppCompatActivity {
             ? R.drawable.icon_water
             : ("REST".equals(transitionType) ? R.drawable.icon_heart : R.drawable.icon_cicle);
     transitionDesignIcon.setImageResource(iconRes);
-    transitionDesignIcon.setColorFilter(getColor(R.color.tv_text_main));
+    transitionDesignIcon.setColorFilter(getColor(R.color.tv_accent_gold_bright));
     int width;
     int height;
     float centerX;
     float centerY;
     if ("HYDRATE".equals(transitionType)) {
-      width = horizontal ? clamp(Math.round(shortSide * 0.12f), dp(96), dp(150))
+      width = horizontal ? clamp(Math.round(shortSide * 0.16f), dp(128), dp(200))
           : clamp(
               Math.round(shortSide * 0.18f),
               Math.round(shortSide * 0.13f),
@@ -4060,13 +4062,13 @@ public class MainActivity extends AppCompatActivity {
     } else if ("REST".equals(transitionType)) {
       width =
           horizontal
-              ? clamp(Math.round(shortSide * 0.18f), dp(140), dp(220))
+              ? clamp(Math.round(shortSide * 0.22f), dp(180), dp(260))
               : clamp(Math.round(shortSide * 0.28f), Math.round(shortSide * 0.20f), Math.round(shortSide * 0.34f));
       height = Math.round(width * (338f / 360f));
       centerX = horizontal ? 0.72f : 0.5f;
       centerY = horizontal ? 0.23f : 0.18f;
     } else {
-      width = horizontal ? clamp(Math.round(screenWidth * 0.30f), dp(440), dp(640))
+      width = horizontal ? clamp(Math.round(screenWidth * 0.34f), dp(520), dp(740))
           : clamp(
               Math.round(shortSide * 0.58f),
               Math.round(shortSide * 0.46f),
@@ -4096,8 +4098,8 @@ public class MainActivity extends AppCompatActivity {
     transitionDesignTitle.setTextSize(
         TypedValue.COMPLEX_UNIT_PX,
         horizontal
-            ? clampPx(shortSide * ("REST".equals(transitionType) ? 0.12f : 0.105f), sp(70), sp(124))
-            : clampPx(shortSide * ("REST".equals(transitionType) ? 0.13f : 0.13f), shortSide * 0.085f, shortSide * 0.16f));
+            ? clampPx(shortSide * ("REST".equals(transitionType) ? 0.15f : 0.13f), sp(92), sp(150))
+            : clampPx(shortSide * 0.16f, shortSide * 0.11f, shortSide * 0.20f));
     int width = horizontal ? clamp(Math.round(screenWidth * 0.44f), dp(560), dp(860))
         : FrameLayout.LayoutParams.MATCH_PARENT;
     int height = FrameLayout.LayoutParams.WRAP_CONTENT;
@@ -4107,7 +4109,7 @@ public class MainActivity extends AppCompatActivity {
       params.topMargin =
           Math.round(
               screenHeight
-                  * ("HYDRATE".equals(transitionType) ? 0.56f : ("REST".equals(transitionType) ? 0.58f : 0.50f)));
+                  * ("HYDRATE".equals(transitionType) ? 0.52f : ("REST".equals(transitionType) ? 0.56f : 0.48f)));
       transitionDesignTitle.setGravity(android.view.Gravity.CENTER);
     } else {
       params.leftMargin = 0;
@@ -4137,8 +4139,8 @@ public class MainActivity extends AppCompatActivity {
     transitionDesignSubtitle.setTextSize(
         TypedValue.COMPLEX_UNIT_PX,
         horizontal
-            ? clampPx(shortSide * 0.07f, sp(34), sp(72))
-            : clampPx(shortSide * 0.095f, shortSide * 0.065f, shortSide * 0.12f));
+            ? clampPx(shortSide * 0.085f, sp(46), sp(86))
+            : clampPx(shortSide * 0.105f, shortSide * 0.075f, shortSide * 0.13f));
     int width = horizontal ? clamp(Math.round(screenWidth * 0.44f), dp(560), dp(860))
         : FrameLayout.LayoutParams.MATCH_PARENT;
     FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(width, FrameLayout.LayoutParams.WRAP_CONTENT);
@@ -4249,8 +4251,8 @@ public class MainActivity extends AppCompatActivity {
         Math.min(
             getResources().getDisplayMetrics().widthPixels,
             getResources().getDisplayMetrics().heightPixels);
-    int dotSize = clamp(Math.round(shortSide * 0.018f), dp(10), dp(18));
-    int dotGap = clamp(Math.round(shortSide * 0.012f), dp(8), dp(16));
+    int dotSize = clamp(Math.round(shortSide * 0.026f), dp(16), dp(26));
+    int dotGap = clamp(Math.round(shortSide * 0.018f), dp(12), dp(22));
     for (int index = 0; index < totalDots; index += 1) {
       View dot = new View(this);
       LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dotSize, dotSize);
@@ -4267,76 +4269,16 @@ public class MainActivity extends AppCompatActivity {
   }
 
   private void renderHorizontalProgressBar(CourseScript course, int elapsedSeconds, int totalSeconds) {
-    if (horizontalProgressRow == null) {
-      return;
-    }
-
-    horizontalProgressRow.removeAllViews();
-    List<HorizontalTimelineSegment> segments = buildHorizontalTimeline(course);
-    if (segments.isEmpty()) {
-      horizontalProgressRow.setVisibility(View.GONE);
-      return;
-    }
-
-    horizontalProgressRow.setVisibility(View.VISIBLE);
     int shortSide =
         Math.min(
             getResources().getDisplayMetrics().widthPixels,
             getResources().getDisplayMetrics().heightPixels);
-    int segmentHeight = clamp(Math.round(shortSide * 0.03f), dp(24), dp(34));
-    int markerHeight = clamp(Math.round(shortSide * 0.078f), dp(56), dp(88));
-    int markerWidth =
-        clamp(Math.round(markerHeight * WATER_ICON_ASPECT_RATIO), dp(36), dp(58));
-    int markerMargin = clamp(Math.round(shortSide * 0.024f), dp(24), dp(46));
-    int safeElapsed = clamp(Math.max(elapsedSeconds, 0), 0, Math.max(totalSeconds, 0));
-    int consumed = 0;
-    for (int index = 0; index < segments.size(); index += 1) {
-      HorizontalTimelineSegment segment = segments.get(index);
-      LinearLayout segmentContainer = new LinearLayout(this);
-      segmentContainer.setOrientation(LinearLayout.HORIZONTAL);
-      LinearLayout.LayoutParams segmentParams =
-          new LinearLayout.LayoutParams(0, segmentHeight, Math.max(segment.durationSeconds, 1));
-      segmentContainer.setLayoutParams(segmentParams);
-
-      int completedInSegment = clamp(safeElapsed - consumed, 0, segment.durationSeconds);
-      int remainingInSegment = Math.max(segment.durationSeconds - completedInSegment, 0);
-      if (completedInSegment > 0) {
-        View fill = new View(this);
-        fill.setBackgroundResource(R.drawable.bg_horizontal_progress_active);
-        LinearLayout.LayoutParams fillParams =
-            new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, completedInSegment);
-        fill.setLayoutParams(fillParams);
-        segmentContainer.addView(fill);
-      }
-      if (remainingInSegment > 0 || completedInSegment <= 0) {
-        View empty = new View(this);
-        empty.setBackgroundResource(R.drawable.bg_horizontal_progress_inactive);
-        LinearLayout.LayoutParams emptyParams =
-            new LinearLayout.LayoutParams(
-                0,
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                Math.max(remainingInSegment, completedInSegment <= 0 ? segment.durationSeconds : 0));
-        empty.setLayoutParams(emptyParams);
-        segmentContainer.addView(empty);
-      }
-      horizontalProgressRow.addView(segmentContainer);
-      consumed += segment.durationSeconds;
-
-      if (index < segments.size() - 1) {
-        ImageView marker = new ImageView(this);
-        LinearLayout.LayoutParams markerParams =
-            new LinearLayout.LayoutParams(markerWidth, markerHeight);
-        markerParams.leftMargin = markerMargin;
-        markerParams.rightMargin = markerMargin;
-        marker.setLayoutParams(markerParams);
-        marker.setAdjustViewBounds(true);
-        marker.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        marker.setImageResource(R.drawable.icon_water);
-        marker.setColorFilter(getColor(R.color.tv_text_main));
-        marker.setAlpha(1f);
-        horizontalProgressRow.addView(marker);
-      }
-    }
+    HorizontalProgressBarComponent.render(
+        horizontalProgressRow,
+        buildHorizontalTimeline(course),
+        elapsedSeconds,
+        totalSeconds,
+        shortSide);
   }
 
   private void configureVerticalPlaybackHeader(boolean previewHeader) {
@@ -4366,12 +4308,12 @@ public class MainActivity extends AppCompatActivity {
       playbackTimerCard.setVisibility(View.VISIBLE);
       if (timerParams != null) {
         timerParams.width = 0;
-        timerParams.weight = 0.25f;
+        timerParams.weight = 0.28f;
         playbackTimerCard.setLayoutParams(timerParams);
       }
       if (stageParams != null) {
         stageParams.width = 0;
-        stageParams.weight = 0.75f;
+        stageParams.weight = 0.72f;
         stageParams.leftMargin = clamp(Math.round(
             Math.min(
                     getResources().getDisplayMetrics().widthPixels,
@@ -4379,7 +4321,7 @@ public class MainActivity extends AppCompatActivity {
                 * 0.02f), dp(8), dp(16));
         playbackStageCard.setLayoutParams(stageParams);
       }
-      playbackStageCard.setPadding(dp(18), dp(12), dp(18), dp(12));
+      playbackStageCard.setPadding(dp(22), dp(14), dp(22), dp(14));
     }
   }
 
@@ -4434,8 +4376,8 @@ public class MainActivity extends AppCompatActivity {
     }
   }
 
-  private List<HorizontalTimelineSegment> buildHorizontalTimeline(CourseScript course) {
-    List<HorizontalTimelineSegment> segments = new ArrayList<>();
+  private List<Integer> buildHorizontalTimeline(CourseScript course) {
+    List<Integer> segments = new ArrayList<>();
     if (course == null) {
       return segments;
     }
@@ -4448,7 +4390,7 @@ public class MainActivity extends AppCompatActivity {
         int endingDuration = getPodEndingDurationSeconds(course, pod);
         if (endingDuration > 0 && isProgressMarkerPod(pod)) {
           segmentDuration += endingDuration;
-          segments.add(new HorizontalTimelineSegment(Math.max(segmentDuration, 1)));
+          segments.add(Math.max(segmentDuration, 1));
           segmentDuration = 0;
         } else {
           segmentDuration += endingDuration;
@@ -4457,7 +4399,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     if (segmentDuration > 0 || (segments.isEmpty() && getTrainingTotalSeconds(course) > 0)) {
-      segments.add(new HorizontalTimelineSegment(Math.max(segmentDuration, 1)));
+      segments.add(Math.max(segmentDuration, 1));
     }
     return segments;
   }
@@ -4541,16 +4483,7 @@ public class MainActivity extends AppCompatActivity {
   }
 
   private int getHorizontalTransitionBackgroundColor(String transitionType) {
-    if ("MOVE_STATION".equals(transitionType) || "MOVE_ZONE".equals(transitionType)) {
-      return getColor(R.color.tv_playback_move_station);
-    }
-    if ("HYDRATE".equals(transitionType)) {
-      return getColor(R.color.tv_playback_blue);
-    }
-    if ("REST".equals(transitionType)) {
-      return getColor(R.color.tv_playback_ready);
-    }
-    return getColor(R.color.tv_black);
+    return getColor(R.color.tv_playback_background);
   }
 
   private int parseSafeInt(String value) {
@@ -4677,8 +4610,8 @@ public class MainActivity extends AppCompatActivity {
     int screenWidth = getResources().getDisplayMetrics().widthPixels;
     int screenHeight = getResources().getDisplayMetrics().heightPixels;
     int shortSide = Math.min(screenWidth, screenHeight);
-    int horizontalPadding = clamp(Math.round(shortSide * 0.05f), dp(14), dp(40));
-    int verticalPadding = clamp(Math.round(shortSide * 0.04f), dp(12), dp(32));
+    int horizontalPadding = clamp(Math.round(shortSide * 0.052f), dp(18), dp(46));
+    int verticalPadding = clamp(Math.round(shortSide * 0.042f), dp(14), dp(36));
 
     if (contentPanel != null) {
       contentPanel.setPadding(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding);
@@ -4694,8 +4627,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // Keep the header compact while preserving the larger type sizing users read from distance.
-    int statusHeight = clamp(Math.round(shortSide * 0.28f), dp(120), dp(280));
-    int statusTextBasisHeight = clamp(Math.round(shortSide * 0.42f), dp(180), dp(420));
+    int statusHeight = clamp(Math.round(shortSide * 0.32f), dp(150), dp(340));
+    int statusTextBasisHeight = clamp(Math.round(shortSide * 0.46f), dp(220), dp(480));
     if (playbackStatusGroup != null) {
       ViewGroup.LayoutParams params = playbackStatusGroup.getLayoutParams();
       if (params != null) {
@@ -4708,7 +4641,7 @@ public class MainActivity extends AppCompatActivity {
       if (params != null) {
         params.height = statusHeight;
         params.width = 0;
-        params.weight = 0.25f;
+        params.weight = 0.28f;
         playbackTimerCard.setLayoutParams(params);
       }
     }
@@ -4717,7 +4650,7 @@ public class MainActivity extends AppCompatActivity {
       if (params != null) {
         params.height = statusHeight;
         params.width = 0;
-        params.weight = 0.75f;
+        params.weight = 0.72f;
         params.leftMargin = clamp(Math.round(shortSide * 0.02f), dp(8), dp(16));
         playbackStageCard.setLayoutParams(params);
       }
@@ -4725,15 +4658,15 @@ public class MainActivity extends AppCompatActivity {
 
     if (playbackCountdownText != null) {
       playbackCountdownText.setTextSize(
-          TypedValue.COMPLEX_UNIT_PX, clampPx(statusTextBasisHeight * 1.9f, sp(180), sp(560)));
+          TypedValue.COMPLEX_UNIT_PX, clampPx(statusTextBasisHeight * 1.65f, sp(160), sp(620)));
     }
     if (playbackStageProgress != null) {
       playbackStageProgress.setTextSize(
-          TypedValue.COMPLEX_UNIT_PX, clampPx(statusTextBasisHeight * 0.34f, sp(26), sp(82)));
+          TypedValue.COMPLEX_UNIT_PX, clampPx(statusTextBasisHeight * 0.42f, sp(34), sp(100)));
     }
     if (playbackStageSecondary != null) {
       playbackStageSecondary.setTextSize(
-          TypedValue.COMPLEX_UNIT_PX, clampPx(statusTextBasisHeight * 0.16f, sp(14), sp(28)));
+          TypedValue.COMPLEX_UNIT_PX, clampPx(statusTextBasisHeight * 0.20f, sp(18), sp(36)));
     }
     if (playbackHint != null) {
       playbackHint.setTextSize(TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.034f, sp(16), sp(28)));
@@ -4768,38 +4701,39 @@ public class MainActivity extends AppCompatActivity {
       ViewGroup.LayoutParams rawParams = horizontalRingContainer.getLayoutParams();
       if (rawParams instanceof FrameLayout.LayoutParams) {
         FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) rawParams;
-        int ringSize = clamp(Math.round(shortSide * 0.52f), dp(360), dp(620));
+        int ringSize = clamp(Math.round(shortSide * 0.58f), dp(420), dp(720));
         params.width = ringSize;
         params.height = ringSize;
         params.gravity = android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL;
-        params.topMargin = clamp(Math.round(shortSide * 0.12f), dp(54), dp(132));
+        params.topMargin = clamp(Math.round(shortSide * 0.10f), dp(48), dp(116));
         horizontalRingContainer.setLayoutParams(params);
       }
     }
     if (horizontalRingProgress != null) {
-      horizontalRingProgress.setStrokeWidthPx(clampPx(shortSide * 0.054f, dp(34), dp(62)));
+      horizontalRingProgress.setStrokeWidthPx(clampPx(shortSide * 0.041f, dp(28), dp(52)));
       horizontalRingProgress.setColors(
           getColor(R.color.tv_horizontal_progress_inactive),
           getColor(R.color.tv_horizontal_progress_active),
-          getColor(R.color.tv_text_main));
+          getColor(R.color.tv_accent_gold_bright));
+      horizontalRingProgress.setDrawThumb(false);
     }
     if (horizontalCountdownText != null) {
       horizontalCountdownText.setTextSize(
-          TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.18f, sp(120), sp(210)));
+          TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.22f, sp(150), sp(260)));
     }
     if (horizontalStateColumn != null) {
       ViewGroup.LayoutParams rawParams = horizontalStateColumn.getLayoutParams();
       if (rawParams instanceof FrameLayout.LayoutParams) {
         FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) rawParams;
-        int ringSize = clamp(Math.round(shortSide * 0.52f), dp(360), dp(620));
-        int ringTop = clamp(Math.round(shortSide * 0.12f), dp(54), dp(132));
-        int stateTop = ringTop + ringSize + clamp(Math.round(shortSide * 0.036f), dp(24), dp(44));
-        params.width = clamp(Math.round(screenWidth * 0.44f), dp(360), dp(720));
+        int ringSize = clamp(Math.round(shortSide * 0.58f), dp(420), dp(720));
+        int ringTop = clamp(Math.round(shortSide * 0.10f), dp(48), dp(116));
+        int stateTop = ringTop + Math.round(ringSize * 0.25f);
+        params.width = clamp(Math.round(screenWidth * 0.40f), dp(520), dp(860));
         params.height = FrameLayout.LayoutParams.WRAP_CONTENT;
-        params.gravity = android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL;
+        params.gravity = android.view.Gravity.TOP | android.view.Gravity.RIGHT;
         params.topMargin = stateTop;
         params.leftMargin = 0;
-        params.rightMargin = 0;
+        params.rightMargin = clamp(Math.round(screenWidth * 0.062f), dp(56), dp(128));
         params.bottomMargin = 0;
         horizontalStateColumn.setLayoutParams(params);
       }
@@ -4807,7 +4741,7 @@ public class MainActivity extends AppCompatActivity {
     if (horizontalStateIcon != null) {
       ViewGroup.LayoutParams params = horizontalStateIcon.getLayoutParams();
       if (params != null) {
-        int iconSize = clamp(Math.round(shortSide * 0.066f), dp(54), dp(78));
+        int iconSize = clamp(Math.round(shortSide * 0.078f), dp(62), dp(92));
         params.width = iconSize;
         params.height = iconSize;
         horizontalStateIcon.setLayoutParams(params);
@@ -4815,28 +4749,28 @@ public class MainActivity extends AppCompatActivity {
     }
     if (horizontalStateText != null) {
       horizontalStateText.setTextSize(
-          TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.08f, sp(46), sp(82)));
+          TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.092f, sp(60), sp(100)));
     }
     if (horizontalStateSecondary != null) {
       horizontalStateSecondary.setTextSize(
-          TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.058f, sp(18), sp(34)));
+          TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.064f, sp(24), sp(42)));
     }
     if (horizontalTransitionCountdownText != null) {
       horizontalTransitionCountdownText.setTextSize(
-          TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.34f, sp(110), sp(240)));
+          TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.40f, sp(150), sp(300)));
     }
     if (horizontalTransitionTitle != null) {
       horizontalTransitionTitle.setTextSize(
-          TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.12f, sp(28), sp(60)));
+          TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.15f, sp(48), sp(96)));
     }
     if (horizontalTransitionHint != null) {
       horizontalTransitionHint.setTextSize(
-          TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.042f, sp(14), sp(24)));
+          TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.055f, sp(22), sp(36)));
     }
     if (horizontalTransitionCircle != null) {
       ViewGroup.LayoutParams params = horizontalTransitionCircle.getLayoutParams();
       if (params != null) {
-        int size = clamp(Math.round(shortSide * 0.32f), dp(260), dp(480));
+        int size = clamp(Math.round(shortSide * 0.40f), dp(320), dp(560));
         params.width = size;
         params.height = size;
         horizontalTransitionCircle.setLayoutParams(params);
@@ -4851,7 +4785,7 @@ public class MainActivity extends AppCompatActivity {
         params.gravity = android.view.Gravity.BOTTOM;
         params.leftMargin = clamp(Math.round(shortSide * 0.038f), dp(28), dp(70));
         params.rightMargin = clamp(Math.round(shortSide * 0.038f), dp(28), dp(70));
-        params.bottomMargin = clamp(Math.round(shortSide * 0.16f), dp(120), dp(180));
+        params.bottomMargin = clamp(Math.round(shortSide * 0.14f), dp(96), dp(168));
         horizontalProgressRow.setLayoutParams(params);
       }
     }
@@ -4970,13 +4904,7 @@ public class MainActivity extends AppCompatActivity {
   }
 
   private int getTransitionBackgroundColor(String transitionType) {
-    if ("REST".equals(transitionType)) {
-      return getColor(R.color.tv_playback_ready);
-    }
-    if ("MOVE_STATION".equals(transitionType) || "MOVE_ZONE".equals(transitionType)) {
-      return getColor(R.color.tv_playback_move_station);
-    }
-    return getColor(R.color.tv_playback_blue);
+    return getColor(R.color.tv_playback_background);
   }
 
   private String formatTransitionTitle(String transitionTitle) {
@@ -5011,9 +4939,9 @@ public class MainActivity extends AppCompatActivity {
         playbackStageDotsRow.setVisibility(View.VISIBLE);
         for (int index = 0; index < totalDots; index += 1) {
           View dot = new View(this);
-          LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(10), dp(10));
+          LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(16), dp(16));
           if (index > 0) {
-            params.leftMargin = dp(8);
+            params.leftMargin = dp(12);
           }
           dot.setLayoutParams(params);
           dot.setBackgroundResource(
@@ -5501,7 +5429,7 @@ public class MainActivity extends AppCompatActivity {
           new LinearLayout.LayoutParams(
               LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
       if (rowStart > 0) {
-        rowParams.topMargin = dp(10);
+        rowParams.topMargin = dp(14);
       }
       row.setLayoutParams(rowParams);
 
@@ -5535,20 +5463,20 @@ public class MainActivity extends AppCompatActivity {
 
     TextView index = new TextView(this);
     LinearLayout.LayoutParams indexParams =
-        new LinearLayout.LayoutParams(dp(60), LinearLayout.LayoutParams.MATCH_PARENT);
+        new LinearLayout.LayoutParams(dp(88), LinearLayout.LayoutParams.MATCH_PARENT);
     index.setLayoutParams(indexParams);
     index.setBackgroundResource(R.drawable.bg_playback_index_card);
     index.setGravity(android.view.Gravity.CENTER);
     index.setText(safeStationLabel(card.stationNumber, cardIndex + 1));
     index.setTextColor(getColor(R.color.tv_text_main));
-    index.setTextSize(20f);
+    index.setTextSize(34f);
     index.setTypeface(index.getTypeface(), android.graphics.Typeface.BOLD);
     wrapper.addView(index);
 
     FrameLayout preview = new FrameLayout(this);
     LinearLayout.LayoutParams previewParams =
         new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f);
-    previewParams.leftMargin = dp(6);
+    previewParams.leftMargin = dp(10);
     preview.setLayoutParams(previewParams);
     preview.setBackgroundColor(getColor(R.color.tv_training_card_inactive));
     wrapper.addView(preview);
@@ -5564,29 +5492,29 @@ public class MainActivity extends AppCompatActivity {
     wrapper.setOrientation(LinearLayout.HORIZONTAL);
     LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, previewHeight, 1f);
     if (cardIndex % 2 == 0) {
-      params.rightMargin = dp(5);
+      params.rightMargin = dp(7);
     } else {
-      params.leftMargin = dp(5);
+      params.leftMargin = dp(7);
     }
     wrapper.setLayoutParams(params);
     wrapper.setBackgroundResource(R.drawable.bg_training_card);
 
     TextView index = new TextView(this);
     LinearLayout.LayoutParams indexParams =
-        new LinearLayout.LayoutParams(dp(44), LinearLayout.LayoutParams.MATCH_PARENT);
+        new LinearLayout.LayoutParams(dp(68), LinearLayout.LayoutParams.MATCH_PARENT);
     index.setLayoutParams(indexParams);
     index.setBackgroundResource(R.drawable.bg_playback_index_card);
     index.setGravity(android.view.Gravity.CENTER);
     index.setText(safeStationLabel(card.stationNumber, cardIndex + 1));
     index.setTextColor(getColor(R.color.tv_text_main));
-    index.setTextSize(18f);
+    index.setTextSize(30f);
     index.setTypeface(index.getTypeface(), android.graphics.Typeface.BOLD);
     wrapper.addView(index);
 
     FrameLayout preview = new FrameLayout(this);
     LinearLayout.LayoutParams previewParams =
         new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f);
-    previewParams.leftMargin = dp(6);
+    previewParams.leftMargin = dp(8);
     preview.setLayoutParams(previewParams);
     preview.setBackgroundColor(getColor(R.color.tv_training_card_inactive));
     wrapper.addView(preview);
@@ -5628,8 +5556,8 @@ public class MainActivity extends AppCompatActivity {
       placeholder.setGravity(android.view.Gravity.CENTER);
       placeholder.setPadding(dp(16), dp(16), dp(16), dp(16));
       placeholder.setText(safeStationLabel(card == null ? null : card.stationNumber, 1));
-      placeholder.setTextColor(getColor(R.color.tv_text_main));
-      placeholder.setTextSize(24f);
+      placeholder.setTextColor(getColor(R.color.tv_accent_gold_bright));
+      placeholder.setTextSize(34f);
       placeholder.setTypeface(placeholder.getTypeface(), android.graphics.Typeface.BOLD);
       preview.addView(placeholder);
     }
@@ -5655,16 +5583,15 @@ public class MainActivity extends AppCompatActivity {
 
   private int calculateWideTrainingRowHeight() {
     int contentWidth = getResources().getDisplayMetrics().widthPixels - dp(36);
-    int previewWidth = Math.max(contentWidth - dp(66), dp(220));
-    // Bias towards taller cards so the training grid better fills TV screens.
-    return Math.max(Math.round(previewWidth * 10f / 16f), dp(200));
+    int previewWidth = Math.max(contentWidth - dp(98), dp(260));
+    return Math.max(Math.round(previewWidth * 10.5f / 16f), dp(240));
   }
 
   private int calculateGridTrainingRowHeight() {
     int contentWidth = getResources().getDisplayMetrics().widthPixels - dp(36);
     int columnWidth = Math.max((contentWidth - dp(10)) / 2, dp(180));
-    int previewWidth = Math.max(columnWidth - dp(50), dp(120));
-    return Math.max(Math.round(previewWidth * 10f / 16f), dp(150));
+    int previewWidth = Math.max(columnWidth - dp(76), dp(160));
+    return Math.max(Math.round(previewWidth * 10.5f / 16f), dp(190));
   }
 
   private String safeStationLabel(String stationNumber, int fallbackIndex) {
@@ -5953,7 +5880,7 @@ public class MainActivity extends AppCompatActivity {
     new Thread(
             () -> {
               Bitmap bitmap =
-                  loadBitmapFromSource(
+                  ImageLoader.loadBitmap(
                       requestKey,
                       resolveFinishLogoTargetWidth(),
                       resolveFinishLogoTargetHeight());
@@ -6058,123 +5985,6 @@ public class MainActivity extends AppCompatActivity {
     return isHorizontalInfoScreen(activeScreenNumber)
         ? clamp(Math.round(screenHeight * 0.38f), dp(220), dp(460))
         : clamp(Math.round(shortSide * 0.38f), dp(120), dp(320));
-  }
-
-  private Bitmap loadBitmapFromSource(String source, int targetWidth, int targetHeight) {
-    if (source == null || source.trim().isEmpty()) {
-      return null;
-    }
-
-    String normalized = source.trim();
-    try {
-      File localFile = new File(normalized);
-      if (localFile.isFile()) {
-        return decodeSampledBitmapFromFile(localFile, targetWidth, targetHeight);
-      }
-
-      HttpURLConnection connection = (HttpURLConnection) new URL(normalized).openConnection();
-      connection.setConnectTimeout(6000);
-      connection.setReadTimeout(12000);
-      connection.setRequestMethod("GET");
-      connection.setDoInput(true);
-
-      int responseCode = connection.getResponseCode();
-      if (responseCode < 200 || responseCode >= 300) {
-        connection.disconnect();
-        return null;
-      }
-
-      try (InputStream inputStream = new BufferedInputStream(connection.getInputStream())) {
-        return decodeSampledBitmapFromBytes(readAllBytes(inputStream), targetWidth, targetHeight);
-      } finally {
-        connection.disconnect();
-      }
-    } catch (Exception ignored) {
-      return null;
-    }
-  }
-
-  private Bitmap decodeSampledBitmapFromFile(File file, int targetWidth, int targetHeight) {
-    if (file == null || !file.isFile()) {
-      return null;
-    }
-    BitmapFactory.Options bounds = new BitmapFactory.Options();
-    bounds.inJustDecodeBounds = true;
-    BitmapFactory.decodeFile(file.getAbsolutePath(), bounds);
-    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
-      return null;
-    }
-
-    BitmapFactory.Options options = new BitmapFactory.Options();
-    options.inSampleSize =
-        calculateBitmapSampleSize(bounds.outWidth, bounds.outHeight, targetWidth, targetHeight);
-    options.inPreferredConfig = Bitmap.Config.ARGB_8888;
-    Bitmap bitmap = BitmapFactory.decodeFile(file.getAbsolutePath(), options);
-    return scaleBitmapToTarget(bitmap, targetWidth, targetHeight);
-  }
-
-  private Bitmap decodeSampledBitmapFromBytes(byte[] bytes, int targetWidth, int targetHeight) {
-    if (bytes == null || bytes.length == 0) {
-      return null;
-    }
-    BitmapFactory.Options bounds = new BitmapFactory.Options();
-    bounds.inJustDecodeBounds = true;
-    BitmapFactory.decodeByteArray(bytes, 0, bytes.length, bounds);
-    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
-      return null;
-    }
-
-    BitmapFactory.Options options = new BitmapFactory.Options();
-    options.inSampleSize =
-        calculateBitmapSampleSize(bounds.outWidth, bounds.outHeight, targetWidth, targetHeight);
-    options.inPreferredConfig = Bitmap.Config.ARGB_8888;
-    Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, options);
-    return scaleBitmapToTarget(bitmap, targetWidth, targetHeight);
-  }
-
-  private int calculateBitmapSampleSize(
-      int sourceWidth, int sourceHeight, int targetWidth, int targetHeight) {
-    int safeTargetWidth = Math.max(targetWidth, dp(64));
-    int safeTargetHeight = Math.max(targetHeight, dp(64));
-    int sampleSize = 1;
-    while ((sourceWidth / (sampleSize * 2)) >= safeTargetWidth
-        && (sourceHeight / (sampleSize * 2)) >= safeTargetHeight) {
-      sampleSize *= 2;
-    }
-    return Math.max(sampleSize, 1);
-  }
-
-  private Bitmap scaleBitmapToTarget(Bitmap bitmap, int targetWidth, int targetHeight) {
-    if (bitmap == null) {
-      return null;
-    }
-    int safeTargetWidth = Math.max(targetWidth, dp(64));
-    int safeTargetHeight = Math.max(targetHeight, dp(64));
-    if (bitmap.getWidth() <= safeTargetWidth && bitmap.getHeight() <= safeTargetHeight) {
-      return bitmap;
-    }
-
-    float scale =
-        Math.min(
-            safeTargetWidth / (float) Math.max(bitmap.getWidth(), 1),
-            safeTargetHeight / (float) Math.max(bitmap.getHeight(), 1));
-    int scaledWidth = Math.max(1, Math.round(bitmap.getWidth() * scale));
-    int scaledHeight = Math.max(1, Math.round(bitmap.getHeight() * scale));
-    Bitmap scaled = Bitmap.createScaledBitmap(bitmap, scaledWidth, scaledHeight, true);
-    if (scaled != bitmap) {
-      bitmap.recycle();
-    }
-    return scaled;
-  }
-
-  private byte[] readAllBytes(InputStream inputStream) throws java.io.IOException {
-    ByteArrayOutputStream output = new ByteArrayOutputStream();
-    byte[] buffer = new byte[16 * 1024];
-    int read;
-    while ((read = inputStream.read(buffer)) != -1) {
-      output.write(buffer, 0, read);
-    }
-    return output.toByteArray();
   }
 
   private void clearWaterfallRows() {
@@ -6314,14 +6124,6 @@ public class MainActivity extends AppCompatActivity {
           sourceScreen == null || sourceScreen.videoCards == null
               ? new ArrayList<>()
               : sourceScreen.videoCards;
-    }
-  }
-
-  private static class HorizontalTimelineSegment {
-    final int durationSeconds;
-
-    HorizontalTimelineSegment(int durationSeconds) {
-      this.durationSeconds = durationSeconds;
     }
   }
 

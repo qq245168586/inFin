@@ -24,7 +24,7 @@ public class RingProgressView extends View {
   private int backgroundColor = 0x66ffffff;
   private int progressColor = 0xff23aef4;
   private int thumbColor = 0xffffffff;
-  private boolean drawThumb = true;
+  private boolean drawThumb = false;
 
   public RingProgressView(Context context) {
     super(context);
@@ -104,7 +104,8 @@ public class RingProgressView extends View {
     float cy = height / 2f;
     float size = Math.min(width, height);
     float thumbRadius = Math.max(22f, strokeWidthPx * 0.72f);
-    float radius = size / 2f - strokeWidthPx / 2f - thumbRadius;
+    float thumbInset = drawThumb ? thumbRadius : 0f;
+    float radius = size / 2f - strokeWidthPx / 2f - thumbInset;
     if (radius <= 0f) {
       return;
     }

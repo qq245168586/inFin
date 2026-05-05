@@ -2,7 +2,7 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
   android:layout_width="match_parent"
   android:layout_height="match_parent"
-  android:background="@color/tv_black">
+  android:background="@drawable/bg_tv_root_gradient">
 
   <LinearLayout
     android:id="@+id/selectorPanel"
@@ -10,15 +10,17 @@
     android:layout_height="match_parent"
     android:gravity="center"
     android:orientation="vertical"
-    android:padding="22dp">
+    android:background="@drawable/bg_tv_root_gradient"
+    android:padding="28dp">
 
     <TextView
       android:layout_width="match_parent"
       android:layout_height="wrap_content"
       android:gravity="center"
-      android:text="等待 Coach 端扫码绑定"
+      android:letterSpacing="0.08"
+      android:text="INFINI TV"
       android:textColor="@color/tv_text_main"
-      android:textSize="24sp"
+      android:textSize="34sp"
       android:textStyle="bold" />
 
     <TextView
@@ -26,9 +28,10 @@
       android:layout_height="wrap_content"
       android:layout_marginTop="10dp"
       android:gravity="center"
-      android:text="扫码后在 Coach 端选择屏幕 1 / 2 / 3 / 4 / 5，绑定完成会自动进入对应页面"
-      android:textColor="@color/tv_selector_hint"
-      android:textSize="14sp" />
+      android:text="扫码绑定屏幕，绑定完成后自动进入对应课程画面"
+      android:textColor="@color/tv_accent_gold_bright"
+      android:textSize="16sp"
+      android:textStyle="bold" />
 
     <TextView
       android:id="@+id/selectorDeviceIdText"
@@ -43,7 +46,7 @@
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
       android:layout_marginTop="28dp"
-      android:background="@drawable/bg_schedule_card"
+      android:background="@drawable/bg_qr_panel"
       android:gravity="center"
       android:orientation="vertical"
       android:paddingLeft="24dp"
@@ -53,8 +56,8 @@
 
       <ImageView
         android:id="@+id/selectorQrImage"
-        android:layout_width="260dp"
-        android:layout_height="260dp"
+        android:layout_width="300dp"
+        android:layout_height="300dp"
         android:background="@android:color/white"
         android:padding="8dp" />
 
@@ -63,8 +66,8 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="18dp"
         android:text="配对码"
-        android:textColor="@color/tv_selector_hint"
-        android:textSize="14sp" />
+        android:textColor="@color/tv_accent_gold_bright"
+        android:textSize="15sp" />
 
       <TextView
         android:id="@+id/selectorPairCodeText"
@@ -72,13 +75,13 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
         android:letterSpacing="0.18"
-        android:textColor="@color/tv_text_main"
-        android:textSize="26sp"
+        android:textColor="@color/tv_accent_gold_bright"
+        android:textSize="30sp"
         android:textStyle="bold" />
 
       <TextView
         android:id="@+id/selectorPairHintText"
-        android:layout_width="260dp"
+        android:layout_width="300dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="14dp"
         android:gravity="center"
@@ -91,7 +94,7 @@
     android:id="@+id/contentPanel"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/tv_schedule_background"
+    android:background="@drawable/bg_tv_root_gradient"
     android:orientation="vertical"
     android:padding="18dp"
     android:visibility="gone">
@@ -144,7 +147,7 @@
       android:gravity="center"
       android:text="今日课程表"
       android:textColor="@color/tv_text_main"
-      android:textSize="34sp"
+      android:textSize="38sp"
       android:textStyle="bold" />
 
     <TextView
@@ -232,7 +235,7 @@
             android:id="@+id/horizontalPlaceholderPanel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@drawable/bg_schedule_card"
+            android:background="@drawable/bg_tv_panel_glow"
             android:orientation="vertical"
             android:padding="24dp"
             android:visibility="gone">
@@ -282,14 +285,14 @@
               android:id="@+id/playbackCountdownText"
               android:layout_width="match_parent"
               android:layout_height="match_parent"
-              android:autoSizeMaxTextSize="112sp"
-              android:autoSizeMinTextSize="40sp"
+              android:autoSizeMaxTextSize="220sp"
+              android:autoSizeMinTextSize="64sp"
               android:autoSizeStepGranularity="1sp"
               android:autoSizeTextType="uniform"
               android:gravity="center"
               android:text="38"
               android:textColor="@color/tv_text_main"
-              android:textSize="84sp"
+              android:textSize="150sp"
               android:textStyle="bold" />
           </FrameLayout>
 
@@ -321,15 +324,15 @@
               android:id="@+id/playbackStageProgress"
               android:layout_width="match_parent"
               android:layout_height="wrap_content"
-              android:autoSizeMaxTextSize="34sp"
-              android:autoSizeMinTextSize="14sp"
+              android:autoSizeMaxTextSize="52sp"
+              android:autoSizeMinTextSize="20sp"
               android:autoSizeStepGranularity="1sp"
               android:autoSizeTextType="uniform"
               android:ellipsize="end"
               android:maxLines="3"
               android:text="1 / 6"
               android:textColor="@color/tv_text_main"
-              android:textSize="28sp"
+              android:textSize="42sp"
               android:textStyle="bold" />
 
             <TextView
@@ -340,7 +343,7 @@
               android:ellipsize="end"
               android:maxLines="1"
               android:textColor="@color/tv_text_main"
-              android:textSize="15sp"
+              android:textSize="22sp"
               android:textStyle="bold"
               android:visibility="gone" />
 
@@ -493,11 +496,11 @@
         android:id="@+id/horizontalPlaybackPanel"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@color/tv_black"
-        android:paddingLeft="10dp"
-        android:paddingTop="10dp"
-        android:paddingRight="10dp"
-        android:paddingBottom="10dp"
+        android:background="@drawable/bg_tv_root_gradient"
+        android:paddingLeft="24dp"
+        android:paddingTop="24dp"
+        android:paddingRight="24dp"
+        android:paddingBottom="24dp"
         android:visibility="gone">
 
         <TextView
@@ -568,10 +571,10 @@
 
             <FrameLayout
               android:id="@+id/horizontalRingContainer"
-              android:layout_width="520dp"
-              android:layout_height="520dp"
+              android:layout_width="580dp"
+              android:layout_height="580dp"
               android:layout_gravity="top|center_horizontal"
-              android:layout_marginTop="78dp"
+              android:layout_marginTop="72dp"
               android:foregroundGravity="center">
 
               <com.infini.tv.ui.RingProgressView
@@ -587,16 +590,16 @@
                 android:maxLines="1"
                 android:text="45"
                 android:textColor="@color/tv_text_main"
-                android:textSize="144sp"
+                android:textSize="174sp"
                 android:textStyle="bold" />
             </FrameLayout>
 
             <LinearLayout
               android:id="@+id/horizontalStateColumn"
-              android:layout_width="520dp"
+              android:layout_width="560dp"
               android:layout_height="wrap_content"
               android:layout_gravity="top|right"
-              android:layout_marginTop="70dp"
+              android:layout_marginTop="72dp"
               android:layout_marginRight="46dp"
               android:gravity="center_vertical"
               android:orientation="vertical">
@@ -609,8 +612,8 @@
 
                 <ImageView
                   android:id="@+id/horizontalStateIcon"
-                  android:layout_width="72dp"
-                  android:layout_height="72dp"
+                  android:layout_width="86dp"
+                  android:layout_height="86dp"
                   android:layout_marginRight="28dp"
                   android:src="@drawable/ic_horizontal_work"
                   android:visibility="gone" />
@@ -623,7 +626,7 @@
                   android:maxLines="3"
                   android:text="WORK"
                   android:textColor="@color/tv_text_main"
-                  android:textSize="56sp"
+                  android:textSize="70sp"
                   android:textStyle="bold" />
               </LinearLayout>
 
@@ -635,7 +638,7 @@
                 android:maxLines="1"
                 android:text="SET 1"
                 android:textColor="@color/tv_text_subtle"
-                android:textSize="24sp"
+                android:textSize="32sp"
                 android:textStyle="bold"
                 android:visibility="gone" />
 
@@ -657,7 +660,7 @@
             android:layout_gravity="bottom"
             android:layout_marginLeft="28dp"
             android:layout_marginRight="28dp"
-            android:layout_marginBottom="148dp"
+            android:layout_marginBottom="136dp"
             android:gravity="center_vertical"
             android:orientation="horizontal" />
 
@@ -681,10 +684,11 @@
           android:layout_height="match_parent"
           android:gravity="center_vertical"
           android:orientation="horizontal"
-          android:paddingLeft="24dp"
-          android:paddingTop="24dp"
-          android:paddingRight="24dp"
-          android:paddingBottom="24dp"
+          android:background="@drawable/bg_tv_root_gradient"
+          android:paddingLeft="40dp"
+          android:paddingTop="40dp"
+          android:paddingRight="40dp"
+          android:paddingBottom="40dp"
           android:visibility="gone">
 
           <FrameLayout
@@ -696,8 +700,8 @@
 
             <FrameLayout
               android:id="@+id/horizontalTransitionCircle"
-              android:layout_width="220dp"
-              android:layout_height="220dp"
+              android:layout_width="280dp"
+              android:layout_height="280dp"
               android:layout_gravity="center"
               android:background="@drawable/bg_horizontal_transition_circle">
 
@@ -709,7 +713,7 @@
                 android:maxLines="1"
                 android:text="24"
                 android:textColor="@color/tv_text_main"
-                android:textSize="96sp"
+                android:textSize="124sp"
                 android:textStyle="bold" />
             </FrameLayout>
           </FrameLayout>
@@ -724,8 +728,8 @@
 
             <ImageView
               android:id="@+id/horizontalTransitionIcon"
-              android:layout_width="88dp"
-              android:layout_height="88dp"
+              android:layout_width="116dp"
+              android:layout_height="116dp"
               android:adjustViewBounds="true"
               android:scaleType="fitCenter"
               android:src="@drawable/ic_horizontal_drop"
@@ -740,7 +744,7 @@
               android:maxLines="2"
               android:text="HYDRATE"
               android:textColor="@color/tv_text_main"
-              android:textSize="64sp"
+              android:textSize="78sp"
               android:textStyle="bold" />
 
             <TextView
@@ -750,7 +754,7 @@
               android:layout_marginTop="12dp"
               android:maxLines="2"
               android:textColor="@color/tv_text_main"
-              android:textSize="24sp"
+              android:textSize="32sp"
               android:visibility="gone" />
           </LinearLayout>
         </LinearLayout>
@@ -764,6 +768,7 @@
     android:id="@+id/transitionDesignPanel"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@drawable/bg_tv_root_gradient"
     android:visibility="gone">
 
     <ImageView
@@ -834,7 +839,7 @@
     android:id="@+id/updatePanel"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#E6000000"
+          android:background="#E607040D"
     android:padding="28dp"
     android:visibility="gone">
 
@@ -843,7 +848,7 @@
       android:layout_width="match_parent"
       android:layout_height="wrap_content"
       android:layout_gravity="center"
-      android:background="@drawable/bg_schedule_card"
+      android:background="@drawable/bg_tv_panel_glow"
       android:clickable="true"
       android:focusable="true"
       android:gravity="center_horizontal"
@@ -855,7 +860,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="TV 正在准备更新"
-        android:textColor="@color/tv_text_main"
+        android:textColor="@color/tv_accent_gold_bright"
         android:textSize="28sp"
         android:textStyle="bold" />
 
