@@ -8,6 +8,10 @@ const MQTT_PASSWORD = process.env.MQTT_PASSWORD || "REDACTED_CONFIGURE_LOCALLY";
 const MQTT_URL = process.env.MQTT_URL || `mqtt://${MQTT_HOST}:${MQTT_PORT}`;
 const MQTT_CONTROL_TOPIC = process.env.MQTT_TOPIC_CONTROL || "infini/tv/control";
 const MQTT_SESSION_TOPIC = process.env.MQTT_TOPIC_SESSION || "infini/tv/session";
+const MQTT_CLIENT_HTTP_URL = String(process.env.MQTT_CLIENT_HTTP_URL || process.env.MQTT_GATEWAY_URL || "").trim();
+const MQTT_CLIENT_HTTP_TOKEN = String(process.env.MQTT_CLIENT_HTTP_TOKEN || "").trim();
+const MQTT_CLIENT_HTTP_TIMEOUT_MS = Number(process.env.MQTT_CLIENT_HTTP_TIMEOUT_MS || 8000);
+const MQTT_CLIENT_FALLBACK_DIRECT = String(process.env.MQTT_CLIENT_FALLBACK_DIRECT || "1") !== "0";
 
 let clientPromise = null;
 
@@ -63,29 +67,18 @@ async function getClient() {
   return clientPromise;
 }
 
-export async function publishTvControl(payload, accountNamespace = "") {
+async function publishDirect(topic, payloadObject, { qos = 0, retain = false } = {}) {
   const client = await getClient();
-  const normalizedAccountNamespace = String(accountNamespace || "").trim().toLowerCase();
-  const shouldInjectNamespace = normalizedAccountNamespace && normalizedAccountNamespace !== "__unbound__";
-  const nextPayload = shouldInjectNamespace
-    ? {
-        ...payload,
-        accountNamespace: payload?.accountNamespace || normalizedAccountNamespace,
-        venueId: payload?.venueId || payload?.accountNamespace || normalizedAccountNamespace
-      }
-    : payload;
-  const message = JSON.stringify(nextPayload);
-  const topic = buildTopic(accountNamespace);
+  const message = JSON.stringify(payloadObject);
 
-  // Best-effort outbound audit log (does not affect publish).
   try {
-    recordOutboundMqtt(topic, nextPayload);
+    recordOutboundMqtt(topic, payloadObject);
   } catch {
     // ignore
   }
 
   await new Promise((resolve, reject) => {
-    client.publish(topic, message, { qos: 0, retain: false }, (error) => {
+    client.publish(topic, message, { qos, retain }, (error) => {
       if (error) {
         reject(error);
         return;
@@ -96,12 +89,103 @@ export async function publishTvControl(payload, accountNamespace = "") {
 
   return {
     topic,
-    payload: nextPayload
+    payload: payloadObject,
+    transport: "direct"
   };
 }
 
+async function publishViaGateway(pathname, body) {
+  if (!MQTT_CLIENT_HTTP_URL || typeof fetch !== "function") {
+    return null;
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), MQTT_CLIENT_HTTP_TIMEOUT_MS);
+  try {
+    const url = new URL(pathname, MQTT_CLIENT_HTTP_URL.endsWith("/") ? MQTT_CLIENT_HTTP_URL : `${MQTT_CLIENT_HTTP_URL}/`);
+    const headers = {
+      "content-type": "application/json"
+    };
+    if (MQTT_CLIENT_HTTP_TOKEN) {
+      headers.authorization = `Bearer ${MQTT_CLIENT_HTTP_TOKEN}`;
+    }
+    const response = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      signal: controller.signal
+    });
+    const text = await response.text();
+    let payload = null;
+    try {
+      payload = text ? JSON.parse(text) : null;
+    } catch {
+      payload = { raw: text };
+    }
+    if (!response.ok) {
+      const message = payload?.message || payload?.error || `MQTT client HTTP ${response.status}`;
+      throw new Error(message);
+    }
+    return payload;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function publishWithGatewayFallback(pathname, body, topic, payloadObject, directOptions) {
+  if (MQTT_CLIENT_HTTP_URL) {
+    try {
+      const gatewayPayload = await publishViaGateway(pathname, body);
+      if (gatewayPayload) {
+        return {
+          topic: gatewayPayload.topic || topic,
+          payload: gatewayPayload.payload || payloadObject,
+          transport: "mqtt-client",
+          gateway: gatewayPayload
+        };
+      }
+    } catch (error) {
+      if (!MQTT_CLIENT_FALLBACK_DIRECT) {
+        throw error;
+      }
+      console.warn(
+        "MQTT client gateway failed; falling back to direct publish:",
+        error instanceof Error ? error.message : String(error)
+      );
+    }
+  }
+
+  return publishDirect(topic, payloadObject, directOptions);
+}
+
+export async function publishTvControl(payload, accountNamespace = "") {
+  const normalizedAccountNamespace = String(accountNamespace || "").trim().toLowerCase();
+  const shouldInjectNamespace = normalizedAccountNamespace && normalizedAccountNamespace !== "__unbound__";
+  const nextPayload = shouldInjectNamespace
+    ? {
+        ...payload,
+        accountNamespace: payload?.accountNamespace || normalizedAccountNamespace,
+        venueId: payload?.venueId || payload?.accountNamespace || normalizedAccountNamespace
+      }
+    : payload;
+  const topic = buildTopic(accountNamespace);
+
+  return publishWithGatewayFallback(
+    "/tv/control",
+    {
+      accountNamespace,
+      payload: nextPayload,
+      qos: 0,
+      retain: false,
+      source: nextPayload?.source || "server"
+    },
+    topic,
+    nextPayload,
+    { qos: 0, retain: false }
+  );
+}
+
 export async function publishTvSessionEvent(session, accountNamespace = "") {
-  const client = await getClient();
   const normalizedAccountNamespace =
     String(accountNamespace || session?.accountNamespace || "").trim().toLowerCase() || "__unbound__";
   const serverNowMs = Date.now();
@@ -116,26 +200,19 @@ export async function publishTvSessionEvent(session, accountNamespace = "") {
   };
   const topic = buildSessionTopic(normalizedAccountNamespace);
 
-  try {
-    recordOutboundMqtt(topic, payload);
-  } catch {
-    // ignore
-  }
-
-  await new Promise((resolve, reject) => {
-    client.publish(topic, JSON.stringify(payload), { qos: 1, retain: false }, (error) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve(undefined);
-    });
-  });
-
-  return {
+  return publishWithGatewayFallback(
+    "/tv/session",
+    {
+      accountNamespace: normalizedAccountNamespace,
+      payload,
+      qos: 1,
+      retain: false,
+      source: payload?.source || "server"
+    },
     topic,
-    payload
-  };
+    payload,
+    { qos: 1, retain: false }
+  );
 }
 
 export function getTvControlConfig(accountNamespace = "") {
@@ -144,6 +221,8 @@ export function getTvControlConfig(accountNamespace = "") {
     port: MQTT_PORT,
     accountNamespace: String(accountNamespace || "").trim().toLowerCase(),
     topic: buildTopic(accountNamespace),
-    sessionTopic: buildSessionTopic(accountNamespace)
+    sessionTopic: buildSessionTopic(accountNamespace),
+    mqttClientHttpUrl: MQTT_CLIENT_HTTP_URL || "",
+    fallbackDirect: MQTT_CLIENT_FALLBACK_DIRECT
   };
 }

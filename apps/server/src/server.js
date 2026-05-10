@@ -202,6 +202,21 @@ function resolveRequestAccountNamespace(user, url) {
   return resolveAccountNamespace(user?.accountNamespace, user?.username);
 }
 
+function resolvePlaybackRequestAccountNamespace(user, url, payload = {}) {
+  const payloadVenueId = String(payload?.venueId || "").trim();
+  const payloadVenueNamespace = payloadVenueId
+    ? resolveOptionalAccountNamespace(getVenueById(payloadVenueId)?.accountNamespace || "")
+    : "";
+  const payloadAccountNamespace =
+    payloadVenueNamespace || resolveOptionalAccountNamespace(payload?.accountNamespace || "");
+
+  if (payloadAccountNamespace && isSuperAdminUser(user)) {
+    return payloadAccountNamespace;
+  }
+
+  return resolveRequestAccountNamespace(user, url);
+}
+
 function isValidTvControlType(value) {
   return ["refresh_checksum", "preview_course", "start_course", "pause_course", "resume_course", "terminate_course"].includes(
     String(value || "")
@@ -299,6 +314,7 @@ function buildPlaybackSessionControlPayload(type, session, commandId, extra = {}
 }
 
 async function publishPlaybackSessionControl(response, accountNamespace, type, session, commandId, extra = {}) {
+  const targetAccountNamespace = resolveOptionalAccountNamespace(session?.accountNamespace) || resolveOptionalAccountNamespace(accountNamespace);
   const result = {
     sessionEvent: null,
     legacyControl: null,
@@ -306,7 +322,7 @@ async function publishPlaybackSessionControl(response, accountNamespace, type, s
   };
 
   try {
-    result.sessionEvent = await publishTvSessionEvent(session, accountNamespace);
+    result.sessionEvent = await publishTvSessionEvent(session, targetAccountNamespace);
   } catch (error) {
     result.errors.push(error instanceof Error ? error.message : "session MQTT 发布失败。");
   }
@@ -314,7 +330,7 @@ async function publishPlaybackSessionControl(response, accountNamespace, type, s
   try {
     result.legacyControl = await publishTvControl(
       buildPlaybackSessionControlPayload(type, session, commandId, extra),
-      accountNamespace
+      targetAccountNamespace
     );
   } catch (error) {
     result.errors.push(error instanceof Error ? error.message : "legacy MQTT 发布失败。");
@@ -557,8 +573,8 @@ const server = http.createServer(async (request, response) => {
     }
 
     if (request.method === "GET" && (url.pathname === "/api/meta" || url.pathname === "/api/editor/bootstrap")) {
-      const venueId = url.searchParams.get("venueId") || "";
-      sendJson(response, 200, getMetaPayload(venueId));
+      // Scheduling is global (not per-venue). Keep query params for backward compatibility, but ignore them.
+      sendJson(response, 200, getMetaPayload());
       return;
     }
 
@@ -854,7 +870,7 @@ const server = http.createServer(async (request, response) => {
         return;
       }
 
-      const accountNamespace = resolveAccountNamespace(user.accountNamespace, user.username);
+      const accountNamespace = resolvePlaybackRequestAccountNamespace(user, url, payload);
       let session;
       try {
         session = createPreviewPlaybackSession(
@@ -898,11 +914,11 @@ const server = http.createServer(async (request, response) => {
         if (!user) {
           return;
         }
-        const accountNamespace = resolveAccountNamespace(user.accountNamespace, user.username);
         const sessionId = decodeURIComponent(match[1]);
         const action = String(match[2] || "").trim();
 
         if (request.method === "GET" && !action) {
+          const accountNamespace = resolveRequestAccountNamespace(user, url);
           const session = getPlaybackSession(sessionId, accountNamespace);
           if (!session) {
             sendJson(response, 404, { message: "playback session 不存在。" });
@@ -924,6 +940,7 @@ const server = http.createServer(async (request, response) => {
             badRequest(response, "commandId 不能为空。");
             return;
           }
+          const accountNamespace = resolvePlaybackRequestAccountNamespace(user, url, payload);
 
           let session;
           try {
@@ -1280,6 +1297,52 @@ const server = http.createServer(async (request, response) => {
             ...result,
             package: appPackage
           }
+        });
+      } catch (error) {
+        sendJson(response, 502, {
+          message: error instanceof Error ? `MQTT 发布失败：${error.message}` : "MQTT 发布失败。"
+        });
+      }
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/admin/tv-control") {
+      const user = requireSuperAdmin(request, response);
+      if (!user) {
+        return;
+      }
+
+      const body = await readJsonBody(request);
+      const accountNamespace = resolveOptionalAccountNamespace(
+        body?.accountNamespace || body?.payload?.accountNamespace || body?.payload?.venueId || ""
+      );
+      const payload = body?.payload && typeof body.payload === "object" ? body.payload : null;
+      const type = String(payload?.type || "").trim();
+
+      if (!accountNamespace) {
+        badRequest(response, "缺少有效的场馆 namespace。");
+        return;
+      }
+
+      if (!payload || !type) {
+        badRequest(response, "缺少有效的 TV 指令 payload。");
+        return;
+      }
+
+      const normalizedPayload = {
+        ...payload,
+        type,
+        source: String(payload.source || "admin-web"),
+        accountNamespace,
+        venueId: String(payload.venueId || accountNamespace),
+        requestedAt: Number(payload.requestedAt) || Date.now()
+      };
+
+      try {
+        const result = await publishTvControl(normalizedPayload, accountNamespace);
+        sendJson(response, 200, {
+          ok: true,
+          data: result
         });
       } catch (error) {
         sendJson(response, 502, {
@@ -1767,8 +1830,8 @@ const server = http.createServer(async (request, response) => {
 
     if (request.method === "GET" && url.pathname === "/api/schedules") {
       const scope = url.searchParams.get("scope") || "CURRENTWEEK";
-      const venueId = url.searchParams.get("venueId") || "";
-      sendJson(response, 200, { data: listSchedulesByScope(scope, venueId) });
+      // Scheduling is global (not per-venue). Ignore venueId filter if provided by legacy clients.
+      sendJson(response, 200, { data: listSchedulesByScope(scope) });
       return;
     }
 
@@ -1798,8 +1861,8 @@ const server = http.createServer(async (request, response) => {
     }
 
     if (request.method === "POST" && url.pathname === "/api/schedules/copy-last-week") {
-      const venueId = url.searchParams.get("venueId") || "";
-      sendJson(response, 200, { data: copyLastWeekSchedules(venueId) });
+      // Scheduling is global (not per-venue). Ignore venueId filter if provided by legacy clients.
+      sendJson(response, 200, { data: copyLastWeekSchedules() });
       return;
     }
 
