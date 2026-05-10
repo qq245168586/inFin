@@ -46,6 +46,50 @@ interface TvScreensPayload {
   unboundDevices: TvScreenSnapshot[];
 }
 
+interface AppPackageRecord {
+  id: number;
+  platform: "tv" | "coach";
+  version: string;
+  label: string;
+  filename: string;
+  checksum: string;
+  sizeBytes: number;
+  notes: string;
+  createTime: string;
+  updateTime: string;
+  downloadPath: string;
+}
+
+interface AppPackageListPayload {
+  generatedAt: string;
+  storageDirectory: string;
+  packages: AppPackageRecord[];
+}
+
+interface TvInstallAppUpdateCommand {
+  type: "install_app_update";
+  source: "admin-web";
+  deviceId: string;
+  screenNumber: number;
+  accountNamespace: string;
+  venueId: string;
+  packageId: number;
+  platform: AppPackageRecord["platform"];
+  version: string;
+  label: string;
+  filename: string;
+  checksum: string;
+  sizeBytes: number;
+  downloadUrl: string;
+  requestedAt: number;
+}
+
+const ACTIVE_VENUE_STORAGE_KEY = "infini.admin.activeVenueId";
+
+function normalizeAccountNamespace(value: string): string {
+  return String(value || "").trim().toLowerCase();
+}
+
 async function requestJson<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, { cache: "no-store", ...options });
   if (!response.ok) {
@@ -64,6 +108,25 @@ async function requestJson<T>(url: string, options?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
+async function publishAdminTvCommand(
+  authHeader: string,
+  accountNamespace: string,
+  payload: TvInstallAppUpdateCommand
+): Promise<{ topic: string; payload: TvInstallAppUpdateCommand }> {
+  const response = await requestJson<{ data: { topic: string; payload: TvInstallAppUpdateCommand } }>("/api/admin/tv-control", {
+    method: "POST",
+    headers: {
+      Authorization: authHeader,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      accountNamespace: normalizeAccountNamespace(accountNamespace),
+      payload
+    })
+  });
+  return response.data;
+}
+
 export default function VenueManagementPage({
   tokenType,
   accessToken,
@@ -77,13 +140,22 @@ export default function VenueManagementPage({
 }) {
   const authHeader = useMemo(() => `${tokenType} ${accessToken}`, [tokenType, accessToken]);
   const [venues, setVenues] = useState<VenueRecord[]>([]);
-  const [activeVenueId, setActiveVenueId] = useState<string>("");
+  const [activeVenueId, setActiveVenueId] = useState<string>(() => {
+    try {
+      return localStorage.getItem(ACTIVE_VENUE_STORAGE_KEY) || "";
+    } catch {
+      return "";
+    }
+  });
   const activeVenue = venues.find((item) => item.id === activeVenueId) ?? null;
   const [venueUsers, setVenueUsers] = useState<ConsoleUser[]>([]);
   const [venueScreens, setVenueScreens] = useState<TvScreensPayload | null>(null);
   const [loading, setLoading] = useState("");
   const [allUsers, setAllUsers] = useState<ConsoleUser[]>([]);
   const [accountsQuery, setAccountsQuery] = useState("");
+  const [tvPackages, setTvPackages] = useState<AppPackageRecord[]>([]);
+  const [selectedTvPackageId, setSelectedTvPackageId] = useState("");
+  const [installingDeviceId, setInstallingDeviceId] = useState("");
 
   const [createVenueOpen, setCreateVenueOpen] = useState(false);
   const [newVenueName, setNewVenueName] = useState("");
@@ -100,7 +172,40 @@ export default function VenueManagementPage({
 
   useEffect(() => {
     activeVenueIdRef.current = activeVenueId;
+    try {
+      if (activeVenueId) {
+        localStorage.setItem(ACTIVE_VENUE_STORAGE_KEY, activeVenueId);
+      } else {
+        localStorage.removeItem(ACTIVE_VENUE_STORAGE_KEY);
+      }
+    } catch {
+      // Some private browser modes can disable localStorage.
+    }
   }, [activeVenueId]);
+
+  async function loadTvPackages(showNotice = false) {
+    try {
+      const payload = await requestJson<{ data: AppPackageListPayload }>("/api/app-packages?platform=tv", {
+        headers: { Authorization: authHeader }
+      });
+      const nextPackages = [...(payload.data?.packages || [])].sort(
+        (a, b) => new Date(b.updateTime || b.createTime).getTime() - new Date(a.updateTime || a.createTime).getTime()
+      );
+      setTvPackages(nextPackages);
+      if (nextPackages.length && !nextPackages.some((item) => String(item.id) === String(selectedTvPackageId))) {
+        setSelectedTvPackageId(String(nextPackages[0].id));
+      }
+      if (showNotice) {
+        onNotice("TV 版本列表已刷新。");
+      }
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : "加载 TV 版本失败。", "error");
+    }
+  }
+
+  useEffect(() => {
+    void loadTvPackages(false);
+  }, [authHeader]);
 
   useEffect(() => {
     let alive = true;
@@ -122,8 +227,10 @@ export default function VenueManagementPage({
         setVenues(nextVenues);
         onVenuesChange?.(nextVenues);
         setAllUsers(usersPayload.data || []);
-        if (!activeVenueId && venuesPayload.data?.length) {
-          setActiveVenueId(String(venuesPayload.data[0].id));
+        const savedVenueStillExists =
+          activeVenueId && nextVenues.some((venue) => String(venue.id) === String(activeVenueId));
+        if (!savedVenueStillExists && nextVenues.length) {
+          setActiveVenueId(String(nextVenues[0].id));
         }
       })
       .catch((error) => {
@@ -209,8 +316,11 @@ export default function VenueManagementPage({
       setVenues(venuesPayload.data || []);
       onVenuesChange?.(venuesPayload.data || []);
       setAllUsers(usersPayload.data || []);
-      if (!activeVenueId && venuesPayload.data?.length) {
-        setActiveVenueId(String(venuesPayload.data[0].id));
+      const nextVenues = venuesPayload.data || [];
+      const savedVenueStillExists =
+        activeVenueId && nextVenues.some((item) => String(item.id) === String(activeVenueId));
+      if (!savedVenueStillExists && nextVenues.length) {
+        setActiveVenueId(String(nextVenues[0].id));
       }
       if (venueId) {
         const [venueUsersPayload, screensPayload] = await Promise.all([
@@ -393,6 +503,78 @@ export default function VenueManagementPage({
     }
   }
 
+  async function handleInstallTvPackage(screen: TvScreenSnapshot) {
+    const deviceId = String(screen.deviceId || "").trim();
+    if (!activeVenueId || !activeVenue) return;
+    if (!deviceId) {
+      onNotice("该屏幕还没有绑定设备。", "error");
+      return;
+    }
+    if (!selectedTvPackageId) {
+      onNotice("请先选择一个 TV 版本。", "error");
+      return;
+    }
+    if (!screen.online) {
+      onNotice("屏幕当前离线，暂时无法更新。", "error");
+      return;
+    }
+    if (String(screen.playbackState || "").toUpperCase() !== "IDLE") {
+      onNotice("请先确保屏幕处于待机状态，再执行更新。", "error");
+      return;
+    }
+
+    const selectedPackage = tvPackages.find((item) => String(item.id) === String(selectedTvPackageId)) || null;
+    if (!selectedPackage) {
+      onNotice("没有找到所选 TV 版本。", "error");
+      return;
+    }
+    const accountNamespace = normalizeAccountNamespace(activeVenue.accountNamespace);
+    if (
+      !confirm(
+        [
+          "确定下发 TV 更新吗？",
+          "",
+          `场馆：${activeVenue.name}`,
+          `namespace：${accountNamespace}`,
+          `设备：${deviceId}`,
+          `屏幕：${screen.screenNumber}`,
+          `版本：${selectedPackage.version}`
+        ].join("\n")
+      )
+    ) {
+      return;
+    }
+
+    setInstallingDeviceId(deviceId);
+    setLoading(`正在通知 ${deviceId} 安装 ${selectedPackage.version}...`);
+    try {
+      await publishAdminTvCommand(authHeader, accountNamespace, {
+        type: "install_app_update",
+        source: "admin-web",
+        deviceId,
+        screenNumber: Number(screen.screenNumber) || 0,
+        accountNamespace,
+        venueId: accountNamespace,
+        packageId: selectedPackage.id,
+        platform: selectedPackage.platform,
+        version: selectedPackage.version,
+        label: selectedPackage.label,
+        filename: selectedPackage.filename,
+        checksum: selectedPackage.checksum,
+        sizeBytes: Number(selectedPackage.sizeBytes) || 0,
+        downloadUrl: selectedPackage.downloadPath,
+        requestedAt: Date.now()
+      });
+      await refreshAll();
+      onNotice(`已通知 ${deviceId} 安装 ${selectedPackage.version}。`);
+    } catch (error) {
+      onNotice(error instanceof Error ? `更新指令下发失败：${error.message}` : "更新指令下发失败。", "error");
+    } finally {
+      setInstallingDeviceId("");
+      setLoading("");
+    }
+  }
+
   const onlineCount = (venueScreens?.screens || []).filter((item) => item.online && item.deviceId).length;
   const boundCount = (venueScreens?.screens || []).filter((item) => item.deviceId).length;
 
@@ -509,16 +691,51 @@ export default function VenueManagementPage({
               <div className="venue-card">
                 <div className="venue-card-head">
                   <strong>设备状态</strong>
-                  <span className="venue-muted">{venueScreens?.generatedAt ? `更新于 ${venueScreens.generatedAt}` : ""}</span>
+                  <div className="venue-card-actions">
+                    <label className="venue-package-select">
+                      <span>TV 版本</span>
+                      <select
+                        value={selectedTvPackageId}
+                        onChange={(event) => setSelectedTvPackageId(event.target.value)}
+                      >
+                        {tvPackages.length ? null : <option value="">暂无可用版本</option>}
+                        {tvPackages.map((appPackage) => (
+                          <option key={appPackage.id} value={String(appPackage.id)}>
+                            {appPackage.version} · {appPackage.label || appPackage.filename}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button type="button" className="ghost-button" onClick={() => void loadTvPackages(true)}>
+                      刷新版本
+                    </button>
+                    <span className="venue-muted">{venueScreens?.generatedAt ? `更新于 ${venueScreens.generatedAt}` : ""}</span>
+                  </div>
                 </div>
                 <div className="venue-screens">
                   {(venueScreens?.screens || []).map((screen) => (
                     <div key={screen.screenNumber} className="venue-screen">
                       <div className="venue-screen-top">
                         <strong>屏幕 {screen.screenNumber}</strong>
-                        <span className={`venue-dot ${screen.online ? "is-on" : ""}`}>
-                          {screen.online ? "在线" : "离线"}
-                        </span>
+                        <div className="venue-screen-top-actions">
+                          <button
+                            type="button"
+                            className="venue-screen-command"
+                            disabled={
+                              !screen.deviceId ||
+                              !screen.online ||
+                              !selectedTvPackageId ||
+                              String(screen.playbackState || "").toUpperCase() !== "IDLE" ||
+                              installingDeviceId === screen.deviceId
+                            }
+                            onClick={() => void handleInstallTvPackage(screen)}
+                          >
+                            {installingDeviceId === screen.deviceId ? "下发中" : "更新 TV"}
+                          </button>
+                          <span className={`venue-dot ${screen.online ? "is-on" : ""}`}>
+                            {screen.online ? "在线" : "离线"}
+                          </span>
+                        </div>
                       </div>
                       <div className="venue-screen-meta">
                         <div>
