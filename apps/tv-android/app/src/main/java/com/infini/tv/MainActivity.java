@@ -294,6 +294,8 @@ public class MainActivity extends AppCompatActivity {
   private int warmCueSoundId = 0;
   private int coolCueSoundId = 0;
   private int dingCueSoundId = 0;
+  private int activeCueStreamId = 0;
+  private String lastCuePlaybackKey = "";
   private String lastWaterfallAudioMode = "";
   private int lastWaterfallAudioIndex = -1;
   private String lastTrainingAudioRenderKey = "";
@@ -586,7 +588,11 @@ public class MainActivity extends AppCompatActivity {
     trainingCardsContainer = findViewById(R.id.trainingCardsContainer);
     initCueSounds();
 
-    findViewById(R.id.changeScreenButton).setOnClickListener(v -> showSelector());
+    View changeScreenButton = findViewById(R.id.changeScreenButton);
+    if (changeScreenButton != null) {
+      changeScreenButton.setVisibility(View.GONE);
+      changeScreenButton.setOnClickListener(v -> showSelector());
+    }
     if (updatePermissionButton != null) {
       updatePermissionButton.setOnClickListener(v -> openUnknownAppSourcesSettings());
     }
@@ -830,7 +836,7 @@ public class MainActivity extends AppCompatActivity {
   private void updateSelectorPairingUi() {
     ensurePairToken();
     if (selectorPairHintText != null) {
-      selectorPairHintText.setText("请在 Coach 端扫码并选择屏幕 1 / 2 / 3 / 4 / 5 完成绑定");
+      selectorPairHintText.setText("请在 Coach 端扫码，选择场馆与屏幕编号后完成绑定");
     }
     if (selectorQrImage != null) {
       selectorQrImage.setImageBitmap(createPairingQrBitmap(buildPairingPayload(), dpToPx(260)));
@@ -1286,11 +1292,11 @@ public class MainActivity extends AppCompatActivity {
   private void initCueSounds() {
     AudioAttributes audioAttributes =
         new AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+            .setUsage(AudioAttributes.USAGE_MEDIA)
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
             .build();
     cueSoundPool =
-        new SoundPool.Builder().setMaxStreams(2).setAudioAttributes(audioAttributes).build();
+        new SoundPool.Builder().setMaxStreams(1).setAudioAttributes(audioAttributes).build();
     cueSoundPool.setOnLoadCompleteListener(
         (soundPool, sampleId, status) -> {
           if (status == 0) {
@@ -1309,6 +1315,8 @@ public class MainActivity extends AppCompatActivity {
     warmCueSoundId = 0;
     coolCueSoundId = 0;
     dingCueSoundId = 0;
+    activeCueStreamId = 0;
+    lastCuePlaybackKey = "";
     if (cueSoundPool != null) {
       cueSoundPool.release();
       cueSoundPool = null;
@@ -1316,7 +1324,18 @@ public class MainActivity extends AppCompatActivity {
   }
 
   private void playCueSound(CueSound cueSound) {
+    playCueSound(cueSound, "");
+  }
+
+  private void playCueSound(CueSound cueSound, String cueKey) {
     if (cueSoundPool == null || cueSound == null) {
+      return;
+    }
+    String safeCueKey =
+        cueKey == null || cueKey.trim().isEmpty()
+            ? ""
+            : activePlaybackSessionId + "|" + playbackStartElapsedRealtimeMs + "|" + cueKey;
+    if (!TextUtils.isEmpty(safeCueKey) && safeCueKey.equals(lastCuePlaybackKey)) {
       return;
     }
     int sampleId = 0;
@@ -1336,10 +1355,21 @@ public class MainActivity extends AppCompatActivity {
     if (sampleId <= 0 || !loadedCueSoundIds.contains(sampleId)) {
       return;
     }
-    cueSoundPool.play(sampleId, 1f, 1f, 1, 0, 1f);
+    if (activeCueStreamId != 0) {
+      cueSoundPool.stop(activeCueStreamId);
+      activeCueStreamId = 0;
+    }
+    activeCueStreamId = cueSoundPool.play(sampleId, 1f, 1f, 1, 0, 1f);
+    if (!TextUtils.isEmpty(safeCueKey)) {
+      lastCuePlaybackKey = safeCueKey;
+    }
   }
 
   private void resetAudioCueTracking() {
+    if (cueSoundPool != null && activeCueStreamId != 0) {
+      cueSoundPool.stop(activeCueStreamId);
+    }
+    activeCueStreamId = 0;
     lastWaterfallAudioMode = "";
     lastWaterfallAudioIndex = -1;
     lastTrainingAudioRenderKey = "";
@@ -1361,13 +1391,21 @@ public class MainActivity extends AppCompatActivity {
       lastWaterfallAudioIndex = currentIndex;
       return;
     }
+    if ("WARMUP".equals(modeKey) && "WARMUP_READY".equals(lastWaterfallAudioMode)) {
+      playCueSound(CueSound.WARM, "waterfall|warmup-ready|start|" + currentIndex);
+      lastWaterfallAudioMode = modeKey;
+      lastWaterfallAudioIndex = currentIndex;
+      return;
+    }
     if (!safeEquals(lastWaterfallAudioMode, modeKey)) {
       lastWaterfallAudioMode = modeKey;
       lastWaterfallAudioIndex = currentIndex;
       return;
     }
     if (currentIndex != lastWaterfallAudioIndex && lastWaterfallAudioIndex >= 0) {
-      playCueSound("COOLDOWN".equals(modeKey) ? CueSound.COOL : CueSound.WARM);
+      playCueSound(
+          "COOLDOWN".equals(modeKey) ? CueSound.COOL : CueSound.WARM,
+          "waterfall|" + modeKey + "|index|" + currentIndex);
     }
     lastWaterfallAudioMode = modeKey;
     lastWaterfallAudioIndex = currentIndex;
@@ -1382,17 +1420,39 @@ public class MainActivity extends AppCompatActivity {
     String currentRenderKey = state.renderKey == null ? "" : state.renderKey;
     String currentPhase = resolveTrainingCuePhase(state);
     if (!TextUtils.isEmpty(lastTrainingAudioRenderKey)
-        && !safeEquals(lastTrainingAudioRenderKey, currentRenderKey)
-        && ("WORK".equals(lastTrainingAudioPhase) || "REST".equals(lastTrainingAudioPhase))) {
-      playCueSound(CueSound.DING);
+        && shouldPlayTrainingCue(lastTrainingAudioPhase, currentPhase)) {
+      playCueSound(
+          CueSound.DING,
+          "training|" + lastTrainingAudioPhase + ">" + currentPhase + "|" + currentRenderKey);
     }
     lastTrainingAudioRenderKey = currentRenderKey;
     lastTrainingAudioPhase = currentPhase;
   }
 
+  private boolean shouldPlayTrainingCue(String lastPhase, String currentPhase) {
+    if (TextUtils.isEmpty(currentPhase) || safeEquals(lastPhase, currentPhase)) {
+      return false;
+    }
+    if ("MOVE_STATION".equals(currentPhase)) {
+      return "WORK".equals(lastPhase) || "REST".equals(lastPhase);
+    }
+    if ("WORK".equals(currentPhase)) {
+      return "READY".equals(lastPhase) || "REST".equals(lastPhase) || "MOVE_STATION".equals(lastPhase);
+    }
+    return "REST".equals(currentPhase) && "WORK".equals(lastPhase);
+  }
+
+  private void rememberTrainingCuePhase(String renderKey, String phase) {
+    lastTrainingAudioRenderKey = renderKey == null ? "" : renderKey;
+    lastTrainingAudioPhase = phase == null ? "" : phase;
+  }
+
   private String resolveTrainingCuePhase(TrainingPlaybackState state) {
     if (state == null || state.stageProgress == null) {
       return "";
+    }
+    if ("MOVE_STATION".equals(state.transitionType) || "MOVE_ZONE".equals(state.transitionType)) {
+      return "MOVE_STATION";
     }
     String progress = state.stageProgress.trim().toUpperCase(Locale.US);
     if ("WORK".equals(progress)) {
@@ -1400,6 +1460,9 @@ public class MainActivity extends AppCompatActivity {
     }
     if ("REST".equals(progress)) {
       return "REST";
+    }
+    if ("MOVE STATION".equals(progress) || "MOVE ZONE".equals(progress)) {
+      return "MOVE_STATION";
     }
     return "";
   }
@@ -1843,7 +1906,15 @@ public class MainActivity extends AppCompatActivity {
 
     updateSessionClock(result.serverNowMs);
     String state = session.state == null ? "" : session.state.toUpperCase(Locale.US);
-    if ("ENDED".equals(state) || "TERMINATED".equals(state)) {
+    if ("TERMINATED".equals(state)) {
+      if (TextUtils.equals(session.id, activePlaybackSessionId) || TextUtils.isEmpty(activePlaybackSessionId)) {
+        applyPlaybackSessionFields(session);
+        returnToScheduleListAfterFinish();
+      }
+      return;
+    }
+
+    if ("ENDED".equals(state)) {
       if (TextUtils.equals(session.id, activePlaybackSessionId) && activePlaybackItem != null) {
         applyPlaybackSessionFields(session);
         showFinishState();
@@ -2296,6 +2367,10 @@ public class MainActivity extends AppCompatActivity {
   private void terminateCourseFromRemote(
       String scheduleId, int courseId, String playbackSessionId) {
     bringPlaybackUiToFront();
+    if (TextUtils.isEmpty(playbackSessionId) || TextUtils.equals(playbackSessionId, activePlaybackSessionId)) {
+      returnToScheduleListAfterFinish();
+      return;
+    }
     requestCurrentPlaybackSession("terminate_course");
   }
 
@@ -3403,7 +3478,8 @@ public class MainActivity extends AppCompatActivity {
     playbackCountdownText.setText(String.valueOf(remainingSeconds));
     playbackStageLabel.setText(stageLabel);
     playbackStageProgress.setText((currentIndex + 1) + " / " + items.size());
-    playbackHint.setText(buildWaterfallHint(items.get(currentIndex), fallbackHint));
+    playbackHint.setText("");
+    playbackHint.setVisibility(View.GONE);
     renderStageMeta("", 0, 0);
 
     if (currentIndex != lastWaterfallIndex || windowStart != lastWaterfallWindowStart) {
@@ -3580,6 +3656,23 @@ public class MainActivity extends AppCompatActivity {
   private void updateWaterfallActiveState(int currentIndex) {
     for (int index = 0; index < waterfallRows.size(); index += 1) {
       applyWaterfallRowActiveState(waterfallRows.get(index), index == currentIndex);
+    }
+  }
+
+  private void ensureWaterfallRowsPlaying(int windowStart) {
+    int preloadEnd = Math.min(windowStart + 3, waterfallRows.size() - 1);
+    for (int index = Math.max(windowStart, 0); index <= preloadEnd; index += 1) {
+      WaterfallRowView row = waterfallRows.get(index);
+      if (row != null
+          && row.videoView != null
+          && row.videoView.getVisibility() == View.VISIBLE
+          && !row.videoView.isPlaying()) {
+        try {
+          row.videoView.start();
+        } catch (Exception ignored) {
+          // Ignore transient player state while the row surface is being recreated.
+        }
+      }
     }
   }
 
@@ -3838,8 +3931,8 @@ public class MainActivity extends AppCompatActivity {
     if (horizontalRingProgress != null) {
       horizontalRingProgress.setColors(
           getColor(R.color.tv_horizontal_progress_inactive),
-          getColor(R.color.tv_horizontal_progress_active),
-          getColor(R.color.tv_accent_gold_bright));
+          resolvePlaybackStateColor(safePrimary, secondaryText),
+          0x00ffffff);
       horizontalRingProgress.setDrawThumb(false);
       int safeRemaining = Math.max(remainingSeconds, 0);
       String ringKey =
@@ -3861,6 +3954,7 @@ public class MainActivity extends AppCompatActivity {
     }
     if (horizontalStateText != null) {
       horizontalStateText.setText(safePrimary);
+      applyHorizontalStateTextSize(safePrimary);
       horizontalStateText.setMaxLines(totalDots > 0 ? 2 : 3);
       if (horizontalStateIcon != null) {
         horizontalStateIcon.setVisibility("WORK".equalsIgnoreCase(safePrimary.trim()) ? View.VISIBLE : View.GONE);
@@ -3877,6 +3971,23 @@ public class MainActivity extends AppCompatActivity {
     }
     renderHorizontalDots(completedDots, totalDots);
     renderHorizontalProgressBar(course, currentTrainingElapsedSeconds, currentTrainingTotalSeconds);
+  }
+
+  private void applyHorizontalStateTextSize(String stateText) {
+    if (horizontalStateText == null) {
+      return;
+    }
+    int shortSide =
+        Math.min(
+            getResources().getDisplayMetrics().widthPixels,
+            getResources().getDisplayMetrics().heightPixels);
+    String normalized = stateText == null ? "" : stateText.trim().toUpperCase(Locale.US);
+    boolean compact = normalized.contains("COOL DOWN");
+    horizontalStateText.setTextSize(
+        TypedValue.COMPLEX_UNIT_PX,
+        compact
+            ? clampPx(shortSide * 0.068f, sp(42), sp(74))
+            : clampPx(shortSide * 0.092f, sp(60), sp(100)));
   }
 
   private boolean isHorizontalReadyRingState(String primaryText) {
@@ -3981,18 +4092,20 @@ public class MainActivity extends AppCompatActivity {
             ? parentView.getHeight()
             : getResources().getDisplayMetrics().heightPixels;
     int shortSide = Math.min(screenWidth, screenHeight);
+    boolean hydrate = "HYDRATE".equals(transitionType);
+    boolean rest = "REST".equals(transitionType);
     int ringSize =
         horizontal
             ? clamp(Math.round(shortSide * 0.62f), dp(500), dp(760))
             : clamp(
-                Math.round(shortSide * 0.72f),
-                Math.round(shortSide * 0.58f),
-                Math.round(shortSide * 0.82f));
+                Math.round(shortSide * (hydrate ? 0.66f : 0.68f)),
+                Math.round(shortSide * 0.54f),
+                Math.round(shortSide * 0.76f));
     float centerX = horizontal ? 0.30f : 0.5f;
     float centerY =
         horizontal
             ? 0.50f
-            : ("HYDRATE".equals(transitionType) ? 0.44f : ("REST".equals(transitionType) ? 0.47f : 0.46f));
+            : (hydrate ? 0.48f : (rest ? 0.47f : 0.46f));
     FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(ringSize, ringSize);
     params.leftMargin = Math.round(screenWidth * centerX - ringSize / 2f);
     params.topMargin = Math.round(screenHeight * centerY - ringSize / 2f);
@@ -4004,8 +4117,8 @@ public class MainActivity extends AppCompatActivity {
               ? clampPx(shortSide * 0.06f, dp(44), dp(74))
               : clampPx(shortSide * 0.065f, shortSide * 0.048f, shortSide * 0.08f));
       transitionDesignRing.setColors(
-          getColor(R.color.tv_horizontal_progress_inactive),
-          getColor(R.color.tv_accent_gold_bright),
+          0x66ffffff,
+          getColor(R.color.tv_text_main),
           0x00ffffff);
       transitionDesignRing.setDrawThumb(false);
       String progressKey = transitionType + "|" + renderKey;
@@ -4045,7 +4158,7 @@ public class MainActivity extends AppCompatActivity {
             ? R.drawable.icon_water
             : ("REST".equals(transitionType) ? R.drawable.icon_heart : R.drawable.icon_cicle);
     transitionDesignIcon.setImageResource(iconRes);
-    transitionDesignIcon.setColorFilter(getColor(R.color.tv_accent_gold_bright));
+    transitionDesignIcon.setColorFilter(getColor(R.color.tv_text_main));
     int width;
     int height;
     float centerX;
@@ -4053,12 +4166,12 @@ public class MainActivity extends AppCompatActivity {
     if ("HYDRATE".equals(transitionType)) {
       width = horizontal ? clamp(Math.round(shortSide * 0.16f), dp(128), dp(200))
           : clamp(
-              Math.round(shortSide * 0.18f),
-              Math.round(shortSide * 0.13f),
-              Math.round(shortSide * 0.22f));
+              Math.round(shortSide * 0.15f),
+              Math.round(shortSide * 0.11f),
+              Math.round(shortSide * 0.18f));
       height = Math.round(width * (450f / 282f));
       centerX = horizontal ? 0.72f : 0.5f;
-      centerY = horizontal ? 0.28f : 0.15f;
+      centerY = horizontal ? 0.28f : 0.16f;
     } else if ("REST".equals(transitionType)) {
       width =
           horizontal
@@ -4093,13 +4206,21 @@ public class MainActivity extends AppCompatActivity {
     String title =
         "HYDRATE".equals(transitionType)
             ? "HYDRATE"
-            : ("REST".equals(transitionType) ? "REST" : "MOVE\nSTATION");
+            : ("REST".equals(transitionType)
+                ? "REST"
+                : ("MOVE_ZONE".equals(transitionType) ? "MOVE\nZONE" : "MOVE\nSTATION"));
     transitionDesignTitle.setText(title);
+    boolean hydrate = "HYDRATE".equals(transitionType);
+    boolean rest = "REST".equals(transitionType);
+    boolean moveStation = !"HYDRATE".equals(transitionType) && !"REST".equals(transitionType);
     transitionDesignTitle.setTextSize(
         TypedValue.COMPLEX_UNIT_PX,
         horizontal
-            ? clampPx(shortSide * ("REST".equals(transitionType) ? 0.15f : 0.13f), sp(92), sp(150))
-            : clampPx(shortSide * 0.16f, shortSide * 0.11f, shortSide * 0.20f));
+            ? clampPx(shortSide * (rest ? 0.15f : 0.13f), sp(92), sp(150))
+            : clampPx(
+                shortSide * (moveStation ? 0.105f : (rest ? 0.12f : 0.105f)),
+                shortSide * 0.075f,
+                shortSide * (hydrate ? 0.13f : 0.14f)));
     int width = horizontal ? clamp(Math.round(screenWidth * 0.44f), dp(560), dp(860))
         : FrameLayout.LayoutParams.MATCH_PARENT;
     int height = FrameLayout.LayoutParams.WRAP_CONTENT;
@@ -4109,15 +4230,13 @@ public class MainActivity extends AppCompatActivity {
       params.topMargin =
           Math.round(
               screenHeight
-                  * ("HYDRATE".equals(transitionType) ? 0.52f : ("REST".equals(transitionType) ? 0.56f : 0.48f)));
+                  * (hydrate ? 0.52f : (rest ? 0.56f : 0.48f)));
       transitionDesignTitle.setGravity(android.view.Gravity.CENTER);
     } else {
       params.leftMargin = 0;
       params.rightMargin = 0;
       params.topMargin =
-          Math.round(
-              screenHeight
-                  * ("HYDRATE".equals(transitionType) ? 0.66f : ("REST".equals(transitionType) ? 0.65f : 0.63f)));
+          Math.round(screenHeight * (hydrate ? 0.74f : (rest ? 0.69f : 0.72f)));
       transitionDesignTitle.setGravity(android.view.Gravity.CENTER);
     }
     transitionDesignTitle.setLayoutParams(params);
@@ -4130,32 +4249,8 @@ public class MainActivity extends AppCompatActivity {
     if (transitionDesignSubtitle == null) {
       return;
     }
-    if (subtitle == null || subtitle.trim().isEmpty() || !"REST".equals(transitionType)) {
-      transitionDesignSubtitle.setVisibility(View.GONE);
-      transitionDesignSubtitle.setText("");
-      return;
-    }
-    transitionDesignSubtitle.setText(subtitle.trim());
-    transitionDesignSubtitle.setTextSize(
-        TypedValue.COMPLEX_UNIT_PX,
-        horizontal
-            ? clampPx(shortSide * 0.085f, sp(46), sp(86))
-            : clampPx(shortSide * 0.105f, shortSide * 0.075f, shortSide * 0.13f));
-    int width = horizontal ? clamp(Math.round(screenWidth * 0.44f), dp(560), dp(860))
-        : FrameLayout.LayoutParams.MATCH_PARENT;
-    FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(width, FrameLayout.LayoutParams.WRAP_CONTENT);
-    if (horizontal) {
-      params.leftMargin = Math.round(screenWidth * 0.51f);
-      params.topMargin = Math.round(screenHeight * 0.73f);
-    } else {
-      params.leftMargin = 0;
-      params.rightMargin = 0;
-      params.topMargin = Math.round(screenHeight * 0.765f);
-    }
-    transitionDesignSubtitle.setGravity(android.view.Gravity.CENTER);
-    transitionDesignSubtitle.setLayoutParams(params);
-    transitionDesignSubtitle.setVisibility(View.VISIBLE);
-    transitionDesignSubtitle.bringToFront();
+    transitionDesignSubtitle.setVisibility(View.GONE);
+    transitionDesignSubtitle.setText("");
   }
 
   private void hideTransitionDesign() {
@@ -4506,6 +4601,8 @@ public class MainActivity extends AppCompatActivity {
           "",
           0,
           0);
+      lastWaterfallAudioMode = "WARMUP_READY";
+      lastWaterfallAudioIndex = -1;
       return;
     }
 
@@ -4532,11 +4629,13 @@ public class MainActivity extends AppCompatActivity {
           "",
           0,
           0);
+      rememberTrainingCuePhase("workout-ready", "READY");
       return;
     }
 
     applyResponsiveLayout();
     updateTrainingPlayback(course, 0);
+    rememberTrainingCuePhase("workout-ready", "READY");
     applyPlaybackTheme(PlaybackTheme.READY);
     playbackCountdownText.setText(String.valueOf(Math.max(remainingSeconds, 0)));
     playbackStageLabel.setText("");
@@ -4780,12 +4879,12 @@ public class MainActivity extends AppCompatActivity {
       ViewGroup.LayoutParams rawParams = horizontalProgressRow.getLayoutParams();
       if (rawParams instanceof FrameLayout.LayoutParams) {
         FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) rawParams;
-        params.width = FrameLayout.LayoutParams.MATCH_PARENT;
+        params.width = clamp(Math.round(screenWidth * 0.86f), dp(760), Math.max(screenWidth - dp(80), dp(760)));
         params.height = FrameLayout.LayoutParams.WRAP_CONTENT;
-        params.gravity = android.view.Gravity.BOTTOM;
-        params.leftMargin = clamp(Math.round(shortSide * 0.038f), dp(28), dp(70));
-        params.rightMargin = clamp(Math.round(shortSide * 0.038f), dp(28), dp(70));
-        params.bottomMargin = clamp(Math.round(shortSide * 0.14f), dp(96), dp(168));
+        params.gravity = android.view.Gravity.BOTTOM | android.view.Gravity.CENTER_HORIZONTAL;
+        params.leftMargin = 0;
+        params.rightMargin = 0;
+        params.bottomMargin = clamp(Math.round(shortSide * 0.12f), dp(84), dp(148));
         horizontalProgressRow.setLayoutParams(params);
       }
     }
@@ -4874,10 +4973,13 @@ public class MainActivity extends AppCompatActivity {
         playbackStageCard.setBackgroundResource(R.drawable.bg_playback_stage_card);
         break;
       case MOVE_ZONE:
-        playbackTimerCard.setBackgroundResource(R.drawable.bg_playback_timer_card_black);
-        playbackStageCard.setBackgroundResource(R.drawable.bg_playback_stage_card_black);
+        playbackTimerCard.setBackgroundResource(R.drawable.bg_playback_timer_card_move_station);
+        playbackStageCard.setBackgroundResource(R.drawable.bg_playback_stage_card);
         break;
       case HYDRATE:
+        playbackTimerCard.setBackgroundResource(R.drawable.bg_playback_timer_card);
+        playbackStageCard.setBackgroundResource(R.drawable.bg_playback_stage_card);
+        break;
       case NORMAL:
       default:
         playbackTimerCard.setBackgroundResource(R.drawable.bg_playback_timer_card);
@@ -4887,24 +4989,65 @@ public class MainActivity extends AppCompatActivity {
   }
 
   private PlaybackTheme getThemeForState(TrainingPlaybackState state) {
-    if (state == null || state.transitionType == null || state.transitionType.trim().isEmpty()) {
+    if (state == null) {
       return PlaybackTheme.NORMAL;
     }
 
-    if ("MOVE_STATION".equals(state.transitionType)) {
+    String transitionType = state.transitionType == null ? "" : state.transitionType.trim();
+    if ("MOVE_STATION".equals(transitionType)) {
       return PlaybackTheme.MOVE_STATION;
     }
-    if ("MOVE_ZONE".equals(state.transitionType)) {
+    if ("MOVE_ZONE".equals(transitionType)) {
       return PlaybackTheme.MOVE_ZONE;
     }
-    if ("HYDRATE".equals(state.transitionType)) {
+    if ("HYDRATE".equals(transitionType)) {
+      return PlaybackTheme.HYDRATE;
+    }
+    if ("REST".equals(transitionType)) {
+      return PlaybackTheme.READY;
+    }
+
+    String stageProgress = state.stageProgress == null ? "" : state.stageProgress.trim().toUpperCase(Locale.US);
+    if ("REST".equals(stageProgress)) {
+      return PlaybackTheme.READY;
+    }
+    if ("MOVE STATION".equals(stageProgress) || "MOVE ZONE".equals(stageProgress)) {
+      return PlaybackTheme.MOVE_STATION;
+    }
+    if ("HYDRATE".equals(stageProgress)) {
       return PlaybackTheme.HYDRATE;
     }
     return PlaybackTheme.NORMAL;
   }
 
   private int getTransitionBackgroundColor(String transitionType) {
+    if ("REST".equals(transitionType)) {
+      return getColor(R.color.tv_playback_ready);
+    }
+    if ("HYDRATE".equals(transitionType)) {
+      return getColor(R.color.tv_playback_blue);
+    }
+    if ("MOVE_STATION".equals(transitionType) || "MOVE_ZONE".equals(transitionType)) {
+      return getColor(R.color.tv_playback_move_station);
+    }
     return getColor(R.color.tv_playback_background);
+  }
+
+  private int resolvePlaybackStateColor(String primaryText, String secondaryText) {
+    String normalized =
+        ((primaryText == null ? "" : primaryText) + " " + (secondaryText == null ? "" : secondaryText))
+            .trim()
+            .toUpperCase(Locale.US);
+    if (normalized.contains("REST") || normalized.contains("READY")) {
+      return getColor(R.color.tv_playback_ready);
+    }
+    if (normalized.contains("MOVE")) {
+      return getColor(R.color.tv_playback_move_station);
+    }
+    if (normalized.contains("HYDRATE")) {
+      return getColor(R.color.tv_playback_blue);
+    }
+    return getColor(R.color.tv_playback_blue);
   }
 
   private String formatTransitionTitle(String transitionTitle) {
@@ -4981,9 +5124,8 @@ public class MainActivity extends AppCompatActivity {
     playbackStageLabel.setText(state.stageLabel);
     playbackStageProgress.setText(state.stageProgress);
     renderStageMeta(state.stageSecondaryText, state.completedDots, state.totalDots);
-    playbackHint.setText(state.hintText);
-    playbackHint.setVisibility(
-        state.hintText == null || state.hintText.trim().isEmpty() ? View.GONE : View.VISIBLE);
+    playbackHint.setText("");
+    playbackHint.setVisibility(View.GONE);
 
     if (state.messageOnly) {
       contentPanel.setBackgroundColor(getColor(R.color.tv_playback_background));
@@ -5022,6 +5164,7 @@ public class MainActivity extends AppCompatActivity {
         updateWaterfallRows(state.activeCardIndex, windowStart);
         scrollWaterfallToWindowStart(windowStart);
       } else {
+        ensureWaterfallRowsPlaying(windowStart);
         updateWaterfallActiveState(state.activeCardIndex);
       }
       return;
@@ -5044,6 +5187,7 @@ public class MainActivity extends AppCompatActivity {
       renderTrainingCards(state);
       lastTrainingSignature = layoutSignature;
     }
+    ensureTrainingCardVideosPlaying();
   }
 
   private TrainingPlaybackState buildTrainingPlaybackState(CourseScript course, int elapsedSeconds) {
@@ -5420,7 +5564,9 @@ public class MainActivity extends AppCompatActivity {
 
     int cardCount = state.displayCards.size();
     int columns = cardCount <= 3 ? 1 : 2;
-    int previewHeight = columns == 1 ? calculateWideTrainingRowHeight() : calculateGridTrainingRowHeight();
+    int rowCount = Math.max((int) Math.ceil(cardCount / (float) columns), 1);
+    int rowGap = calculateTrainingRowGap(rowCount);
+    int previewHeight = calculateTrainingRowHeight(cardCount, columns, rowCount, rowGap);
 
     for (int rowStart = 0; rowStart < cardCount; rowStart += columns) {
       LinearLayout row = new LinearLayout(this);
@@ -5429,7 +5575,7 @@ public class MainActivity extends AppCompatActivity {
           new LinearLayout.LayoutParams(
               LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
       if (rowStart > 0) {
-        rowParams.topMargin = dp(14);
+        rowParams.topMargin = rowGap;
       }
       row.setLayoutParams(rowParams);
 
@@ -5450,6 +5596,7 @@ public class MainActivity extends AppCompatActivity {
       }
       trainingCardsContainer.addView(row);
     }
+    playbackScrollView.post(() -> playbackScrollView.scrollTo(0, 0));
   }
 
   private View createTrainingWideCard(
@@ -5541,6 +5688,7 @@ public class MainActivity extends AppCompatActivity {
       videoView.setOnErrorListener((mediaPlayer, what, extra) -> true);
       videoView.setVideoPath(card.mediaUrl);
       videoView.start();
+      preview.post(() -> startVideoViewIfNeeded(videoView));
     } else {
       View dim = new View(this);
       dim.setLayoutParams(
@@ -5560,6 +5708,38 @@ public class MainActivity extends AppCompatActivity {
       placeholder.setTextSize(34f);
       placeholder.setTypeface(placeholder.getTypeface(), android.graphics.Typeface.BOLD);
       preview.addView(placeholder);
+    }
+  }
+
+  private void ensureTrainingCardVideosPlaying() {
+    startChildVideoViews(trainingCardsContainer);
+  }
+
+  private void startChildVideoViews(View view) {
+    if (view == null || view.getVisibility() != View.VISIBLE) {
+      return;
+    }
+    if (view instanceof VideoView) {
+      startVideoViewIfNeeded((VideoView) view);
+      return;
+    }
+    if (!(view instanceof ViewGroup)) {
+      return;
+    }
+    ViewGroup group = (ViewGroup) view;
+    for (int index = 0; index < group.getChildCount(); index += 1) {
+      startChildVideoViews(group.getChildAt(index));
+    }
+  }
+
+  private void startVideoViewIfNeeded(VideoView videoView) {
+    if (videoView == null || videoView.getVisibility() != View.VISIBLE || videoView.isPlaying()) {
+      return;
+    }
+    try {
+      videoView.start();
+    } catch (Exception ignored) {
+      // Ignore transient player state while Android prepares/recreates the video surface.
     }
   }
 
@@ -5592,6 +5772,44 @@ public class MainActivity extends AppCompatActivity {
     int columnWidth = Math.max((contentWidth - dp(10)) / 2, dp(180));
     int previewWidth = Math.max(columnWidth - dp(76), dp(160));
     return Math.max(Math.round(previewWidth * 10.5f / 16f), dp(190));
+  }
+
+  private int calculateTrainingRowHeight(int cardCount, int columns, int rowCount, int rowGap) {
+    int viewportHeight = playbackScrollView == null ? 0 : playbackScrollView.getHeight();
+    if (viewportHeight <= 0) {
+      viewportHeight = Math.round(getResources().getDisplayMetrics().heightPixels * 0.70f);
+    }
+
+    int verticalChrome =
+        dp(20)
+            + Math.max(rowCount - 1, 0) * rowGap
+            + (trainingCardsContainer == null ? 0 : dp(16));
+    int availableHeight = Math.max(viewportHeight - verticalChrome, dp(80));
+    int fitHeight = Math.max(availableHeight / Math.max(rowCount, 1), dp(80));
+    int aspectHeight = columns == 1 ? calculateWideTrainingRowHeight() : calculateGridTrainingRowHeight();
+
+    if (isPortraitViewport() && cardCount >= 4 && cardCount <= 10) {
+      return fitHeight;
+    }
+    if (cardCount <= 10) {
+      return Math.min(aspectHeight, fitHeight);
+    }
+    return Math.max(Math.min(aspectHeight, fitHeight), dp(72));
+  }
+
+  private boolean isPortraitViewport() {
+    android.util.DisplayMetrics metrics = getResources().getDisplayMetrics();
+    return metrics.heightPixels > metrics.widthPixels;
+  }
+
+  private int calculateTrainingRowGap(int rowCount) {
+    if (rowCount >= 5) {
+      return dp(6);
+    }
+    if (rowCount >= 3) {
+      return dp(8);
+    }
+    return dp(12);
   }
 
   private String safeStationLabel(String stationNumber, int fallbackIndex) {

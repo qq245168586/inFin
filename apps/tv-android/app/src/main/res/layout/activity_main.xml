@@ -136,6 +136,7 @@
       <Button
         android:id="@+id/changeScreenButton"
         style="@style/Widget.InfiniTv.GhostButton"
+        android:visibility="gone"
         android:text="重选屏幕" />
     </LinearLayout>
 

@@ -45,8 +45,7 @@ public class BootCompletedReceiver extends BroadcastReceiver {
       AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
       long triggerAtMs = SystemClock.elapsedRealtime() + LAUNCH_DELAY_MS;
       if (alarmManager != null) {
-        alarmManager.setExactAndAllowWhileIdle(
-            AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAtMs, pendingIntent);
+        alarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAtMs, pendingIntent);
         Log.d(
             TAG,
             "Scheduled TV auto-launch for action="

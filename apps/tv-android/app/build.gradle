@@ -10,8 +10,8 @@ android {
     applicationId "com.infini.tv"
     minSdk 26
     targetSdk 34
-        versionCode 6
-        versionName "1.0.5-autoboot2"
+        versionCode 13
+        versionName "1.0.12"
   }
 
   buildTypes {

@@ -3,6 +3,6 @@
   <corners android:radius="18dp" />
   <gradient
     android:angle="135"
-    android:startColor="@color/tv_accent_gold_bright"
-    android:endColor="@color/tv_accent_gold_dark" />
+    android:startColor="#20BEFF"
+    android:endColor="@color/tv_playback_blue" />
 </shape>
