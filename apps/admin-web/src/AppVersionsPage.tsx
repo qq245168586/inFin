@@ -4,6 +4,8 @@ type NoticeTone = "success" | "error";
 type AppPlatform = "tv" | "coach";
 
 interface AppVersionsPageProps {
+  tokenType: string;
+  accessToken: string;
   onBusyTextChange: (text: string) => void;
   onNotice: (message: string, tone?: NoticeTone) => void;
 }
@@ -43,6 +45,19 @@ interface UploadFormState {
   file: File | null;
 }
 
+interface TvScreenItem {
+  screenNumber: number;
+  deviceId: string;
+  online: boolean;
+  playbackState: string;
+}
+
+interface TvScreensPayload {
+  generatedAt: string;
+  screens: TvScreenItem[];
+  unboundDevices?: TvScreenItem[];
+}
+
 function formatDateTime(value?: string): string {
   if (!value) {
     return "--";
@@ -77,6 +92,10 @@ function formatStorageBytes(value?: number): string {
   return `${current.toFixed(precision)} ${units[unitIndex]}`;
 }
 
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "发生未知错误，请稍后再试。";
+}
+
 async function requestJson<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(path, {
     ...options,
@@ -88,16 +107,29 @@ async function requestJson<T>(path: string, options: RequestInit = {}): Promise<
   const payload = (await response.json().catch(() => null)) as T | { message?: string } | null;
 
   if (!response.ok) {
-    throw new Error((payload as { message?: string } | null)?.message || `请求失败 (${response.status})`);
+    const message = (payload as { message?: string } | null)?.message || `请求失败 (${response.status})`;
+    const shouldExpire =
+      (response.status === 401 || response.status === 403) &&
+      (String(message || "").includes("登录已失效") || String(message || "").includes("refresh token 已失效"));
+    if (shouldExpire) {
+      try {
+        window.dispatchEvent(new CustomEvent("infini-auth-expired", { detail: { message } }));
+      } catch {
+        // Ignore dispatch failures.
+      }
+    }
+    throw new Error(message);
   }
 
   return payload as T;
 }
 
-export default function AppVersionsPage({ onBusyTextChange, onNotice }: AppVersionsPageProps) {
+export default function AppVersionsPage({ tokenType, accessToken, onBusyTextChange, onNotice }: AppVersionsPageProps) {
   const [payload, setPayload] = useState<AppPackageListPayload | null>(null);
   const [platformFilter, setPlatformFilter] = useState<AppPlatform>("tv");
   const [uploading, setUploading] = useState(false);
+  const [updatingAllTv, setUpdatingAllTv] = useState(false);
+  const [selectedTvPackageId, setSelectedTvPackageId] = useState("");
   const [form, setForm] = useState<UploadFormState>({
     platform: "tv",
     version: "",
@@ -105,6 +137,8 @@ export default function AppVersionsPage({ onBusyTextChange, onNotice }: AppVersi
     notes: "",
     file: null
   });
+
+  const authHeader = `${tokenType} ${accessToken}`;
 
   async function loadPackages(showBusy = false) {
     if (showBusy) {
@@ -131,6 +165,25 @@ export default function AppVersionsPage({ onBusyTextChange, onNotice }: AppVersi
     () => (payload?.packages || []).filter((item) => item.platform === platformFilter),
     [payload, platformFilter]
   );
+
+  const tvPackages = useMemo(() => {
+    const list = (payload?.packages || []).filter((item) => item.platform === "tv");
+    return [...list].sort((a, b) => new Date(b.updateTime).getTime() - new Date(a.updateTime).getTime());
+  }, [payload]);
+
+  useEffect(() => {
+    if (!tvPackages.length) {
+      if (selectedTvPackageId) {
+        setSelectedTvPackageId("");
+      }
+      return;
+    }
+
+    const exists = tvPackages.some((item) => String(item.id) === String(selectedTvPackageId));
+    if (!exists) {
+      setSelectedTvPackageId(String(tvPackages[0].id));
+    }
+  }, [tvPackages, selectedTvPackageId]);
 
   async function handleScan() {
     onBusyTextChange("正在扫描服务器安装包目录...");
@@ -195,6 +248,113 @@ export default function AppVersionsPage({ onBusyTextChange, onNotice }: AppVersi
       onNotice(error instanceof Error ? error.message : "上传安装包失败。", "error");
     } finally {
       setUploading(false);
+      onBusyTextChange("");
+    }
+  }
+
+  async function handleUpdateAllTvDevices() {
+    if (updatingAllTv) {
+      return;
+    }
+    if (!selectedTvPackageId) {
+      onNotice("请先选择一个 TV 版本。", "error");
+      return;
+    }
+
+    const selectedPackage = tvPackages.find((item) => String(item.id) === String(selectedTvPackageId)) || null;
+    if (!selectedPackage) {
+      onNotice("没有找到所选 TV 版本。", "error");
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `确定把本账号下所有 TV 设备更新到 ${selectedPackage.version} 吗？离线或非待机状态的屏幕会自动跳过。`
+      )
+    ) {
+      return;
+    }
+
+    setUpdatingAllTv(true);
+
+    try {
+      onBusyTextChange("正在获取屏幕列表...");
+      const screensPayload = await requestJson<TvScreensPayload>("/api/tv/screens", {
+        headers: { Authorization: authHeader }
+      });
+      const screens = (screensPayload?.screens || []).filter((item) => String(item.deviceId || "").trim());
+      if (!screens.length) {
+        onNotice("当前没有已绑定的 TV 设备。", "error");
+        return;
+      }
+
+      const eligible = screens.filter(
+        (screen) => !!screen.online && String(screen.playbackState || "").toUpperCase() === "IDLE"
+      );
+      const skippedOffline = screens.filter((screen) => !screen.online);
+      const skippedBusy = screens.filter(
+        (screen) => screen.online && String(screen.playbackState || "").toUpperCase() !== "IDLE"
+      );
+
+      if (!eligible.length) {
+        const extra =
+          skippedOffline.length || skippedBusy.length
+            ? `（离线 ${skippedOffline.length} 台，忙碌 ${skippedBusy.length} 台）`
+            : "";
+        onNotice(`没有可更新的设备：请确保屏幕在线且处于待机状态。${extra}`, "error");
+        return;
+      }
+
+      const succeeded: string[] = [];
+      const failed: Array<{ deviceId: string; reason: string }> = [];
+
+      for (let index = 0; index < eligible.length; index += 1) {
+        const screen = eligible[index];
+        const deviceId = String(screen.deviceId || "").trim();
+        if (!deviceId) {
+          continue;
+        }
+        onBusyTextChange(
+          `正在通知 ${deviceId} 安装 ${selectedPackage.version}... (${index + 1}/${eligible.length})`
+        );
+        try {
+          await requestJson<{ ok: boolean }>("/api/tv/screens/install-package", {
+            method: "POST",
+            headers: { Authorization: authHeader },
+            body: JSON.stringify({
+              deviceId,
+              packageId: selectedPackage.id
+            })
+          });
+          succeeded.push(deviceId);
+        } catch (error) {
+          failed.push({ deviceId, reason: getErrorMessage(error) });
+        }
+      }
+
+      const skippedCount = screens.length - eligible.length;
+      const parts: string[] = [];
+      parts.push(`已下发更新：${succeeded.length} 台`);
+      if (failed.length) {
+        parts.push(`失败：${failed.length} 台`);
+      }
+      if (skippedCount) {
+        parts.push(`跳过：${skippedCount} 台`);
+      }
+
+      onNotice(`${parts.join("，")}（目标版本：${selectedPackage.version}）。`);
+
+      if (failed.length) {
+        const preview = failed
+          .slice(0, 3)
+          .map((item) => `${item.deviceId}: ${item.reason}`)
+          .join("；");
+        onNotice(`部分设备下发失败：${preview}${failed.length > 3 ? "…" : ""}`, "error");
+      }
+    } catch (error) {
+      onNotice(getErrorMessage(error), "error");
+    } finally {
+      setUpdatingAllTv(false);
       onBusyTextChange("");
     }
   }
@@ -343,6 +503,29 @@ export default function AppVersionsPage({ onBusyTextChange, onNotice }: AppVersi
               Coach 版本
             </button>
           </div>
+          {platformFilter === "tv" ? (
+            <div className="versions-update-actions">
+              <label className="versions-update-select">
+                <span>更新到版本</span>
+                <select value={selectedTvPackageId} onChange={(event) => setSelectedTvPackageId(event.target.value)}>
+                  {tvPackages.length ? null : <option value="">暂无可用 TV 版本</option>}
+                  {tvPackages.map((appPackage) => (
+                    <option key={appPackage.id} value={appPackage.id}>
+                      {appPackage.version} · {appPackage.label || appPackage.originalName || appPackage.filename}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => void handleUpdateAllTvDevices()}
+                disabled={updatingAllTv || !tvPackages.length}
+              >
+                一键更新全部设备
+              </button>
+            </div>
+          ) : null}
         </div>
 
         <div className="table-card">

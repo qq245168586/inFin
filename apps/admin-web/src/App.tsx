@@ -440,7 +440,6 @@ const CALENDAR_START_HOUR = 0;
 const CALENDAR_END_HOUR = 24;
 const CALENDAR_HOUR_HEIGHT = 70;
 const AUTH_STORAGE_KEY = "infini-admin-auth";
-const ACTIVE_VENUE_STORAGE_KEY = "infini-admin-active-venue-id";
 const LEGACY_BASIC_AUTH = "Basic REDACTED_CONFIGURE_LOCALLY";
 
 function uid(prefix: string): string {
@@ -2031,15 +2030,11 @@ export default function App() {
   const [authReady, setAuthReady] = useState(false);
   const [authSession, setAuthSession] = useState<AuthSession | null>(null);
   const [loginForm, setLoginForm] = useState<LoginFormState>({
-    username: "13689547720",
-    password: "REDACTED_CONFIGURE_LOCALLY"
+    username: "",
+    password: ""
   });
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activePage, setActivePage] = useState<NavKey>("home");
-  const [venues, setVenues] = useState<VenueRecord[]>([]);
-  const [activeVenueId, setActiveVenueId] = useState<string>("");
-  const [venuesReady, setVenuesReady] = useState(false);
-  const metaVenueIdRef = useRef<string>("");
   const [homeTab, setHomeTab] = useState<HomeTabKey>("currentWeek");
   const [actionFiltersDraft, setActionFiltersDraft] = useState<FilterState>({ search: "", typeIds: [] });
   const [actionFilters, setActionFilters] = useState<FilterState>({ search: "", typeIds: [] });
@@ -2131,60 +2126,14 @@ export default function App() {
       return;
     }
 
-    let alive = true;
-
     (async () => {
-      const authHeader = `${authSession.token_type} ${authSession.access_token}`;
-      let venueList: VenueRecord[] = [];
-
-      setVenuesReady(false);
-      setBusyText("正在加载场馆...");
       try {
-        const payload = await requestJson<{ data: VenueRecord[] }>("/api/admin/venues", {
-          headers: { Authorization: authHeader }
-        });
-        venueList = payload.data || [];
-      } catch (error) {
-        venueList = [];
-        pushNotice(getErrorMessage(error), "error");
-      } finally {
-        setBusyText("");
+        await loadMeta("正在加载页面...");
+      } catch {
+        // loadMeta handles notice already.
       }
-
-      if (!alive) return;
-
-      setVenues(venueList);
-
-      const storedVenueId = String(window.localStorage.getItem(ACTIVE_VENUE_STORAGE_KEY) || "").trim();
-      const nextVenueId =
-        venueList.find((item) => String(item.id) === storedVenueId)?.id || venueList[0]?.id || "";
-
-      metaVenueIdRef.current = nextVenueId;
-      setActiveVenueId(String(nextVenueId || ""));
-      setVenuesReady(true);
-
-      await loadMeta("正在加载页面...", String(nextVenueId || ""));
     })();
-
-    return () => {
-      alive = false;
-    };
   }, [authReady, authSession?.access_token]);
-
-  useEffect(() => {
-    if (!authReady || !authSession || !venuesReady) {
-      return;
-    }
-
-    const venueId = String(activeVenueId || "").trim();
-    if (metaVenueIdRef.current === venueId) {
-      return;
-    }
-
-    metaVenueIdRef.current = venueId;
-    window.localStorage.setItem(ACTIVE_VENUE_STORAGE_KEY, venueId);
-    loadMeta("正在切换场馆...", venueId);
-  }, [activeVenueId, authReady, authSession?.access_token, venuesReady]);
 
   useEffect(() => {
     if (!hasRecoverableDraft) {
@@ -2347,7 +2296,7 @@ export default function App() {
       setLoginForm((current) => ({
         ...current,
         username: nextAuth.username,
-        password: current.password || "REDACTED_CONFIGURE_LOCALLY"
+        password: ""
       }));
       pushNotice("登录成功。");
     } catch (error) {
@@ -2365,47 +2314,20 @@ export default function App() {
     removeStorageItem(AUTH_STORAGE_KEY);
     setAuthSession(null);
     setAppData(null);
-    setVenues([]);
-    setActiveVenueId("");
-    setVenuesReady(false);
-    metaVenueIdRef.current = "";
     resetEditorState();
-    setLoginForm((current) => ({
-      username: current.username || "13689547720",
-      password: ""
-    }));
+    setLoginForm({ username: "", password: "" });
     if (message) {
       pushNotice(message, tone);
     }
   }
 
-  function handleVenuesChange(nextVenues: VenueRecord[]) {
-    const list = nextVenues || [];
-    setVenues(list);
-    setVenuesReady(true);
-    setActiveVenueId((current) => {
-      const currentId = String(current || "").trim();
-      if (currentId && list.some((venue) => String(venue.id) === currentId)) {
-        return currentId;
-      }
-      const storedVenueId = String(window.localStorage.getItem(ACTIVE_VENUE_STORAGE_KEY) || "").trim();
-      if (storedVenueId && list.some((venue) => String(venue.id) === storedVenueId)) {
-        return storedVenueId;
-      }
-      return String(list[0]?.id || "");
-    });
-  }
-
-  async function loadMeta(label = "", venueIdOverride?: string): Promise<void> {
+  async function loadMeta(label = ""): Promise<void> {
     if (label) {
       setBusyText(label);
     }
 
     try {
-      const venueId =
-        typeof venueIdOverride === "string" ? String(venueIdOverride || "").trim() : String(activeVenueId || "").trim();
-      const endpoint = venueId ? `/api/meta?venueId=${encodeURIComponent(venueId)}` : "/api/meta";
-      const payload = await requestJson<MetaPayload>(endpoint);
+      const payload = await requestJson<MetaPayload>("/api/meta");
       setAppData(payload);
     } catch (error) {
       pushNotice(getErrorMessage(error), "error");
@@ -2440,9 +2362,7 @@ export default function App() {
 
   const weekDays = getWeekDays(homeTab === "lastWeek" ? -1 : 0);
   const weekDayKeysSignature = weekDays.map((day) => day.key).join("|");
-  const schedules = String(activeVenueId || "").trim()
-    ? appData?.schedules || { currentWeek: [], lastWeek: [], history: [] }
-    : { currentWeek: [], lastWeek: [], history: [] };
+  const schedules = appData?.schedules || { currentWeek: [], lastWeek: [], history: [] };
   const visibleSchedules =
     homeTab === "currentWeek"
       ? schedules.currentWeek
@@ -2844,19 +2764,6 @@ export default function App() {
   }
 
   function openScheduleDialog() {
-    if (!venuesReady) {
-      pushNotice("正在加载场馆信息，请稍后重试。", "error");
-      return;
-    }
-    if (!venues.length) {
-      pushNotice("请先新建场馆，再开始排课。", "error");
-      setActivePage("venues");
-      return;
-    }
-    if (!String(activeVenueId || "").trim()) {
-      pushNotice("请选择场馆后再开始排课。", "error");
-      return;
-    }
     if (!(appData?.courses || []).length) {
       pushNotice("请先在课程页创建课程。", "error");
       return;
@@ -3121,10 +3028,6 @@ export default function App() {
       pushNotice("请选择课程。", "error");
       return;
     }
-    if (!String(activeVenueId || "").trim()) {
-      pushNotice("请选择场馆后再保存排课。", "error");
-      return;
-    }
     if (!scheduleDraft.date || !scheduleDraft.time) {
       pushNotice("请选择课程日期和开始时间。", "error");
       return;
@@ -3140,7 +3043,6 @@ export default function App() {
       await requestJson("/api/schedules", {
         method: "POST",
         body: JSON.stringify({
-          venueId: String(activeVenueId || "").trim(),
           courseId: Number(scheduleDraft.courseId),
           version: scheduleDraft.version,
           beginTime: composeCnDateTime(scheduleDraft.date, scheduleDraft.time),
@@ -3158,10 +3060,6 @@ export default function App() {
   }
 
   async function copyLastWeekSchedule() {
-    if (!String(activeVenueId || "").trim()) {
-      pushNotice("请选择场馆后再复制排课。", "error");
-      return;
-    }
     if (schedules.currentWeek.length && !window.confirm("本周已有排课，确认用上周排课覆盖本周吗？")) {
       return;
     }
@@ -3169,7 +3067,7 @@ export default function App() {
     setBusyText("正在复制上周排课...");
 
     try {
-      await requestJson(`/api/schedules/copy-last-week?venueId=${encodeURIComponent(String(activeVenueId || "").trim())}`, {
+      await requestJson("/api/schedules/copy-last-week", {
         method: "POST"
       });
       await loadMeta();
@@ -3313,7 +3211,6 @@ export default function App() {
   }
 
   function renderHome() {
-    const activeVenue = venues.find((item) => String(item.id) === String(activeVenueId || "")) ?? null;
     const calendarDays =
       selectedScheduleDate === "all"
         ? weekDays
@@ -3324,45 +3221,13 @@ export default function App() {
         <div className="page-card-head">
           <div>
             <p className="page-eyebrow">Scheduling</p>
-            <h1>{activeVenue ? `${activeVenue.name} · 课表` : "场馆课表"}</h1>
+            <h1>课表</h1>
           </div>
           <div className="toolbar-actions">
-            {venues.length ? (
-              <label className="toolbar-field">
-                <span>场馆</span>
-                <select
-                  value={String(activeVenueId || "")}
-                  onChange={(event) => {
-                    const nextVenueId = String(event.target.value || "");
-                    if (hasRecoverableDraft && !window.confirm("当前页面有未保存操作，切换场馆会丢失。是否继续？")) {
-                      return;
-                    }
-                    setSelectedScheduleDate("all");
-                    setActiveVenueId(nextVenueId);
-                  }}
-                >
-                  {venues.map((venue) => (
-                    <option key={venue.id} value={venue.id}>
-                      {venue.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
-            <button
-              type="button"
-              className="primary-button"
-              onClick={openScheduleDialog}
-              disabled={!String(activeVenueId || "").trim()}
-            >
+            <button type="button" className="primary-button" onClick={openScheduleDialog}>
               + 添加课程
             </button>
-            <button
-              type="button"
-              className="ghost-button"
-              onClick={copyLastWeekSchedule}
-              disabled={!String(activeVenueId || "").trim()}
-            >
+            <button type="button" className="ghost-button" onClick={copyLastWeekSchedule}>
               一键复制上周排课
             </button>
           </div>
@@ -3375,7 +3240,6 @@ export default function App() {
               type="button"
               className={`tab-button ${homeTab === tab.key ? "is-active" : ""}`}
               onClick={() => setHomeTab(tab.key)}
-              disabled={!String(activeVenueId || "").trim()}
             >
               {tab.label}
             </button>
@@ -3384,23 +3248,7 @@ export default function App() {
 
         <div className="divider" />
 
-        {venuesReady && !venues.length ? (
-          <div className="page-content">
-            <EmptyBlock title="还没有场馆" copy="请先到「场馆管理」新建场馆，然后再为场馆排课。" />
-            <div className="toolbar-actions" style={{ marginTop: 16 }}>
-              <button type="button" className="primary-button" onClick={() => setActivePage("venues")}>
-                去新建场馆
-              </button>
-            </div>
-          </div>
-        ) : !String(activeVenueId || "").trim() ? (
-          <div className="page-content">
-            <EmptyBlock title="请选择场馆" copy="选择一个场馆后才能查看和编辑对应的课表。" />
-          </div>
-        ) : null}
-
-        {(!venuesReady || !venues.length || !String(activeVenueId || "").trim()) ? null : (
-          <>
+        <>
         {homeTab === "history" ? (
           <div className="table-wrap">
             <table className="data-table">
@@ -3464,8 +3312,7 @@ export default function App() {
             <CalendarBoard weekDays={calendarDays} schedules={visibleSchedules} onDelete={removeSchedule} />
           </div>
         )}
-          </>
-        )}
+        </>
       </section>
     );
   }
@@ -5437,11 +5284,15 @@ export default function App() {
               tokenType={authSession.token_type}
               accessToken={authSession.access_token}
               onNotice={pushNotice}
-              onVenuesChange={handleVenuesChange}
             />
           ) : null}
           {activePage === "appVersions" ? (
-            <AppVersionsPage onBusyTextChange={setBusyText} onNotice={pushNotice} />
+            <AppVersionsPage
+              tokenType={authSession.token_type}
+              accessToken={authSession.access_token}
+              onBusyTextChange={setBusyText}
+              onNotice={pushNotice}
+            />
           ) : null}
         </main>
       </div>
