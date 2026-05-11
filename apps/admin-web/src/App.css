@@ -1727,6 +1727,7 @@ textarea:focus {
   grid-template-columns: 180px minmax(0, 1fr);
   gap: 14px;
   align-items: center;
+  min-width: 0;
 }
 
 .action-media-preview-frame {
@@ -1764,6 +1765,7 @@ textarea:focus {
   color: var(--text-main);
   font-size: 24px;
   line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .action-media-preview-copy span {
@@ -1834,8 +1836,13 @@ textarea:focus {
 
 .screen-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(360px, 1fr));
   gap: 16px;
+  align-items: start;
+  align-content: start;
+  grid-auto-rows: min-content;
+  overflow-x: auto;
+  padding-bottom: 4px;
 }
 
 .screen-grid.is-single {
@@ -1849,6 +1856,8 @@ textarea:focus {
   background: #ffffff;
   display: grid;
   gap: 14px;
+  align-self: start;
+  min-width: 0;
 }
 
 .screen-card-head {
@@ -2182,7 +2191,6 @@ textarea:focus {
     font-size: 14px;
   }
 
-  .screen-grid,
   .script-summary-grid,
   .form-row.three,
   .form-row.four,
@@ -2264,6 +2272,11 @@ textarea:focus {
   .form-row.three,
   .form-row.four {
     grid-template-columns: 1fr;
+  }
+
+  .screen-grid {
+    grid-template-columns: repeat(3, minmax(320px, 1fr));
+    overflow-x: auto;
   }
 
   .filter-line,
