@@ -6,6 +6,7 @@ type ActiveCoachSessionState = Exclude<CoachSessionState, "IDLE">;
 
 interface WeekScheduleRecord {
   id: number;
+  venueId?: string;
   courseId: number;
   courseName: string;
   version: string;
@@ -17,6 +18,10 @@ interface CoachConsoleProps {
   authSession: {
     access_token: string;
     token_type: string;
+    username?: string;
+    accountNamespace?: string;
+    role?: string;
+    venueId?: string;
   };
   currentWeekSchedules: WeekScheduleRecord[];
   onBusyTextChange: (text: string) => void;
@@ -42,6 +47,8 @@ interface TvDailyBundle {
 
 interface TvDailySchedule {
   id: number;
+  venueId?: string;
+  accountNamespace?: string;
   courseId: number;
   courseName: string;
   version: string;
@@ -95,6 +102,7 @@ interface CoachPreviewItem {
 
 interface PlaybackSession {
   id: string;
+  accountNamespace?: string;
   state: ActiveCoachSessionState;
   version: number;
   scheduleId: string;
@@ -274,6 +282,7 @@ function normalizePlaybackSession(payload: PlaybackSessionEnvelope | null): Play
   return {
     ...session,
     state: activeSessionState(session.state) === "IDLE" ? "PREVIEW" : (activeSessionState(session.state) as ActiveCoachSessionState),
+    accountNamespace: String(session.accountNamespace || ""),
     scheduleId: String(session.scheduleId || ""),
     courseId: Number(session.courseId || 0),
     version: Math.max(1, Number(session.version || 1)),
@@ -345,6 +354,7 @@ export default function CoachConsole({
   const authHeaders = {
     Authorization: `${authSession.token_type} ${authSession.access_token}`
   };
+  const isSuperAdmin = String(authSession.role || "").toLowerCase() === "superadmin";
   const displayServerNowMs =
     serverClockBase && typeof performance !== "undefined"
       ? serverClockBase.serverNowMs + Math.max(0, performance.now() - serverClockBase.localNowMs)
@@ -386,6 +396,46 @@ export default function CoachConsole({
     onNotice(message, "error");
   }
 
+  function buildBundleUrl(dateValue: string): string {
+    const params = new URLSearchParams({
+      date: dateValue,
+      timeZone: COURSE_TIME_ZONE
+    });
+    return `/api/tv/daily-bundle?${params.toString()}`;
+  }
+
+  function findScheduleForSession(session: PlaybackSession | null): TvDailySchedule | null {
+    if (!session?.scheduleId) {
+      return null;
+    }
+    return bundle?.schedules.find((item) => String(item.id) === String(session.scheduleId)) || null;
+  }
+
+  function buildVenueQuery(schedule?: TvDailySchedule | null, session?: PlaybackSession | null): string {
+    const params = new URLSearchParams();
+    const venueId = String(schedule?.venueId || authSession.venueId || "").trim();
+    const accountNamespace =
+      String(schedule?.accountNamespace || session?.accountNamespace || (!isSuperAdmin ? authSession.accountNamespace : "") || "").trim();
+    if (venueId) {
+      params.set("venueId", venueId);
+    } else if (accountNamespace) {
+      params.set("accountNamespace", accountNamespace);
+    }
+    const text = params.toString();
+    return text ? `?${text}` : "";
+  }
+
+  function withVenueBody(body: Record<string, unknown>, schedule?: TvDailySchedule | null, session?: PlaybackSession | null) {
+    const venueId = String(schedule?.venueId || authSession.venueId || "").trim();
+    const accountNamespace =
+      String(schedule?.accountNamespace || session?.accountNamespace || (!isSuperAdmin ? authSession.accountNamespace : "") || "").trim();
+    return {
+      ...body,
+      ...(venueId ? { venueId } : {}),
+      ...(accountNamespace ? { accountNamespace } : {})
+    };
+  }
+
   useEffect(() => {
     if (!weekDays.some((day) => day.key === selectedDate)) {
       setSelectedDate(todayValue());
@@ -399,9 +449,7 @@ export default function CoachConsole({
       onBusyTextChange("正在加载教练端课表...");
 
       try {
-        const payload = await requestJson<TvDailyBundle>(
-          `/api/tv/daily-bundle?date=${encodeURIComponent(selectedDate)}&timeZone=${encodeURIComponent(COURSE_TIME_ZONE)}`
-        );
+        const payload = await requestJson<TvDailyBundle>(buildBundleUrl(selectedDate));
         if (cancelled) {
           return;
         }
@@ -510,7 +558,8 @@ export default function CoachConsole({
 
   async function fetchCurrentPlaybackSession(showError = false): Promise<PlaybackSession | null> {
     try {
-      const payload = await requestJson<PlaybackSessionEnvelope>("/api/tv/playback-sessions/current", {
+      const query = buildVenueQuery(selectedSchedule || findScheduleForSession(playbackSession), playbackSession);
+      const payload = await requestJson<PlaybackSessionEnvelope>(`/api/tv/playback-sessions/current${query}`, {
         headers: authHeaders
       });
       const session = normalizePlaybackSession(payload);
@@ -566,9 +615,7 @@ export default function CoachConsole({
   async function refreshBundle(manualNotice = true) {
     onBusyTextChange("正在刷新教练端课表...");
     try {
-      const payload = await requestJson<TvDailyBundle>(
-        `/api/tv/daily-bundle?date=${encodeURIComponent(selectedDate)}&timeZone=${encodeURIComponent(COURSE_TIME_ZONE)}`
-      );
+      const payload = await requestJson<TvDailyBundle>(buildBundleUrl(selectedDate));
       setBundle(payload);
       if (manualNotice) {
         onNotice("教练端课表已刷新。");
@@ -606,6 +653,8 @@ export default function CoachConsole({
         body: JSON.stringify({
           commandId,
           scheduleId: String(schedule.id),
+          venueId: String(schedule.venueId || ""),
+          accountNamespace: String(schedule.accountNamespace || ""),
           courseId: schedule.courseId,
           scheduledStartAtMs: scheduleStartAtMs(schedule),
           bundleChecksum: String(schedule.contentChecksum || "")
@@ -629,7 +678,7 @@ export default function CoachConsole({
         if (current?.id) {
           const terminated = await requestPlaybackSession(
             `/api/tv/playback-sessions/${encodeURIComponent(current.id)}/terminate`,
-            { commandId: createCommandId() },
+            withVenueBody({ commandId: createCommandId() }, findScheduleForSession(current), current),
             "正在终止当前课程...",
             "终止当前课程失败。"
           );
@@ -660,7 +709,7 @@ export default function CoachConsole({
       }
       const terminated = await requestPlaybackSession(
         `/api/tv/playback-sessions/${encodeURIComponent(playbackSession.id)}/terminate`,
-        { commandId: createCommandId() },
+        withVenueBody({ commandId: createCommandId() }, selectedSchedule, playbackSession),
         "正在终止当前课程...",
         "终止当前课程失败。"
       );
@@ -682,10 +731,10 @@ export default function CoachConsole({
 
     const nextSession = await requestPlaybackSession(
       `/api/tv/playback-sessions/${encodeURIComponent(sessionId)}/start`,
-      {
+      withVenueBody({
         commandId: createCommandId(),
         startDelayMs: 5000
-      },
+      }, schedule, session),
       "正在发送开始课程指令...",
       "开始课程失败。"
     );
@@ -714,9 +763,9 @@ export default function CoachConsole({
 
     const session = await requestPlaybackSession(
       `/api/tv/playback-sessions/${encodeURIComponent(playbackSession.id)}/pause`,
-      {
+      withVenueBody({
         commandId: createCommandId()
-      },
+      }, selectedSchedule, playbackSession),
       "正在暂停课程...",
       "暂停课程失败。"
     );
@@ -735,9 +784,9 @@ export default function CoachConsole({
 
     const session = await requestPlaybackSession(
       `/api/tv/playback-sessions/${encodeURIComponent(playbackSession.id)}/resume`,
-      {
+      withVenueBody({
         commandId: createCommandId()
-      },
+      }, selectedSchedule, playbackSession),
       "正在继续课程...",
       "继续课程失败。"
     );
@@ -759,9 +808,9 @@ export default function CoachConsole({
 
     const session = await requestPlaybackSession(
       `/api/tv/playback-sessions/${encodeURIComponent(playbackSession.id)}/terminate`,
-      {
+      withVenueBody({
         commandId: createCommandId()
-      },
+      }, selectedSchedule, playbackSession),
       nextSchedule ? "正在终止当前课程并切换预览..." : "正在终止课程...",
       "终止课程失败。"
     );

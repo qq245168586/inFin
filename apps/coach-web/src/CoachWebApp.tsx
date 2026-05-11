@@ -6,6 +6,7 @@ type NoticeTone = "success" | "error";
 
 interface WeekScheduleRecord {
   id: number;
+  venueId?: string;
   courseId: number;
   courseName: string;
   version: string;
@@ -44,6 +45,8 @@ interface UserProfile {
   avatar: string;
   gender: string;
   accountNamespace: string;
+  role?: string;
+  venueId?: string;
 }
 
 interface AuthSession extends AuthTokenPayload, UserProfile {}
@@ -139,10 +142,10 @@ export default function CoachWebApp() {
     setActivePage("console");
     setBusyText("");
     setPasswordVisible(false);
-    setLoginForm((current) => ({
-      username: current.username,
+    setLoginForm({
+      username: "",
       password: ""
-    }));
+    });
     pushNotice(message, "error");
   }, [pushNotice]);
 
@@ -186,10 +189,6 @@ export default function CoachWebApp() {
         };
 
         setAuthSession(nextAuth);
-        setLoginForm((current) => ({
-          ...current,
-          username: nextAuth.username || current.username
-        }));
       } catch (error) {
         if (!cancelled) {
           removeStorageItem(AUTH_STORAGE_KEY);
@@ -272,11 +271,10 @@ export default function CoachWebApp() {
       };
 
       setAuthSession(nextAuth);
-      setLoginForm((current) => ({
-        ...current,
-        username: nextAuth.username,
+      setLoginForm({
+        username: "",
         password: ""
-      }));
+      });
       pushNotice("登录成功。");
     } catch (error) {
       pushNotice(getErrorMessage(error), "error");
@@ -399,39 +397,45 @@ export default function CoachWebApp() {
           </div>
         </header>
 
-        <div className="coach-page-tabs">
+        <main className="coach-page-body">
+          {activePage === "console" ? (
+            <CoachConsole
+              authSession={authSession}
+              currentWeekSchedules={currentWeekSchedules}
+              onBusyTextChange={setBusyText}
+              onNotice={pushNotice}
+              onAuthExpired={handleSessionExpired}
+            />
+          ) : (
+            <CoachScreensPage
+              authSession={authSession}
+              onBusyTextChange={setBusyText}
+              onNotice={pushNotice}
+              onAuthExpired={handleSessionExpired}
+            />
+          )}
+        </main>
+
+        <nav className="coach-bottom-tabbar" aria-label="Coach 页面切换">
           <button
             type="button"
-            className={`coach-page-tab ${activePage === "console" ? "is-active" : ""}`}
+            className={`coach-bottom-tab ${activePage === "console" ? "is-active" : ""}`}
             onClick={() => setActivePage("console")}
+            aria-current={activePage === "console" ? "page" : undefined}
           >
+            <span className="coach-bottom-tab-icon is-console" aria-hidden="true" />
             课程控制
           </button>
           <button
             type="button"
-            className={`coach-page-tab ${activePage === "screens" ? "is-active" : ""}`}
+            className={`coach-bottom-tab ${activePage === "screens" ? "is-active" : ""}`}
             onClick={() => setActivePage("screens")}
+            aria-current={activePage === "screens" ? "page" : undefined}
           >
+            <span className="coach-bottom-tab-icon is-screens" aria-hidden="true" />
             屏幕管理
           </button>
-        </div>
-
-        {activePage === "console" ? (
-          <CoachConsole
-            authSession={authSession}
-            currentWeekSchedules={currentWeekSchedules}
-            onBusyTextChange={setBusyText}
-            onNotice={pushNotice}
-            onAuthExpired={handleSessionExpired}
-          />
-        ) : (
-          <CoachScreensPage
-            authSession={authSession}
-            onBusyTextChange={setBusyText}
-            onNotice={pushNotice}
-            onAuthExpired={handleSessionExpired}
-          />
-        )}
+        </nav>
       </div>
 
       {notice ? <div className={`coach-notice ${notice.tone === "error" ? "is-error" : ""}`}>{notice.message}</div> : null}

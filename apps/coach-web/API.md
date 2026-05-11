@@ -31,8 +31,8 @@
 
 ```json
 {
-  "username": "13689547720",
-  "password": "REDACTED_CONFIGURE_LOCALLY",
+  "username": "<account>",
+  "password": "<password>",
   "client": "coach-web"
 }
 ```
@@ -209,4 +209,3 @@ Header:
   - `tv_unbound`（TV 主动解绑/退回二维码页面上报）
 
 Server 当前主要依赖 **HTTP 心跳** 维护在线状态；该 topic 用于扫码绑定“可见性”与解绑同步（具体实现以 `apps/server/src/data/store.js` 为准）。
-

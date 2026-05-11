@@ -20,7 +20,7 @@
 
 ### 1. 登录
 
-- 默认预填账号密码（当前内置两个测试账号：`13689547720/REDACTED_CONFIGURE_LOCALLY`、`zhiyou/REDACTED_CONFIGURE_LOCALLY`）。
+- 登录页不预填账号密码，不内置测试账号。
 - 登录后保存会话（`access_token` + `refresh_token`）到 `localStorage`，并支持刷新 token 自动恢复登录。
 
 ### 2. 课程控制（当日课表）
@@ -66,4 +66,3 @@
 - TV 不可触控：课程流程以 MQTT 指令为主（Preview/Start/Pause/Resume/Terminate）。
 - 时间同步：`playbackStartAtMs` 作为全屏统一基准；TV 按“当前时间 - playbackStartAtMs”计算播放进度。
 - 网络抖动：TV 需具备 MQTT 自动重连与 HTTP 重试；Coach Web 对失败给出明确提示。
-
