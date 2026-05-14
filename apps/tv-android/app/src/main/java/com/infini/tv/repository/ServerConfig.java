@@ -8,7 +8,7 @@ public final class ServerConfig {
   public static final String COURSE_TIME_ZONE = "Asia/Shanghai";
   public static final String MQTT_HOST = "8.130.65.113";
   public static final int MQTT_PORT = 1883;
-  public static final String MQTT_USERNAME = "tv1";
+  public static final String MQTT_USERNAME = "";
   public static final String MQTT_PASSWORD = "REDACTED_CONFIGURE_LOCALLY";
   public static final String MQTT_TOPIC_CONTROL = "infini/tv/control";
   public static final String MQTT_TOPIC_SESSION = "infini/tv/session";
