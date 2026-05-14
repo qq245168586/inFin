@@ -25,7 +25,9 @@ export default function VenueScreensCard({
   screens,
   installingDeviceId,
   canInstall,
-  onInstall
+  canInstallAll,
+  onInstall,
+  onInstallAll
 }: {
   tvPackages: AppPackageOption[];
   selectedTvPackageId: string;
@@ -35,7 +37,9 @@ export default function VenueScreensCard({
   screens: TvScreenSnapshot[];
   installingDeviceId: string;
   canInstall: (screen: TvScreenSnapshot) => boolean;
+  canInstallAll: boolean;
   onInstall: (screen: TvScreenSnapshot) => void;
+  onInstallAll: () => void;
 }) {
   return (
     <div className="venue-card">
@@ -55,6 +59,14 @@ export default function VenueScreensCard({
           </label>
           <button type="button" className="ghost-button" onClick={onRefreshPackages}>
             刷新版本
+          </button>
+          <button
+            type="button"
+            className="venue-screen-command"
+            disabled={!canInstallAll}
+            onClick={onInstallAll}
+          >
+            {installingDeviceId === "__all__" ? "批量下发中" : "一键更新全部"}
           </button>
           <span className="venue-muted">{generatedAtLabel}</span>
         </div>

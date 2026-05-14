@@ -89,7 +89,9 @@ export default function VenueManagementPage({
                 screens={vm.venueScreens?.screens || []}
                 installingDeviceId={vm.installingDeviceId}
                 canInstall={vm.canInstall}
+                canInstallAll={vm.canInstallAll}
                 onInstall={(screen) => void vm.handleInstallTvPackage(screen as TvScreenSnapshot)}
+                onInstallAll={() => void vm.handleInstallAllTvPackages()}
               />
             </div>
           )}
