@@ -1,0 +1,240 @@
+  const text = trimText(value).toLowerCase();
+  return text || fallback;
+}
+
+function normalizeScreenAccountNamespace(value) {
+  return trimText(value).toLowerCase();
+}
+
+function normalizeVenueAccountNamespace(value) {
+  return trimText(value).toLowerCase();
+}
+
+function normalizeVenueId(value) {
+  return trimText(value);
+}
+
+function normalizeScheduleEntry(entry) {
+  const raw = entry && typeof entry === "object" ? entry : {};
+  return {
+    id: Number(raw.id) || 0,
+    courseId: Number(raw.courseId) || 0,
+    courseName: trimText(raw.courseName),
+    version: trimText(raw.version),
+    beginTime: trimText(raw.beginTime),
+    duration: Number(raw.duration) || 0
+  };
+}
+
+function normalizeClientName(value, fallback = "editor-web") {
+  const text = trimText(value).toLowerCase();
+  if (text === "coach-web") {
+    return "coach-web";
+  }
+  return fallback === "coach-web" ? "coach-web" : "editor-web";
+}
+
+function normalizeAllowedClients(value, fallback = ["coach-web", "editor-web"]) {
+  const candidates = Array.isArray(value) ? value : fallback;
+  const normalized = [...new Set(candidates.map((item) => normalizeClientName(item)).filter(Boolean))];
+  return normalized.length ? normalized : [...fallback];
+}
+
+function userAllowsClient(user, clientName = "editor-web") {
+  const allowedClients = normalizeAllowedClients(user?.allowedClients);
+  return allowedClients.includes(normalizeClientName(clientName));
+}
+
+function environmentLabelForNamespace(accountNamespace = DEFAULT_ACCOUNT_NAMESPACE) {
+  const normalized = normalizeAccountNamespace(accountNamespace);
+  const matched = CONSOLE_ACCOUNT_PRESETS.find((item) => item.accountNamespace === normalized);
+  return trimText(matched?.environmentLabel) || normalized || DEFAULT_ACCOUNT_NAMESPACE;
+}
+
+function normalizeAppPlatform(value, fallback = "tv") {
+  const text = trimText(value).toLowerCase();
+  if (text === "coach") {
+    return "coach";
+  }
+  if (text === "tv") {
+    return "tv";
+  }
+  return fallback === "coach" ? "coach" : "tv";
+}
+
+function inferAppPlatformFromFilename(filename = "") {
+  const lower = String(filename || "").toLowerCase();
+  if (lower.includes("coach")) {
+    return "coach";
+  }
+  return "tv";
+}
+
+function inferAppVersionFromFilename(filename = "") {
+  const baseName = path.basename(String(filename || ""), path.extname(String(filename || "")));
+  const matched = baseName.match(/(?:^|[^0-9])v?(\d+(?:\.\d+){1,4}(?:[-_][a-z0-9.]+)?)/i);
+  if (matched?.[1]) {
+    return matched[1].replace(/_/g, "-");
+  }
+  return baseName || "未命名版本";
+}
+
+function buildAppPackageDownloadPath(filename = "") {
+  return `/api/app-packages/files/${encodeURIComponent(filename)}`;
+}
+
+function calculateFileChecksum(targetFile) {
+  const hash = createHash("sha256");
+  hash.update(fs.readFileSync(targetFile));
+  return hash.digest("hex");
+}
+
+function md5Text(value) {
+  return createHash("md5").update(String(value)).digest("hex");
+}
+
+function isMd5Digest(value) {
+  return /^[a-f0-9]{32}$/i.test(trimText(value));
+}
+
+function normalizePassword(value) {
+  const text = trimText(value);
+  return isMd5Digest(text) ? text.toLowerCase() : md5Text(text);
+}
+
+function randomToken() {
+  return randomBytes(24).toString("base64url");
+}
+
+function secondsFromNow(seconds) {
+  return new Date(Date.now() + seconds * 1000).toISOString();
+}
+
+function isFutureTime(value) {
+  return new Date(value || 0).getTime() > Date.now();
+}
+
+function startOfWeek(date) {
+  const current = new Date(date);
+  current.setHours(0, 0, 0, 0);
+  const day = current.getDay();
+  const delta = day === 0 ? -6 : 1 - day;
+  current.setDate(current.getDate() + delta);
+  return current;
+}
+
+function endOfWeek(date) {
+  const end = startOfWeek(date);
+  end.setDate(end.getDate() + 7);
+  return end;
+}
+
+function withTime(base, dayOffset, hour, minute) {
+  const next = new Date(base);
+  next.setDate(next.getDate() + dayOffset);
+  next.setHours(hour, minute, 0, 0);
+  return `${next.getFullYear()}-${padNumber(next.getMonth() + 1)}-${padNumber(next.getDate())}T${padNumber(
+    next.getHours()
+  )}:${padNumber(next.getMinutes())}:00+08:00`;
+}
+
+function createDefaultState() {
+  const actionTypes = [
+    { id: 1, name: "12ROUNDS" },
+    { id: 2, name: "1HYROX" },
+    { id: 3, name: "1HYROX WR" },
+    { id: 4, name: "拳击" },
+    { id: 5, name: "耐力" }
+  ];
+
+  const lessonTypes = [
+    { id: 1, name: "12ROUNDS" },
+    { id: 2, name: "HYROX" },
+    { id: 3, name: "拳击" },
+    { id: 4, name: "力量" }
+  ];
+
+  const createdAt = nowIso();
+  const actions = [
+    {
+      id: 1,
+      name: "Extreme Mountain Climber",
+      typeIds: [2, 5],
+      media: null,
+      createTime: createdAt,
+      updateTime: createdAt
+    },
+    {
+      id: 2,
+      name: "Push Up",
+      typeIds: [2, 5],
+      media: null,
+      createTime: createdAt,
+      updateTime: createdAt
+    },
+    {
+      id: 3,
+      name: "Ski Erg Sprint",
+      typeIds: [2],
+      media: null,
+      createTime: createdAt,
+      updateTime: createdAt
+    },
+    {
+      id: 4,
+      name: "Punch Combo",
+      typeIds: [4],
+      media: null,
+      createTime: createdAt,
+      updateTime: createdAt
+    },
+    {
+      id: 5,
+      name: "Burpee Broad Jump",
+      typeIds: [2, 5],
+      media: null,
+      createTime: createdAt,
+      updateTime: createdAt
+    }
+  ];
+
+  const courses = [];
+  const templates = [];
+  const schedules = [];
+
+  return {
+    media: [],
+    appPackages: [],
+    actionTypes,
+    lessonTypes,
+    actions,
+    courses,
+    templates,
+    schedules,
+    tvScreens: [],
+    playbackSessions: [],
+    venues: [],
+    users: [],
+    authSessions: []
+  };
+}
+
+function ensureConsoleAccountSeeds() {
+  let changed = false;
+
+  state.users = (state.users || []).map((user) => {
+    const normalizedAccountNamespace = normalizeAccountNamespace(user.accountNamespace || user.username);
+    const rawEnvLabel = trimText(user.environmentLabel);
+    const environmentLabel = isLegacyEnvironmentLabel(rawEnvLabel)
+      ? environmentLabelForNamespace(normalizedAccountNamespace)
+      : rawEnvLabel || environmentLabelForNamespace(normalizedAccountNamespace);
+    if (
+      normalizedAccountNamespace === trimText(user.accountNamespace)
+      && environmentLabel === trimText(user.environmentLabel)
+    ) {
+      return user;
+    }
+    changed = true;
+    return {
+      ...user,
+      accountNamespace: normalizedAccountNamespace,

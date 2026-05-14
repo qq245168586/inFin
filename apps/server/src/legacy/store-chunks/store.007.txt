@@ -1,0 +1,240 @@
+  return {
+    ...summary,
+    warmupActionCount: script.sections?.warmup?.items?.length || 0,
+    cooldownActionCount: script.sections?.cooldown?.items?.length || 0,
+    trainingCardCount: videoCards
+  };
+}
+
+function hasWaterfallPlaybackItems(section) {
+  return Array.isArray(section?.items) && section.items.length > 0;
+}
+
+function hasTrainingPlaybackPods(script) {
+  return Array.isArray(script?.training?.pods) && script.training.pods.length > 0;
+}
+
+function estimateCoursePlaybackDurationMs(script) {
+  if (!script || typeof script !== "object") {
+    return 0;
+  }
+
+  const summary = summarizeCourseScript(script);
+  const readySeconds =
+    (hasWaterfallPlaybackItems(script.sections?.warmup) ? PLAYBACK_WARMUP_READY_SECONDS : 0)
+    + (hasTrainingPlaybackPods(script) ? PLAYBACK_TRAINING_READY_SECONDS : 0)
+    + (hasWaterfallPlaybackItems(script.sections?.cooldown) ? PLAYBACK_COOLDOWN_READY_SECONDS : 0);
+  const totalSeconds = safeNumber(summary.totalSeconds) + readySeconds;
+  return totalSeconds > 0 ? totalSeconds * 1000 : 0;
+}
+
+function normalizeCoursePayload(payload = {}, existing = null) {
+  const timestamp = nowIso();
+  const script = coerceCourseScript({
+    ...(existing || {}),
+    ...payload
+  });
+  const issues = validateCourseScript(script);
+
+  if (issues.length) {
+    throw new Error(issues.join("\n"));
+  }
+
+  return {
+    id: existing?.id ?? nextId(state.courses),
+    name: trimText(payload.name) || script.metadata.name,
+    creator: trimText(payload.creator) || script.metadata.creator,
+    version: trimText(payload.version) || script.metadata.version,
+    typeIds: numberList(payload.typeIds ?? existing?.typeIds),
+    logoMedia: payload.logoMedia ?? existing?.logoMedia ?? null,
+    script,
+    summary: courseSummaryFromScript(script),
+    updateTime: timestamp
+  };
+}
+
+function serializeCourse(course) {
+  const script = coerceCourseScript(course);
+  return {
+    ...course,
+    name: trimText(course.name) || script.metadata.name,
+    creator: trimText(course.creator) || script.metadata.creator,
+    version: trimText(course.version) || script.metadata.version,
+    typeIds: numberList(course.typeIds),
+    logoMedia: course.logoMedia ?? null,
+    script,
+    summary: course.summary || courseSummaryFromScript(script)
+  };
+}
+
+function attachCourseBasics(schedule) {
+  const course = state.courses.find((item) => item.id === schedule.courseId);
+  const serialized = course ? serializeCourse(course) : null;
+  const { venueId: _venueId, ...rest } = schedule || {};
+  return {
+    ...rest,
+    courseName: rest.courseName || serialized?.name || "",
+    version: rest.version || serialized?.version || ""
+  };
+}
+
+function hashValue(value) {
+  return createHash("sha1").update(JSON.stringify(value)).digest("hex");
+}
+
+function normalizeCalendarDate(dateText, timeZone = "Asia/Shanghai") {
+  if (typeof dateText === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateText.trim())) {
+    return dateText.trim();
+  }
+
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date());
+}
+
+function formatCalendarDate(dateValue, timeZone = "Asia/Shanghai") {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date(dateValue));
+}
+
+function listSchedulesByDate(dateText, timeZone = "Asia/Shanghai") {
+  const targetDate = normalizeCalendarDate(dateText, timeZone);
+
+  return state.schedules
+    .map(attachCourseBasics)
+    .filter((item) => formatCalendarDate(item.beginTime, timeZone) === targetDate)
+    .sort((left, right) => new Date(left.beginTime).getTime() - new Date(right.beginTime).getTime());
+}
+
+function buildActionMediaMap() {
+  return new Map(state.actions.map((action) => [String(action.id), action?.media || null]));
+}
+
+function resolveMediaUrl(actionId, fallbackUrl = "") {
+  const fallback = trimText(fallbackUrl);
+  if (fallback) {
+    return fallback;
+  }
+
+  return trimText(buildActionMediaMap().get(String(actionId))?.url);
+}
+
+function resolveScriptMediaUrls(script) {
+  const actionMediaMap = buildActionMediaMap();
+  const next = cloneCourseScript(script);
+  const resolveUrl = (actionId, fallbackUrl = "") => trimText(actionMediaMap.get(String(actionId))?.url) || trimText(fallbackUrl);
+
+  if (Array.isArray(next?.sections?.warmup?.items)) {
+    next.sections.warmup.items = next.sections.warmup.items.map((item) => ({
+      ...item,
+      mediaUrl: resolveUrl(item?.actionId, item?.mediaUrl)
+    }));
+  }
+
+  if (Array.isArray(next?.sections?.cooldown?.items)) {
+    next.sections.cooldown.items = next.sections.cooldown.items.map((item) => ({
+      ...item,
+      mediaUrl: resolveUrl(item?.actionId, item?.mediaUrl)
+    }));
+  }
+
+  if (Array.isArray(next?.training?.videoGroups)) {
+    next.training.videoGroups = next.training.videoGroups.map((group) => ({
+      ...group,
+      screens: Array.isArray(group?.screens)
+        ? group.screens.map((screen) => ({
+            ...screen,
+            videoCards: Array.isArray(screen?.videoCards)
+              ? screen.videoCards.map((card) => ({
+                  ...card,
+                  mediaUrl: resolveUrl(card?.actionId, card?.mediaUrl)
+                }))
+              : []
+          }))
+        : []
+    }));
+  }
+
+  return next;
+}
+
+function collectScriptResources(script) {
+  const resources = [];
+  const seen = new Set();
+  const actionMediaMap = buildActionMediaMap();
+  const mediaByUrl = new Map(
+    state.media
+      .filter((item) => trimText(item?.url))
+      .map((item) => [trimText(item.url), item])
+  );
+
+  const pushResource = (url, actionId = "", actionName = "") => {
+    const trimmedUrl = trimText(url);
+    if (!trimmedUrl || seen.has(trimmedUrl)) {
+      return;
+    }
+    seen.add(trimmedUrl);
+
+    const safeUrl = trimmedUrl.split("?")[0];
+    const filename = path.basename(safeUrl) || "video.mp4";
+    const extension = path.extname(filename) || ".mp4";
+    const actionMedia = actionMediaMap.get(String(actionId || "")) || null;
+    const mediaRecord = actionMedia?.url === trimmedUrl ? actionMedia : mediaByUrl.get(trimmedUrl) || null;
+    const checksum = trimText(mediaRecord?.checksum);
+    const key = checksum || hashValue({ url: trimmedUrl, actionId: String(actionId || "") });
+
+    resources.push({
+      key,
+      url: trimmedUrl,
+      filename,
+      extension,
+      actionId: String(actionId || ""),
+      actionName: trimText(actionName),
+      kind: "video",
+      checksum,
+      sizeBytes: safeNumber(mediaRecord?.sizeBytes)
+    });
+  };
+
+  for (const item of script?.sections?.warmup?.items || []) {
+    pushResource(item?.mediaUrl, item?.actionId, item?.actionName);
+  }
+
+  for (const item of script?.sections?.cooldown?.items || []) {
+    pushResource(item?.mediaUrl, item?.actionId, item?.actionName);
+  }
+
+  for (const group of script?.training?.videoGroups || []) {
+    for (const screen of group?.screens || []) {
+      for (const card of screen?.videoCards || []) {
+        pushResource(card?.mediaUrl, card?.actionId, card?.actionName);
+      }
+    }
+  }
+
+  return resources;
+}
+
+function buildTvScheduleEntry(schedule) {
+  const course = getCourseById(schedule.courseId);
+  if (!course) {
+    return null;
+  }
+
+  const resolvedScript = resolveScriptMediaUrls(course.script);
+  const entry = {
+    id: schedule.id,
+    courseId: schedule.courseId,
+    courseName: schedule.courseName,
+    version: schedule.version,
+    beginTime: schedule.beginTime,
+    duration: schedule.duration,
+    course: {
+      ...course,

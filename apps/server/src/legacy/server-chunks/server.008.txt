@@ -1,0 +1,209 @@
+      if (!existing) {
+        sendJson(response, 404, { message: "动作不存在。" });
+        return;
+      }
+
+      const payload = await readJsonBody(request);
+      const next = saveAction({ ...payload, id: existing.id });
+      sendJson(response, 200, { data: next });
+      return;
+    }
+
+    if (request.method === "DELETE" && url.pathname.startsWith("/api/actions/")) {
+      const actionId = url.pathname.replace("/api/actions/", "");
+      const result = deleteAction(actionId);
+
+      if (!result.ok) {
+        sendJson(response, 409, result);
+        return;
+      }
+
+      sendJson(response, 200, result);
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/courses/options") {
+      sendJson(response, 200, { data: listCourseOptions() });
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/courses") {
+      sendJson(response, 200, { data: listCourses() });
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/courses") {
+      const payload = await readJsonBody(request);
+
+      if (!payload?.name?.trim?.()) {
+        badRequest(response, "课程名称不能为空。");
+        return;
+      }
+
+      try {
+        sendJson(response, 201, { data: saveCourse(payload) });
+      } catch (error) {
+        badRequest(response, error instanceof Error ? error.message : "课程保存失败。");
+      }
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname.startsWith("/api/courses/")) {
+      const courseId = url.pathname.replace("/api/courses/", "");
+      const course = getCourseById(courseId);
+
+      if (!course) {
+        sendJson(response, 404, { message: "课程不存在。" });
+        return;
+      }
+
+      sendJson(response, 200, { data: course });
+      return;
+    }
+
+    if (request.method === "PUT" && url.pathname.startsWith("/api/courses/")) {
+      const courseId = url.pathname.replace("/api/courses/", "");
+      const existing = getCourseById(courseId);
+
+      if (!existing) {
+        sendJson(response, 404, { message: "课程不存在。" });
+        return;
+      }
+
+      const payload = await readJsonBody(request);
+
+      try {
+        const next = saveCourse({ ...payload, id: existing.id });
+        sendJson(response, 200, { data: next });
+      } catch (error) {
+        badRequest(response, error instanceof Error ? error.message : "课程保存失败。");
+      }
+      return;
+    }
+
+    if (request.method === "DELETE" && url.pathname.startsWith("/api/courses/")) {
+      const courseId = url.pathname.replace("/api/courses/", "");
+      const result = deleteCourse(courseId);
+
+      if (!result.ok) {
+        sendJson(response, 409, result);
+        return;
+      }
+
+      sendJson(response, 200, result);
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/templates") {
+      sendJson(response, 200, { data: listTemplates() });
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/templates") {
+      const payload = await readJsonBody(request);
+
+      try {
+        sendJson(response, 201, { data: saveTemplate(payload) });
+      } catch (error) {
+        badRequest(response, error instanceof Error ? error.message : "模板保存失败。");
+      }
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname.startsWith("/api/templates/")) {
+      const templateId = url.pathname.replace("/api/templates/", "");
+      const template = getTemplateById(templateId);
+
+      if (!template) {
+        sendJson(response, 404, { message: "模板不存在。" });
+        return;
+      }
+
+      sendJson(response, 200, { data: template });
+      return;
+    }
+
+    if (request.method === "PUT" && url.pathname.startsWith("/api/templates/")) {
+      const templateId = url.pathname.replace("/api/templates/", "");
+      const existing = getTemplateById(templateId);
+
+      if (!existing) {
+        sendJson(response, 404, { message: "模板不存在。" });
+        return;
+      }
+
+      const payload = await readJsonBody(request);
+
+      try {
+        sendJson(response, 200, { data: saveTemplate({ ...payload, id: existing.id }) });
+      } catch (error) {
+        badRequest(response, error instanceof Error ? error.message : "模板保存失败。");
+      }
+      return;
+    }
+
+    if (request.method === "DELETE" && url.pathname.startsWith("/api/templates/")) {
+      const templateId = url.pathname.replace("/api/templates/", "");
+      sendJson(response, 200, deleteTemplate(templateId));
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/schedules") {
+      const scope = url.searchParams.get("scope") || "CURRENTWEEK";
+      // Scheduling is global (not per-venue). Ignore venueId filter if provided by legacy clients.
+      sendJson(response, 200, { data: listSchedulesByScope(scope) });
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/schedules") {
+      const payload = await readJsonBody(request);
+
+      if (!payload?.courseId || !payload?.beginTime || !payload?.duration) {
+        badRequest(response, "排课参数不完整。");
+        return;
+      }
+
+      let schedule = null;
+      try {
+        schedule = saveSchedule(payload);
+      } catch (error) {
+        badRequest(response, error instanceof Error ? error.message : "排课保存失败。");
+        return;
+      }
+
+      if (!schedule) {
+        sendJson(response, 404, { message: "课程不存在。" });
+        return;
+      }
+
+      sendJson(response, 201, { data: schedule });
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/schedules/copy-last-week") {
+      // Scheduling is global (not per-venue). Ignore venueId filter if provided by legacy clients.
+      sendJson(response, 200, { data: copyLastWeekSchedules() });
+      return;
+    }
+
+    if (request.method === "DELETE" && url.pathname.startsWith("/api/schedules/")) {
+      const scheduleId = url.pathname.replace("/api/schedules/", "");
+      sendJson(response, 200, deleteSchedule(scheduleId));
+      return;
+    }
+
+    sendJson(response, 404, { message: "Route not found." });
+  } catch (error) {
+    sendJson(response, 500, {
+      message: "Unexpected server error.",
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
+startOpsMqttSubscriber();
+startPlaybackSessionSweeper();
+
+server.listen(port, host, () => {
+  console.log(`Infini server listening on http://${host}:${port}`);
+});

@@ -1,0 +1,240 @@
+        (Number(payload?.screenNumber) > 0 && item.screenNumber === Number(payload.screenNumber))
+    ) || null
+  );
+}
+
+function resolveTvControlNamespace(targetScreen, accountNamespace) {
+  if (!targetScreen?.deviceId) {
+    return resolveAccountNamespace(accountNamespace);
+  }
+  if (String(targetScreen.accountNamespace || "").trim()) {
+    return resolveAccountNamespace(accountNamespace);
+  }
+  return "__unbound__";
+}
+
+const server = http.createServer(async (request, response) => {
+  const url = new URL(request.url, `http://${request.headers.host || `${host}:${port}`}`);
+
+  if (request.method === "OPTIONS") {
+    sendNoContent(response);
+    return;
+  }
+
+  try {
+    if (request.method === "GET" && url.pathname === "/api/health") {
+      sendJson(response, 200, {
+        ok: true,
+        service: "infini-platform-server",
+        dbSafety: getDatabaseStatus(),
+        mediaStorage: getMediaStorageMode(),
+        tvControl: getTvControlConfig(),
+        now: new Date().toISOString()
+      });
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/ops/mqtt/events") {
+      const user = requireSuperAdmin(request, response);
+      if (!user) return;
+      const items = readOpsEvents({
+        namespace: url.searchParams.get("namespace") || "",
+        deviceId: url.searchParams.get("deviceId") || "",
+        topic: url.searchParams.get("topic") || "",
+        type: url.searchParams.get("type") || "",
+        date: url.searchParams.get("date") || "",
+        limit: url.searchParams.get("limit") || "200"
+      });
+      sendJson(response, 200, { data: { items } });
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/ops/mqtt/stream") {
+      const user = requireSuperAdminFromHeaderOrQuery(request, response, url);
+      if (!user) return;
+
+      const filter = {
+        namespace: String(url.searchParams.get("namespace") || "").trim().toLowerCase(),
+        deviceId: String(url.searchParams.get("deviceId") || "").trim().toUpperCase(),
+        topic: String(url.searchParams.get("topic") || "").trim(),
+        type: String(url.searchParams.get("type") || "").trim()
+      };
+
+      response.writeHead(200, {
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        Connection: "keep-alive",
+        "X-Accel-Buffering": "no",
+        "Access-Control-Allow-Origin": "*"
+      });
+
+      response.write(`event: ready\ndata: ${JSON.stringify({ ok: true, now: Date.now() })}\n\n`);
+
+      const unsubscribe = subscribeOpsEvents((event) => {
+        try {
+          if (filter.namespace && String(event.namespace || "").toLowerCase() !== filter.namespace) return;
+          if (filter.deviceId && String(event.deviceId || "").toUpperCase() !== filter.deviceId) return;
+          if (filter.topic && !String(event.topic || "").includes(filter.topic)) return;
+          if (filter.type && !String(event.type || "").includes(filter.type)) return;
+          response.write(`data: ${JSON.stringify(event)}\n\n`);
+        } catch {
+          // ignore write errors
+        }
+      });
+
+      request.on("close", () => {
+        try {
+          unsubscribe();
+        } catch {
+          // ignore
+        }
+      });
+      return;
+    }
+
+    if (request.method === "GET" && (url.pathname === "/api/meta" || url.pathname === "/api/editor/bootstrap")) {
+      // Scheduling is global (not per-venue). Keep query params for backward compatibility, but ignore them.
+      sendJson(response, 200, getMetaPayload());
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/admin/venues") {
+      const user = requireSuperAdmin(request, response);
+      if (!user) return;
+      sendJson(response, 200, { data: listVenues() });
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/admin/venues") {
+      const user = requireSuperAdmin(request, response);
+      if (!user) return;
+      const payload = await readJsonBody(request);
+      const issue = validateVenuePayload(payload);
+      if (issue) {
+        badRequest(response, issue);
+        return;
+      }
+      try {
+        sendJson(response, 201, { data: createVenue(payload) });
+      } catch (error) {
+        badRequest(response, error instanceof Error ? error.message : "创建场馆失败。");
+      }
+      return;
+    }
+
+    if (request.method === "PATCH" && url.pathname.startsWith("/api/admin/venues/")) {
+      const user = requireSuperAdmin(request, response);
+      if (!user) return;
+      const venueId = url.pathname.replace("/api/admin/venues/", "");
+      if (!venueId || venueId.includes("/")) {
+        sendJson(response, 404, { message: "Route not found." });
+        return;
+      }
+      const payload = await readJsonBody(request);
+      try {
+        const updated = updateVenue(venueId, payload);
+        if (!updated) {
+          sendJson(response, 404, { message: "场馆不存在。" });
+          return;
+        }
+        sendJson(response, 200, { data: updated });
+      } catch (error) {
+        badRequest(response, error instanceof Error ? error.message : "更新场馆失败。");
+      }
+      return;
+    }
+
+    if (request.method === "DELETE" && url.pathname.startsWith("/api/admin/venues/")) {
+      const user = requireSuperAdmin(request, response);
+      if (!user) return;
+      const venueId = url.pathname.replace("/api/admin/venues/", "");
+      if (!venueId || venueId.includes("/")) {
+        sendJson(response, 404, { message: "Route not found." });
+        return;
+      }
+      const venue = getVenueById(venueId);
+      const venueNamespace = resolveOptionalAccountNamespace(venue?.accountNamespace || "");
+      const venueScreens = venueNamespace
+        ? listTvScreens(venueNamespace).screens.filter((screen) => String(screen.deviceId || "").trim())
+        : [];
+      const result = deleteVenue(venueId);
+      if (!result.ok) {
+        badRequest(response, result.message || "删除场馆失败。");
+        return;
+      }
+      for (const screen of venueScreens) {
+        try {
+          await publishTvControl(
+            {
+              type: "venue_deleted",
+              source: "admin-web",
+              deviceId: String(screen.deviceId || "").trim(),
+              screenNumber: Number(screen.screenNumber) || 0,
+              accountNamespace: venueNamespace,
+              venueId: venueNamespace,
+              requestedAt: Date.now()
+            },
+            venueNamespace
+          );
+        } catch {
+          // Venue deletion must not fail because a TV is offline or MQTT is temporarily unavailable.
+        }
+      }
+      sendNoContent(response);
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname.startsWith("/api/admin/venues/") && url.pathname.endsWith("/users")) {
+      const user = requireSuperAdmin(request, response);
+      if (!user) return;
+      const venueId = url.pathname.replace("/api/admin/venues/", "").replace("/users", "");
+      sendJson(response, 200, { data: listVenueUsers(venueId) });
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname.startsWith("/api/admin/venues/") && url.pathname.endsWith("/users")) {
+      const user = requireSuperAdmin(request, response);
+      if (!user) return;
+      const venueId = url.pathname.replace("/api/admin/venues/", "").replace("/users", "");
+      const payload = await readJsonBody(request);
+      const issue = validateVenueUserPayload(payload);
+      if (issue) {
+        badRequest(response, issue);
+        return;
+      }
+      try {
+        sendJson(response, 201, { data: createVenueUser(venueId, payload) });
+      } catch (error) {
+        badRequest(response, error instanceof Error ? error.message : "创建账号失败。");
+      }
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname.startsWith("/api/admin/venues/") && url.pathname.endsWith("/screens")) {
+      const user = requireSuperAdmin(request, response);
+      if (!user) return;
+      const venueId = url.pathname.replace("/api/admin/venues/", "").replace("/screens", "");
+      const venue = getVenueById(venueId);
+      if (!venue) {
+        sendJson(response, 404, { message: "场馆不存在。" });
+        return;
+      }
+      sendJson(response, 200, { data: listTvScreens(resolveAccountNamespace(venue.accountNamespace)) });
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/admin/users") {
+      const user = requireSuperAdmin(request, response);
+      if (!user) return;
+      const query = url.searchParams.get("q") || url.searchParams.get("query") || "";
+      const unboundOnly = String(url.searchParams.get("unbound") || "").trim() === "1";
+      const role = String(url.searchParams.get("role") || "").trim().toLowerCase();
+      let users = listAdminConsoleUsers(query);
+      if (role === "venue") {
+        users = users.filter((item) => String(item.role || "").trim() === "venue");
+      }
+      if (unboundOnly) {
+        users = users.filter((item) => !String(item.venueId || "").trim());
+      }
+      sendJson(response, 200, { data: users });
+      return;

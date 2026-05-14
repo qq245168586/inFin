@@ -1,0 +1,239 @@
+  if (!userAllowsClient(user, clientName)) {
+    return { error: "CLIENT_NOT_ALLOWED" };
+  }
+
+  // Venue accounts must be bound to a venue before login, otherwise they'd
+  // accidentally fall back to the default namespace.
+  if (trimText(user.role) === "venue" && !trimText(user.venueId)) {
+    return { error: "VENUE_NOT_BOUND" };
+  }
+
+  user.lastLoginTime = nowIso();
+  const tokenPayload = createAuthPayload(user.id, clientName);
+  persist();
+
+  return {
+    user: publicUserInfo(user),
+    token: tokenPayload
+  };
+}
+
+export function refreshConsoleUser(refreshToken, clientName = "editor-web") {
+  cleanupExpiredSessions();
+  const session = state.authSessions.find((item) => item.refreshToken === trimText(refreshToken));
+  if (!session || !isFutureTime(session.refreshExpiresAt)) {
+    return null;
+  }
+
+  const user = state.users.find((item) => item.id === session.userId);
+  if (!user || !userAllowsClient(user, clientName)) {
+    return { error: "CLIENT_NOT_ALLOWED" };
+  }
+
+  if (normalizeClientName(session.client || clientName) !== normalizeClientName(clientName)) {
+    return { error: "CLIENT_NOT_ALLOWED" };
+  }
+
+  return createAuthPayload(session.userId, clientName);
+}
+
+export function getUserByAccessToken(accessToken) {
+  cleanupExpiredSessions();
+  const session = state.authSessions.find((item) => item.accessToken === trimText(accessToken));
+  if (!session || !isFutureTime(session.expiresAt)) {
+    return null;
+  }
+
+  const user = state.users.find((item) => item.id === session.userId);
+  return user ? publicUserInfo(user) : null;
+}
+
+export function addActionType(name) {
+  const next = { id: nextId(state.actionTypes), name: trimText(name) };
+  state.actionTypes.push(next);
+  persist();
+  return next;
+}
+
+export function listLessonTypes() {
+  return clone(state.lessonTypes);
+}
+
+export function addLessonType(name) {
+  const next = { id: nextId(state.lessonTypes), name: trimText(name) };
+  state.lessonTypes.push(next);
+  persist();
+  return next;
+}
+
+export function listActions() {
+  return sortByNewest(state.actions, "updateTime");
+}
+
+export function getActionById(actionId) {
+  return state.actions.find((item) => item.id === Number(actionId)) ?? null;
+}
+
+export function saveAction(payload) {
+  const existing = payload.id ? getActionById(payload.id) : null;
+  const next = normalizeActionPayload(payload, existing);
+  const index = state.actions.findIndex((item) => item.id === next.id);
+
+  if (index >= 0) {
+    state.actions[index] = next;
+  } else {
+    state.actions.push(next);
+  }
+
+  persist();
+  return next;
+}
+
+export function deleteAction(actionId) {
+  const numericId = Number(actionId);
+  const usedByCourse = state.courses.some(
+    (course) => courseScriptUsesAction(coerceCourseScript(course), numericId)
+  );
+
+  if (usedByCourse) {
+    return { ok: false, message: "动作已被课程引用，暂时不能删除。" };
+  }
+
+  state.actions = state.actions.filter((item) => item.id !== numericId);
+  persist();
+  return { ok: true };
+}
+
+export function listCourses() {
+  return sortByNewest(state.courses, "updateTime").map(serializeCourse);
+}
+
+export function getCourseById(courseId) {
+  const course = state.courses.find((item) => item.id === Number(courseId)) ?? null;
+  return course ? serializeCourse(course) : null;
+}
+
+export function saveCourse(payload) {
+  const existing = payload.id ? getCourseById(payload.id) : null;
+  const next = normalizeCoursePayload(payload, existing);
+  const index = state.courses.findIndex((item) => item.id === next.id);
+
+  if (index >= 0) {
+    state.courses[index] = next;
+  } else {
+    state.courses.push(next);
+  }
+
+  persist();
+  return next;
+}
+
+export function deleteCourse(courseId) {
+  const numericId = Number(courseId);
+  const usedBySchedule = state.schedules.some((item) => item.courseId === numericId);
+
+  if (usedBySchedule) {
+    return { ok: false, message: "课程已有排课，暂时不能删除。" };
+  }
+
+  state.courses = state.courses.filter((item) => item.id !== numericId);
+  persist();
+  return { ok: true };
+}
+
+export function listTemplates() {
+  return {
+    warmup: listTemplatesByKind("warmup"),
+    cooldown: listTemplatesByKind("cooldown"),
+    training: listTemplatesByKind("training")
+  };
+}
+
+export function getTemplateById(templateId) {
+  const template = state.templates.find((item) => item.id === Number(templateId)) ?? null;
+  return template ? serializeTemplate(template) : null;
+}
+
+export function saveTemplate(payload) {
+  const existing = payload.id ? getTemplateById(payload.id) : null;
+  const next = normalizeTemplatePayload(payload, existing);
+  const index = state.templates.findIndex((item) => item.id === next.id);
+
+  if (index >= 0) {
+    state.templates[index] = next;
+  } else {
+    state.templates.push(next);
+  }
+
+  persist();
+  return serializeTemplate(next);
+}
+
+export function deleteTemplate(templateId) {
+  const numericId = Number(templateId);
+  state.templates = state.templates.filter((item) => item.id !== numericId);
+  persist();
+  return { ok: true };
+}
+
+export function listCourseOptions() {
+  return sortByNewest(state.courses, "updateTime").map((course) => {
+    const serialized = serializeCourse(course);
+    return {
+      id: serialized.id,
+      name: serialized.name,
+      version: serialized.version,
+      creator: serialized.creator
+    };
+  });
+}
+
+export function listSchedulesByScope(scope = "CURRENTWEEK") {
+  const monday = startOfWeek(new Date());
+  const nextMonday = endOfWeek(new Date());
+  const lastMonday = new Date(monday);
+  lastMonday.setDate(lastMonday.getDate() - 7);
+
+  let list = state.schedules.map(attachCourseBasics);
+
+  if (scope === "CURRENTWEEK") {
+    list = list.filter((item) => inRange(item.beginTime, monday, nextMonday));
+  } else if (scope === "LASTWEEK") {
+    list = list.filter((item) => inRange(item.beginTime, lastMonday, monday));
+  }
+
+  return list.sort((left, right) => {
+    const leftTime = new Date(left.beginTime).getTime();
+    const rightTime = new Date(right.beginTime).getTime();
+    return scope === "HISTORY" ? rightTime - leftTime : leftTime - rightTime;
+  });
+}
+
+export function getTvDailyBundle(dateText, timeZone = "Asia/Shanghai", accountNamespace = "") {
+  const date = normalizeCalendarDate(dateText, timeZone);
+  // Scheduling is global (not per-venue). Ignore accountNamespace/venueId filtering.
+  const schedules = listSchedulesByDate(date, timeZone)
+    .map(buildTvScheduleEntry)
+    .filter(Boolean);
+
+  const resourceMap = new Map();
+  for (const schedule of schedules) {
+    for (const resource of schedule.resources || []) {
+      resourceMap.set(resource.key, resource);
+    }
+  }
+
+  const resources = [...resourceMap.values()].sort((left, right) => left.key.localeCompare(right.key));
+  const checksum = hashValue({
+    date,
+    schedules: schedules.map((item) => ({
+      id: item.id,
+      contentChecksum: item.contentChecksum
+    })),
+    resources: resources.map((item) => ({
+      key: item.key,
+      url: item.url,
+      checksum: trimText(item.checksum),
+      sizeBytes: safeNumber(item.sizeBytes)
+    }))
+  });

@@ -1,0 +1,239 @@
+    existingByDevice
+    || (
+      existingByScreen && trimText(existingByScreen.deviceId) === normalized.deviceId
+        ? existingByScreen
+        : null
+    );
+  const nextEntry = normalizeTvScreenPayload(payload, base, normalized.accountNamespace);
+
+  state.tvScreens = state.tvScreens.filter(
+    (item) =>
+      trimText(item.deviceId) !== nextEntry.deviceId &&
+      (
+        nextEntry.screenNumber < 1
+        || !nextEntry.accountNamespace
+        || normalizeScreenAccountNamespace(item.accountNamespace) !== nextEntry.accountNamespace
+        || Number(item.screenNumber) !== nextEntry.screenNumber
+      )
+  );
+  state.tvScreens.push(nextEntry);
+  state.tvScreens.sort((left, right) => {
+    const accountCompare = normalizeScreenAccountNamespace(left.accountNamespace).localeCompare(
+      normalizeScreenAccountNamespace(right.accountNamespace)
+    );
+    if (accountCompare !== 0) {
+      return accountCompare;
+    }
+    return Number(left.screenNumber) - Number(right.screenNumber);
+  });
+  persist();
+  return buildTvScreenSnapshot(nextEntry);
+}
+
+function templateUid(prefix) {
+  return `${prefix}-${randomBytes(4).toString("hex")}`;
+}
+
+function resolveActionName(actionId, fallbackName = "") {
+  const text = trimText(fallbackName);
+  if (text) {
+    return text;
+  }
+  return state.actions.find((item) => String(item.id) === String(actionId))?.name || "";
+}
+
+function normalizeWaterfallTemplateSection(kind, section = {}) {
+  const title = kind === "cooldown" ? "冷身" : "热身";
+  const items = Array.isArray(section.items) && section.items.length ? section.items : [{}];
+
+  return {
+    id: section.id || templateUid("template-section"),
+    title,
+    layout: "WATERFALL",
+    items: items.map((item) => ({
+      id: item.id || templateUid("template-waterfall"),
+      actionId: String(item.actionId || ""),
+      actionName: resolveActionName(item.actionId, item.actionName),
+      seconds: Math.max(Number(item.seconds) || 0, 0),
+      cue: ""
+    }))
+  };
+}
+
+function normalizeTemplateVideoGroup(videoGroup = {}) {
+  const screenCount = Number(videoGroup.screenCount) === 1 ? 1 : 3;
+  const rawScreens = Array.isArray(videoGroup.screens) ? videoGroup.screens : [];
+
+  return {
+    id: videoGroup.id || templateUid("template-group"),
+    name: trimText(videoGroup.name) || (screenCount === 1 ? "单屏瀑布组" : "三屏视频组"),
+    screenCount,
+    screens: Array.from({ length: screenCount }, (_, index) => {
+      const screenIndex = index + 1;
+      const rawScreen = rawScreens.find((item) => Number(item.screenIndex) === screenIndex) || {};
+      const rawCards = Array.isArray(rawScreen.videoCards) && rawScreen.videoCards.length ? rawScreen.videoCards : [{}];
+
+      return {
+        id: rawScreen.id || templateUid("template-group-screen"),
+        screenIndex,
+        stationLabel: screenCount === 1 ? "瀑布流屏幕" : `屏幕 ${screenIndex}`,
+        layout: screenCount === 1 ? "WATERFALL" : "STATIONS",
+        videoCards: rawCards.map((card) => ({
+          id: card.id || templateUid("template-video-card"),
+          actionId: String(card.actionId || ""),
+          actionName: resolveActionName(card.actionId, card.actionName),
+          stationNumber: screenCount === 1 ? "" : trimText(card.stationNumber)
+        }))
+      };
+    })
+  };
+}
+
+function validateTemplatePayload(template) {
+  const issues = [];
+
+  if (!trimText(template.name)) {
+    issues.push("模板名称不能为空。");
+  }
+
+  if (template.kind === "warmup" || template.kind === "cooldown") {
+    const section = template.section;
+    if (!section?.items?.length) {
+      issues.push("模板至少需要一个动作。");
+      return issues;
+    }
+
+    section.items.forEach((item, index) => {
+      if (!item.actionId) {
+        issues.push(`模板第 ${index + 1} 个动作还没有选择动作。`);
+      }
+      if (Number(item.seconds) <= 0) {
+        issues.push(`模板第 ${index + 1} 个动作时长必须大于 0。`);
+      }
+    });
+
+    return issues;
+  }
+
+  const videoGroup = template.videoGroup;
+  if (!videoGroup) {
+    issues.push("正式组模板不能为空。");
+    return issues;
+  }
+
+  if (![1, 3].includes(videoGroup.screenCount)) {
+    issues.push("正式组模板只允许单屏或三屏。");
+  }
+
+  videoGroup.screens.forEach((screen) => {
+    if (!screen.videoCards.length) {
+      issues.push(`屏幕 ${screen.screenIndex} 至少需要一个动作卡片。`);
+    }
+    if (videoGroup.screenCount !== 1) {
+      const stationCodes = screen.videoCards.map((card) => trimText(card.stationNumber));
+      if (stationCodes.some((code) => !code)) {
+        issues.push(`屏幕 ${screen.screenIndex} 的站点标签不能为空。`);
+      }
+      if (new Set(stationCodes).size !== stationCodes.length) {
+        issues.push(`屏幕 ${screen.screenIndex} 的站点标签不能重复。`);
+      }
+    }
+  });
+
+  return issues;
+}
+
+function normalizeTemplatePayload(payload = {}, existing = null) {
+  const kind = ["warmup", "cooldown", "training"].includes(payload.kind) ? payload.kind : existing?.kind;
+  if (!kind) {
+    throw new Error("模板类型无效。");
+  }
+
+  const timestamp = nowIso();
+  const base = {
+    id: existing?.id ?? nextId(state.templates),
+    kind,
+    name: trimText(payload.name),
+    createTime: existing?.createTime ?? timestamp,
+    updateTime: timestamp
+  };
+
+  const next =
+    kind === "training"
+      ? {
+          ...base,
+          videoGroup: normalizeTemplateVideoGroup(payload.videoGroup ?? existing?.videoGroup ?? {})
+        }
+      : {
+          ...base,
+          section: normalizeWaterfallTemplateSection(kind, payload.section ?? existing?.section ?? {})
+        };
+
+  const issues = validateTemplatePayload(next);
+  if (issues.length) {
+    throw new Error(issues.join("\n"));
+  }
+
+  return next;
+}
+
+function serializeTemplate(template) {
+  return clone(template);
+}
+
+function listTemplatesByKind(kind) {
+  return sortByNewest(
+    state.templates.filter((item) => item.kind === kind),
+    "updateTime"
+  ).map(serializeTemplate);
+}
+
+function defaultHydrateSecondsFromCourse(course) {
+  const rawValue = course?.script?.metadata?.defaultHydrateSeconds ?? course?.metadata?.defaultHydrateSeconds;
+  const value = Number(rawValue);
+  return Number.isFinite(value) && value >= 0 ? value : 0;
+}
+
+function deriveTrainingPanel(source = {}, script) {
+  const incoming = source?.script?.metadata?.trainingPanel || source?.metadata?.trainingPanel || {};
+  const podCount = Array.isArray(script?.training?.pods) ? script.training.pods.length : 0;
+  const breakCount = Array.isArray(script?.training?.pods)
+    ? script.training.pods.filter((pod) => pod?.ending === "HYDRATE").length
+    : 0;
+
+  return createTrainingPanel({
+    setCount: podCount || Number(incoming.setCount) || Number(source?.totalTime) || 1,
+    breakCount,
+    workSeconds: Number(incoming.workSeconds) || Number(source?.trainingTime) || 40,
+    restSeconds:
+      Number.isFinite(Number(incoming.restSeconds)) && Number(incoming.restSeconds) >= 0
+        ? Number(incoming.restSeconds)
+        : Math.max(Number(source?.restTime) || 20, 0)
+  });
+}
+
+function coerceCourseScript(source = {}) {
+  const script = source?.script
+    ? cloneCourseScript(source.script)
+    : legacyCourseToScript(source, { actionLookup: state.actions });
+
+  script.metadata = {
+    ...script.metadata,
+    name: trimText(source.name) || script.metadata?.name || "新课程",
+    version: trimText(source.version) || script.metadata?.version || "v1.0.0",
+    creator: trimText(source.creator) || script.metadata?.creator || "",
+    defaultHydrateSeconds: defaultHydrateSecondsFromCourse(source),
+    trainingPanel: deriveTrainingPanel(source, script)
+  };
+
+  return script;
+}
+
+function courseSummaryFromScript(script) {
+  const summary = summarizeCourseScript(script);
+  const videoCards = (script.training?.videoGroups || []).reduce(
+    (total, group) =>
+      total +
+      (group.screens || []).reduce((screenTotal, screen) => screenTotal + (screen.videoCards || []).length, 0),
+    0
+  );

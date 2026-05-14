@@ -1,0 +1,240 @@
+import fs from "node:fs";
+import { createHash, randomBytes } from "node:crypto";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import {
+  cloneCourseScript,
+  createTrainingPanel,
+  courseScriptUsesAction,
+  legacyCourseToScript,
+  summarizeCourseScript,
+  validateCourseScript
+} from "../../../../packages/shared/src/course-script.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const legacyStorageRoot = path.resolve(__dirname, "../../storage");
+const storageRoot = path.resolve(process.env.INFINI_DATA_ROOT || legacyStorageRoot);
+const mediaRoot = path.join(storageRoot, "media");
+const appPackageRoot = path.join(storageRoot, "app-packages");
+const backupRoot = path.join(storageRoot, "backups");
+const dbFile = path.join(storageRoot, "db.json");
+const ACCESS_TOKEN_TTL_SECONDS = 2 * 60 * 60;
+const REFRESH_TOKEN_TTL_SECONDS = 15 * 24 * 60 * 60;
+const TV_SCREEN_COUNT = 5;
+const TV_ONLINE_THRESHOLD_MS = 35 * 1000;
+const DB_BACKUP_RETENTION = 120;
+const PLAYBACK_ACTIVE_STATES = new Set(["PREVIEW", "SCHEDULED", "RUNNING", "PAUSED"]);
+const PLAYBACK_TERMINAL_STATES = new Set(["ENDED", "TERMINATED"]);
+const PLAYBACK_WARMUP_READY_SECONDS = 15;
+const PLAYBACK_TRAINING_READY_SECONDS = 15;
+const PLAYBACK_COOLDOWN_READY_SECONDS = 10;
+const DEFAULT_ACCOUNT_NAMESPACE = "13689547720";
+const SUPERADMIN_USERNAMES = new Set(["13689547720", "zhiyou"]);
+const CONSOLE_ACCOUNT_PRESETS = [
+  {
+    username: "13689547720",
+    password: "REDACTED_CONFIGURE_LOCALLY",
+    nickname: "13689547720",
+    accountNamespace: "13689547720",
+    environmentLabel: "13689547720",
+    allowedClients: ["coach-web", "editor-web"],
+    role: "superadmin"
+  },
+  {
+    username: "zhiyou",
+    password: "REDACTED_CONFIGURE_LOCALLY",
+    nickname: "zhiyou",
+    accountNamespace: "zhiyou",
+    environmentLabel: "zhiyou",
+    allowedClients: ["coach-web", "editor-web"],
+    role: "superadmin"
+  }
+];
+
+function isLegacyEnvironmentLabel(label = "") {
+  const normalized = trimText(label);
+  return normalized === "正式环境" || normalized === "测试环境" || normalized === "自定义环境";
+}
+
+ensureDir(storageRoot);
+ensureDir(mediaRoot);
+ensureDir(appPackageRoot);
+ensureDir(backupRoot);
+migrateLegacyStorageIfNeeded();
+
+const defaultState = createDefaultState();
+let state = loadState();
+ensureConsoleAccountSeeds();
+
+function ensureDir(target) {
+  fs.mkdirSync(target, { recursive: true });
+}
+
+function copyDirectoryRecursive(source, target) {
+  if (!fs.existsSync(source)) {
+    return;
+  }
+
+  ensureDir(target);
+  for (const entry of fs.readdirSync(source, { withFileTypes: true })) {
+    const sourcePath = path.join(source, entry.name);
+    const targetPath = path.join(target, entry.name);
+    if (entry.isDirectory()) {
+      copyDirectoryRecursive(sourcePath, targetPath);
+      continue;
+    }
+    fs.copyFileSync(sourcePath, targetPath);
+  }
+}
+
+function migrateLegacyStorageIfNeeded() {
+  if (storageRoot === legacyStorageRoot) {
+    return;
+  }
+
+  const legacyDbFile = path.join(legacyStorageRoot, "db.json");
+  const legacyMediaRoot = path.join(legacyStorageRoot, "media");
+  const legacyBackupRoot = path.join(legacyStorageRoot, "backups");
+
+  if (!fs.existsSync(dbFile) && fs.existsSync(legacyDbFile)) {
+    fs.copyFileSync(legacyDbFile, dbFile);
+  }
+
+  if (!fs.existsSync(mediaRoot) || fs.readdirSync(mediaRoot).length === 0) {
+    copyDirectoryRecursive(legacyMediaRoot, mediaRoot);
+  }
+
+  if (!fs.existsSync(backupRoot) || fs.readdirSync(backupRoot).length === 0) {
+    copyDirectoryRecursive(legacyBackupRoot, backupRoot);
+  }
+}
+
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function sortByNewest(list, field = "updateTime") {
+  return [...list].sort((left, right) => {
+    const leftValue = new Date(left[field] || left.createTime || 0).getTime();
+    const rightValue = new Date(right[field] || right.createTime || 0).getTime();
+    return rightValue - leftValue;
+  });
+}
+
+function nextId(list) {
+  return list.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1;
+}
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function formatBackupStamp(date = new Date()) {
+  return `${date.getUTCFullYear()}${padNumber(date.getUTCMonth() + 1)}${padNumber(date.getUTCDate())}-${padNumber(
+    date.getUTCHours()
+  )}${padNumber(date.getUTCMinutes())}${padNumber(date.getUTCSeconds())}-${String(date.getUTCMilliseconds()).padStart(
+    3,
+    "0"
+  )}`;
+}
+
+function readTextIfExists(targetFile) {
+  if (!fs.existsSync(targetFile)) {
+    return "";
+  }
+
+  return fs.readFileSync(targetFile, "utf8");
+}
+
+function writeTextAtomic(targetFile, text) {
+  ensureDir(path.dirname(targetFile));
+  const tempFile = `${targetFile}.tmp-${process.pid}-${Date.now()}`;
+  fs.writeFileSync(tempFile, text, "utf8");
+  fs.renameSync(tempFile, targetFile);
+}
+
+function listBackupFiles() {
+  if (!fs.existsSync(backupRoot)) {
+    return [];
+  }
+
+  return fs
+    .readdirSync(backupRoot)
+    .filter((name) => /^db\.[a-z-]+\.\d{8}-\d{6}-\d{3}\.json$/i.test(name))
+    .map((name) => path.join(backupRoot, name))
+    .sort((left, right) => fs.statSync(right).mtimeMs - fs.statSync(left).mtimeMs);
+}
+
+function pruneBackupFiles() {
+  const backups = listBackupFiles();
+  for (const staleFile of backups.slice(DB_BACKUP_RETENTION)) {
+    fs.rmSync(staleFile, { force: true });
+  }
+}
+
+function createDatabaseBackup(rawText, reason = "autosave") {
+  const text = typeof rawText === "string" ? rawText.trim() : "";
+  if (!text) {
+    return;
+  }
+
+  const backupFile = path.join(backupRoot, `db.${reason}.${formatBackupStamp()}.json`);
+  writeTextAtomic(backupFile, rawText);
+  pruneBackupFiles();
+}
+
+function padNumber(value) {
+  return String(value).padStart(2, "0");
+}
+
+function createStoredName(originalName = "asset.bin") {
+  const safe = String(originalName)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9.\-_]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+
+  const hasExtension = safe.includes(".");
+  const fallback = hasExtension ? safe : `${safe || "asset"}.bin`;
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${fallback}`;
+}
+
+export function createMediaFilename(originalName = "asset.bin") {
+  return createStoredName(originalName);
+}
+
+function createAppPackageStoredName(platform = "tv", version = "", originalName = "app.apk") {
+  const safePlatform = normalizeAppPlatform(platform);
+  const safeVersion = sanitizeSegment(version || "build");
+  const extension = path.extname(String(originalName || "")).toLowerCase() || ".apk";
+  return `${safePlatform}-${safeVersion}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${extension}`;
+}
+
+function sanitizeSegment(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "") || "package";
+}
+
+function safeNumber(value, fallback = 0) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric >= 0 ? numeric : fallback;
+}
+
+function numberList(input) {
+  if (!Array.isArray(input)) {
+    return [];
+  }
+
+  return [...new Set(input.map((value) => Number(value)).filter((value) => Number.isFinite(value) && value > 0))];
+}
+
+function trimText(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeAccountNamespace(value, fallback = DEFAULT_ACCOUNT_NAMESPACE) {

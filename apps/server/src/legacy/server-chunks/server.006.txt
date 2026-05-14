@@ -1,0 +1,240 @@
+          source: "coach-web",
+          deviceId: currentScreen.deviceId,
+          screenNumber: Number(currentScreen.screenNumber) || 0,
+          accountNamespace,
+          venueId: accountNamespace,
+          requestedAt: Date.now()
+        }, accountNamespace);
+        sendJson(response, 200, {
+          ok: true,
+          data: result
+        });
+      } catch (error) {
+        sendJson(response, 502, {
+          message: error instanceof Error ? `MQTT 发布失败：${error.message}` : "MQTT 发布失败。"
+        });
+      }
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/tv/screens/install-package") {
+      const user = requireAuthorizedConsoleUser(request, response);
+      if (!user) {
+        return;
+      }
+      const payload = await readJsonBody(request);
+      const validationMessage = validateTvScreenDevicePayload(payload);
+      if (validationMessage) {
+        badRequest(response, validationMessage);
+        return;
+      }
+
+      const packageId = Number(payload?.packageId);
+      if (!Number.isFinite(packageId) || packageId <= 0) {
+        badRequest(response, "请提供有效的安装包版本。");
+        return;
+      }
+
+      const accountNamespace = resolveAccountNamespace(user.accountNamespace, user.username);
+      const currentScreen = findTargetScreen(payload, accountNamespace);
+      if (!currentScreen?.deviceId) {
+        sendJson(response, 404, {
+          message: "没有找到可升级的屏幕设备。"
+        });
+        return;
+      }
+
+      if (!currentScreen.online) {
+        sendJson(response, 409, {
+          message: "屏幕当前离线，暂时无法执行更新。"
+        });
+        return;
+      }
+
+      if (String(currentScreen.playbackState || "").toUpperCase() !== "IDLE") {
+        sendJson(response, 409, {
+          message: "请先确保屏幕处于待机状态，再执行更新。"
+        });
+        return;
+      }
+
+      const appPackage = getAppPackageById(packageId);
+      if (!appPackage) {
+        sendJson(response, 404, {
+          message: "没有找到对应的安装包版本。"
+        });
+        return;
+      }
+
+      if (appPackage.platform !== "tv") {
+        sendJson(response, 409, {
+          message: "当前只支持给 TV 端下发 TV 安装包。"
+        });
+        return;
+      }
+
+      try {
+        const result = await publishTvControl({
+          type: "install_app_update",
+          source: "coach-web",
+          deviceId: currentScreen.deviceId,
+          screenNumber: Number(currentScreen.screenNumber) || 0,
+          accountNamespace,
+          venueId: accountNamespace,
+          packageId: appPackage.id,
+          platform: appPackage.platform,
+          version: appPackage.version,
+          label: appPackage.label,
+          filename: appPackage.filename,
+          checksum: appPackage.checksum,
+          sizeBytes: Number(appPackage.sizeBytes) || 0,
+          downloadUrl: appPackage.downloadPath,
+          requestedAt: Date.now()
+        }, accountNamespace);
+        sendJson(response, 200, {
+          ok: true,
+          data: {
+            ...result,
+            package: appPackage
+          }
+        });
+      } catch (error) {
+        sendJson(response, 502, {
+          message: error instanceof Error ? `MQTT 发布失败：${error.message}` : "MQTT 发布失败。"
+        });
+      }
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/admin/tv-control") {
+      const user = requireSuperAdmin(request, response);
+      if (!user) {
+        return;
+      }
+
+      const body = await readJsonBody(request);
+      const accountNamespace = resolveOptionalAccountNamespace(
+        body?.accountNamespace || body?.payload?.accountNamespace || body?.payload?.venueId || ""
+      );
+      const payload = body?.payload && typeof body.payload === "object" ? body.payload : null;
+      const type = String(payload?.type || "").trim();
+
+      if (!accountNamespace) {
+        badRequest(response, "缺少有效的场馆 namespace。");
+        return;
+      }
+
+      if (!payload || !type) {
+        badRequest(response, "缺少有效的 TV 指令 payload。");
+        return;
+      }
+
+      const normalizedPayload = {
+        ...payload,
+        type,
+        source: String(payload.source || "admin-web"),
+        accountNamespace,
+        venueId: String(payload.venueId || accountNamespace),
+        requestedAt: Number(payload.requestedAt) || Date.now()
+      };
+
+      try {
+        const result = await publishTvControl(normalizedPayload, accountNamespace);
+        sendJson(response, 200, {
+          ok: true,
+          data: result
+        });
+      } catch (error) {
+        sendJson(response, 502, {
+          message: error instanceof Error ? `MQTT 发布失败：${error.message}` : "MQTT 发布失败。"
+        });
+      }
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/tv/control") {
+      const user = requireAuthorizedConsoleUser(request, response);
+      if (!user) {
+        return;
+      }
+      const payload = await readJsonBody(request);
+      const validationMessage = validateTvControlPayload(payload);
+
+      if (validationMessage) {
+        badRequest(response, validationMessage);
+        return;
+      }
+
+      const normalizedAccountNamespace = resolveAccountNamespace(user.accountNamespace, user.username);
+      const normalizedPayload = {
+        ...payload,
+        type: String(payload.type),
+        source: String(payload.source || "coach-web"),
+        accountNamespace: normalizedAccountNamespace,
+        venueId: normalizedAccountNamespace,
+        playbackSessionId: String(payload.playbackSessionId || "").trim(),
+        bundleChecksum: String(payload.bundleChecksum || "").trim(),
+        requestedAt: Number(payload.requestedAt) || Date.now()
+      };
+
+      try {
+        const result = await publishTvControl(
+          normalizedPayload,
+          normalizedAccountNamespace
+        );
+        sendJson(response, 200, {
+          ok: true,
+          data: result
+        });
+      } catch (error) {
+        sendJson(response, 502, {
+          message: error instanceof Error ? `MQTT 发布失败：${error.message}` : "MQTT 发布失败。"
+        });
+      }
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/app-packages") {
+      const platform = url.searchParams.get("platform") || "";
+      sendJson(response, 200, {
+        data: {
+          generatedAt: new Date().toISOString(),
+          storageDirectory: getAppPackageRoot(),
+          packages: listAppPackages(platform)
+        }
+      });
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/app-packages/scan") {
+      sendJson(response, 200, {
+        data: {
+          generatedAt: new Date().toISOString(),
+          storageDirectory: getAppPackageRoot(),
+          packages: rescanAppPackages()
+        }
+      });
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/app-packages/upload") {
+      const validationMessage = validateAppPackageUploadParams(url);
+      if (validationMessage) {
+        badRequest(response, validationMessage);
+        return;
+      }
+
+      const originalName = url.searchParams.get("filename") || "app-release.apk";
+      const platform = String(url.searchParams.get("platform") || "tv");
+      const version = String(url.searchParams.get("version") || "");
+      const label = String(url.searchParams.get("label") || "");
+      const notes = String(url.searchParams.get("notes") || "");
+      const buffer = await readRequestBuffer(request);
+      const checksum = createHash("sha256").update(buffer).digest("hex");
+      const sizeBytes = buffer.length;
+      const storedName = createAppPackageFilename(platform, version, originalName);
+      const filePath = path.join(getAppPackageRoot(), storedName);
+      fs.writeFileSync(filePath, buffer);
+      const appPackage = registerUploadedAppPackage({
+        platform,
+        version,

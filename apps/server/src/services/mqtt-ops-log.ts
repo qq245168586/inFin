@@ -95,7 +95,7 @@ export function recordOutboundMqtt(topic, payloadObject) {
 
 let subscriberClient = null;
 let started = false;
-const listeners = new Set();
+const listeners = new Set<(event: any) => void>();
 
 export function startOpsMqttSubscriber({ topics = DEFAULT_TOPICS } = {}) {
   if (started) return;

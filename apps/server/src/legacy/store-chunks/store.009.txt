@@ -1,0 +1,239 @@
+  return Boolean(user) && (trimText(user.role) === "superadmin" || SUPERADMIN_USERNAMES.has(trimText(user.username)));
+}
+
+export function listVenues() {
+  return clone(state.venues || []).sort((left, right) => {
+    const leftTime = new Date(left.updateTime || left.createTime || 0).getTime();
+    const rightTime = new Date(right.updateTime || right.createTime || 0).getTime();
+    return rightTime - leftTime;
+  });
+}
+
+export function getVenueById(venueId) {
+  const id = trimText(venueId);
+  return (state.venues || []).find((item) => trimText(item.id) === id) ?? null;
+}
+
+export function getVenueByAccountNamespace(accountNamespace) {
+  const ns = normalizeAccountNamespace(accountNamespace);
+  return (state.venues || []).find((item) => normalizeAccountNamespace(item.accountNamespace) === ns) ?? null;
+}
+
+export function createVenue(payload = {}) {
+  const name = trimText(payload.name);
+  let accountNamespace = normalizeVenueAccountNamespace(payload.accountNamespace || payload.namespace || payload.ns || "");
+  if (!name) {
+    throw new Error("场馆名称不能为空。");
+  }
+
+  if (!accountNamespace) {
+    // Deterministic namespace: stable for same venue name, with collision suffix.
+    const base = `venue-${md5Text(name).slice(0, 8)}`;
+    accountNamespace = base;
+    let suffix = 2;
+    while (getVenueByAccountNamespace(accountNamespace)) {
+      accountNamespace = `${base}-${suffix}`;
+      suffix += 1;
+    }
+  }
+  if (getVenueByAccountNamespace(accountNamespace)) {
+    throw new Error("场馆命名空间已存在。");
+  }
+
+  const now = nowIso();
+  const next = {
+    id: String(nextId(state.venues || [])),
+    name,
+    accountNamespace,
+    themeConfig: payload.themeConfig && typeof payload.themeConfig === "object" ? payload.themeConfig : {},
+    createTime: now,
+    updateTime: now
+  };
+  state.venues = state.venues || [];
+  state.venues.push(next);
+  persist();
+  return next;
+}
+
+export function updateVenue(venueId, payload = {}) {
+  const existing = getVenueById(venueId);
+  if (!existing) {
+    return null;
+  }
+  const nextName = trimText(payload.name) || existing.name;
+  const nextNs = payload.accountNamespace ? normalizeAccountNamespace(payload.accountNamespace) : existing.accountNamespace;
+  if (nextNs !== normalizeAccountNamespace(existing.accountNamespace)) {
+    if (getVenueByAccountNamespace(nextNs)) {
+      throw new Error("场馆命名空间已存在。");
+    }
+  }
+  existing.name = nextName;
+  existing.accountNamespace = nextNs;
+  if (payload.themeConfig && typeof payload.themeConfig === "object") {
+    existing.themeConfig = payload.themeConfig;
+  }
+  existing.updateTime = nowIso();
+  persist();
+  return existing;
+}
+
+export function deleteVenue(venueId) {
+  const id = trimText(venueId);
+  const existing = getVenueById(id);
+  if (!existing) {
+    return { ok: false, message: "场馆不存在。" };
+  }
+
+  // Deleting a venue should be operationally simple: detach accounts/devices
+  // so the operator can recreate from scratch.
+  const venueNs = normalizeAccountNamespace(existing.accountNamespace);
+  const venueIdValue = trimText(existing.id);
+  state.users = (state.users || []).map((user) => {
+    if (trimText(user.venueId) !== venueIdValue) return user;
+    if (isSuperAdminUser(user)) return { ...user, venueId: "" };
+    return {
+      ...user,
+      venueId: "",
+      accountNamespace: "",
+      environmentLabel: ""
+    };
+  });
+
+  state.tvScreens = (state.tvScreens || []).map((screen) => {
+    if (normalizeScreenAccountNamespace(screen.accountNamespace) !== venueNs) return screen;
+    return { ...screen, accountNamespace: "" };
+  });
+
+  // Scheduling is global (not per-venue). Keep schedules even if a venue is removed.
+  state.venues = (state.venues || []).filter((item) => trimText(item.id) !== id);
+  persist();
+  return { ok: true };
+}
+
+export function listVenueUsers(venueId) {
+  const id = trimText(venueId);
+  return clone(state.users || [])
+    .filter((user) => trimText(user.venueId) === id)
+    .map(publicUserInfo)
+    .sort((left, right) => left.username.localeCompare(right.username));
+}
+
+export function createVenueUser(venueId, payload = {}) {
+  const venue = getVenueById(venueId);
+  if (!venue) {
+    throw new Error("场馆不存在。");
+  }
+  const username = trimText(payload.username);
+  const password = trimText(payload.password);
+  if (!username) {
+    throw new Error("账号不能为空。");
+  }
+  if (!password) {
+    throw new Error("密码不能为空。");
+  }
+  return createConsoleUser({
+    username,
+    password,
+    nickname: trimText(payload.nickname) || username,
+    accountNamespace: normalizeAccountNamespace(venue.accountNamespace),
+    environmentLabel: trimText(payload.environmentLabel) || trimText(venue.name),
+    role: "venue",
+    venueId: trimText(venue.id),
+    allowedClients: ["coach-web"]
+  });
+}
+
+export function updateUser(userId, payload = {}) {
+  const id = Number(userId);
+  const existing = (state.users || []).find((user) => Number(user.id) === id) ?? null;
+  if (!existing) {
+    return null;
+  }
+  if (payload.password) {
+    existing.passwordDigest = normalizePassword(payload.password);
+  }
+  if (payload.nickname != null) {
+    existing.nickname = trimText(payload.nickname) || existing.nickname || existing.username;
+  }
+  if (payload.allowedClients) {
+    existing.allowedClients = normalizeAllowedClients(payload.allowedClients);
+  }
+  if (payload.venueId != null) {
+    existing.venueId = trimText(payload.venueId);
+  }
+  if (payload.role != null) {
+    existing.role = trimText(payload.role);
+  }
+  persist();
+  return publicUserInfo(existing);
+}
+
+export function listAdminConsoleUsers(query = "") {
+  const q = trimText(query);
+  const users = clone(state.users || [])
+    .filter((user) => trimText(user.userType) === "CONSOLE")
+    .map(publicUserInfo);
+  return users
+    .filter((user) => (q ? String(user.username || "").includes(q) : true))
+    .sort((left, right) => String(left.username).localeCompare(String(right.username)));
+}
+
+export function bindUserToVenue(userId, venueId) {
+  const id = Number(userId);
+  const venue = getVenueById(venueId);
+  if (!venue) {
+    throw new Error("场馆不存在。");
+  }
+  const existing = (state.users || []).find((user) => Number(user.id) === id) ?? null;
+  if (!existing) {
+    throw new Error("账号不存在。");
+  }
+  if (isSuperAdminUser(existing)) {
+    throw new Error("管理员账号不能绑定为场馆账号。");
+  }
+  const currentVenueId = trimText(existing.venueId);
+  if (currentVenueId && currentVenueId !== trimText(venue.id)) {
+    throw new Error("该账号已绑定其他场馆，请先解绑。");
+  }
+  existing.role = "venue";
+  existing.venueId = trimText(venue.id);
+  existing.accountNamespace = normalizeAccountNamespace(venue.accountNamespace, "");
+  existing.environmentLabel = existing.accountNamespace || trimText(existing.environmentLabel) || "";
+  existing.allowedClients = ["coach-web"];
+  persist();
+  return publicUserInfo(existing);
+}
+
+export function unbindUserFromVenue(userId) {
+  const id = Number(userId);
+  const existing = (state.users || []).find((user) => Number(user.id) === id) ?? null;
+  if (!existing) {
+    throw new Error("账号不存在。");
+  }
+  if (isSuperAdminUser(existing)) {
+    throw new Error("管理员账号无需解绑。");
+  }
+  existing.venueId = "";
+  existing.accountNamespace = "";
+  existing.environmentLabel = "";
+  existing.allowedClients = ["coach-web"];
+  persist();
+  return publicUserInfo(existing);
+}
+
+export function loginConsoleUser(username, password, clientName = "editor-web") {
+  cleanupExpiredSessions();
+  const normalizedUsername = trimText(username);
+  const normalizedPassword = trimText(password);
+  if (!normalizedUsername || !normalizedPassword) {
+    return null;
+  }
+
+  const user = getUserByUsername(normalizedUsername);
+  if (!user) {
+    return null;
+  }
+
+  if (user.passwordDigest !== normalizePassword(normalizedPassword)) {
+    return null;
+  }

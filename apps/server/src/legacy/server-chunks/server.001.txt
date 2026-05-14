@@ -1,0 +1,240 @@
+import fs from "node:fs";
+import http from "node:http";
+import { createHash } from "node:crypto";
+import path from "node:path";
+import { URL } from "node:url";
+import {
+  addActionType,
+  addLessonType,
+  bindTvScreen,
+  bindTvScreenByPairing,
+  createAppPackageFilename,
+  copyLastWeekSchedules,
+  createPreviewPlaybackSession,
+  endExpiredPlaybackSessions,
+  createMediaFilename,
+  createConsoleUser,
+  createUploadedMedia,
+  deleteAction,
+  deleteCourse,
+  deleteSchedule,
+  deleteTemplate,
+  getDatabaseStatus,
+  getActionById,
+  getAppPackageById,
+  getAppPackageRoot,
+  getUserByAccessToken,
+  isSuperAdminUser,
+  listVenues,
+  createVenue,
+  updateVenue,
+  deleteVenue,
+  listVenueUsers,
+  createVenueUser,
+  listAdminConsoleUsers,
+  bindUserToVenue,
+  unbindUserFromVenue,
+  updateUser,
+  getVenueById,
+  getCourseById,
+  getMediaRecord,
+  getMediaRoot,
+  getMetaPayload,
+  getTemplateById,
+  getCurrentPlaybackSession,
+  getCurrentPlaybackSessionForTv,
+  getPlaybackSession,
+  getTvDailyBundle,
+  getTvDailyChecksum,
+  getTvScheduleBundle,
+  heartbeatTvScreen,
+  listUsers,
+  listActions,
+  listActionTypes,
+  listAppPackages,
+  listCourses,
+  listCourseOptions,
+  listLessonTypes,
+  listTemplates,
+  listSchedulesByScope,
+  listTvScreens,
+  loginConsoleUser,
+  refreshConsoleUser,
+  registerUploadedAppPackage,
+  rescanAppPackages,
+  saveAction,
+  saveCourse,
+  saveTemplate,
+  saveSchedule,
+  unbindTvScreen,
+  updatePlaybackSessionState
+} from "./data/store.js";
+import { buildStorageKey, getMediaStorageMode, uploadBufferToOss } from "./services/media-storage.js";
+import { getTvControlConfig, publishTvControl, publishTvSessionEvent } from "./services/tv-control.js";
+import { readOpsEvents, startOpsMqttSubscriber, subscribeOpsEvents } from "./services/mqtt-ops-log.js";
+import { readJsonBody, readRequestBuffer, sendFile, sendJson, sendNoContent } from "./utils/http.js";
+
+const host = process.env.HOST || "127.0.0.1";
+const port = Number(process.env.PORT || 3100);
+const legacyBasicAuth = "Basic REDACTED_CONFIGURE_LOCALLY";
+const PLAYBACK_SESSION_SWEEP_INTERVAL_MS = 20 * 1000;
+
+const mimeByExtension = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".svg": "image/svg+xml",
+  ".mp4": "video/mp4",
+  ".mov": "video/quicktime",
+  ".webm": "video/webm"
+};
+
+function guessMimeType(filename, fallback = "application/octet-stream") {
+  return mimeByExtension[path.extname(filename).toLowerCase()] || fallback;
+}
+
+function badRequest(response, message) {
+  sendJson(response, 400, { message });
+}
+
+function unauthorized(response, message = "登录已失效，请重新登录。") {
+  sendJson(response, 403, {
+    code: 403,
+    message,
+    msg: message
+  });
+}
+
+function okLegacy(response, data) {
+  sendJson(response, 200, {
+    code: 200,
+    data,
+    message: "success",
+    msg: "success"
+  });
+}
+
+function hasLegacyBasicAuth(request) {
+  return request.headers.authorization === legacyBasicAuth;
+}
+
+function getBearerToken(request) {
+  const authorization = request.headers.authorization || "";
+  if (!authorization.startsWith("Bearer ")) {
+    return "";
+  }
+
+  return authorization.slice("Bearer ".length).trim();
+}
+
+function getAuthorizedConsoleUser(request) {
+  const accessToken = getBearerToken(request);
+  if (!accessToken) {
+    return null;
+  }
+
+  return getUserByAccessToken(accessToken);
+}
+
+function requireAuthorizedConsoleUser(request, response) {
+  const user = getAuthorizedConsoleUser(request);
+  if (!user) {
+    unauthorized(response);
+    return null;
+  }
+  return user;
+}
+
+function requireSuperAdmin(request, response) {
+  const user = requireAuthorizedConsoleUser(request, response);
+  if (!user) {
+    return null;
+  }
+  if (!isSuperAdminUser(user)) {
+    unauthorized(response, "当前账号没有管理权限。");
+    return null;
+  }
+  return user;
+}
+
+function getAuthorizedConsoleUserFromQuery(request, url) {
+  const tokenType = String(url.searchParams.get("tokenType") || "").trim();
+  const accessToken = String(url.searchParams.get("accessToken") || "").trim();
+  if (!accessToken) return null;
+  if (tokenType && tokenType.toLowerCase() !== "bearer") return null;
+  return getUserByAccessToken(accessToken);
+}
+
+function requireSuperAdminFromHeaderOrQuery(request, response, url) {
+  const user = getAuthorizedConsoleUser(request) || getAuthorizedConsoleUserFromQuery(request, url);
+  if (!user) {
+    unauthorized(response);
+    return null;
+  }
+  if (!isSuperAdminUser(user)) {
+    unauthorized(response, "当前账号没有管理权限。");
+    return null;
+  }
+  return user;
+}
+
+function resolveAccountNamespace(value, fallback = "13689547720") {
+  const text = String(value || "").trim().toLowerCase();
+  return text || fallback;
+}
+
+function resolveOptionalAccountNamespace(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function resolveRequestAccountNamespace(user, url) {
+  const requestedVenueId = String(url?.searchParams?.get("venueId") || "").trim();
+  const requestedVenueNamespace = requestedVenueId
+    ? resolveOptionalAccountNamespace(getVenueById(requestedVenueId)?.accountNamespace || "")
+    : "";
+  const requestedAccountNamespace =
+    requestedVenueNamespace || resolveOptionalAccountNamespace(url?.searchParams?.get("accountNamespace") || "");
+  if (requestedAccountNamespace && isSuperAdminUser(user)) {
+    return requestedAccountNamespace;
+  }
+  return resolveAccountNamespace(user?.accountNamespace, user?.username);
+}
+
+function resolvePlaybackRequestAccountNamespace(user, url, payload = {}) {
+  const payloadVenueId = String(payload?.venueId || "").trim();
+  const payloadVenueNamespace = payloadVenueId
+    ? resolveOptionalAccountNamespace(getVenueById(payloadVenueId)?.accountNamespace || "")
+    : "";
+  const payloadAccountNamespace =
+    payloadVenueNamespace || resolveOptionalAccountNamespace(payload?.accountNamespace || "");
+
+  if (payloadAccountNamespace && isSuperAdminUser(user)) {
+    return payloadAccountNamespace;
+  }
+
+  return resolveRequestAccountNamespace(user, url);
+}
+
+function isValidTvControlType(value) {
+  return ["refresh_checksum", "preview_course", "start_course", "pause_course", "resume_course", "terminate_course"].includes(
+    String(value || "")
+  );
+}
+
+function validateTvControlPayload(payload) {
+  const type = String(payload?.type || "");
+  if (!isValidTvControlType(type)) {
+    return "TV 控制指令类型无效。";
+  }
+
+  if (type === "refresh_checksum") {
+    return "";
+  }
+
+  if (!String(payload?.scheduleId || "").trim()) {
+    return "TV 控制指令缺少 scheduleId。";
+  }
+
+  if (!Number.isFinite(Number(payload?.courseId)) || Number(payload.courseId) <= 0) {

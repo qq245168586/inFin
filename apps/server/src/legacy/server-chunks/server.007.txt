@@ -1,0 +1,239 @@
+        label,
+        notes,
+        originalName,
+        filename: storedName,
+        checksum,
+        sizeBytes,
+        source: "upload"
+      });
+
+      sendJson(response, 201, { data: appPackage });
+      return;
+    }
+
+    if ((request.method === "GET" || request.method === "HEAD") && url.pathname.startsWith("/api/app-packages/files/")) {
+      const filename = decodeURIComponent(url.pathname.replace("/api/app-packages/files/", ""));
+      const filePath = path.join(getAppPackageRoot(), filename);
+      if (!fs.existsSync(filePath)) {
+        sendJson(response, 404, { message: "安装包不存在。" });
+        return;
+      }
+
+      sendFile(request, response, filePath, "application/vnd.android.package-archive");
+      return;
+    }
+
+    if (request.method === "POST" && (url.pathname === "/app/login" || url.pathname === "/api/app/login")) {
+      if (!hasLegacyBasicAuth(request)) {
+        unauthorized(response, "客户端凭证无效。");
+        return;
+      }
+
+      const payload = await readJsonBody(request);
+      const clientName = String(payload?.client || payload?.clientType || payload?.client_type || "editor-web");
+      const result = loginConsoleUser(payload?.username, payload?.password, clientName);
+      if (result?.error === "CLIENT_NOT_ALLOWED") {
+        unauthorized(response, "当前账号不能登录这个端口。");
+        return;
+      }
+      if (result?.error === "VENUE_NOT_BOUND") {
+        unauthorized(response, "该账号尚未绑定场馆，请先在场馆管理中完成绑定。");
+        return;
+      }
+      if (!result) {
+        unauthorized(response, "用户名或密码错误。");
+        return;
+      }
+
+      okLegacy(response, result.token);
+      return;
+    }
+
+    if (
+      (request.method === "GET" || request.method === "POST") &&
+      (url.pathname === "/app/refresh" || url.pathname === "/api/app/refresh")
+    ) {
+      if (!hasLegacyBasicAuth(request)) {
+        unauthorized(response, "客户端凭证无效。");
+        return;
+      }
+
+      const payload = request.method === "POST" ? await readJsonBody(request) : null;
+      const refreshToken =
+        payload?.refresh_token || payload?.refreshToken || url.searchParams.get("refresh_token") || "";
+      const clientName = String(payload?.client || payload?.clientType || payload?.client_type || "editor-web");
+      const result = refreshConsoleUser(refreshToken, clientName);
+      if (result?.error === "CLIENT_NOT_ALLOWED") {
+        unauthorized(response, "当前账号不能登录这个端口。");
+        return;
+      }
+      if (!result) {
+        unauthorized(response, "refresh token 已失效。");
+        return;
+      }
+
+      okLegacy(response, result);
+      return;
+    }
+
+    if (request.method === "GET" && (url.pathname === "/user/info" || url.pathname === "/api/user/info")) {
+      const accessToken = getBearerToken(request);
+      if (!accessToken) {
+        unauthorized(response);
+        return;
+      }
+
+      const user = getUserByAccessToken(accessToken);
+      if (!user) {
+        unauthorized(response);
+        return;
+      }
+
+      okLegacy(response, user);
+      return;
+    }
+
+    if (request.method === "GET" && (url.pathname === "/user/list" || url.pathname === "/api/user/list")) {
+      okLegacy(response, listUsers());
+      return;
+    }
+
+    if (request.method === "POST" && (url.pathname === "/user/insert" || url.pathname === "/api/user/insert")) {
+      const payload = await readJsonBody(request);
+
+      try {
+        okLegacy(response, createConsoleUser(payload));
+      } catch (error) {
+        badRequest(response, error instanceof Error ? error.message : "创建用户失败。");
+      }
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/action-types") {
+      sendJson(response, 200, { data: listActionTypes() });
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/action-types") {
+      const payload = await readJsonBody(request);
+      const name = payload?.name?.trim?.();
+
+      if (!name) {
+        badRequest(response, "动作分类名称不能为空。");
+        return;
+      }
+
+      sendJson(response, 201, { data: addActionType(name) });
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/lesson-types") {
+      sendJson(response, 200, { data: listLessonTypes() });
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/lesson-types") {
+      const payload = await readJsonBody(request);
+      const name = payload?.name?.trim?.();
+
+      if (!name) {
+        badRequest(response, "课程分类名称不能为空。");
+        return;
+      }
+
+      sendJson(response, 201, { data: addLessonType(name) });
+      return;
+    }
+
+    if (request.method === "POST" && (url.pathname === "/api/upload/video" || url.pathname === "/api/upload/image")) {
+      const originalName = url.searchParams.get("filename") || "asset.bin";
+      const mimeType = request.headers["content-type"] || guessMimeType(originalName);
+      const kind = url.pathname.endsWith("/video") ? "video" : "image";
+      const buffer = await readRequestBuffer(request);
+      const checksum = createHash("sha256").update(buffer).digest("hex");
+      const sizeBytes = buffer.length;
+      const storedName = createMediaFilename(originalName);
+      let media;
+
+      if (getMediaStorageMode() === "oss") {
+        const objectKey = buildStorageKey(storedName);
+        const upload = await uploadBufferToOss({
+          buffer,
+          objectKey,
+          mimeType
+        });
+
+        media = createUploadedMedia({
+          originalName,
+          mimeType,
+          kind,
+          filename: objectKey,
+          storage: upload.storage,
+          url: upload.url,
+          checksum,
+          sizeBytes
+        });
+      } else {
+        const filePath = path.join(getMediaRoot(), storedName);
+        fs.writeFileSync(filePath, buffer);
+        media = createUploadedMedia({
+          originalName,
+          mimeType,
+          kind,
+          filename: storedName,
+          checksum,
+          sizeBytes
+        });
+      }
+
+      sendJson(response, 201, { data: media });
+      return;
+    }
+
+    if ((request.method === "GET" || request.method === "HEAD") && url.pathname.startsWith("/api/media/")) {
+      const filename = decodeURIComponent(url.pathname.replace("/api/media/", ""));
+      const media = getMediaRecord(filename);
+      const filePath = path.join(getMediaRoot(), filename);
+
+      if (!media || !fs.existsSync(filePath)) {
+        sendJson(response, 404, { message: "媒体文件不存在。" });
+        return;
+      }
+
+      sendFile(request, response, filePath, media.type || guessMimeType(filename));
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/actions") {
+      sendJson(response, 200, { data: listActions() });
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/actions") {
+      const payload = await readJsonBody(request);
+
+      if (!payload?.name?.trim?.()) {
+        badRequest(response, "动作名称不能为空。");
+        return;
+      }
+
+      sendJson(response, 201, { data: saveAction(payload) });
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname.startsWith("/api/actions/")) {
+      const actionId = url.pathname.replace("/api/actions/", "");
+      const action = getActionById(actionId);
+
+      if (!action) {
+        sendJson(response, 404, { message: "动作不存在。" });
+        return;
+      }
+
+      sendJson(response, 200, { data: action });
+      return;
+    }
+
+    if (request.method === "PUT" && url.pathname.startsWith("/api/actions/")) {
+      const actionId = url.pathname.replace("/api/actions/", "");
+      const existing = getActionById(actionId);

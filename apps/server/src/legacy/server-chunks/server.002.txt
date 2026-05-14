@@ -1,0 +1,240 @@
+    return "TV 控制指令缺少有效的 courseId。";
+  }
+
+  if (!Number.isFinite(Number(payload?.scheduledStartAtMs)) || Number(payload.scheduledStartAtMs) <= 0) {
+    return "TV 控制指令缺少有效的 scheduledStartAtMs。";
+  }
+
+  if (!String(payload?.playbackSessionId || "").trim()) {
+    return "TV 控制指令缺少有效的 playbackSessionId。";
+  }
+
+  if (
+    (type === "preview_course" || type === "start_course")
+    && !String(payload?.bundleChecksum || "").trim()
+  ) {
+    return "TV 控制指令缺少有效的 bundleChecksum。";
+  }
+
+  if (type === "start_course" && (!Number.isFinite(Number(payload?.playbackStartAtMs)) || Number(payload.playbackStartAtMs) <= 0)) {
+    return "开始课程指令缺少有效的 playbackStartAtMs。";
+  }
+
+  if (type === "pause_course" && (!Number.isFinite(Number(payload?.pausedAtMs)) || Number(payload.pausedAtMs) <= 0)) {
+    return "暂停课程指令缺少有效的 pausedAtMs。";
+  }
+
+  if (type === "resume_course" && (!Number.isFinite(Number(payload?.resumedAtMs)) || Number(payload.resumedAtMs) <= 0)) {
+    return "继续课程指令缺少有效的 resumedAtMs。";
+  }
+
+  return "";
+}
+
+function requireCommandId(payload) {
+  const commandId = String(payload?.commandId || "").trim();
+  if (!commandId) {
+    return "";
+  }
+  return commandId;
+}
+
+function buildPlaybackSessionControlPayload(type, session, commandId, extra = {}) {
+  const serverNowMs = Date.now();
+  const accountNamespace = resolveOptionalAccountNamespace(session.accountNamespace);
+  return {
+    type,
+    source: "coach-web",
+    commandId,
+    accountNamespace,
+    venueId: accountNamespace,
+    sessionId: session.id,
+    playbackSessionId: session.id,
+    sessionVersion: session.version,
+    state: session.state,
+    scheduleId: String(session.scheduleId || ""),
+    courseId: Number(session.courseId),
+    courseName: String(session.courseName || ""),
+    scheduledStartAtMs: Number(session.scheduledStartAtMs) || 0,
+    bundleChecksum: String(session.bundleChecksum || ""),
+    timingMode: "server_session",
+    serverStartAtMs: Number(session.serverStartAtMs) || 0,
+    playbackStartAtMs: Number(session.serverStartAtMs) || 0,
+    expectedDurationMs: Number(session.expectedDurationMs) || 0,
+    expectedEndAtMs: Number(session.expectedEndAtMs) || 0,
+    pausedAccumulatedMs: Number(session.pausedAccumulatedMs) || 0,
+    pausedAtMs: Number(session.pausedAtMs) || 0,
+    endedAtMs: Number(session.endedAtMs) || 0,
+    terminatedAtMs: Number(session.terminatedAtMs) || 0,
+    elapsedMs: Number(session.elapsedMs) || 0,
+    serverNowMs,
+    requestedAt: serverNowMs,
+    ...extra
+  };
+}
+
+async function publishPlaybackSessionControl(response, accountNamespace, type, session, commandId, extra = {}) {
+  const targetAccountNamespace = resolveOptionalAccountNamespace(session?.accountNamespace) || resolveOptionalAccountNamespace(accountNamespace);
+  const result = {
+    sessionEvent: null,
+    legacyControl: null,
+    errors: []
+  };
+
+  try {
+    result.sessionEvent = await publishTvSessionEvent(session, targetAccountNamespace);
+  } catch (error) {
+    result.errors.push(error instanceof Error ? error.message : "session MQTT 发布失败。");
+  }
+
+  try {
+    result.legacyControl = await publishTvControl(
+      buildPlaybackSessionControlPayload(type, session, commandId, extra),
+      targetAccountNamespace
+    );
+  } catch (error) {
+    result.errors.push(error instanceof Error ? error.message : "legacy MQTT 发布失败。");
+  }
+
+  return result;
+}
+
+async function publishAutoEndedPlaybackSession(session) {
+  const accountNamespace = resolveOptionalAccountNamespace(session?.accountNamespace);
+  try {
+    await publishTvSessionEvent(session, accountNamespace);
+  } catch (error) {
+    console.warn(
+      "Failed to publish auto-ended playback session:",
+      error instanceof Error ? error.message : String(error)
+    );
+  }
+}
+
+function startPlaybackSessionSweeper() {
+  const sweep = async () => {
+    let endedSessions = [];
+    try {
+      endedSessions = endExpiredPlaybackSessions();
+    } catch (error) {
+      console.warn("Playback session sweep failed:", error instanceof Error ? error.message : String(error));
+      return;
+    }
+
+    for (const session of endedSessions) {
+      await publishAutoEndedPlaybackSession(session);
+    }
+  };
+
+  setInterval(sweep, PLAYBACK_SESSION_SWEEP_INTERVAL_MS).unref?.();
+  sweep();
+}
+
+function validateTvScreenPayload(payload) {
+  const screenNumber = Number(payload?.screenNumber);
+  if (!Number.isFinite(screenNumber) || screenNumber < 1 || screenNumber > 5) {
+    return "屏幕序号无效。";
+  }
+
+  if (!String(payload?.deviceId || "").trim()) {
+    return "设备 ID 不能为空。";
+  }
+
+  return "";
+}
+
+function validateTvScreenPairingPayload(payload) {
+  const screenNumber = Number(payload?.screenNumber);
+  if (!Number.isFinite(screenNumber) || screenNumber < 1 || screenNumber > 5) {
+    return "屏幕序号无效。";
+  }
+
+  if (!String(payload?.deviceId || "").trim()) {
+    return "设备 ID 不能为空。";
+  }
+
+  return "";
+}
+
+function validateTvScreenHeartbeatPayload(payload) {
+  const screenNumber = Number(payload?.screenNumber);
+  if (!Number.isFinite(screenNumber) || screenNumber < 0 || screenNumber > 5) {
+    return "屏幕序号无效。";
+  }
+
+  if (!String(payload?.deviceId || "").trim()) {
+    return "设备 ID 不能为空。";
+  }
+
+  return "";
+}
+
+function validateTvScreenUnbindPayload(payload) {
+  const deviceId = String(payload?.deviceId || "").trim();
+  const screenNumber = Number(payload?.screenNumber);
+
+  if (deviceId) {
+    return "";
+  }
+
+  if (Number.isFinite(screenNumber) && screenNumber >= 1 && screenNumber <= 5) {
+    return "";
+  }
+
+  return "解绑屏幕时必须提供 deviceId 或 screenNumber。";
+}
+
+function validateTvScreenDevicePayload(payload) {
+  const deviceId = String(payload?.deviceId || "").trim();
+  const screenNumber = Number(payload?.screenNumber);
+
+  if (deviceId) {
+    return "";
+  }
+
+  if (Number.isFinite(screenNumber) && screenNumber >= 1 && screenNumber <= 5) {
+    return "";
+  }
+
+  return "请提供有效的设备 ID 或屏幕编号。";
+}
+
+function validateAppPackageUploadParams(url) {
+  const platform = String(url.searchParams.get("platform") || "").trim().toLowerCase();
+  const version = String(url.searchParams.get("version") || "").trim();
+  if (!["tv", "coach"].includes(platform)) {
+    return "安装包平台无效。";
+  }
+  if (!version) {
+    return "安装包版本号不能为空。";
+  }
+  return "";
+}
+
+function validateVenuePayload(payload) {
+  const name = String(payload?.name || "").trim();
+  if (!name) {
+    return "场馆名称不能为空。";
+  }
+  return "";
+}
+
+function validateVenueUserPayload(payload) {
+  const username = String(payload?.username || "").trim();
+  const password = String(payload?.password || "").trim();
+  if (!username) {
+    return "账号不能为空。";
+  }
+  if (!password) {
+    return "密码不能为空。";
+  }
+  return "";
+}
+
+function findTargetScreen(payload, accountNamespace) {
+  const screensPayload = listTvScreens(resolveAccountNamespace(accountNamespace));
+  const candidates = [...screensPayload.screens, ...(screensPayload.unboundDevices || [])];
+  return (
+    candidates.find(
+      (item) =>
+        (String(payload?.deviceId || "").trim() && item.deviceId === String(payload.deviceId || "").trim()) ||

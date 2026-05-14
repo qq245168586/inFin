@@ -1,0 +1,240 @@
+      environmentLabel
+    };
+  });
+
+  state.tvScreens = (state.tvScreens || []).map((screen) => {
+    const normalizedAccountNamespace = normalizeScreenAccountNamespace(screen.accountNamespace);
+    if (normalizedAccountNamespace === trimText(screen.accountNamespace)) {
+      return screen;
+    }
+    changed = true;
+    return {
+      ...screen,
+      accountNamespace: normalizedAccountNamespace
+    };
+  });
+
+  for (const preset of CONSOLE_ACCOUNT_PRESETS) {
+    const existing = state.users.find((user) => user.username === preset.username);
+    if (existing) {
+      const nextAccountNamespace = normalizeAccountNamespace(existing.accountNamespace || preset.accountNamespace);
+      const existingEnvLabel = trimText(existing.environmentLabel);
+      const nextEnvironmentLabel = isLegacyEnvironmentLabel(existingEnvLabel)
+        ? preset.environmentLabel
+        : existingEnvLabel || preset.environmentLabel;
+      const existingNickname = trimText(existing.nickname);
+      const nextNickname = isLegacyEnvironmentLabel(existingNickname) ? preset.nickname : existingNickname || preset.nickname;
+      const nextPasswordDigest = existing.passwordDigest || normalizePassword(preset.password);
+      const nextRole = trimText(existing.role) || preset.role || (SUPERADMIN_USERNAMES.has(preset.username) ? "superadmin" : "venue");
+      if (
+        nextAccountNamespace !== trimText(existing.accountNamespace)
+        || nextEnvironmentLabel !== trimText(existing.environmentLabel)
+        || nextNickname !== trimText(existing.nickname)
+        || nextPasswordDigest !== existing.passwordDigest
+        || nextRole !== trimText(existing.role)
+        || JSON.stringify(normalizeAllowedClients(existing.allowedClients)) !== JSON.stringify(normalizeAllowedClients(preset.allowedClients))
+      ) {
+        existing.accountNamespace = nextAccountNamespace;
+        existing.environmentLabel = nextEnvironmentLabel;
+        existing.nickname = nextNickname;
+        existing.passwordDigest = nextPasswordDigest;
+        existing.role = nextRole;
+        existing.allowedClients = normalizeAllowedClients(existing.allowedClients || preset.allowedClients);
+        changed = true;
+      }
+      continue;
+    }
+
+    state.users.push({
+      id: nextId(state.users),
+      username: preset.username,
+      nickname: preset.nickname,
+      avatar: "",
+      gender: "MALE",
+      userType: "CONSOLE",
+      passwordDigest: normalizePassword(preset.password),
+      accountNamespace: preset.accountNamespace,
+      environmentLabel: preset.environmentLabel,
+      role: preset.role || (SUPERADMIN_USERNAMES.has(preset.username) ? "superadmin" : "venue"),
+      venueId: "",
+      allowedClients: normalizeAllowedClients(preset.allowedClients),
+      createTime: nowIso(),
+      lastLoginTime: null
+    });
+    changed = true;
+  }
+
+  // Venue records are now created explicitly via the "场馆管理" UI.
+  // Cleanup legacy auto-seeded venues (e.g. 正式环境/测试环境) so that
+  // superadmin accounts start with zero venues by default.
+  state.venues = state.venues || [];
+  if (state.venues.length) {
+    const namespacesToCleanup = new Set(CONSOLE_ACCOUNT_PRESETS.map((preset) => normalizeAccountNamespace(preset.accountNamespace || preset.username)));
+    const keep = [];
+    let didRemove = false;
+    for (const venue of state.venues) {
+      const ns = normalizeAccountNamespace(venue.accountNamespace);
+      const venueId = trimText(venue.id);
+      const shouldCleanup =
+        namespacesToCleanup.has(ns) &&
+        (isLegacyEnvironmentLabel(venue.name) || trimText(venue.name) === ns);
+      if (shouldCleanup) {
+        didRemove = true;
+        // Detach any legacy venue users/screens so the newly created venue can
+        // re-bind them explicitly later.
+        state.users = (state.users || []).map((user) =>
+          trimText(user.venueId) === venueId ? { ...user, venueId: "" } : user
+        );
+        state.tvScreens = (state.tvScreens || []).map((screen) =>
+          normalizeScreenAccountNamespace(screen.accountNamespace) === ns ? { ...screen, accountNamespace: "" } : screen
+        );
+        continue;
+      }
+      keep.push(venue);
+    }
+    if (didRemove) {
+      state.venues = keep;
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    persist();
+  }
+}
+
+function stripSeedCourseExamples(source) {
+  const signatures = new Set(["HYROX WR 001::Karl", "Boxing Circuit 002::Mina"]);
+  const removableCourseIds = new Set(
+    (source.courses || [])
+      .filter((course) => signatures.has(`${course.name || ""}::${course.creator || ""}`))
+      .map((course) => course.id)
+  );
+
+  if (!removableCourseIds.size) {
+    return { state: source, changed: false };
+  }
+
+  return {
+    changed: true,
+    state: {
+      ...source,
+      courses: (source.courses || []).filter((course) => !removableCourseIds.has(course.id)),
+      schedules: (source.schedules || []).filter((schedule) => !removableCourseIds.has(schedule.courseId))
+    }
+  };
+}
+
+function normalizeLoadedState(parsed) {
+  return {
+    media: Array.isArray(parsed.media) ? parsed.media : [],
+    appPackages: Array.isArray(parsed.appPackages) ? parsed.appPackages : clone(defaultState.appPackages),
+    actionTypes: Array.isArray(parsed.actionTypes) ? parsed.actionTypes : clone(defaultState.actionTypes),
+    lessonTypes: Array.isArray(parsed.lessonTypes) ? parsed.lessonTypes : clone(defaultState.lessonTypes),
+    actions: Array.isArray(parsed.actions) ? parsed.actions : clone(defaultState.actions),
+    courses: Array.isArray(parsed.courses) ? parsed.courses : clone(defaultState.courses),
+    templates: Array.isArray(parsed.templates) ? parsed.templates : clone(defaultState.templates),
+    schedules: Array.isArray(parsed.schedules)
+      ? parsed.schedules.map(normalizeScheduleEntry)
+      : clone(defaultState.schedules),
+    tvScreens: Array.isArray(parsed.tvScreens)
+      ? parsed.tvScreens.map((item) => ({
+          ...item,
+          accountNamespace: normalizeScreenAccountNamespace(item?.accountNamespace)
+        }))
+      : clone(defaultState.tvScreens),
+    playbackSessions: Array.isArray(parsed.playbackSessions)
+      ? parsed.playbackSessions.map(normalizePlaybackSessionEntry)
+      : clone(defaultState.playbackSessions),
+    venues: Array.isArray(parsed.venues)
+      ? parsed.venues.map((item) => ({
+          ...item,
+          id: trimText(item?.id) || String(item?.id || ""),
+          name: trimText(item?.name),
+          accountNamespace: normalizeAccountNamespace(item?.accountNamespace),
+          createTime: trimText(item?.createTime),
+          updateTime: trimText(item?.updateTime)
+        }))
+      : clone(defaultState.venues),
+    users: Array.isArray(parsed.users)
+      ? parsed.users.map((item) => ({
+          ...item,
+          accountNamespace: normalizeAccountNamespace(item?.accountNamespace || item?.username),
+          environmentLabel:
+            trimText(item?.environmentLabel)
+            || environmentLabelForNamespace(item?.accountNamespace || item?.username),
+          role: trimText(item?.role) || (SUPERADMIN_USERNAMES.has(trimText(item?.username)) ? "superadmin" : "venue"),
+          venueId: trimText(item?.venueId) || ""
+        }))
+      : clone(defaultState.users),
+    authSessions: Array.isArray(parsed.authSessions) ? parsed.authSessions : clone(defaultState.authSessions)
+  };
+}
+
+function tryLoadStateFile(targetFile) {
+  if (!fs.existsSync(targetFile)) {
+    return null;
+  }
+
+  const raw = fs.readFileSync(targetFile, "utf8");
+  const parsed = JSON.parse(raw);
+  const hadScheduleVenueId = Array.isArray(parsed?.schedules)
+    ? parsed.schedules.some((schedule) => schedule && typeof schedule === "object" && "venueId" in schedule)
+    : false;
+  const normalized = normalizeLoadedState(parsed);
+  const stripped = stripSeedCourseExamples(normalized);
+  const changed = stripped.changed || hadScheduleVenueId;
+  return {
+    state: stripped.state,
+    changed
+  };
+}
+
+function writeStateSnapshot(nextState, options = {}) {
+  const { createBackup = true, reason = "autosave" } = options;
+  const nextText = JSON.stringify(nextState, null, 2);
+  const currentText = readTextIfExists(dbFile);
+
+  if (createBackup && currentText.trim() && currentText !== nextText) {
+    createDatabaseBackup(currentText, reason);
+  }
+
+  writeTextAtomic(dbFile, nextText);
+}
+
+function loadState() {
+  try {
+    const primary = tryLoadStateFile(dbFile);
+    if (primary) {
+      if (primary.changed) {
+        writeStateSnapshot(primary.state, { createBackup: false, reason: "normalize" });
+      }
+      return primary.state;
+    }
+  } catch (error) {
+    // Fallback to backups below.
+  }
+
+  for (const backupFile of listBackupFiles()) {
+    try {
+      const restored = tryLoadStateFile(backupFile);
+      if (!restored) {
+        continue;
+      }
+      writeStateSnapshot(restored.state, { createBackup: false, reason: "restore" });
+      return restored.state;
+    } catch (error) {
+      // Skip broken backups and continue trying older ones.
+    }
+  }
+
+  try {
+    writeStateSnapshot(defaultState, { createBackup: false, reason: "bootstrap" });
+    return clone(defaultState);
+  } catch (error) {
+    return clone(defaultState);
+  }
+}
+
+function persist() {
+  writeStateSnapshot(state, { createBackup: true, reason: "autosave" });

@@ -1,0 +1,50 @@
+  };
+
+  const index = state.schedules.findIndex((item) => item.id === next.id);
+
+  if (index >= 0) {
+    state.schedules[index] = next;
+  } else {
+    state.schedules.push(next);
+  }
+
+  persist();
+  return attachCourseBasics(next);
+}
+
+export function deleteSchedule(scheduleId) {
+  const numericId = Number(scheduleId);
+  state.schedules = state.schedules.filter((item) => item.id !== numericId);
+  persist();
+  return { ok: true };
+}
+
+export function copyLastWeekSchedules() {
+  const monday = startOfWeek(new Date());
+  const nextMonday = endOfWeek(new Date());
+  const lastWeek = listSchedulesByScope("LASTWEEK");
+
+  state.schedules = state.schedules.filter((item) => {
+    return !inRange(item.beginTime, monday, nextMonday);
+  });
+
+  let nextScheduleId = nextId(state.schedules);
+
+  const copied = lastWeek.map((item) => {
+    const nextDate = new Date(item.beginTime);
+    nextDate.setDate(nextDate.getDate() + 7);
+
+    return {
+      id: nextScheduleId++,
+      courseId: item.courseId,
+      courseName: item.courseName,
+      version: item.version,
+      beginTime: nextDate.toISOString(),
+      duration: item.duration
+    };
+  });
+
+  state.schedules.push(...copied);
+  persist();
+  return copied.map(attachCourseBasics);
+}

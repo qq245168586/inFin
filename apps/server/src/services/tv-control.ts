@@ -103,7 +103,7 @@ async function publishViaGateway(pathname, body) {
   const timeoutId = setTimeout(() => controller.abort(), MQTT_CLIENT_HTTP_TIMEOUT_MS);
   try {
     const url = new URL(pathname, MQTT_CLIENT_HTTP_URL.endsWith("/") ? MQTT_CLIENT_HTTP_URL : `${MQTT_CLIENT_HTTP_URL}/`);
-    const headers = {
+    const headers: Record<string, string> = {
       "content-type": "application/json"
     };
     if (MQTT_CLIENT_HTTP_TOKEN) {
@@ -189,7 +189,7 @@ export async function publishTvSessionEvent(session, accountNamespace = "") {
   const normalizedAccountNamespace =
     String(accountNamespace || session?.accountNamespace || "").trim().toLowerCase() || "__unbound__";
   const serverNowMs = Date.now();
-  const payload = {
+  const payload: Record<string, any> = {
     type: "session_updated",
     accountNamespace: normalizedAccountNamespace,
     sessionId: String(session?.id || "").trim(),

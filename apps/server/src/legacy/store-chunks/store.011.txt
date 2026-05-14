@@ -1,0 +1,240 @@
+  return {
+    date,
+    timeZone,
+    checksum,
+    generatedAt: nowIso(),
+    scheduleCount: schedules.length,
+    schedules,
+    resources
+  };
+}
+
+export function getTvDailyChecksum(dateText, timeZone = "Asia/Shanghai", accountNamespace = "") {
+  const bundle = getTvDailyBundle(dateText, timeZone, accountNamespace);
+  return {
+    date: bundle.date,
+    timeZone: bundle.timeZone,
+    checksum: bundle.checksum,
+    generatedAt: bundle.generatedAt,
+    scheduleCount: bundle.scheduleCount,
+    schedules: bundle.schedules.map((item) => ({
+      id: item.id,
+      courseId: item.courseId,
+      beginTime: item.beginTime,
+      duration: item.duration,
+      contentChecksum: item.contentChecksum
+    }))
+  };
+}
+
+export function getTvScheduleBundle(scheduleId) {
+  const numericId = Number(scheduleId);
+  if (!Number.isFinite(numericId) || numericId <= 0) {
+    return null;
+  }
+
+  const schedule = state.schedules.map(attachCourseBasics).find((item) => item.id === numericId);
+  if (!schedule) {
+    return null;
+  }
+
+  const entry = buildTvScheduleEntry(schedule);
+  if (!entry) {
+    return null;
+  }
+
+  const resources = [...(entry.resources || [])].sort((left, right) => left.key.localeCompare(right.key));
+  return {
+    scheduleId: entry.id,
+    generatedAt: nowIso(),
+    checksum: hashValue({
+      scheduleId: entry.id,
+      contentChecksum: entry.contentChecksum,
+      resources: resources.map((item) => ({
+        key: item.key,
+        url: item.url,
+        checksum: trimText(item.checksum),
+        sizeBytes: safeNumber(item.sizeBytes)
+      }))
+    }),
+    schedule: entry,
+    resources
+  };
+}
+
+export function getCurrentPlaybackSession(accountNamespace = "") {
+  return serializePlaybackSession(getActivePlaybackSessionEntry(accountNamespace));
+}
+
+export function getCurrentPlaybackSessionForTv(payload = {}) {
+  const requestedAccountNamespace = normalizeScreenAccountNamespace(payload.accountNamespace);
+  const requestedDeviceId = trimText(payload.deviceId);
+  const requestedScreenNumber = Number(payload.screenNumber) || 0;
+  const matchedScreen =
+    (state.tvScreens || []).find((item) => {
+      const sameDevice = requestedDeviceId && trimText(item.deviceId) === requestedDeviceId;
+      const sameScreen =
+        requestedScreenNumber >= 1
+        && normalizeScreenAccountNamespace(item.accountNamespace) === requestedAccountNamespace
+        && Number(item.screenNumber) === requestedScreenNumber;
+      return sameDevice || sameScreen;
+    }) || null;
+  const accountNamespace =
+    requestedAccountNamespace
+    || normalizeScreenAccountNamespace(matchedScreen?.accountNamespace)
+    || DEFAULT_ACCOUNT_NAMESPACE;
+  return serializePlaybackSession(getActivePlaybackSessionEntry(accountNamespace));
+}
+
+export function getPlaybackSession(sessionId, accountNamespace = "") {
+  return serializePlaybackSession(findPlaybackSessionById(sessionId, accountNamespace));
+}
+
+export function createPreviewPlaybackSession(payload = {}, accountNamespace = "") {
+  const ns = normalizeAccountNamespace(accountNamespace);
+  const scheduleId = trimText(payload.scheduleId);
+  const commandId = trimText(payload.commandId);
+  if (!commandId) {
+    throw new Error("commandId 不能为空。");
+  }
+  const scheduleBundle = getTvScheduleBundle(scheduleId);
+  if (!scheduleBundle?.schedule) {
+    throw new Error("未找到对应的课程排课。");
+  }
+
+  const active = getActivePlaybackSessionEntry(ns);
+  const nextChecksum = trimText(payload.bundleChecksum) || trimText(scheduleBundle.schedule.contentChecksum) || trimText(scheduleBundle.checksum);
+  if (active) {
+    const samePreview =
+      trimText(active.scheduleId) === String(scheduleBundle.schedule.id)
+      && safeNumber(active.courseId) === safeNumber(scheduleBundle.schedule.courseId)
+      && trimText(active.bundleChecksum) === nextChecksum
+      && normalizePlaybackState(active.state) === "PREVIEW";
+    if (samePreview) {
+      const commandResult = recordPlaybackCommand(active, "preview", commandId);
+      if (!commandResult.duplicate) {
+        active.updatedAtMs = Date.now();
+        active.updateTime = nowIso();
+      }
+      persist();
+      return serializePlaybackSession(active);
+    }
+    const error = new Error("当前已有未结束课程，请先终止当前课程。");
+    error.code = "ACTIVE_PLAYBACK_SESSION";
+    throw error;
+  }
+
+  const now = nowIso();
+  const nowMs = Date.now();
+  const session = normalizePlaybackSessionEntry({
+    id: createPlaybackSessionId(),
+    accountNamespace: ns,
+    state: "PREVIEW",
+    version: 1,
+    scheduleId: String(scheduleBundle.schedule.id),
+    courseId: scheduleBundle.schedule.courseId,
+    courseName: scheduleBundle.schedule.courseName,
+    duration: scheduleBundle.schedule.duration,
+    expectedDurationMs:
+      safeNumber(payload.expectedDurationMs)
+      || estimateCoursePlaybackDurationMs(scheduleBundle.schedule.course?.script)
+      || safeNumber(scheduleBundle.schedule.duration) * 60 * 1000,
+    bundleChecksum: nextChecksum,
+    scheduledStartAtMs: safeNumber(payload.scheduledStartAtMs, new Date(scheduleBundle.schedule.beginTime).getTime()),
+    serverStartAtMs: 0,
+    pausedAccumulatedMs: 0,
+    pausedAtMs: 0,
+    createdBy: trimText(payload.createdBy),
+    createdAtMs: nowMs,
+    updatedAtMs: nowMs,
+    metadata: payload.metadata && typeof payload.metadata === "object" ? payload.metadata : {},
+    createTime: now,
+    updateTime: now
+  });
+
+  recordPlaybackCommand(session, "preview", commandId);
+
+  state.playbackSessions = state.playbackSessions || [];
+  state.playbackSessions.push(session);
+  persist();
+  return serializePlaybackSession(session);
+}
+
+export function updatePlaybackSessionState(sessionId, action, payload = {}, accountNamespace = "") {
+  const ns = normalizeAccountNamespace(accountNamespace);
+  const session = findPlaybackSessionById(sessionId, ns);
+  if (!session) {
+    return null;
+  }
+
+  const normalizedAction = trimText(action).toLowerCase();
+  const commandId = trimText(payload.commandId);
+  const existingCommand = commandId
+    ? (session.commandLog || []).find((item) => trimText(item.commandId) === commandId)
+    : null;
+  if (existingCommand) {
+    return serializePlaybackSession(session);
+  }
+  if (!commandId) {
+    throw new Error("commandId 不能为空。");
+  }
+
+  const nowMs = Date.now();
+  if (normalizedAction === "start") {
+    if (safeNumber(session.serverStartAtMs) > 0 && ["SCHEDULED", "RUNNING"].includes(session.state)) {
+      const commandResult = recordPlaybackCommand(session, normalizedAction, commandId);
+      if (!commandResult.duplicate) {
+        session.updatedAtMs = nowMs;
+        session.updateTime = nowIso();
+      }
+      persist();
+      return serializePlaybackSession(session);
+    }
+    if (!["PREVIEW", "SCHEDULED"].includes(session.state)) {
+      if (session.state === "RUNNING") {
+        const commandResult = recordPlaybackCommand(session, normalizedAction, commandId);
+        if (!commandResult.duplicate) {
+          session.updatedAtMs = nowMs;
+          session.updateTime = nowIso();
+        }
+        persist();
+        return serializePlaybackSession(session);
+      }
+      throw new Error("当前 session 状态不允许开始课程。");
+    }
+    const startDelayMs = Math.max(3000, Math.min(30000, safeNumber(payload.startDelayMs, 5000)));
+    session.state = "RUNNING";
+    session.startDelayMs = startDelayMs;
+    session.serverStartAtMs = nowMs + startDelayMs;
+    session.pausedAccumulatedMs = 0;
+    session.pausedAtMs = 0;
+  } else if (normalizedAction === "pause") {
+    if (session.state === "PAUSED") {
+      const commandResult = recordPlaybackCommand(session, normalizedAction, commandId);
+      if (!commandResult.duplicate) {
+        session.updatedAtMs = nowMs;
+        session.updateTime = nowIso();
+      }
+      persist();
+      return serializePlaybackSession(session);
+    }
+    if (!["SCHEDULED", "RUNNING"].includes(session.state)) {
+      throw new Error("当前 session 状态不允许暂停。");
+    }
+    session.state = "PAUSED";
+    session.pausedAtMs =
+      session.serverStartAtMs > 0 && nowMs < session.serverStartAtMs
+        ? session.serverStartAtMs
+        : nowMs;
+  } else if (normalizedAction === "resume") {
+    if (session.state === "RUNNING") {
+      const commandResult = recordPlaybackCommand(session, normalizedAction, commandId);
+      if (!commandResult.duplicate) {
+        session.updatedAtMs = nowMs;
+        session.updateTime = nowIso();
+      }
+      persist();
+      return serializePlaybackSession(session);
+    }
+    if (session.state !== "PAUSED") {
+      throw new Error("当前 session 状态不允许继续。");
