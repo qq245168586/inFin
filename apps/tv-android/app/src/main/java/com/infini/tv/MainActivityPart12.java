@@ -109,7 +109,12 @@ abstract class MainActivityPart12 extends MainActivityPart11 {
     }
 
     applyResponsiveLayout();
-    updateTrainingPlayback(course, 0);
+    suppressTrainingCuePlayback = true;
+    try {
+      updateTrainingPlayback(course, 0);
+    } finally {
+      suppressTrainingCuePlayback = false;
+    }
     rememberTrainingCuePhase("workout-ready", "READY");
     applyPlaybackTheme(PlaybackTheme.READY);
     playbackCountdownText.setText(String.valueOf(Math.max(remainingSeconds, 0)));

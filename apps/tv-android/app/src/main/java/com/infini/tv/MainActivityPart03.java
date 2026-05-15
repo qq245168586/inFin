@@ -67,6 +67,8 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
 abstract class MainActivityPart03 extends MainActivityPart02 {
+  protected boolean suppressTrainingCuePlayback = false;
+
   protected SilentInstallResult trySilentRootInstall(File apkFile) {
     String sourcePath = apkFile.getAbsolutePath();
     String stagedPath = "/data/local/tmp/infini-tv-update.apk";
@@ -321,7 +323,7 @@ abstract class MainActivityPart03 extends MainActivityPart02 {
     String safeCueKey =
         cueKey == null || cueKey.trim().isEmpty()
             ? ""
-            : activePlaybackSessionId + "|" + playbackStartElapsedRealtimeMs + "|" + cueKey;
+            : activePlaybackSessionId + "|" + cueKey;
     if (!TextUtils.isEmpty(safeCueKey) && safeCueKey.equals(lastCuePlaybackKey)) {
       return;
     }
@@ -399,6 +401,9 @@ abstract class MainActivityPart03 extends MainActivityPart02 {
   }
 
   protected void maybePlayTrainingCue(TrainingPlaybackState state) {
+    if (suppressTrainingCuePlayback) {
+      return;
+    }
     if (state == null) {
       lastTrainingAudioRenderKey = "";
       lastTrainingAudioPhase = "";

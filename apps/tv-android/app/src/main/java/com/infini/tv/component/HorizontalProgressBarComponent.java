@@ -1,11 +1,15 @@
 package com.infini.tv.component;
 
 import android.content.Context;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.Rect;
+import android.graphics.RectF;
+import android.graphics.drawable.Drawable;
 import android.view.View;
-import android.widget.FrameLayout;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import com.infini.tv.R;
+import java.util.ArrayList;
 import java.util.List;
 
 public final class HorizontalProgressBarComponent {
@@ -23,8 +27,8 @@ public final class HorizontalProgressBarComponent {
       return;
     }
 
-    progressRow.removeAllViews();
     if (segmentDurations == null || segmentDurations.isEmpty()) {
+      progressRow.removeAllViews();
       progressRow.setVisibility(View.GONE);
       return;
     }
@@ -38,66 +42,32 @@ public final class HorizontalProgressBarComponent {
     int markerMargin = clamp(Math.round(shortSide * 0.032f), dp(context, 34), dp(context, 68));
     int safeElapsed = clamp(Math.max(elapsedSeconds, 0), 0, Math.max(totalSeconds, 0));
 
-    int consumed = 0;
-    for (int index = 0; index < segmentDurations.size(); index += 1) {
-      int durationSeconds = Math.max(segmentDurations.get(index), 1);
-      addSegment(progressRow, durationSeconds, safeElapsed - consumed, segmentHeight);
-      consumed += durationSeconds;
-
-      if (index < segmentDurations.size() - 1) {
-        addMarker(progressRow, markerWidth, markerHeight, markerMargin, safeElapsed >= consumed);
-      }
+    TimelineProgressView progressView = null;
+    if (progressRow.getChildCount() == 1 && progressRow.getChildAt(0) instanceof TimelineProgressView) {
+      progressView = (TimelineProgressView) progressRow.getChildAt(0);
     }
-  }
-
-  private static void addSegment(
-      LinearLayout progressRow, int durationSeconds, int elapsedInSegment, int segmentHeight) {
-    FrameLayout segmentContainer = new FrameLayout(progressRow.getContext());
-    segmentContainer.setLayoutParams(new LinearLayout.LayoutParams(0, segmentHeight, durationSeconds));
-
-    int completedInSegment = clamp(elapsedInSegment, 0, durationSeconds);
-    if (completedInSegment >= durationSeconds) {
-      segmentContainer.setBackgroundResource(R.drawable.bg_horizontal_progress_active);
+    if (progressView == null) {
+      progressRow.removeAllViews();
+      progressView = new TimelineProgressView(context);
+      progressRow.addView(
+          progressView,
+          new LinearLayout.LayoutParams(
+              LinearLayout.LayoutParams.MATCH_PARENT, markerHeight));
     } else {
-      segmentContainer.setBackgroundResource(R.drawable.bg_horizontal_progress_inactive);
-      if (completedInSegment > 0) {
-        View fill = new View(progressRow.getContext());
-        fill.setBackgroundResource(R.drawable.bg_horizontal_progress_active);
-        segmentContainer.addView(
-            fill,
-            new FrameLayout.LayoutParams(0, FrameLayout.LayoutParams.MATCH_PARENT));
-        segmentContainer.post(
-            () -> {
-              int width = segmentContainer.getWidth();
-              if (width <= 0) {
-                return;
-              }
-              FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) fill.getLayoutParams();
-              params.width = Math.max(1, Math.round(width * completedInSegment / (float) durationSeconds));
-              fill.setLayoutParams(params);
-            });
+      LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) progressView.getLayoutParams();
+      if (params == null || params.height != markerHeight) {
+        progressView.setLayoutParams(
+            new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, markerHeight));
       }
     }
-    progressRow.addView(segmentContainer);
-  }
-
-  private static void addMarker(
-      LinearLayout progressRow, int markerWidth, int markerHeight, int markerMargin, boolean completed) {
-    ImageView marker = new ImageView(progressRow.getContext());
-    LinearLayout.LayoutParams markerParams =
-        new LinearLayout.LayoutParams(markerWidth, markerHeight);
-    markerParams.leftMargin = markerMargin;
-    markerParams.rightMargin = markerMargin;
-    marker.setLayoutParams(markerParams);
-    marker.setAdjustViewBounds(true);
-    marker.setScaleType(ImageView.ScaleType.FIT_CENTER);
-    marker.setImageResource(R.drawable.icon_water);
-    marker.setColorFilter(
-        progressRow
-            .getContext()
-            .getColor(completed ? R.color.tv_horizontal_marker_done : R.color.tv_horizontal_marker_idle));
-    marker.setAlpha(1f);
-    progressRow.addView(marker);
+    progressView.setProgressData(
+        segmentDurations,
+        safeElapsed,
+        segmentHeight,
+        markerWidth,
+        markerHeight,
+        markerMargin);
   }
 
   private static int dp(Context context, int value) {
@@ -106,5 +76,134 @@ public final class HorizontalProgressBarComponent {
 
   private static int clamp(int value, int min, int max) {
     return Math.max(min, Math.min(max, value));
+  }
+
+  private static final class TimelineProgressView extends View {
+    private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final RectF rect = new RectF();
+    private final Rect markerBounds = new Rect();
+    private final Drawable waterIcon;
+    private final int activeColor;
+    private final int inactiveColor;
+    private final int markerDoneColor;
+    private final int markerIdleColor;
+    private final List<Integer> segmentDurations = new ArrayList<>();
+    private int elapsedSeconds;
+    private int segmentHeight;
+    private int markerWidth;
+    private int markerHeight;
+    private int markerMargin;
+
+    TimelineProgressView(Context context) {
+      super(context);
+      activeColor = context.getColor(R.color.tv_horizontal_progress_active);
+      inactiveColor = context.getColor(R.color.tv_horizontal_progress_inactive);
+      markerDoneColor = context.getColor(R.color.tv_horizontal_marker_done);
+      markerIdleColor = context.getColor(R.color.tv_horizontal_marker_idle);
+      Drawable rawIcon = context.getDrawable(R.drawable.icon_water);
+      waterIcon = rawIcon == null ? null : rawIcon.mutate();
+      setWillNotDraw(false);
+    }
+
+    void setProgressData(
+        List<Integer> durations,
+        int elapsed,
+        int barHeight,
+        int waterWidth,
+        int waterHeight,
+        int waterMargin) {
+      segmentDurations.clear();
+      if (durations != null) {
+        for (Integer duration : durations) {
+          segmentDurations.add(Math.max(duration == null ? 0 : duration, 1));
+        }
+      }
+      elapsedSeconds = Math.max(elapsed, 0);
+      segmentHeight = Math.max(barHeight, 1);
+      markerWidth = Math.max(waterWidth, 1);
+      markerHeight = Math.max(waterHeight, 1);
+      markerMargin = Math.max(waterMargin, 0);
+      invalidate();
+    }
+
+    @Override
+    protected void onDraw(Canvas canvas) {
+      super.onDraw(canvas);
+      if (segmentDurations.isEmpty()) {
+        return;
+      }
+      int width = getWidth();
+      int height = getHeight();
+      if (width <= 0 || height <= 0) {
+        return;
+      }
+
+      int markerCount = Math.max(segmentDurations.size() - 1, 0);
+      float fixedWidth = markerCount * (markerWidth + markerMargin * 2f);
+      float availableSegmentWidth = Math.max(0f, width - fixedWidth);
+      int totalDuration = 0;
+      for (Integer duration : segmentDurations) {
+        totalDuration += Math.max(duration, 1);
+      }
+      if (totalDuration <= 0 || availableSegmentWidth <= 0f) {
+        return;
+      }
+
+      float x = 0f;
+      int consumedSeconds = 0;
+      float centerY = height / 2f;
+      for (int index = 0; index < segmentDurations.size(); index += 1) {
+        int duration = Math.max(segmentDurations.get(index), 1);
+        float segmentWidth =
+            index == segmentDurations.size() - 1
+                ? Math.max(0f, width - x)
+                : availableSegmentWidth * duration / (float) totalDuration;
+        if (segmentWidth > 0f) {
+          drawSegment(canvas, x, centerY, segmentWidth, duration, elapsedSeconds - consumedSeconds);
+        }
+        x += segmentWidth;
+        consumedSeconds += duration;
+
+        if (index < segmentDurations.size() - 1) {
+          x += markerMargin;
+          drawMarker(canvas, x, centerY, elapsedSeconds >= consumedSeconds);
+          x += markerWidth + markerMargin;
+        }
+      }
+    }
+
+    private void drawSegment(
+        Canvas canvas, float x, float centerY, float width, int durationSeconds, int elapsedInSegment) {
+      float top = centerY - segmentHeight / 2f;
+      float bottom = centerY + segmentHeight / 2f;
+      float radius = segmentHeight / 2f;
+      paint.setColor(inactiveColor);
+      rect.set(x, top, x + width, bottom);
+      canvas.drawRoundRect(rect, radius, radius, paint);
+
+      int completed = clamp(elapsedInSegment, 0, durationSeconds);
+      if (completed <= 0) {
+        return;
+      }
+      float activeWidth = Math.max(1f, width * completed / (float) durationSeconds);
+      paint.setColor(activeColor);
+      rect.set(x, top, Math.min(x + activeWidth, x + width), bottom);
+      canvas.drawRoundRect(rect, radius, radius, paint);
+    }
+
+    private void drawMarker(Canvas canvas, float x, float centerY, boolean completed) {
+      if (waterIcon == null) {
+        return;
+      }
+      int top = Math.round(centerY - markerHeight / 2f);
+      markerBounds.set(
+          Math.round(x),
+          top,
+          Math.round(x + markerWidth),
+          top + markerHeight);
+      waterIcon.setTint(completed ? markerDoneColor : markerIdleColor);
+      waterIcon.setBounds(markerBounds);
+      waterIcon.draw(canvas);
+    }
   }
 }
