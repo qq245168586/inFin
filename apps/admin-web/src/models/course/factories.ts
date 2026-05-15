@@ -79,7 +79,7 @@ export function createPodSetConfig(overrides: Partial<PodSetConfig> = {}): PodSe
 
 export function cloneWaterfallItemForEditor(item?: Partial<WaterfallItem>): WaterfallItem {
   return {
-    id: uid("waterfall"),
+    id: item?.id || uid("waterfall"),
     actionId: String(item?.actionId || ""),
     actionName: String(item?.actionName || ""),
     seconds: readNonNegativeNumber(item?.seconds, 0),
@@ -95,7 +95,7 @@ export function cloneWaterfallSectionForEditor(
   const sourceItems = Array.isArray(section?.items) ? section.items : [];
   const items = sourceItems.length ? sourceItems : allowEmpty ? [] : [createWaterfallItem()];
   return {
-    id: uid("section"),
+    id: section?.id || uid("section"),
     title,
     layout: "WATERFALL",
     items: items.map((item) => cloneWaterfallItemForEditor(item))

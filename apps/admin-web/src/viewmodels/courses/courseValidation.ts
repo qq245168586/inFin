@@ -21,9 +21,6 @@ export function getCourseDraftIssues(draft: CourseDraft): string[] {
   if (needsTransitionDuration && Number(script.metadata.defaultHydrateSeconds) <= 0) {
     issues.push("当前课程包含补水或换区 Pod，请填写补水 / 换区时长。");
   }
-  if (Number(script.metadata.trainingPanel.workSeconds) <= 0) {
-    issues.push("TV 横屏的 work 时间必须大于 0。");
-  }
   if (Number(script.metadata.trainingPanel.restSeconds) < 0) {
     issues.push("TV 横屏的 rest 时间不能小于 0。");
   }
