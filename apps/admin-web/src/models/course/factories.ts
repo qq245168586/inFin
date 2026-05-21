@@ -2,6 +2,9 @@ import { readNonNegativeNumber } from "../../utils/number.ts";
 import { stationInputValue } from "../../utils/station.ts";
 import { uid } from "../../utils/uid.ts";
 import type {
+  CoursePlan,
+  CoursePlanItem,
+  CoursePlanSection,
   PodSetConfig,
   TrainingPanel,
   VideoCard,
@@ -38,6 +41,27 @@ export function createWaterfallSection(title: string): WaterfallSection {
     title,
     layout: "WATERFALL",
     items: [createWaterfallItem()]
+  };
+}
+
+export function createCoursePlanItem(text = ""): CoursePlanItem {
+  return {
+    id: uid("plan-item"),
+    text
+  };
+}
+
+export function createCoursePlanSection(): CoursePlanSection {
+  return {
+    id: uid("plan-section"),
+    title: "",
+    items: [createCoursePlanItem()]
+  };
+}
+
+export function createCoursePlan(): CoursePlan {
+  return {
+    sections: []
   };
 }
 
@@ -135,6 +159,29 @@ export function cloneVideoGroupForEditor(group: Partial<VideoGroup> | null | und
         videoCards: sourceCards.map((card) => cloneVideoCardForEditor(card, screenCount))
       };
     })
+  };
+}
+
+export function cloneCoursePlanItemForEditor(item?: Partial<CoursePlanItem>): CoursePlanItem {
+  return {
+    id: item?.id || uid("plan-item"),
+    text: String(item?.text || "")
+  };
+}
+
+export function cloneCoursePlanSectionForEditor(section?: Partial<CoursePlanSection>): CoursePlanSection {
+  const sourceItems = Array.isArray(section?.items) ? section.items : [];
+  return {
+    id: section?.id || uid("plan-section"),
+    title: String(section?.title || ""),
+    items: sourceItems.map((item) => cloneCoursePlanItemForEditor(item))
+  };
+}
+
+export function cloneCoursePlanForEditor(plan?: Partial<CoursePlan> | null): CoursePlan {
+  const sections = Array.isArray(plan?.sections) ? plan.sections : [];
+  return {
+    sections: sections.map((section) => cloneCoursePlanSectionForEditor(section))
   };
 }
 

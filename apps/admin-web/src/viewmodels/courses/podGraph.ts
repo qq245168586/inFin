@@ -72,6 +72,7 @@ export function createPod(group?: VideoGroup): Pod {
     id: uid("pod"),
     name: `Pod ${Math.floor(Math.random() * 90) + 10}`,
     videoGroupId: resolvedGroup.id,
+    stationFlow: "NORMAL",
     ending: "HYDRATE",
     screens: createPodScreensFromGroup(resolvedGroup)
   };

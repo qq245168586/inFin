@@ -6,9 +6,10 @@ import { toggleNumberId } from "../../utils/array.ts";
 import { triggerFileInput } from "../../utils/dom.ts";
 import { removeVideoGroup, syncPodWithVideoGroup, syncPodsForVideoGroup, createPod, createPodName, rebalancePodEndings } from "../../viewmodels/courses/podGraph.ts";
 import { formatRestStrategy, formatSecondsStrategy } from "../../viewmodels/courses/podFormatters.ts";
-import { formatPodTimingMismatch, getPodScreenTotal } from "../../viewmodels/courses/podTiming.ts";
+import { formatPodTimingMismatch, getPodScreenTotalForFlow } from "../../viewmodels/courses/podTiming.ts";
 import type { CourseDraft, CourseEditorTabState } from "../../viewmodels/courses/types.ts";
 import { COURSE_SECTION_COPY, POD_ENDING_OPTIONS } from "../../viewmodels/courses/courseEditorConstants.ts";
+import CoursePlanEditor from "./CoursePlanEditor.tsx";
 import CourseWaterfallSections from "./CourseWaterfallSections.tsx";
 import CourseVideoGroupsEditor from "./CourseVideoGroupsEditor.tsx";
 import CoursePodsEditor from "./CoursePodsEditor.tsx";
@@ -125,6 +126,10 @@ export default function CourseEditorPane({
 
         <div className="divider" />
 
+        <CoursePlanEditor plan={courseEditor.script.plan} onUpdateScript={onUpdateCourseScript} />
+
+        <div className="divider" />
+
         <CourseWaterfallSections
           sections={courseEditor.script.sections}
           actions={actions}
@@ -153,7 +158,7 @@ export default function CourseEditorPane({
           createPod={createPod}
           syncPodWithVideoGroup={syncPodWithVideoGroup}
           rebalancePodEndings={rebalancePodEndings}
-          getPodScreenTotal={getPodScreenTotal}
+          getPodScreenTotal={getPodScreenTotalForFlow}
           formatPodTimingMismatch={formatPodTimingMismatch}
           formatRestStrategy={formatRestStrategy}
           formatSecondsStrategy={formatSecondsStrategy}

@@ -4,6 +4,7 @@ export type CourseEditorTitle = "添加课程" | "编辑课程";
 export type CourseSectionKey = "warmup" | "cooldown";
 export type CourseLayout = "WATERFALL" | "STATIONS";
 export type PodEnding = "HYDRATE" | "MOVE_ZONE" | "FINISH";
+export type PodStationFlow = "NORMAL" | "SWITCH";
 export type VideoGroupScreenCount = 1 | 3;
 
 export interface TrainingPanel {
@@ -26,6 +27,21 @@ export interface WaterfallSection {
   title: string;
   layout: "WATERFALL";
   items: WaterfallItem[];
+}
+
+export interface CoursePlanItem {
+  id: string;
+  text: string;
+}
+
+export interface CoursePlanSection {
+  id: string;
+  title: string;
+  items: CoursePlanItem[];
+}
+
+export interface CoursePlan {
+  sections: CoursePlanSection[];
 }
 
 export interface VideoCard {
@@ -69,6 +85,7 @@ export interface Pod {
   id: string;
   name: string;
   videoGroupId: string;
+  stationFlow: PodStationFlow;
   ending: PodEnding;
   screens: PodScreen[];
 }
@@ -87,6 +104,7 @@ export interface CourseScript {
     warmup: WaterfallSection;
     cooldown: WaterfallSection;
   };
+  plan: CoursePlan;
   training: {
     videoGroups: VideoGroup[];
     pods: Pod[];

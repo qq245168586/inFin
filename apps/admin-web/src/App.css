@@ -352,6 +352,15 @@ body {
   filter: brightness(1.02);
 }
 
+.danger-link {
+  color: var(--danger);
+  background: transparent;
+  border: 0;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .venue-picker {
   margin-top: 4px;
   border-radius: 16px;
@@ -506,6 +515,11 @@ body {
 .login-stage-top {
   padding: 28px 22px;
   color: #ffffff;
+}
+
+.login-language-switcher {
+  margin-top: 28px;
+  min-width: 0;
 }
 
 .login-panel {
@@ -849,6 +863,29 @@ textarea:focus {
   gap: 12px;
 }
 
+.language-switcher {
+  display: grid;
+  gap: 4px;
+  min-width: 132px;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.language-switcher select {
+  height: 42px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  color: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.language-switcher select:focus {
+  border-color: rgba(168, 85, 247, 0.75);
+  box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.18);
+}
+
 .user-pill {
   min-width: 180px;
   padding: 12px 14px;
@@ -988,6 +1025,12 @@ textarea:focus {
   color: #ffffff;
   background: linear-gradient(90deg, #8f18ff 0%, #b91dff 100%);
   box-shadow: 0 12px 24px rgba(148, 28, 255, 0.24);
+}
+
+.primary-button.small {
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: 13px;
 }
 
 .primary-button:hover {
@@ -1514,6 +1557,10 @@ textarea:focus {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.form-row.five {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
 .field {
   display: grid;
   gap: 8px;
@@ -1652,11 +1699,77 @@ textarea:focus {
   background: rgba(143, 24, 255, 0.08);
 }
 
+.switch-rule-summary {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(89, 80, 255, 0.18);
+  background: rgba(143, 24, 255, 0.06);
+  color: var(--text-main);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.switch-rule-summary span {
+  color: var(--text-muted);
+}
+
 .section-card-footer {
   padding-top: 4px;
   border-top: 1px dashed rgba(15, 19, 34, 0.08);
   display: flex;
   justify-content: flex-end;
+}
+
+.course-plan-editor {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(250, 244, 255, 0.96));
+}
+
+.course-plan-section-list {
+  display: grid;
+  gap: 16px;
+}
+
+.course-plan-section-card {
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(15, 19, 34, 0.08);
+  background: #ffffff;
+  display: grid;
+  gap: 16px;
+}
+
+.course-plan-section-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: end;
+}
+
+.course-plan-section-title {
+  min-width: 0;
+}
+
+.course-plan-items {
+  display: grid;
+  gap: 12px;
+}
+
+.course-plan-item-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.course-plan-empty {
+  padding: 22px;
+  border: 1px dashed rgba(143, 24, 255, 0.24);
+  border-radius: 16px;
+  color: var(--text-muted);
+  background: rgba(143, 24, 255, 0.05);
+  line-height: 1.65;
 }
 
 .script-summary-grid {
@@ -2194,6 +2307,7 @@ textarea:focus {
   .script-summary-grid,
   .form-row.three,
   .form-row.four,
+  .form-row.five,
   .filter-grid.course-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2270,7 +2384,8 @@ textarea:focus {
   .filter-grid.course-grid,
   .form-row.two,
   .form-row.three,
-  .form-row.four {
+  .form-row.four,
+  .form-row.five {
     grid-template-columns: 1fr;
   }
 

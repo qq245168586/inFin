@@ -1,4 +1,4 @@
-import type { CourseScript, Pod, PodEnding, PodScreen, VideoGroup } from "../../../models/course/types.ts";
+import type { CourseScript, Pod, PodEnding, PodScreen, PodStationFlow, VideoGroup } from "../../../models/course/types.ts";
 import DraftNumberInput from "../../../components/DraftNumberInput.tsx";
 import { formatSecondsLabel } from "../../../utils/datetime.ts";
 import { podHasCustomizedRules } from "../../../viewmodels/courses/podDialogs.ts";
@@ -32,7 +32,7 @@ export default function PodCard({
   createPodName: (index: number) => string;
   syncPodWithVideoGroup: (pod: Pod, group: VideoGroup | null | undefined) => Pod;
   rebalancePodEndings: (pods: Pod[]) => Pod[];
-  getPodScreenTotal: (screen: PodScreen, linkedScreen: VideoGroup["screens"][number] | null) => number;
+  getPodScreenTotal: (pod: Pod, screen: PodScreen, linkedScreen: VideoGroup["screens"][number] | null) => number;
   formatPodTimingMismatch: (pod: Pod, group: VideoGroup | null) => string;
   formatRestStrategy: (screen: PodScreen, isSingleScreen?: boolean) => string;
   formatSecondsStrategy: (values: number[]) => string;
@@ -44,10 +44,24 @@ export default function PodCard({
 }) {
   const podTotals = pod.screens.map((screen) => {
     const linkedScreen = linkedGroup?.screens.find((entry) => entry.screenIndex === screen.screenIndex) || null;
-    return getPodScreenTotal(screen, linkedScreen);
+    return getPodScreenTotal(pod, screen, linkedScreen);
   });
   const isBalanced = podTotals.every((total) => total === (podTotals[0] ?? 0));
   const isLastPod = podIndex === script.training.pods.length - 1;
+  const canUseSwitch = linkedGroup?.screenCount === 3;
+  const hasOddSwitchCards = Boolean(
+    pod.stationFlow === "SWITCH" && linkedGroup?.screens.some((screen) => (screen.videoCards.length || 0) % 2 !== 0)
+  );
+  const switchReferenceScreen = pod.screens[0] || null;
+  const switchReferenceLinkedScreen =
+    switchReferenceScreen && linkedGroup?.screens.find((entry) => entry.screenIndex === switchReferenceScreen.screenIndex);
+  const switchActionCount = switchReferenceLinkedScreen?.videoCards.length || 0;
+  const switchPairCount = Math.floor(switchActionCount / 2);
+  const switchLoopCount = Math.max(switchReferenceScreen?.loopCount || 1, 1);
+  const switchSequence = switchPairCount
+    ? Array.from({ length: switchLoopCount }, (_, index) => `AB${(index % switchPairCount) + 1}`).join(" → ")
+    : "暂无 AB 组合";
+  const switchGroupCount = Math.max(switchReferenceScreen?.setConfigs?.length || 1, 1);
 
   return (
     <div className="module-card is-pod">
@@ -89,7 +103,7 @@ export default function PodCard({
         </div>
       </div>
 
-      <div className={`form-row ${pod.ending === "FINISH" ? "three" : "four"}`}>
+      <div className={`form-row ${pod.ending === "FINISH" ? "four" : "five"}`}>
         <label className="field">
           <span>Pod 名称</span>
           <input
@@ -159,6 +173,29 @@ export default function PodCard({
           </select>
         </label>
 
+        <label className="field">
+          <span>站点流转</span>
+          <select
+            value={pod.stationFlow || "NORMAL"}
+            onChange={(event) =>
+              onUpdateScript((current) => ({
+                ...current,
+                training: {
+                  ...current.training,
+                  pods: current.training.pods.map((entry) =>
+                    entry.id === pod.id ? { ...entry, stationFlow: event.target.value as PodStationFlow } : entry
+                  )
+                }
+              }))
+            }
+          >
+            <option value="NORMAL">正常换站</option>
+            <option value="SWITCH" disabled={!canUseSwitch}>
+              SWITCH A/B
+            </option>
+          </select>
+        </label>
+
         {pod.ending !== "FINISH" ? (
           <label className="field">
             <span>{pod.ending === "HYDRATE" ? "补水时长（秒）" : "换区时长（秒）"}</span>
@@ -183,12 +220,27 @@ export default function PodCard({
         {pod.screens.map((screen) => (
           <span key={screen.id}>
             屏幕 {screen.screenIndex}:{" "}
-            {formatSecondsLabel(getPodScreenTotal(screen, linkedGroup?.screens.find((entry) => entry.screenIndex === screen.screenIndex) || null))}
+            {formatSecondsLabel(getPodScreenTotal(pod, screen, linkedGroup?.screens.find((entry) => entry.screenIndex === screen.screenIndex) || null))}
           </span>
         ))}
       </div>
 
+      {pod.stationFlow === "SWITCH" ? (
+        <div className="switch-rule-summary">
+          <strong>
+            SWITCH 规则：{switchActionCount} 个动作 = {switchPairCount} 个 AB 素材；本 Pod 播放 {switchLoopCount} 个 AB 组合
+          </strong>
+          <span>组数控制同一个 AB 内做几组：每组都是 A → 换站休息 → B；多组时，组与组之间用组间休息。</span>
+          <span>循环次数控制连续播放几个 AB：做完当前 AB 后进入下一个 AB，直到 Pod 结束后再补水或换区。</span>
+          <span>当前设置：每个 AB 内 {switchGroupCount} 组；播放顺序：{switchSequence}</span>
+        </div>
+      ) : null}
+
       {!isBalanced ? <div className="inline-warning">{formatPodTimingMismatch(pod, linkedGroup || null)}</div> : null}
+      {pod.stationFlow === "SWITCH" && !canUseSwitch ? (
+        <div className="inline-warning">SWITCH 只能绑定三屏视频组。</div>
+      ) : null}
+      {hasOddSwitchCards ? <div className="inline-warning">SWITCH 视频组每个屏幕都需要偶数个视频卡片。</div> : null}
 
       <div className={`screen-grid ${linkedGroup?.screenCount === 1 ? "is-single" : ""}`}>
         {pod.screens.map((screen) => (

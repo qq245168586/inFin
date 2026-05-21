@@ -2,7 +2,7 @@ import type { CourseDraft } from "./types.ts";
 import type { CourseSectionKey } from "../../models/course/types.ts";
 import { normalizePodSetConfigsForLayout } from "../../models/course/podSetConfigs.ts";
 import { stationCode } from "../../utils/station.ts";
-import { getPodScreenTotal } from "./podTiming.ts";
+import { getPodScreenTotalForFlow } from "./podTiming.ts";
 
 export function getCourseDraftIssues(draft: CourseDraft): string[] {
   const issues: string[] = [];
@@ -90,9 +90,22 @@ export function getCourseDraftIssues(draft: CourseDraft): string[] {
       issues.push(`Pod ${pod.name || podIndex + 1} 的屏幕数量必须和视频组保持一致。`);
     }
 
+    if (pod.stationFlow === "SWITCH") {
+      if (linkedGroup.screenCount !== 3) {
+        issues.push(`Pod ${pod.name || podIndex + 1} 使用 SWITCH 时必须绑定三屏视频组。`);
+      }
+      linkedGroup.screens.forEach((screen) => {
+        if ((screen.videoCards.length || 0) % 2 !== 0) {
+          issues.push(
+            `Pod ${pod.name || podIndex + 1} 使用 SWITCH 时，视频组 ${linkedGroup.name || "未命名"} 的屏幕 ${screen.screenIndex} 需要偶数个视频。`
+          );
+        }
+      });
+    }
+
     const totals = pod.screens.map((screen) => {
       const linkedScreen = linkedGroup.screens.find((item) => item.screenIndex === screen.screenIndex) || null;
-      return getPodScreenTotal(screen, linkedScreen);
+      return getPodScreenTotalForFlow(pod, screen, linkedScreen);
     });
     if (totals.some((total) => total !== totals[0])) {
       issues.push(`Pod ${pod.name || podIndex + 1} 的各屏总时长必须一致。`);

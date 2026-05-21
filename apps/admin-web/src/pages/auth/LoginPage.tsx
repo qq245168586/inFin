@@ -1,4 +1,5 @@
 import type { LoginFormState } from "../../providers/AuthProvider.tsx";
+import { useI18n } from "../../providers/I18nProvider.tsx";
 
 export default function LoginPage({
   loginForm,
@@ -9,6 +10,8 @@ export default function LoginPage({
   onLoginFormChange: (next: LoginFormState) => void;
   onLogin: () => void;
 }) {
+  const { locale, locales, setLocale } = useI18n();
+
   return (
     <div className="login-shell">
       <section className="login-stage">
@@ -19,6 +22,16 @@ export default function LoginPage({
             <span className="dot is-green" />
           </div>
           <div className="brand-wordmark">INFINI</div>
+          <label className="language-switcher login-language-switcher">
+            <span>语言</span>
+            <select value={locale} onChange={(event) => setLocale(event.target.value as typeof locale)}>
+              {locales.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
 
         <div className="login-panel">

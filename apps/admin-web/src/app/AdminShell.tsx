@@ -1,5 +1,6 @@
 import { type ReactNode } from "react";
 import { NAV_ITEMS, type NavKey } from "./navigation.ts";
+import { useI18n } from "../providers/I18nProvider.tsx";
 
 export default function AdminShell({
   sidebarCollapsed,
@@ -18,6 +19,8 @@ export default function AdminShell({
   onLogout: () => void;
   children: ReactNode;
 }) {
+  const { locale, locales, setLocale } = useI18n();
+
   return (
     <div className={`admin-shell ${sidebarCollapsed ? "is-sidebar-collapsed" : ""}`}>
       <button
@@ -66,6 +69,16 @@ export default function AdminShell({
               </div>
             </div>
             <div className="workspace-top-actions">
+              <label className="language-switcher">
+                <span>语言</span>
+                <select value={locale} onChange={(event) => setLocale(event.target.value as typeof locale)}>
+                  {locales.map((item) => (
+                    <option key={item.value} value={item.value}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <div className="user-pill">
                 <strong>{username}</strong>
                 <span>已登录账号</span>

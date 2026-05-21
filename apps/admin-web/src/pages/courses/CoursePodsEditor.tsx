@@ -29,7 +29,7 @@ export default function CoursePodsEditor({
   createPod: (group: VideoGroup) => Pod;
   syncPodWithVideoGroup: (pod: Pod, group: VideoGroup | null | undefined) => Pod;
   rebalancePodEndings: (pods: Pod[]) => Pod[];
-  getPodScreenTotal: (screen: PodScreen, linkedScreen: VideoGroup["screens"][number] | null) => number;
+  getPodScreenTotal: (pod: Pod, screen: PodScreen, linkedScreen: VideoGroup["screens"][number] | null) => number;
   formatPodTimingMismatch: (pod: Pod, group: VideoGroup | null) => string;
   formatRestStrategy: (screen: PodScreen, isSingleScreen?: boolean) => string;
   formatSecondsStrategy: (values: number[]) => string;

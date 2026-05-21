@@ -1,6 +1,8 @@
-import type { CourseScript, PodScreen, VideoGroup, VideoGroupScreenCount } from "../../models/course/types.ts";
+import type { CourseScript, PodScreen, PodStationFlow, VideoGroup, VideoGroupScreenCount } from "../../models/course/types.ts";
 import {
+  cloneCoursePlanForEditor,
   cloneWaterfallSectionForEditor,
+  createCoursePlan,
   createTrainingPanel,
   createVideoGroup,
   createWaterfallSection
@@ -44,6 +46,7 @@ export function createEmptyCourseScript(): CourseScript {
       warmup: createWaterfallSection("热身"),
       cooldown: createWaterfallSection("冷身")
     },
+    plan: createCoursePlan(),
     training: {
       videoGroups: [defaultGroup],
       pods: [
@@ -95,6 +98,7 @@ export function normalizeCourseScriptLocal(script: CourseScript): CourseScript {
       id: pod.id || uid("pod"),
       name: typeof pod.name === "string" ? pod.name : "",
       videoGroupId: pod.videoGroupId || linkedGroup.id,
+      stationFlow: (pod.stationFlow === "SWITCH" ? "SWITCH" : "NORMAL") as PodStationFlow,
       ending: pod.ending === "MOVE_ZONE" || pod.ending === "FINISH" || pod.ending === "HYDRATE" ? pod.ending : "HYDRATE",
       screens: createPodScreensFromGroup(
         linkedGroup,
@@ -106,6 +110,7 @@ export function normalizeCourseScriptLocal(script: CourseScript): CourseScript {
   return syncTrainingPanelCounters({
     ...cloned,
     sections,
+    plan: cloneCoursePlanForEditor(cloned.plan),
     metadata: {
       ...cloneDeep(cloned.metadata),
       defaultHydrateSeconds: readNonNegativeNumber(cloned.metadata?.defaultHydrateSeconds, 0),
