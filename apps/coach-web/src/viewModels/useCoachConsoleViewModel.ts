@@ -8,6 +8,7 @@ import {
   fetchCurrentPlayback,
   fetchDailyBundle,
   mutatePlaybackSession,
+  showCoursePlanOnTv,
   venueBody,
   venueQuery
 } from "../services/consoleService";
@@ -154,7 +155,7 @@ export function useCoachConsoleViewModel({
       }
       setSelectedScheduleId(String(schedule.id));
       setPreviewIndex(0);
-      onNotice("课程预览已同步到 TV。再次点击同一节课程即可正式开始。");
+      onNotice("课程预览已同步到 TV。可以在课程卡片里开始课程。");
       return session;
     } catch (error) {
       const requestError = error as Error & { status?: number };
@@ -223,16 +224,40 @@ export function useCoachConsoleViewModel({
     }
   }
 
+  async function showSelectedCoursePlan(schedule: TvDailySchedule) {
+    const commandId = createCommandId();
+    setSelectedScheduleId(String(schedule.id));
+    setPendingAction(commandId);
+    onBusyTextChange("正在同步课程计划到 TV...");
+    try {
+      await showCoursePlanOnTv(
+        authSession,
+        venueBody(
+          authSession,
+          isSuperAdmin,
+          {
+            commandId,
+            scheduleId: String(schedule.id),
+            courseId: schedule.courseId,
+            courseName: schedule.courseName,
+            playbackSessionId: playbackSession?.id || ""
+          },
+          schedule,
+          playbackSession
+        )
+      );
+      onNotice("课程计划已同步到 TV。");
+    } catch (error) {
+      handleRequestError(error, "同步课程计划失败。");
+    } finally {
+      setPendingAction("");
+      onBusyTextChange("");
+    }
+  }
+
   function selectSchedule(schedule: TvDailySchedule) {
     setSelectedScheduleId(String(schedule.id));
     setPreviewIndex(0);
-  }
-
-  function primaryAction() {
-    if (!selectedSchedule) return;
-    if (selectedScheduleSessionState === "PREVIEW" || selectedScheduleSessionState === "IDLE") void startCourse(selectedSchedule);
-    if (selectedScheduleSessionState === "SCHEDULED" || selectedScheduleSessionState === "RUNNING") void pauseSelectedCourse();
-    if (selectedScheduleSessionState === "PAUSED") void resumeSelectedCourse();
   }
 
   function sessionStateForSchedule(schedule: TvDailySchedule): CoachSessionState {
@@ -282,7 +307,6 @@ export function useCoachConsoleViewModel({
     previewIndex,
     previewItems,
     previewVideoRef,
-    primaryAction,
     refreshBundle,
     resumeSelectedCourse,
     selectSchedule,
@@ -293,6 +317,7 @@ export function useCoachConsoleViewModel({
     sessionStateForSchedule,
     setPreviewIndex,
     setSelectedDate,
+    showSelectedCoursePlan,
     startCourse,
     terminateSelectedCourse: terminateCurrent,
     weekDays

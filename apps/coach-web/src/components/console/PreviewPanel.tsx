@@ -1,19 +1,16 @@
 import type { RefObject, TouchEvent } from "react";
 import type { CoachSessionState, PlaybackSession } from "../../models/playback";
 import type { CoachPreviewItem, TvDailySchedule } from "../../models/schedule";
-import { isActiveSessionState, shortSessionId } from "../../utils/format";
+import { shortSessionId } from "../../utils/format";
 import { sessionStateLabel } from "../../utils/playback";
 import { buildScheduleRange, formatDateLabel } from "../../utils/time";
 
 interface PreviewPanelProps {
   activePreviewItem: CoachPreviewItem | null;
   displayElapsedMs: number;
-  onPrimaryAction: () => void;
   onSetPreviewIndex: (index: number | ((current: number) => number)) => void;
-  onTerminate: () => void;
   onTouchEnd: (event: TouchEvent<HTMLDivElement>) => void;
   onTouchStart: (event: TouchEvent<HTMLDivElement>) => void;
-  pendingAction: string;
   playbackSession: PlaybackSession | null;
   previewIndex: number;
   previewItems: CoachPreviewItem[];
@@ -40,7 +37,6 @@ export function PreviewPanel(props: PreviewPanelProps) {
       <SessionMeta {...props} />
       <PreviewStage {...props} />
       <PreviewDots {...props} />
-      <PreviewActions {...props} />
     </div>
   );
 }
@@ -113,23 +109,3 @@ function PreviewDots(props: PreviewPanelProps) {
     </div>
   );
 }
-
-function PreviewActions(props: PreviewPanelProps) {
-  const state = props.selectedScheduleSessionState;
-  return (
-    <div className="coach-preview-actions">
-      <button type="button" className="primary-button coach-primary-button" disabled={!props.selectedSchedule || Boolean(props.pendingAction)} onClick={props.onPrimaryAction}>
-        {props.pendingAction ? "处理中..." : state === "SCHEDULED" || state === "RUNNING" ? "暂停课程" : state === "PAUSED" ? "继续课程" : "开始课程"}
-      </button>
-      <button
-        type="button"
-        className={`ghost-button coach-terminate-button ${isActiveSessionState(state) ? "is-enabled" : ""}`}
-        disabled={!isActiveSessionState(state) || Boolean(props.pendingAction)}
-        onClick={() => window.confirm("是否终止当前课程？") && props.onTerminate()}
-      >
-        终止课程
-      </button>
-    </div>
-  );
-}
-

@@ -23,6 +23,25 @@ export function buildCourseLogo(courseName: string): string {
   return (letters || "IN").slice(0, 2);
 }
 
+function pickPreviewMediaUrl(card: {
+  mediaUrl?: string;
+  videoUrl?: string;
+  url?: string;
+  media?: { url?: string; src?: string };
+  video?: { url?: string; src?: string };
+}): string {
+  return String(
+    card.mediaUrl
+      || card.videoUrl
+      || card.url
+      || card.media?.url
+      || card.media?.src
+      || card.video?.url
+      || card.video?.src
+      || ""
+  ).trim();
+}
+
 export function buildFormalPreviews(schedule: TvDailySchedule | null): CoachPreviewItem[] {
   const previews: CoachPreviewItem[] = [];
   const training = schedule?.course?.script?.training;
@@ -35,9 +54,13 @@ export function buildFormalPreviews(schedule: TvDailySchedule | null): CoachPrev
     const orderedScreens = [...(group.screens || [])].sort((left, right) => left.screenIndex - right.screenIndex);
     for (const screen of orderedScreens) {
       for (const card of screen.videoCards || []) {
+        const mediaUrl = pickPreviewMediaUrl(card);
+        if (!mediaUrl) {
+          continue;
+        }
         previews.push({
           id: `preview-${group.id}-${screen.id}-${card.id}-${index++}`,
-          mediaUrl: String(card.mediaUrl || ""),
+          mediaUrl,
           actionName: String(card.actionName || "")
         });
       }
@@ -83,4 +106,3 @@ export function formatStorageBytes(value?: number): string {
   const precision = current >= 100 || unitIndex === 0 ? 0 : 1;
   return `${current.toFixed(precision)} ${units[unitIndex]}`;
 }
-

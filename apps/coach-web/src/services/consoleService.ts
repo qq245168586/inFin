@@ -82,3 +82,10 @@ export async function mutatePlaybackSession(authSession: AuthSession, path: stri
   return normalizePlaybackSession(payload);
 }
 
+export async function showCoursePlanOnTv(authSession: AuthSession, body: Record<string, unknown>) {
+  return requestJson<{ ok: boolean }>("/api/tv/course-plan/show", {
+    method: "POST",
+    headers: authHeaders(authSession.token_type, authSession.access_token),
+    body: JSON.stringify(body)
+  });
+}

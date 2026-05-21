@@ -25,6 +25,7 @@ export default function CoachConsolePage(props: CoachConsoleViewModelProps) {
         onPause={() => void vm.pauseSelectedCourse()}
         onResume={() => void vm.resumeSelectedCourse()}
         onSelect={vm.selectSchedule}
+        onShowPlan={(schedule) => void vm.showSelectedCoursePlan(schedule)}
         onStart={(schedule) => void vm.startCourse(schedule)}
         onTerminate={() => void vm.terminateSelectedCourse()}
         sessionStateForSchedule={vm.sessionStateForSchedule}
@@ -32,12 +33,9 @@ export default function CoachConsolePage(props: CoachConsoleViewModelProps) {
       <PreviewPanel
         activePreviewItem={vm.activePreviewItem}
         displayElapsedMs={vm.displayElapsedMs}
-        onPrimaryAction={vm.primaryAction}
         onSetPreviewIndex={vm.setPreviewIndex}
-        onTerminate={() => void vm.terminateSelectedCourse()}
         onTouchEnd={vm.handleTouchEnd}
         onTouchStart={vm.handleTouchStart}
-        pendingAction={vm.pendingAction}
         playbackSession={vm.playbackSession}
         previewIndex={vm.previewIndex}
         previewItems={vm.previewItems}

@@ -12,6 +12,7 @@ interface ScheduleListProps {
   onPause: () => void;
   onResume: () => void;
   onSelect: (schedule: TvDailySchedule) => void;
+  onShowPlan: (schedule: TvDailySchedule) => void;
   onStart: (schedule: TvDailySchedule) => void;
   onTerminate: () => void;
   sessionStateForSchedule: (schedule: TvDailySchedule) => CoachSessionState;
@@ -54,6 +55,9 @@ function ScheduleActions(props: ScheduleListProps & { schedule: TvDailySchedule;
   if (props.showRunningActions) {
     return (
       <div className="coach-schedule-actions">
+        <button type="button" className="ghost-button" disabled={Boolean(props.pendingAction)} onClick={() => props.onShowPlan(props.schedule)}>
+          计划
+        </button>
         <button type="button" className="primary-button" disabled={Boolean(props.pendingAction)} onClick={() => props.scheduleState === "PAUSED" ? props.onResume() : props.onPause()}>
           {props.pendingAction ? "处理中..." : props.scheduleState === "PAUSED" ? "继续" : "暂停"}
         </button>
@@ -71,6 +75,9 @@ function ScheduleActions(props: ScheduleListProps & { schedule: TvDailySchedule;
 
   return (
     <div className="coach-schedule-actions">
+      <button type="button" className="ghost-button" disabled={Boolean(props.pendingAction)} onClick={() => props.onShowPlan(props.schedule)}>
+        计划
+      </button>
       <button type="button" className="ghost-button" disabled={Boolean(props.pendingAction)} onClick={() => props.onEnterPreview(props.schedule)}>
         预览
       </button>
@@ -80,4 +87,3 @@ function ScheduleActions(props: ScheduleListProps & { schedule: TvDailySchedule;
     </div>
   );
 }
-

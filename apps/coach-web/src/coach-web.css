@@ -655,12 +655,6 @@ button {
   background: #bb2cff;
 }
 
-.coach-preview-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
 .coach-screens-summary {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1064,15 +1058,8 @@ button {
   color: rgba(255, 255, 255, 0.56);
 }
 
-.coach-primary-button,
-.coach-terminate-button,
 .coach-login-submit {
   width: 100%;
-}
-
-.coach-terminate-button.is-enabled {
-  border-color: rgba(255, 120, 120, 0.42);
-  color: #ffb8b8;
 }
 
 .coach-login-card {
@@ -1273,10 +1260,6 @@ button {
   .coach-schedule-badge {
     grid-column: 2;
     justify-self: start;
-  }
-
-  .coach-preview-actions {
-    grid-template-columns: 1fr;
   }
 
   .coach-screens-summary,

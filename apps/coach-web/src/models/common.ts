@@ -26,8 +26,11 @@ export interface UserProfile {
   avatar: string;
   gender: string;
   accountNamespace: string;
+  environmentLabel?: string;
+  gymName?: string;
   role?: string;
   venueId?: string;
+  venueName?: string;
 }
 
 export interface AuthSession extends AuthTokenPayload, UserProfile {}
@@ -38,4 +41,3 @@ export interface LoginFormState {
 }
 
 export type CoachPageKey = "console" | "screens";
-

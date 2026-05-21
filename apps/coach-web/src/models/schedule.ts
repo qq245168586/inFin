@@ -75,6 +75,16 @@ export interface CoachVideoCard {
   actionName: string;
   stationNumber: string;
   mediaUrl?: string;
+  videoUrl?: string;
+  url?: string;
+  media?: {
+    url?: string;
+    src?: string;
+  };
+  video?: {
+    url?: string;
+    src?: string;
+  };
 }
 
 export interface CoachPod {
@@ -88,4 +98,3 @@ export interface CoachPreviewItem {
   mediaUrl: string;
   actionName: string;
 }
-
