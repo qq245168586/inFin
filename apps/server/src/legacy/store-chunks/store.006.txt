@@ -6,6 +6,10 @@
     );
   const nextEntry = normalizeTvScreenPayload(payload, base, normalized.accountNamespace);
 
+  if (!nextEntry.accountNamespace) {
+    return buildTvScreenSnapshot(nextEntry);
+  }
+
   state.tvScreens = state.tvScreens.filter(
     (item) =>
       trimText(item.deviceId) !== nextEntry.deviceId &&
@@ -225,6 +229,7 @@ function coerceCourseScript(source = {}) {
     defaultHydrateSeconds: defaultHydrateSecondsFromCourse(source),
     trainingPanel: deriveTrainingPanel(source, script)
   };
+  script.plan = normalizeCoursePlan(source?.script?.plan || source?.plan || script.plan);
 
   return script;
 }

@@ -138,6 +138,60 @@
       return;
     }
 
+    if (request.method === "POST" && url.pathname === "/api/tv/course-plan/show") {
+      const user = requireAuthorizedConsoleUser(request, response);
+      if (!user) {
+        return;
+      }
+      const payload = await readJsonBody(request);
+      const commandId = requireCommandId(payload);
+      if (!commandId) {
+        badRequest(response, "commandId 不能为空。");
+        return;
+      }
+
+      const courseId = Number(payload?.courseId);
+      if (!Number.isFinite(courseId) || courseId <= 0) {
+        badRequest(response, "请提供有效的 courseId。");
+        return;
+      }
+
+      const course = getCourseById(courseId);
+      if (!course) {
+        sendJson(response, 404, { message: "课程不存在。" });
+        return;
+      }
+
+      const accountNamespace = resolvePlaybackRequestAccountNamespace(user, url, payload);
+      const coursePlan = course?.script?.plan || { sections: [] };
+      const controlPayload = {
+        type: "show_course_plan",
+        source: "coach-web",
+        commandId,
+        scheduleId: String(payload?.scheduleId || ""),
+        courseId,
+        courseName: String(payload?.courseName || course.name || course?.script?.metadata?.name || ""),
+        playbackSessionId: String(payload?.playbackSessionId || ""),
+        accountNamespace,
+        venueId: accountNamespace,
+        coursePlan,
+        requestedAt: Date.now()
+      };
+
+      try {
+        const result = await publishTvControl(controlPayload, accountNamespace);
+        sendJson(response, 200, {
+          ok: true,
+          data: result
+        });
+      } catch (error) {
+        sendJson(response, 502, {
+          message: error instanceof Error ? `MQTT 发布失败：${error.message}` : "MQTT 发布失败。"
+        });
+      }
+      return;
+    }
+
     if (request.method === "POST" && url.pathname === "/api/tv/playback-sessions/preview") {
       const user = requireAuthorizedConsoleUser(request, response);
       if (!user) {

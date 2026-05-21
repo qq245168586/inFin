@@ -7,6 +7,7 @@ import {
   createTrainingPanel,
   courseScriptUsesAction,
   legacyCourseToScript,
+  normalizeCoursePlan,
   summarizeCourseScript,
   validateCourseScript
 } from "../../../../packages/shared/src/course-script.js";
@@ -33,6 +34,7 @@ export function createLegacyStore(): StoreModule {
     "createTrainingPanel",
     "courseScriptUsesAction",
     "legacyCourseToScript",
+    "normalizeCoursePlan",
     "summarizeCourseScript",
     "validateCourseScript",
     "legacyStoreDir",
@@ -49,6 +51,7 @@ export function createLegacyStore(): StoreModule {
     createTrainingPanel,
     courseScriptUsesAction,
     legacyCourseToScript,
+    normalizeCoursePlan,
     summarizeCourseScript,
     validateCourseScript,
     legacyStoreDir

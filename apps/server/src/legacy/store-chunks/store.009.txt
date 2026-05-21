@@ -99,10 +99,9 @@ export function deleteVenue(venueId) {
     };
   });
 
-  state.tvScreens = (state.tvScreens || []).map((screen) => {
-    if (normalizeScreenAccountNamespace(screen.accountNamespace) !== venueNs) return screen;
-    return { ...screen, accountNamespace: "" };
-  });
+  state.tvScreens = (state.tvScreens || []).filter(
+    (screen) => normalizeScreenAccountNamespace(screen.accountNamespace) !== venueNs
+  );
 
   // Scheduling is global (not per-venue). Keep schedules even if a venue is removed.
   state.venues = (state.venues || []).filter((item) => trimText(item.id) !== id);
@@ -198,7 +197,7 @@ export function bindUserToVenue(userId, venueId) {
   existing.role = "venue";
   existing.venueId = trimText(venue.id);
   existing.accountNamespace = normalizeAccountNamespace(venue.accountNamespace, "");
-  existing.environmentLabel = existing.accountNamespace || trimText(existing.environmentLabel) || "";
+  existing.environmentLabel = trimText(venue.name) || trimText(existing.environmentLabel) || "";
   existing.allowedClients = ["coach-web"];
   persist();
   return publicUserInfo(existing);

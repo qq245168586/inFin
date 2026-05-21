@@ -15,6 +15,10 @@ export function getDatabaseStatus() {
 }
 
 function publicUserInfo(user) {
+  const venue = trimText(user.venueId)
+    ? getVenueById(user.venueId)
+    : getVenueByAccountNamespace(user.accountNamespace || user.username);
+  const venueName = trimText(venue?.name);
   return {
     id: user.id,
     username: user.username,
@@ -22,7 +26,9 @@ function publicUserInfo(user) {
     avatar: user.avatar,
     gender: user.gender,
     accountNamespace: normalizeAccountNamespace(user.accountNamespace || user.username),
-    environmentLabel: trimText(user.environmentLabel) || environmentLabelForNamespace(user.accountNamespace || user.username),
+    environmentLabel: venueName || trimText(user.environmentLabel) || environmentLabelForNamespace(user.accountNamespace || user.username),
+    venueName,
+    gymName: venueName,
     role: trimText(user.role) || (SUPERADMIN_USERNAMES.has(trimText(user.username)) ? "superadmin" : "venue"),
     venueId: trimText(user.venueId) || "",
     allowedClients: normalizeAllowedClients(user.allowedClients)

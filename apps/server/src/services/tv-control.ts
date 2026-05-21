@@ -195,6 +195,17 @@ export async function publishTvSessionEvent(session, accountNamespace = "") {
     sessionId: String(session?.id || "").trim(),
     version: Number(session?.version) || 0,
     state: String(session?.state || "").trim().toUpperCase(),
+    scheduleId: String(session?.scheduleId || "").trim(),
+    courseId: Number(session?.courseId) || 0,
+    bundleChecksum: String(session?.bundleChecksum || "").trim(),
+    serverStartAtMs: Number(session?.serverStartAtMs) || 0,
+    playbackStartAtMs: Number(session?.serverStartAtMs) || 0,
+    startDelayMs: Number(session?.startDelayMs) || 0,
+    pausedAccumulatedMs: Number(session?.pausedAccumulatedMs) || 0,
+    pausedAtMs: Number(session?.pausedAtMs) || 0,
+    endedAtMs: Number(session?.endedAtMs) || 0,
+    terminatedAtMs: Number(session?.terminatedAtMs) || 0,
+    expectedDurationMs: Number(session?.expectedDurationMs) || 0,
     serverNowMs,
     updatedAtMs: Number(session?.updatedAtMs) || serverNowMs
   };

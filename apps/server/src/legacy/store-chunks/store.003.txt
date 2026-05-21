@@ -85,8 +85,8 @@
         state.users = (state.users || []).map((user) =>
           trimText(user.venueId) === venueId ? { ...user, venueId: "" } : user
         );
-        state.tvScreens = (state.tvScreens || []).map((screen) =>
-          normalizeScreenAccountNamespace(screen.accountNamespace) === ns ? { ...screen, accountNamespace: "" } : screen
+        state.tvScreens = (state.tvScreens || []).filter(
+          (screen) => normalizeScreenAccountNamespace(screen.accountNamespace) !== ns
         );
         continue;
       }

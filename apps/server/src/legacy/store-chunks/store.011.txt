@@ -202,7 +202,8 @@ export function updatePlaybackSessionState(sessionId, action, payload = {}, acco
       }
       throw new Error("当前 session 状态不允许开始课程。");
     }
-    const startDelayMs = Math.max(3000, Math.min(30000, safeNumber(payload.startDelayMs, 5000)));
+    const requestedStartDelayMs = safeNumber(payload.startDelayMs, 5000);
+    const startDelayMs = Math.max(4000, Math.min(30000, requestedStartDelayMs + 1000));
     session.state = "RUNNING";
     session.startDelayMs = startDelayMs;
     session.serverStartAtMs = nowMs + startDelayMs;

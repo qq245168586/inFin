@@ -114,7 +114,7 @@ export function unbindTvScreen(payload = {}, accountNamespace = "") {
     return null;
   }
 
-  const nextEntry = {
+  const removedEntry = {
     ...existing,
     accountNamespace: "",
     playbackState: "IDLE",
@@ -128,10 +128,19 @@ export function unbindTvScreen(payload = {}, accountNamespace = "") {
     lastSeenAt: nowIso()
   };
 
-  state.tvScreens = state.tvScreens.filter((item) => trimText(item.deviceId) !== trimText(existing.deviceId));
-  state.tvScreens.push(nextEntry);
+  const existingDeviceId = trimText(existing.deviceId);
+  state.tvScreens = state.tvScreens.filter((item) => {
+    if (existingDeviceId) {
+      return trimText(item.deviceId) !== existingDeviceId;
+    }
+    return !(
+      normalizeScreenAccountNamespace(item.accountNamespace) === normalizedAccountNamespace
+      && screenNumber > 0
+      && Number(item.screenNumber) === screenNumber
+    );
+  });
   persist();
-  return buildTvScreenSnapshot(nextEntry);
+  return buildTvScreenSnapshot(removedEntry);
 }
 
 export function listTvScreens() {
