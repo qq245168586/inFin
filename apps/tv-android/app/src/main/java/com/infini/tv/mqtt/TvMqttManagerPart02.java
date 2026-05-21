@@ -99,6 +99,16 @@ abstract class TvMqttManagerPart02 extends TvMqttManagerPart01 {
       long scheduledStartAtMs = json.optLong("scheduledStartAtMs", 0L);
       String playbackSessionId = json.optString("playbackSessionId", "");
       String bundleChecksum = json.optString("bundleChecksum", "");
+      if ("show_course_plan".equals(type) && listener != null) {
+        listener.onShowCoursePlanRequested(
+            scheduleId,
+            courseId,
+            json.optString("courseName", ""),
+            playbackSessionId,
+            json.optJSONObject("coursePlan"));
+        return;
+      }
+
       if ("preview_course".equals(type) && listener != null) {
         listener.onPreviewCourseRequested(
             scheduleId, courseId, scheduledStartAtMs, playbackSessionId, bundleChecksum);
@@ -111,6 +121,7 @@ abstract class TvMqttManagerPart02 extends TvMqttManagerPart01 {
             courseId,
             scheduledStartAtMs,
             json.optLong("playbackStartAtMs", 0L),
+            json.optLong("serverNowMs", 0L),
             playbackSessionId,
             bundleChecksum);
         return;

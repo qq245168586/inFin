@@ -77,6 +77,15 @@ abstract class MainActivityContract01 extends AppCompatActivity {
 
   protected abstract void showSelector();
 
+  protected abstract void hideCoursePlanPanel();
+
+  protected abstract void showCoursePlanFromRemote(
+      String scheduleId,
+      int courseId,
+      String courseName,
+      String playbackSessionId,
+      org.json.JSONObject coursePlan);
+
   protected abstract SharedPreferences getAppPreferences();
 
   protected abstract String readSavedAccountNamespace();
@@ -184,6 +193,8 @@ abstract class MainActivityContract01 extends AppCompatActivity {
   protected abstract String currentPlaybackState();
 
   protected abstract long resolveElapsedRealtimeForWallClock(long wallClockMs);
+
+  protected abstract long resolveElapsedRealtimeForServerWallClock(long wallClockMs, long serverNowMs);
 
   protected abstract long currentPlaybackElapsedMs();
 

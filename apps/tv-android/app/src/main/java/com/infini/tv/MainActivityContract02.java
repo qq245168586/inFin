@@ -135,6 +135,7 @@ abstract class MainActivityContract02 extends MainActivityContract01 {
       int courseId,
       long scheduledStartAtMs,
       long playbackStartAtMs,
+      long serverNowMs,
       String playbackSessionId,
       String bundleChecksum);
 
@@ -142,7 +143,11 @@ abstract class MainActivityContract02 extends MainActivityContract01 {
       String scheduleId, int courseId, String playbackSessionId, String bundleChecksum);
 
   protected abstract void beginRemoteCoursePlayback(
-      TvScheduleItem item, long playbackStartAtMs, String playbackSessionId, String bundleChecksum);
+      TvScheduleItem item,
+      long playbackStartAtMs,
+      long serverNowMs,
+      String playbackSessionId,
+      String bundleChecksum);
 
   protected abstract void bringPlaybackUiToFront();
 

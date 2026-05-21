@@ -443,7 +443,7 @@ abstract class MainActivityPart03 extends MainActivityPart02 {
     if (state == null || state.stageProgress == null) {
       return "";
     }
-    if ("MOVE_STATION".equals(state.transitionType) || "MOVE_ZONE".equals(state.transitionType)) {
+    if ("MOVE_STATION".equals(state.transitionType) || "MOVE_ZONE".equals(state.transitionType) || "SWITCH".equals(state.transitionType)) {
       return "MOVE_STATION";
     }
     String progress = state.stageProgress.trim().toUpperCase(Locale.US);

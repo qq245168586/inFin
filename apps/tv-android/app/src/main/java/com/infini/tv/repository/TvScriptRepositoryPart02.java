@@ -117,10 +117,24 @@ abstract class TvScriptRepositoryPart02 extends TvScriptRepositoryPart01 {
             }
           }
         }
+        if (!tempFile.exists() || tempFile.length() <= 0L || downloadedBytes <= 0L) {
+          throw new IOException("安装包下载失败，文件为空。url=" + resolvedUrl);
+        }
+        Log.d(
+            TAG,
+            "App package downloaded via "
+                + resolvedUrl
+                + ", bytes="
+                + downloadedBytes
+                + ", contentLength="
+                + totalBytes);
         lastError = null;
         break;
       } catch (IOException error) {
         lastError = error;
+        if (tempFile.exists()) {
+          tempFile.delete();
+        }
         Log.w(TAG, "App package download failed via " + resolvedUrl, error);
       }
     }

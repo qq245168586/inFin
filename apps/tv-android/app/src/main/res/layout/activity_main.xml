@@ -304,7 +304,7 @@
             android:layout_marginLeft="10dp"
             android:layout_weight="0.75"
             android:background="@drawable/bg_playback_stage_card"
-            android:gravity="center_vertical"
+            android:gravity="center"
             android:orientation="vertical"
             android:paddingLeft="18dp"
             android:paddingTop="12dp"
@@ -316,6 +316,7 @@
               android:layout_width="match_parent"
               android:layout_height="wrap_content"
               android:visibility="gone"
+              android:gravity="center"
               android:text="WARM UP"
               android:textColor="@color/tv_text_main"
               android:textSize="18sp"
@@ -325,11 +326,12 @@
               android:id="@+id/playbackStageProgress"
               android:layout_width="match_parent"
               android:layout_height="wrap_content"
-              android:autoSizeMaxTextSize="52sp"
+              android:autoSizeMaxTextSize="92sp"
               android:autoSizeMinTextSize="20sp"
               android:autoSizeStepGranularity="1sp"
               android:autoSizeTextType="uniform"
               android:ellipsize="end"
+              android:gravity="center"
               android:maxLines="3"
               android:text="1 / 6"
               android:textColor="@color/tv_text_main"
@@ -342,6 +344,7 @@
               android:layout_height="wrap_content"
               android:layout_marginTop="6dp"
               android:ellipsize="end"
+              android:gravity="center"
               android:maxLines="1"
               android:textColor="@color/tv_text_main"
               android:textSize="22sp"
@@ -353,7 +356,7 @@
               android:layout_width="match_parent"
               android:layout_height="wrap_content"
               android:layout_marginTop="8dp"
-              android:gravity="center_vertical"
+              android:gravity="center"
               android:orientation="horizontal"
               android:visibility="gone" />
           </LinearLayout>
@@ -608,7 +611,7 @@
               <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="center_vertical|right"
+                android:gravity="center"
                 android:orientation="horizontal">
 
                 <ImageView
@@ -623,7 +626,7 @@
                   android:id="@+id/horizontalStateText"
                   android:layout_width="wrap_content"
                   android:layout_height="wrap_content"
-                  android:gravity="right"
+                  android:gravity="center"
                   android:maxLines="3"
                   android:text="WORK"
                   android:textColor="@color/tv_text_main"
@@ -648,7 +651,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:gravity="center_vertical|right"
+                android:gravity="center"
                 android:orientation="horizontal"
                 android:visibility="gone" />
             </LinearLayout>
@@ -770,6 +773,9 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/bg_tv_root_gradient"
+    android:clickable="true"
+    android:elevation="24dp"
+    android:focusable="false"
     android:visibility="gone">
 
     <ImageView
@@ -835,6 +841,13 @@
       android:textStyle="bold"
       android:visibility="gone" />
   </FrameLayout>
+
+  <FrameLayout
+    android:id="@+id/coursePlanPanel"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_tv_root_gradient"
+    android:visibility="gone" />
 
   <FrameLayout
     android:id="@+id/updatePanel"

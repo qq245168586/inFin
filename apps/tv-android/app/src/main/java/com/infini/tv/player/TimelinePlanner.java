@@ -100,6 +100,10 @@ public class TimelinePlanner {
       CourseScript.Pod pod,
       EffectivePodScreen effectiveScreen,
       int courseOffsetSeconds) {
+    if (isSwitchPod(pod) && effectiveScreen.videoCards.size() >= 2) {
+      return buildSwitchScreenSteps(steps, pod, effectiveScreen, courseOffsetSeconds);
+    }
+
     List<CourseScript.VideoCard> actionSequence =
         buildActionSequence(effectiveScreen.videoCards, effectiveScreen.rule.loopCount);
     int screenOffsetSeconds = 0;
@@ -152,6 +156,101 @@ public class TimelinePlanner {
                 nextCard.actionName,
                 sameAction ? "" : "MOVE_STATION"));
         screenOffsetSeconds += effectiveScreen.rule.stationRestSeconds;
+      }
+    }
+
+    return screenOffsetSeconds;
+  }
+
+  private int buildSwitchScreenSteps(
+      List<PlaybackStep> steps,
+      CourseScript.Pod pod,
+      EffectivePodScreen effectiveScreen,
+      int courseOffsetSeconds) {
+    int screenOffsetSeconds = 0;
+    int safeLoops = Math.max(effectiveScreen.rule.loopCount, 1);
+    int pairCount = effectiveScreen.videoCards.size() / 2;
+    if (pairCount <= 0) {
+      return 0;
+    }
+
+    for (int loopIndex = 0; loopIndex < safeLoops; loopIndex += 1) {
+      for (int pairIndex = 0; pairIndex < pairCount; pairIndex += 1) {
+      CourseScript.VideoCard cardA = effectiveScreen.videoCards.get(pairIndex * 2);
+      CourseScript.VideoCard cardB = effectiveScreen.videoCards.get(pairIndex * 2 + 1);
+
+      for (int setIndex = 0; setIndex < effectiveScreen.rule.setConfigs.size(); setIndex += 1) {
+        CourseScript.PodSetConfig setConfig = effectiveScreen.rule.setConfigs.get(setIndex);
+        steps.add(
+            new PlaybackStep(
+                "POD_WORK",
+                pod.name + " / SWITCH A / " + cardA.actionName,
+                courseOffsetSeconds + screenOffsetSeconds,
+                setConfig.workSeconds,
+                effectiveScreen.displayScreenIndex,
+                cardA.stationNumber,
+                cardA.actionName,
+                ""));
+        screenOffsetSeconds += setConfig.workSeconds;
+
+        if (effectiveScreen.rule.stationRestSeconds > 0) {
+          steps.add(
+              new PlaybackStep(
+                  "POD_REST",
+                  pod.name + " / SWITCH A TO B",
+                  courseOffsetSeconds + screenOffsetSeconds,
+                  effectiveScreen.rule.stationRestSeconds,
+                  effectiveScreen.displayScreenIndex,
+                  cardB.stationNumber,
+                  cardB.actionName,
+                  "SWITCH"));
+          screenOffsetSeconds += effectiveScreen.rule.stationRestSeconds;
+        }
+
+        steps.add(
+            new PlaybackStep(
+                "POD_WORK",
+                pod.name + " / SWITCH B / " + cardB.actionName,
+                courseOffsetSeconds + screenOffsetSeconds,
+                setConfig.workSeconds,
+                effectiveScreen.displayScreenIndex,
+                cardB.stationNumber,
+                cardB.actionName,
+                ""));
+        screenOffsetSeconds += setConfig.workSeconds;
+
+        boolean hasNextSet = setIndex < effectiveScreen.rule.setConfigs.size() - 1;
+        if (hasNextSet && setConfig.restSeconds > 0) {
+          steps.add(
+              new PlaybackStep(
+                  "POD_REST",
+                  pod.name + " / SWITCH B TO A",
+                  courseOffsetSeconds + screenOffsetSeconds,
+                  setConfig.restSeconds,
+                  effectiveScreen.displayScreenIndex,
+                  cardA.stationNumber,
+                  cardA.actionName,
+                  "SWITCH"));
+          screenOffsetSeconds += setConfig.restSeconds;
+        }
+      }
+
+      boolean hasNextPairRound = pairIndex < pairCount - 1 || loopIndex < safeLoops - 1;
+      if (hasNextPairRound && effectiveScreen.rule.stationRestSeconds > 0) {
+        int nextPairIndex = pairIndex < pairCount - 1 ? pairIndex + 1 : 0;
+        CourseScript.VideoCard nextCardA = effectiveScreen.videoCards.get(nextPairIndex * 2);
+        steps.add(
+            new PlaybackStep(
+                "POD_REST",
+                pod.name + " / NEXT STATION",
+                courseOffsetSeconds + screenOffsetSeconds,
+                effectiveScreen.rule.stationRestSeconds,
+                effectiveScreen.displayScreenIndex,
+                nextCardA.stationNumber,
+                nextCardA.actionName,
+                "SWITCH"));
+        screenOffsetSeconds += effectiveScreen.rule.stationRestSeconds;
+      }
       }
     }
 
@@ -227,6 +326,10 @@ public class TimelinePlanner {
       return right == null;
     }
     return left.equals(right);
+  }
+
+  private boolean isSwitchPod(CourseScript.Pod pod) {
+    return pod != null && "SWITCH".equals(pod.stationFlow);
   }
 
   private static class EffectivePodScreen {

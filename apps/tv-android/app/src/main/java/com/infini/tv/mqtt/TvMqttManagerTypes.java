@@ -48,6 +48,7 @@ abstract class TvMqttManagerTypes {
         int courseId,
         long scheduledStartAtMs,
         long playbackStartAtMs,
+        long serverNowMs,
         String playbackSessionId,
         String bundleChecksum);
 
@@ -58,6 +59,13 @@ abstract class TvMqttManagerTypes {
     void onTerminateCourseRequested(String scheduleId, int courseId, String playbackSessionId);
 
     void onPlaybackSessionUpdated(String sessionId, int version, String state, long serverNowMs);
+
+    void onShowCoursePlanRequested(
+        String scheduleId,
+        int courseId,
+        String courseName,
+        String playbackSessionId,
+        JSONObject coursePlan);
   }
 
 }

@@ -8,18 +8,47 @@ public class CourseScript {
   public final WaterfallSection cooldown;
   public final List<VideoGroup> videoGroups;
   public final List<Pod> pods;
+  public final Plan plan;
 
   public CourseScript(
       Metadata metadata,
       WaterfallSection warmup,
       WaterfallSection cooldown,
       List<VideoGroup> videoGroups,
-      List<Pod> pods) {
+      List<Pod> pods,
+      Plan plan) {
     this.metadata = metadata;
     this.warmup = warmup;
     this.cooldown = cooldown;
     this.videoGroups = videoGroups;
     this.pods = pods;
+    this.plan = plan;
+  }
+
+  public static class Plan {
+    public final List<PlanSection> sections;
+
+    public Plan(List<PlanSection> sections) {
+      this.sections = sections;
+    }
+  }
+
+  public static class PlanSection {
+    public final String title;
+    public final List<PlanItem> items;
+
+    public PlanSection(String title, List<PlanItem> items) {
+      this.title = title;
+      this.items = items;
+    }
+  }
+
+  public static class PlanItem {
+    public final String text;
+
+    public PlanItem(String text) {
+      this.text = text;
+    }
   }
 
   public static class Metadata {
@@ -125,12 +154,14 @@ public class CourseScript {
     public final String name;
     public final String videoGroupId;
     public final String ending;
+    public final String stationFlow;
     public final List<PodScreen> screens;
 
-    public Pod(String name, String videoGroupId, String ending, List<PodScreen> screens) {
+    public Pod(String name, String videoGroupId, String ending, String stationFlow, List<PodScreen> screens) {
       this.name = name;
       this.videoGroupId = videoGroupId;
       this.ending = ending;
+      this.stationFlow = stationFlow;
       this.screens = screens;
     }
   }

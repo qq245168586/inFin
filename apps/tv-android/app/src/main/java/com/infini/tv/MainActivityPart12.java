@@ -240,12 +240,14 @@ abstract class MainActivityPart12 extends MainActivityPart11 {
           TypedValue.COMPLEX_UNIT_PX, clampPx(statusTextBasisHeight * 1.65f, sp(160), sp(620)));
     }
     if (playbackStageProgress != null) {
+      playbackStageProgress.setGravity(android.view.Gravity.CENTER);
       playbackStageProgress.setTextSize(
-          TypedValue.COMPLEX_UNIT_PX, clampPx(statusTextBasisHeight * 0.42f, sp(34), sp(100)));
+          TypedValue.COMPLEX_UNIT_PX, clampPx(statusTextBasisHeight * 0.70f, sp(68), sp(168)));
     }
     if (playbackStageSecondary != null) {
+      playbackStageSecondary.setGravity(android.view.Gravity.CENTER);
       playbackStageSecondary.setTextSize(
-          TypedValue.COMPLEX_UNIT_PX, clampPx(statusTextBasisHeight * 0.20f, sp(18), sp(36)));
+          TypedValue.COMPLEX_UNIT_PX, clampPx(statusTextBasisHeight * 0.32f, sp(34), sp(64)));
     }
     if (playbackHint != null) {
       playbackHint.setTextSize(TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.034f, sp(16), sp(28)));
@@ -280,16 +282,17 @@ abstract class MainActivityPart12 extends MainActivityPart11 {
       ViewGroup.LayoutParams rawParams = horizontalRingContainer.getLayoutParams();
       if (rawParams instanceof FrameLayout.LayoutParams) {
         FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) rawParams;
-        int ringSize = clamp(Math.round(shortSide * 0.58f), dp(420), dp(720));
+        int ringSize = clamp(Math.round(shortSide * 0.64f), dp(500), dp(780));
         params.width = ringSize;
         params.height = ringSize;
-        params.gravity = android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL;
+        params.gravity = android.view.Gravity.TOP | android.view.Gravity.LEFT;
+        params.leftMargin = clamp(Math.round(screenWidth * 0.07f), dp(72), dp(150));
         params.topMargin = clamp(Math.round(shortSide * 0.10f), dp(48), dp(116));
         horizontalRingContainer.setLayoutParams(params);
       }
     }
     if (horizontalRingProgress != null) {
-      horizontalRingProgress.setStrokeWidthPx(clampPx(shortSide * 0.041f, dp(28), dp(52)));
+      horizontalRingProgress.setStrokeWidthPx(clampPx(shortSide * 0.047f, dp(34), dp(60)));
       horizontalRingProgress.setColors(
           getColor(R.color.tv_horizontal_progress_inactive),
           getColor(R.color.tv_horizontal_progress_active),
@@ -304,15 +307,18 @@ abstract class MainActivityPart12 extends MainActivityPart11 {
       ViewGroup.LayoutParams rawParams = horizontalStateColumn.getLayoutParams();
       if (rawParams instanceof FrameLayout.LayoutParams) {
         FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) rawParams;
-        int ringSize = clamp(Math.round(shortSide * 0.58f), dp(420), dp(720));
+        int ringSize = clamp(Math.round(shortSide * 0.64f), dp(500), dp(780));
         int ringTop = clamp(Math.round(shortSide * 0.10f), dp(48), dp(116));
         int stateTop = ringTop + Math.round(ringSize * 0.25f);
-        params.width = clamp(Math.round(screenWidth * 0.40f), dp(520), dp(860));
+        int ringLeft = clamp(Math.round(screenWidth * 0.07f), dp(72), dp(150));
+        int left = ringLeft + ringSize + clamp(Math.round(screenWidth * 0.035f), dp(42), dp(92));
+        int right = clamp(Math.round(screenWidth * 0.045f), dp(42), dp(90));
+        params.width = Math.max(screenWidth - left - right, dp(520));
         params.height = FrameLayout.LayoutParams.WRAP_CONTENT;
-        params.gravity = android.view.Gravity.TOP | android.view.Gravity.RIGHT;
+        params.gravity = android.view.Gravity.TOP | android.view.Gravity.LEFT;
         params.topMargin = stateTop;
-        params.leftMargin = 0;
-        params.rightMargin = clamp(Math.round(screenWidth * 0.062f), dp(56), dp(128));
+        params.leftMargin = left;
+        params.rightMargin = right;
         params.bottomMargin = 0;
         horizontalStateColumn.setLayoutParams(params);
       }
@@ -328,11 +334,15 @@ abstract class MainActivityPart12 extends MainActivityPart11 {
     }
     if (horizontalStateText != null) {
       horizontalStateText.setTextSize(
-          TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.092f, sp(60), sp(100)));
+          TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.126f, sp(86), sp(142)));
     }
     if (horizontalStateSecondary != null) {
       horizontalStateSecondary.setTextSize(
           TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.064f, sp(24), sp(42)));
+    }
+    if (horizontalStateDotsRow != null) {
+      horizontalStateDotsRow.removeAllViews();
+      horizontalStateDotsRow.setVisibility(View.GONE);
     }
     if (horizontalTransitionCountdownText != null) {
       horizontalTransitionCountdownText.setTextSize(
@@ -364,7 +374,7 @@ abstract class MainActivityPart12 extends MainActivityPart11 {
         params.gravity = android.view.Gravity.BOTTOM | android.view.Gravity.CENTER_HORIZONTAL;
         params.leftMargin = 0;
         params.rightMargin = 0;
-        params.bottomMargin = clamp(Math.round(shortSide * 0.12f), dp(84), dp(148));
+        params.bottomMargin = clamp(Math.round(shortSide * 0.055f), dp(42), dp(76));
         horizontalProgressRow.setLayoutParams(params);
       }
     }

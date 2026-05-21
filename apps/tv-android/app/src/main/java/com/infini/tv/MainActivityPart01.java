@@ -196,6 +196,7 @@ abstract class MainActivityPart01 extends MainActivityBase {
                   int courseId,
                   long scheduledStartAtMs,
                   long playbackStartAtMs,
+                  long serverNowMs,
                   String playbackSessionId,
                   String bundleChecksum) {
                 runOnUiThread(
@@ -205,6 +206,7 @@ abstract class MainActivityPart01 extends MainActivityBase {
                             courseId,
                             scheduledStartAtMs,
                             playbackStartAtMs,
+                            serverNowMs,
                             playbackSessionId,
                             bundleChecksum));
               }
@@ -247,6 +249,19 @@ abstract class MainActivityPart01 extends MainActivityBase {
                       requestCurrentPlaybackSession("mqtt_session_updated");
                     });
               }
+
+              @Override
+              public void onShowCoursePlanRequested(
+                  String scheduleId,
+                  int courseId,
+                  String courseName,
+                  String playbackSessionId,
+                  org.json.JSONObject coursePlan) {
+                runOnUiThread(
+                    () ->
+                        showCoursePlanFromRemote(
+                            scheduleId, courseId, courseName, playbackSessionId, coursePlan));
+              }
             });
     mqttManager.connect();
     registerNetworkMonitoring();
@@ -263,6 +278,7 @@ abstract class MainActivityPart01 extends MainActivityBase {
     getReadyPanel = findViewById(R.id.getReadyPanel);
     finishPanel = findViewById(R.id.finishPanel);
     updatePanel = findViewById(R.id.updatePanel);
+    coursePlanPanel = findViewById(R.id.coursePlanPanel);
     updateCard = findViewById(R.id.updateCard);
     playbackTimerCard = findViewById(R.id.playbackTimerCard);
     playbackStageCard = findViewById(R.id.playbackStageCard);
@@ -432,6 +448,7 @@ abstract class MainActivityPart01 extends MainActivityBase {
   }
 
   protected void openScreen(int screenNumber, boolean persistSelection) {
+    hideCoursePlanPanel();
     activeScreenNumber = screenNumber;
     if (persistSelection) {
       saveScreenNumber(screenNumber);

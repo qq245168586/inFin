@@ -201,6 +201,18 @@ abstract class MainActivityPart04 extends MainActivityPart03 {
     return nowElapsedRealtime + (wallClockMs - System.currentTimeMillis());
   }
 
+  protected long resolveElapsedRealtimeForServerWallClock(long wallClockMs, long serverNowMs) {
+    long nowElapsedRealtime = SystemClock.elapsedRealtime();
+    if (wallClockMs <= 0L) {
+      return nowElapsedRealtime;
+    }
+    long effectiveServerNowMs =
+        serverNowMs > 0L
+            ? serverNowMs
+            : (sessionServerNowBaseMs > 0L ? correctedServerNowMs() : System.currentTimeMillis());
+    return nowElapsedRealtime + (wallClockMs - effectiveServerNowMs);
+  }
+
   protected long currentPlaybackElapsedMs() {
     if (activePlaybackItem == null || previewMode) {
       return 0L;

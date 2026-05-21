@@ -382,13 +382,22 @@ abstract class MainActivityPart02 extends MainActivityPart01 {
               } catch (Exception error) {
                 Log.e(TAG, "Package download failed", error);
                 runOnUiThread(
-                    () ->
+                    () -> {
                         setUpdateUiState(
                             "ERROR",
                             version,
                             currentUpdateProgressPercent,
                             error.getMessage() == null ? "安装包下载失败。" : error.getMessage(),
-                            true));
+                            true);
+                        syncHandler.postDelayed(
+                            () -> {
+                              if ("ERROR".equals(currentUpdateState)) {
+                                clearUpdateUiState();
+                                scheduleChecksumPolling();
+                              }
+                            },
+                            4000);
+                    });
               }
             })
         .start();

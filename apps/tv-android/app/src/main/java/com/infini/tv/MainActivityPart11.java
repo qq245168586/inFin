@@ -77,7 +77,7 @@ abstract class MainActivityPart11 extends MainActivityPart10 {
             ? "HYDRATE"
             : ("REST".equals(transitionType)
                 ? "REST"
-                : ("MOVE_ZONE".equals(transitionType) ? "MOVE\nZONE" : "MOVE\nSTATION"));
+                : ("SWITCH".equals(transitionType) ? "SWITCH" : ("MOVE_ZONE".equals(transitionType) ? "MOVE\nZONE" : "MOVE\nSTATION")));
     transitionDesignTitle.setText(title);
     boolean hydrate = "HYDRATE".equals(transitionType);
     boolean rest = "REST".equals(transitionType);
@@ -147,6 +147,7 @@ abstract class MainActivityPart11 extends MainActivityPart10 {
     if (transitionDesignLogo != null) {
       transitionDesignLogo.setVisibility(View.GONE);
     }
+    hideSwitchTransitionDiagram();
     transitionDesignProgressKey = "";
     transitionDesignTotalSeconds = 0;
   }
@@ -155,6 +156,7 @@ abstract class MainActivityPart11 extends MainActivityPart10 {
     return "HYDRATE".equals(transitionType)
         || "REST".equals(transitionType)
         || "MOVE_STATION".equals(transitionType)
+        || "SWITCH".equals(transitionType)
         || "MOVE_ZONE".equals(transitionType);
   }
 
@@ -205,31 +207,7 @@ abstract class MainActivityPart11 extends MainActivityPart10 {
       return;
     }
     horizontalStateDotsRow.removeAllViews();
-    if (totalDots <= 0) {
-      horizontalStateDotsRow.setVisibility(View.GONE);
-      return;
-    }
-    horizontalStateDotsRow.setVisibility(View.VISIBLE);
-    horizontalStateDotsRow.setGravity(android.view.Gravity.CENTER);
-    int shortSide =
-        Math.min(
-            getResources().getDisplayMetrics().widthPixels,
-            getResources().getDisplayMetrics().heightPixels);
-    int dotSize = clamp(Math.round(shortSide * 0.026f), dp(16), dp(26));
-    int dotGap = clamp(Math.round(shortSide * 0.018f), dp(12), dp(22));
-    for (int index = 0; index < totalDots; index += 1) {
-      View dot = new View(this);
-      LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dotSize, dotSize);
-      if (index > 0) {
-        params.leftMargin = dotGap;
-      }
-      dot.setLayoutParams(params);
-      dot.setBackgroundResource(
-          index < Math.max(completedDots, 0)
-              ? R.drawable.bg_stage_dot_filled
-              : R.drawable.bg_stage_dot_hollow);
-      horizontalStateDotsRow.addView(dot);
-    }
+    horizontalStateDotsRow.setVisibility(View.GONE);
   }
 
   protected void renderHorizontalProgressBar(CourseScript course, int elapsedSeconds, int totalSeconds) {
@@ -287,6 +265,21 @@ abstract class MainActivityPart11 extends MainActivityPart10 {
       }
       playbackStageCard.setPadding(dp(22), dp(14), dp(22), dp(14));
     }
+    if (playbackStageCard instanceof LinearLayout) {
+      ((LinearLayout) playbackStageCard).setGravity(android.view.Gravity.CENTER);
+    }
+    if (playbackStageLabel != null) {
+      playbackStageLabel.setGravity(android.view.Gravity.CENTER);
+    }
+    if (playbackStageProgress != null) {
+      playbackStageProgress.setGravity(android.view.Gravity.CENTER);
+    }
+    if (playbackStageSecondary != null) {
+      playbackStageSecondary.setGravity(android.view.Gravity.CENTER);
+    }
+    if (playbackStageDotsRow != null) {
+      playbackStageDotsRow.setGravity(android.view.Gravity.CENTER);
+    }
   }
 
   protected void configureHorizontalMainLayout(boolean finishMode) {
@@ -331,12 +324,20 @@ abstract class MainActivityPart11 extends MainActivityPart10 {
         horizontalLogoText.setVisibility(View.GONE);
       }
       if (stateColumn instanceof LinearLayout) {
-        ((LinearLayout) stateColumn).setGravity(android.view.Gravity.CENTER_HORIZONTAL);
-        ((LinearLayout) stateColumn).setPadding(0, 0, 0, 0);
+        LinearLayout column = (LinearLayout) stateColumn;
+        column.setGravity(android.view.Gravity.CENTER);
+        column.setPadding(0, 0, 0, 0);
+        if (column.getChildCount() > 0 && column.getChildAt(0) instanceof LinearLayout) {
+          ((LinearLayout) column.getChildAt(0)).setGravity(android.view.Gravity.CENTER);
+        }
       }
       horizontalStateText.setGravity(android.view.Gravity.CENTER);
       horizontalStateText.setSingleLine(false);
       horizontalStateText.setMaxLines(3);
+      if (horizontalStateDotsRow != null) {
+        horizontalStateDotsRow.removeAllViews();
+        horizontalStateDotsRow.setVisibility(View.GONE);
+      }
     }
   }
 
@@ -350,7 +351,7 @@ abstract class MainActivityPart11 extends MainActivityPart10 {
     if (course.pods != null) {
       for (CourseScript.Pod pod : course.pods) {
         segmentDuration +=
-            getPodDurationSeconds(materializeProgressPodScreen(course, pod));
+            getPodDurationSeconds(pod, materializeProgressPodScreen(course, pod));
         int endingDuration = getPodEndingDurationSeconds(course, pod);
         if (endingDuration > 0 && isProgressMarkerPod(pod)) {
           segmentDuration += endingDuration;
@@ -405,24 +406,6 @@ abstract class MainActivityPart11 extends MainActivityPart10 {
   }
 
   protected String resolveHorizontalTransitionHint(TrainingPlaybackState state) {
-    if (state == null) {
-      return "";
-    }
-    if (state.hintText != null && !state.hintText.trim().isEmpty()) {
-      return state.hintText;
-    }
-    if ("HYDRATE".equals(state.transitionType)) {
-      return "补水后继续下一段训练";
-    }
-    if ("MOVE_ZONE".equals(state.transitionType)) {
-      return "准备前往下一个区域";
-    }
-    if ("MOVE_STATION".equals(state.transitionType)) {
-      return "准备前往下一个站点";
-    }
-    if ("REST".equals(state.transitionType)) {
-      return buildRestTransitionHint(state.completedDots, state.totalDots);
-    }
     return "";
   }
 
@@ -437,7 +420,7 @@ abstract class MainActivityPart11 extends MainActivityPart10 {
     if ("HYDRATE".equals(transitionType)) {
       return R.drawable.icon_water;
     }
-    if ("MOVE_STATION".equals(transitionType) || "MOVE_ZONE".equals(transitionType)) {
+    if ("MOVE_STATION".equals(transitionType) || "MOVE_ZONE".equals(transitionType) || "SWITCH".equals(transitionType)) {
       return R.drawable.icon_cicle;
     }
     if ("REST".equals(transitionType)) {

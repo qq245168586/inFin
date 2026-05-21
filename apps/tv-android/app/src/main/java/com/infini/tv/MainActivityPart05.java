@@ -96,6 +96,15 @@ abstract class MainActivityPart05 extends MainActivityPart04 {
 
     updateSessionClock(result.serverNowMs);
     String state = session.state == null ? "" : session.state.toUpperCase(Locale.US);
+    if ("PREVIEW".equals(state)
+        && !previewMode
+        && activePlaybackItem != null
+        && TextUtils.equals(session.id, activePlaybackSessionId)
+        && ("RUNNING".equals(activePlaybackSessionState) || "PAUSED".equals(activePlaybackSessionState))) {
+      Log.d(TAG, "Ignoring stale PREVIEW session after active playback started id=" + session.id);
+      return;
+    }
+
     if ("TERMINATED".equals(state)) {
       if (TextUtils.equals(session.id, activePlaybackSessionId) || TextUtils.isEmpty(activePlaybackSessionId)) {
         applyPlaybackSessionFields(session);
@@ -126,6 +135,7 @@ abstract class MainActivityPart05 extends MainActivityPart04 {
     if (item == null || session == null) {
       return;
     }
+    hideCoursePlanPanel();
     updateSessionClock(serverNowMs);
     applyPlaybackSessionFields(session);
     activePlaybackItem = item;
@@ -154,7 +164,7 @@ abstract class MainActivityPart05 extends MainActivityPart04 {
     playbackHandler.removeCallbacks(playbackTicker);
     playbackLoopRunning = !playbackPaused;
     if (playbackLoopRunning) {
-      playbackHandler.postDelayed(playbackTicker, 400L);
+      playbackHandler.postDelayed(playbackTicker, nextPlaybackTickDelayMs());
     }
     dispatchScreenHeartbeat(false);
   }
@@ -414,7 +424,7 @@ abstract class MainActivityPart05 extends MainActivityPart04 {
     refreshPlayback();
     playbackLoopRunning = true;
     playbackHandler.removeCallbacks(playbackTicker);
-    playbackHandler.postDelayed(playbackTicker, 400L);
+    playbackHandler.postDelayed(playbackTicker, nextPlaybackTickDelayMs());
     dispatchScreenHeartbeat(false);
   }
 
@@ -437,6 +447,7 @@ abstract class MainActivityPart05 extends MainActivityPart04 {
             + " sync="
             + syncInProgress);
     bringPlaybackUiToFront();
+    hideCoursePlanPanel();
     if (syncInProgress) {
       requestCurrentPlaybackSession("preview_while_syncing");
       return;

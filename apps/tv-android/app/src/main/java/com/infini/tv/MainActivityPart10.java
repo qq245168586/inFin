@@ -9,7 +9,11 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.RectF;
+import android.graphics.drawable.GradientDrawable;
 import android.media.AudioAttributes;
 import android.media.SoundPool;
 import android.net.ConnectivityManager;
@@ -89,7 +93,7 @@ abstract class MainActivityPart10 extends MainActivityPart09 {
             getDisplayScreenIndex());
 
     if (previewScreen == null || previewScreen.videoCards == null || previewScreen.videoCards.isEmpty()) {
-      showPlaybackMessage("", "PREVIEW", "正式训练还没有配置可预览的视频组。");
+      showPlaybackMessage("", "PREVIEW", "");
       return;
     }
 
@@ -240,11 +244,14 @@ abstract class MainActivityPart10 extends MainActivityPart09 {
             getResources().getDisplayMetrics().heightPixels);
     String normalized = stateText == null ? "" : stateText.trim().toUpperCase(Locale.US);
     boolean compact = normalized.contains("COOL DOWN");
+    boolean ready = normalized.replaceAll("\\s+", " ").contains("READY FOR");
     horizontalStateText.setTextSize(
         TypedValue.COMPLEX_UNIT_PX,
-        compact
+        ready
+            ? clampPx(shortSide * 0.118f, sp(82), sp(132))
+            : compact
             ? clampPx(shortSide * 0.068f, sp(42), sp(74))
-            : clampPx(shortSide * 0.092f, sp(60), sp(100)));
+            : clampPx(shortSide * 0.112f, sp(72), sp(124)));
   }
 
   protected boolean isHorizontalReadyRingState(String primaryText) {
@@ -291,34 +298,6 @@ abstract class MainActivityPart10 extends MainActivityPart09 {
     }
 
     String transitionType = state == null ? "" : state.transitionType;
-    contentPanel.setBackgroundColor(getTransitionBackgroundColor(transitionType));
-    contentPanel.setPadding(0, 0, 0, 0);
-    showPlaybackChrome(false, false);
-    scheduleScrollView.setVisibility(View.GONE);
-    verticalSchedulePanel.setVisibility(View.GONE);
-    verticalPlaybackPanel.setVisibility(View.GONE);
-    horizontalPlaceholderPanel.setVisibility(View.GONE);
-    if (horizontalPlaybackPanel != null) {
-      horizontalPlaybackPanel.setVisibility(View.GONE);
-    }
-    if (horizontalScheduleScroll != null) {
-      horizontalScheduleScroll.setVisibility(View.GONE);
-    }
-    if (horizontalLoadingText != null) {
-      horizontalLoadingText.setVisibility(View.GONE);
-    }
-    if (horizontalContentPanel != null) {
-      horizontalContentPanel.setVisibility(View.GONE);
-    }
-    if (horizontalTransitionPanel != null) {
-      horizontalTransitionPanel.setVisibility(View.GONE);
-    }
-    if (playbackScrollView != null) {
-      playbackScrollView.setVisibility(View.GONE);
-    }
-    if (getReadyPanel != null) {
-      getReadyPanel.setVisibility(View.GONE);
-    }
     hideFinishPanel();
     transitionDesignPanel.setBackgroundColor(getTransitionBackgroundColor(transitionType));
     transitionDesignPanel.setVisibility(View.VISIBLE);
@@ -329,9 +308,6 @@ abstract class MainActivityPart10 extends MainActivityPart09 {
         state == null ? "" : state.renderKey,
         state == null ? "" : state.hintText,
         horizontal);
-    lastPlaybackMode = "TRANSITION_DESIGN|" + (state == null ? "" : state.transitionType);
-    lastTrainingSignature = "";
-    lastWaterfallSignature = "";
   }
 
   protected void updateTransitionDesignControls(
@@ -397,6 +373,24 @@ abstract class MainActivityPart10 extends MainActivityPart09 {
         horizontal
             ? clampPx(shortSide * 0.22f, sp(150), sp(280))
             : clampPx(shortSide * 0.30f, shortSide * 0.20f, shortSide * 0.34f));
+    if ("SWITCH".equals(transitionType)) {
+      float flowProgress =
+          transitionDesignTotalSeconds <= 0
+              ? 0f
+              : 1f - (Math.max(remainingSeconds, 0) / (float) Math.max(transitionDesignTotalSeconds, 1));
+      bindSwitchTransitionDiagram(horizontal, screenWidth, screenHeight, shortSide, flowProgress);
+      if (transitionDesignIcon != null) {
+        transitionDesignIcon.setVisibility(View.GONE);
+        transitionDesignIcon.setImageDrawable(null);
+      }
+      bindTransitionDesignTitle(transitionType, horizontal, screenWidth, screenHeight, shortSide);
+      bindTransitionDesignSubtitle(subtitle, transitionType, horizontal, screenWidth, screenHeight, shortSide);
+      if (transitionDesignLogo != null) {
+        transitionDesignLogo.setVisibility(View.GONE);
+      }
+      return;
+    }
+    hideSwitchTransitionDiagram();
     bindTransitionDesignIcon(transitionType, horizontal, screenWidth, screenHeight, shortSide);
     bindTransitionDesignTitle(transitionType, horizontal, screenWidth, screenHeight, shortSide);
     bindTransitionDesignSubtitle(subtitle, transitionType, horizontal, screenWidth, screenHeight, shortSide);
@@ -453,5 +447,231 @@ abstract class MainActivityPart10 extends MainActivityPart09 {
     transitionDesignIcon.setLayoutParams(params);
     transitionDesignIcon.setVisibility(View.VISIBLE);
     transitionDesignIcon.bringToFront();
+  }
+
+  protected void bindSwitchTransitionDiagram(
+      boolean horizontal, int screenWidth, int screenHeight, int shortSide, float flowProgress) {
+    if (!(transitionDesignPanel instanceof FrameLayout)) {
+      return;
+    }
+    FrameLayout panel = (FrameLayout) transitionDesignPanel;
+    if (switchTransitionDiagram == null) {
+      switchTransitionDiagram = new FrameLayout(this);
+      panel.addView(switchTransitionDiagram);
+    }
+    switchTransitionDiagram.removeAllViews();
+
+    int width =
+        horizontal
+            ? clamp(Math.round(screenWidth * 0.54f), dp(760), dp(1120))
+            : clamp(Math.round(shortSide * 0.92f), Math.round(shortSide * 0.82f), Math.round(shortSide * 0.98f));
+    int height =
+        horizontal
+            ? clamp(Math.round(shortSide * 0.42f), dp(320), dp(500))
+            : clamp(Math.round(shortSide * 0.40f), Math.round(shortSide * 0.32f), Math.round(shortSide * 0.50f));
+    float centerX = horizontal ? 0.72f : 0.5f;
+    float centerY = horizontal ? 0.25f : 0.16f;
+    FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(width, height);
+    params.leftMargin = Math.round(screenWidth * centerX - width / 2f);
+    params.topMargin = Math.round(screenHeight * centerY - height / 2f);
+    switchTransitionDiagram.setLayoutParams(params);
+    switchTransitionDiagram.setVisibility(View.VISIBLE);
+
+    int nodeSize = clamp(Math.round(height * 0.58f), dp(138), dp(230));
+    int lineHeight = clamp(Math.round(height * 0.064f), dp(18), dp(32));
+    int nodeGap = clamp(Math.round(nodeSize * 0.07f), dp(8), dp(18));
+    int lineLeft = nodeSize + nodeGap;
+    int lineRight = width - nodeSize - nodeGap;
+    int lineWidth = Math.max(lineRight - lineLeft, dp(220));
+    int topCenterY = Math.round(height * 0.32f);
+    int bottomCenterY = Math.round(height * 0.66f);
+
+    int railHeight = lineHeight * 3;
+    SwitchFlowLineView topLine = new SwitchFlowLineView(this);
+    topLine.bind(flowProgress, true, true, lineHeight);
+    FrameLayout.LayoutParams topLineParams = new FrameLayout.LayoutParams(lineWidth, railHeight);
+    topLineParams.leftMargin = lineLeft;
+    topLineParams.topMargin = topCenterY - railHeight / 2;
+    switchTransitionDiagram.addView(topLine, topLineParams);
+
+    SwitchFlowLineView bottomLine = new SwitchFlowLineView(this);
+    bottomLine.bind(flowProgress, false, false, lineHeight);
+    FrameLayout.LayoutParams bottomLineParams = new FrameLayout.LayoutParams(lineWidth, railHeight);
+    bottomLineParams.leftMargin = lineLeft;
+    bottomLineParams.topMargin = bottomCenterY - railHeight / 2;
+    switchTransitionDiagram.addView(bottomLine, bottomLineParams);
+
+    TextView leftNode = createSwitchNode("A", nodeSize);
+    FrameLayout.LayoutParams leftParams = new FrameLayout.LayoutParams(nodeSize, nodeSize);
+    leftParams.leftMargin = 0;
+    leftParams.topMargin = Math.round(height * 0.48f - nodeSize / 2f);
+    switchTransitionDiagram.addView(leftNode, leftParams);
+
+    TextView rightNode = createSwitchNode("B", nodeSize);
+    FrameLayout.LayoutParams rightParams = new FrameLayout.LayoutParams(nodeSize, nodeSize);
+    rightParams.leftMargin = width - nodeSize;
+    rightParams.topMargin = leftParams.topMargin;
+    switchTransitionDiagram.addView(rightNode, rightParams);
+
+    switchTransitionDiagram.bringToFront();
+  }
+
+  protected void addSwitchFlowSegments(
+      FrameLayout diagram,
+      int left,
+      int top,
+      int width,
+      int height,
+      float progress,
+      boolean primary,
+      boolean leftToRight) {
+    int segmentCount = 8;
+    int gap = dp(10);
+    int segmentWidth = Math.max((width - gap * (segmentCount - 1)) / segmentCount, dp(34));
+    float normalizedProgress = Math.max(0f, Math.min(1f, progress));
+    int activeIndex =
+        Math.max(0, Math.min(segmentCount - 1, Math.round(normalizedProgress * (segmentCount - 1))));
+    if (!leftToRight) {
+      activeIndex = segmentCount - 1 - activeIndex;
+    }
+    for (int index = 0; index < segmentCount; index += 1) {
+      View segment = new View(this);
+      int distance = Math.abs(index - activeIndex);
+      float alpha;
+      if (!primary) {
+        alpha = distance == 0 ? 0.88f : distance == 1 ? 0.56f : distance == 2 ? 0.30f : 0.14f;
+      } else if (distance == 0) {
+        alpha = 1f;
+      } else if (distance == 1) {
+        alpha = 0.72f;
+      } else if (distance == 2) {
+        alpha = 0.40f;
+      } else {
+        alpha = 0.18f;
+      }
+      segment.setAlpha(alpha);
+      segment.setBackground(roundedRect(0xffffffff, height / 2));
+      FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(segmentWidth, height);
+      params.leftMargin = left + index * (segmentWidth + gap);
+      params.topMargin = top;
+      diagram.addView(segment, params);
+    }
+  }
+
+  protected static class SwitchFlowLineView extends View {
+    private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final RectF rect = new RectF();
+    private float progress = 0f;
+    private boolean primary = true;
+    private boolean leftToRight = true;
+    private int segmentHeight = 20;
+
+    public SwitchFlowLineView(android.content.Context context) {
+      super(context);
+      setWillNotDraw(false);
+    }
+
+    public void bind(float progress, boolean primary, boolean leftToRight, int segmentHeight) {
+      this.progress = Math.max(0f, Math.min(1f, progress));
+      this.primary = primary;
+      this.leftToRight = leftToRight;
+      this.segmentHeight = Math.max(segmentHeight, 1);
+      invalidate();
+    }
+
+    @Override
+    protected void onDraw(Canvas canvas) {
+      super.onDraw(canvas);
+      int width = getWidth();
+      int height = getHeight();
+      if (width <= 0 || height <= 0) {
+        return;
+      }
+      int arrowLength = Math.round(segmentHeight * 2.15f);
+      int arrowInset = Math.max(2, Math.round(segmentHeight * 0.12f));
+      int arrowSpace = arrowLength + Math.round(segmentHeight * 0.45f);
+      int railStart = leftToRight ? 0 : arrowSpace;
+      int railEnd = leftToRight ? width - arrowSpace : width;
+      int railWidth = Math.max(railEnd - railStart, segmentHeight * 4);
+      int segmentCount = 9;
+      int gap = Math.max(4, Math.round(segmentHeight * 0.46f));
+      int segmentWidth = Math.max(6, (railWidth - gap * (segmentCount - 1)) / segmentCount);
+      float centerY = height / 2f;
+      float top = centerY - segmentHeight / 2f;
+      float radius = segmentHeight / 2f;
+      int activeIndex = Math.round(progress * (segmentCount - 1));
+      if (!leftToRight) {
+        activeIndex = segmentCount - 1 - activeIndex;
+      }
+
+      for (int index = 0; index < segmentCount; index += 1) {
+        int distance = Math.abs(index - activeIndex);
+        float alpha = distance == 0 ? 1f : distance == 1 ? 0.58f : distance == 2 ? 0.34f : 0.18f;
+        if (!primary) {
+          alpha *= 0.84f;
+        }
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(Color.WHITE);
+        paint.setAlpha(Math.round(255 * alpha));
+        int x = railStart + index * (segmentWidth + gap);
+        rect.set(x, top, x + segmentWidth, top + segmentHeight);
+        canvas.drawRoundRect(rect, radius, radius, paint);
+      }
+
+      paint.setStyle(Paint.Style.STROKE);
+      paint.setStrokeCap(Paint.Cap.ROUND);
+      paint.setStrokeJoin(Paint.Join.ROUND);
+      paint.setStrokeWidth(Math.max(6f, segmentHeight * 0.36f));
+      paint.setColor(Color.WHITE);
+      paint.setAlpha(Math.round(255 * (primary ? 0.96f : 0.82f)));
+
+      float arrowTip = leftToRight ? width - arrowInset : arrowInset;
+      float arrowBase = leftToRight ? arrowTip - arrowLength : arrowTip + arrowLength;
+      float wing = Math.max(segmentHeight * 0.74f, 10f);
+      canvas.drawLine(arrowBase, centerY - wing, arrowTip, centerY, paint);
+      canvas.drawLine(arrowBase, centerY + wing, arrowTip, centerY, paint);
+    }
+  }
+
+  protected void hideSwitchTransitionDiagram() {
+    if (switchTransitionDiagram != null) {
+      switchTransitionDiagram.setVisibility(View.GONE);
+      switchTransitionDiagram.removeAllViews();
+    }
+  }
+
+  protected TextView createSwitchNode(String text, int size) {
+    TextView node = createSwitchText(text, Math.round(size * 0.46f), true);
+    node.setBackground(ovalBackground(0x30ffffff, 0xffffffff, Math.max(dp(4), Math.round(size * 0.045f))));
+    return node;
+  }
+
+  protected TextView createSwitchText(String text, int textSizePx, boolean bold) {
+    TextView view = new TextView(this);
+    view.setText(text);
+    view.setTextColor(getColor(R.color.tv_text_main));
+    view.setGravity(android.view.Gravity.CENTER);
+    view.setTextSize(TypedValue.COMPLEX_UNIT_PX, textSizePx);
+    view.setIncludeFontPadding(false);
+    if (bold) {
+      view.setTypeface(view.getTypeface(), android.graphics.Typeface.BOLD);
+    }
+    return view;
+  }
+
+  protected GradientDrawable ovalBackground(int fillColor, int strokeColor, int strokeWidth) {
+    GradientDrawable drawable = new GradientDrawable();
+    drawable.setShape(GradientDrawable.OVAL);
+    drawable.setColor(fillColor);
+    drawable.setStroke(strokeWidth, strokeColor);
+    return drawable;
+  }
+
+  protected GradientDrawable roundedRect(int fillColor, int radius) {
+    GradientDrawable drawable = new GradientDrawable();
+    drawable.setShape(GradientDrawable.RECTANGLE);
+    drawable.setColor(fillColor);
+    drawable.setCornerRadius(radius);
+    return drawable;
   }
 }

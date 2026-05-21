@@ -72,6 +72,7 @@ abstract class MainActivityPart06 extends MainActivityPart05 {
       int courseId,
       long scheduledStartAtMs,
       long playbackStartAtMs,
+      long serverNowMs,
       String playbackSessionId,
       String bundleChecksum) {
     Log.d(
@@ -84,6 +85,10 @@ abstract class MainActivityPart06 extends MainActivityPart05 {
             + playbackSessionId
             + " checksum="
             + bundleChecksum
+            + " playbackStartAtMs="
+            + playbackStartAtMs
+            + " serverNowMs="
+            + serverNowMs
             + " preview="
             + previewMode
             + " active="
@@ -91,7 +96,35 @@ abstract class MainActivityPart06 extends MainActivityPart05 {
             + " sync="
             + syncInProgress);
     bringPlaybackUiToFront();
-    requestCurrentPlaybackSession("start_course");
+    hideCoursePlanPanel();
+    if (!TextUtils.isEmpty(playbackSessionId)) {
+      Log.d(TAG, "Remote start resolved by authoritative session id=" + playbackSessionId);
+      requestCurrentPlaybackSession("start_course_session_authoritative");
+      return;
+    }
+    if (syncInProgress) {
+      requestCurrentPlaybackSession("start_course_while_syncing");
+      return;
+    }
+
+    if (canStartActivePreviewFromRemote(scheduleId, courseId, playbackSessionId, bundleChecksum)) {
+      beginRemoteCoursePlayback(
+          activePlaybackItem, playbackStartAtMs, serverNowMs, playbackSessionId, bundleChecksum);
+      return;
+    }
+
+    resolveRemoteSchedule(
+        scheduleId,
+        courseId,
+        scheduledStartAtMs,
+        bundleChecksum,
+        item -> {
+          if (item != null) {
+            beginRemoteCoursePlayback(item, playbackStartAtMs, serverNowMs, playbackSessionId, bundleChecksum);
+          } else {
+            requestCurrentPlaybackSession("start_course_missing_schedule");
+          }
+        });
   }
 
   protected boolean canStartActivePreviewFromRemote(
@@ -114,7 +147,11 @@ abstract class MainActivityPart06 extends MainActivityPart05 {
   }
 
   protected void beginRemoteCoursePlayback(
-      TvScheduleItem item, long playbackStartAtMs, String playbackSessionId, String bundleChecksum) {
+      TvScheduleItem item,
+      long playbackStartAtMs,
+      long serverNowMs,
+      String playbackSessionId,
+      String bundleChecksum) {
     if (item == null) {
       return;
     }
@@ -129,9 +166,12 @@ abstract class MainActivityPart06 extends MainActivityPart05 {
     previewMode = false;
     playbackPaused = false;
     resetAudioCueTracking();
+    long effectiveServerNowMs =
+        sessionServerNowBaseMs > 0L ? correctedServerNowMs() : Math.max(serverNowMs, 0L);
     playbackStartElapsedRealtimeMs =
-        resolveElapsedRealtimeForWallClock(
-            playbackStartAtMs > 0 ? playbackStartAtMs : System.currentTimeMillis());
+        resolveElapsedRealtimeForServerWallClock(
+            playbackStartAtMs > 0 ? playbackStartAtMs : correctedServerNowMs(),
+            effectiveServerNowMs);
     accumulatedPauseElapsedRealtimeMs = 0L;
     pauseStartedElapsedRealtimeMs = 0L;
     frozenElapsedMs = 0L;
@@ -139,7 +179,7 @@ abstract class MainActivityPart06 extends MainActivityPart05 {
     refreshPlayback();
     playbackLoopRunning = true;
     playbackHandler.removeCallbacks(playbackTicker);
-    playbackHandler.postDelayed(playbackTicker, 400L);
+    playbackHandler.postDelayed(playbackTicker, nextPlaybackTickDelayMs());
     dispatchScreenHeartbeat(false);
   }
 
@@ -159,18 +199,21 @@ abstract class MainActivityPart06 extends MainActivityPart05 {
   protected void pauseCourseFromRemote(
       String scheduleId, int courseId, long pausedAtMs, String playbackSessionId) {
     bringPlaybackUiToFront();
+    hideCoursePlanPanel();
     requestCurrentPlaybackSession("pause_course");
   }
 
   protected void resumeCourseFromRemote(
       String scheduleId, int courseId, long resumedAtMs, String playbackSessionId) {
     bringPlaybackUiToFront();
+    hideCoursePlanPanel();
     requestCurrentPlaybackSession("resume_course");
   }
 
   protected void terminateCourseFromRemote(
       String scheduleId, int courseId, String playbackSessionId) {
     bringPlaybackUiToFront();
+    hideCoursePlanPanel();
     if (TextUtils.isEmpty(playbackSessionId) || TextUtils.equals(playbackSessionId, activePlaybackSessionId)) {
       returnToScheduleListAfterFinish();
       return;

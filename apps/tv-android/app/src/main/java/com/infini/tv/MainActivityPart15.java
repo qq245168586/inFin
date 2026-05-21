@@ -175,13 +175,13 @@ abstract class MainActivityPart15 extends MainActivityPart14 {
 
     int total = 0;
     for (CourseScript.Pod pod : course.pods) {
-      total += getPodDurationSeconds(materializeProgressPodScreen(course, pod));
+      total += getPodDurationSeconds(pod, materializeProgressPodScreen(course, pod));
       total += getPodEndingDurationSeconds(course, pod);
     }
     return total;
   }
 
-  protected int getPodDurationSeconds(EffectivePodScreen effectiveScreen) {
+  protected int getPodDurationSeconds(CourseScript.Pod pod, EffectivePodScreen effectiveScreen) {
     if (effectiveScreen == null || effectiveScreen.videoCards == null || effectiveScreen.videoCards.isEmpty()) {
       return 0;
     }
@@ -191,6 +191,27 @@ abstract class MainActivityPart15 extends MainActivityPart14 {
     int loopCount = Math.max(effectiveScreen.rule.loopCount, 1);
 
     if (!effectiveScreen.waterfallLayout) {
+      if (isSwitchPod(pod)) {
+        int pairCount = effectiveScreen.videoCards.size() / 2;
+        if (pairCount <= 0) {
+          return 0;
+        }
+        int stationRestSeconds = Math.max(effectiveScreen.rule.stationRestSeconds, 0);
+        for (int pairRoundIndex = 0; pairRoundIndex < loopCount; pairRoundIndex += 1) {
+          for (int setIndex = 0; setIndex < setConfigs.size(); setIndex += 1) {
+            CourseScript.PodSetConfig setConfig = setConfigs.get(setIndex);
+            duration += Math.max(setConfig.workSeconds, 0) * 2;
+            duration += stationRestSeconds;
+            if (setIndex < setConfigs.size() - 1) {
+              duration += Math.max(setConfig.restSeconds, 0);
+            }
+          }
+          if (pairRoundIndex < loopCount - 1) {
+            duration += stationRestSeconds;
+          }
+        }
+        return duration;
+      }
       for (int loopIndex = 0; loopIndex < loopCount; loopIndex += 1) {
         for (int setIndex = 0; setIndex < setConfigs.size(); setIndex += 1) {
           CourseScript.PodSetConfig setConfig = setConfigs.get(setIndex);

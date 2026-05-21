@@ -73,7 +73,7 @@ abstract class MainActivityPart13 extends MainActivityPart12 {
     }
 
     String transitionType = state.transitionType == null ? "" : state.transitionType.trim();
-    if ("MOVE_STATION".equals(transitionType)) {
+    if ("MOVE_STATION".equals(transitionType) || "SWITCH".equals(transitionType)) {
       return PlaybackTheme.MOVE_STATION;
     }
     if ("MOVE_ZONE".equals(transitionType)) {
@@ -106,7 +106,7 @@ abstract class MainActivityPart13 extends MainActivityPart12 {
     if ("HYDRATE".equals(transitionType)) {
       return getColor(R.color.tv_playback_blue);
     }
-    if ("MOVE_STATION".equals(transitionType) || "MOVE_ZONE".equals(transitionType)) {
+    if ("MOVE_STATION".equals(transitionType) || "MOVE_ZONE".equals(transitionType) || "SWITCH".equals(transitionType)) {
       return getColor(R.color.tv_playback_move_station);
     }
     return getColor(R.color.tv_playback_background);
@@ -120,7 +120,7 @@ abstract class MainActivityPart13 extends MainActivityPart12 {
     if (normalized.contains("REST") || normalized.contains("READY")) {
       return getColor(R.color.tv_playback_ready);
     }
-    if (normalized.contains("MOVE")) {
+    if (normalized.contains("MOVE") || normalized.contains("SWITCH")) {
       return getColor(R.color.tv_playback_move_station);
     }
     if (normalized.contains("HYDRATE")) {
@@ -150,6 +150,7 @@ abstract class MainActivityPart13 extends MainActivityPart12 {
       } else {
         playbackStageSecondary.setVisibility(View.VISIBLE);
         playbackStageSecondary.setText(secondaryText);
+        playbackStageSecondary.setGravity(android.view.Gravity.CENTER);
       }
     }
 
@@ -179,7 +180,7 @@ abstract class MainActivityPart13 extends MainActivityPart12 {
   protected void updateTrainingPlayback(CourseScript course, int elapsedSeconds) {
     TrainingPlaybackState state = buildTrainingPlaybackState(course, elapsedSeconds);
     if (state == null) {
-      showPlaybackMessage("0", "TRAINING", "当前课程没有正式训练脚本。");
+      showPlaybackMessage("0", "TRAINING", "");
       return;
     }
     maybePlayTrainingCue(state);
@@ -201,7 +202,9 @@ abstract class MainActivityPart13 extends MainActivityPart12 {
     applyPlaybackTheme(getThemeForState(state));
     playbackCountdownText.setText(String.valueOf(Math.max(state.remainingSeconds, 0)));
     playbackStageLabel.setText(state.stageLabel);
+    playbackStageLabel.setGravity(android.view.Gravity.CENTER);
     playbackStageProgress.setText(state.stageProgress);
+    playbackStageProgress.setGravity(android.view.Gravity.CENTER);
     renderStageMeta(state.stageSecondaryText, state.completedDots, state.totalDots);
     playbackHint.setText("");
     playbackHint.setVisibility(View.GONE);
@@ -280,7 +283,7 @@ abstract class MainActivityPart13 extends MainActivityPart12 {
       CourseScript.Pod pod = course.pods.get(podIndex);
       CourseScript.VideoGroup group = findVideoGroup(course, pod.videoGroupId);
       EffectivePodScreen effectiveScreen = materializePodScreen(pod, group, displayScreenIndex);
-      int podDurationSeconds = getPodDurationSeconds(effectiveScreen);
+      int podDurationSeconds = getPodDurationSeconds(pod, effectiveScreen);
       EffectivePodScreen nextEffectiveScreen = null;
       if (podIndex + 1 < course.pods.size()) {
         CourseScript.Pod nextPod = course.pods.get(podIndex + 1);
@@ -314,6 +317,9 @@ abstract class MainActivityPart13 extends MainActivityPart12 {
   protected TrainingPlaybackState buildPodRunningState(
       CourseScript.Pod pod, EffectivePodScreen effectiveScreen, int podElapsedSeconds) {
     if (effectiveScreen != null && !effectiveScreen.waterfallLayout) {
+      if (isSwitchPod(pod)) {
+        return buildSwitchPodRunningState(pod, effectiveScreen, podElapsedSeconds);
+      }
       return buildStationPodRunningState(pod, effectiveScreen, podElapsedSeconds);
     }
     return buildWaterfallPodRunningState(pod, effectiveScreen, podElapsedSeconds);
@@ -326,7 +332,7 @@ abstract class MainActivityPart13 extends MainActivityPart12 {
           pod.name + "|empty",
           "TRAINING",
           "",
-          "当前屏幕没有可播放的视频组内容。",
+          "",
           0,
           new ArrayList<>(),
           -1,
@@ -409,7 +415,7 @@ abstract class MainActivityPart13 extends MainActivityPart12 {
         pod.name + "|wf-idle",
         "TRAINING",
         "",
-        "正式训练准备中",
+        "",
         0,
         actionSequence,
         actionSequence.isEmpty() ? -1 : actionSequence.size() - 1,

@@ -67,6 +67,166 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
 abstract class MainActivityPart14 extends MainActivityPart13 {
+  protected boolean isSwitchPod(CourseScript.Pod pod) {
+    return pod != null && "SWITCH".equals(pod.stationFlow);
+  }
+
+  protected TrainingPlaybackState buildSwitchPodRunningState(
+      CourseScript.Pod pod, EffectivePodScreen effectiveScreen, int podElapsedSeconds) {
+    if (effectiveScreen == null || effectiveScreen.videoCards == null || effectiveScreen.videoCards.size() < 2) {
+      return buildStationPodRunningState(pod, effectiveScreen, podElapsedSeconds);
+    }
+
+    List<CourseScript.VideoCard> baseCards = effectiveScreen.videoCards;
+    List<CourseScript.PodSetConfig> setConfigs = getEffectiveSetConfigs(effectiveScreen.rule);
+    int safeLoops = Math.max(effectiveScreen.rule.loopCount, 1);
+    int pairCount = baseCards.size() / 2;
+    int totalSwitchDots = Math.max(setConfigs.size(), 0) * 2;
+    int cursor = 0;
+    int stationRestSeconds = Math.max(effectiveScreen.rule.stationRestSeconds, 0);
+
+    for (int loopIndex = 0; loopIndex < safeLoops; loopIndex += 1) {
+      for (int pairIndex = 0; pairIndex < pairCount; pairIndex += 1) {
+      int cardAIndex = pairIndex * 2;
+      int cardBIndex = cardAIndex + 1;
+      CourseScript.VideoCard cardA = baseCards.get(cardAIndex);
+      CourseScript.VideoCard cardB = baseCards.get(cardBIndex);
+
+      for (int setIndex = 0; setIndex < setConfigs.size(); setIndex += 1) {
+        CourseScript.PodSetConfig setConfig = setConfigs.get(setIndex);
+        int workSeconds = Math.max(setConfig.workSeconds, 0);
+
+        if (workSeconds > 0 && podElapsedSeconds < cursor + workSeconds) {
+          int remainingSeconds = Math.max(cursor + workSeconds - podElapsedSeconds, 0);
+          return new TrainingPlaybackState(
+              pod.name + "|switch-work|" + loopIndex + "|" + pairIndex + "|A|" + setIndex,
+              "REMAINING",
+              "WORK",
+              buildSwitchTrainingHint("A", cardA, loopIndex + 1, safeLoops, pairIndex + 1, pairCount, setIndex + 1, setConfigs.size()),
+              remainingSeconds,
+              baseCards,
+              cardAIndex,
+              true,
+              false,
+              false,
+              false,
+              "",
+              "SET " + (setIndex + 1) + "/" + setConfigs.size(),
+              setIndex * 2 + 1,
+              totalSwitchDots);
+        }
+        cursor += workSeconds;
+
+        if (stationRestSeconds > 0 && podElapsedSeconds < cursor + stationRestSeconds) {
+          int remainingSeconds = Math.max(cursor + stationRestSeconds - podElapsedSeconds, 0);
+          boolean fullScreenTransition = isInFirstTransitionThird(remainingSeconds, stationRestSeconds);
+          return new TrainingPlaybackState(
+              pod.name + "|switch-a-to-b|" + loopIndex + "|" + pairIndex + "|" + setIndex,
+              "REMAINING",
+              "SWITCH",
+              "",
+              remainingSeconds,
+              baseCards,
+              cardBIndex,
+              false,
+              false,
+              false,
+              fullScreenTransition,
+              "SWITCH",
+              "",
+              setIndex * 2 + 1,
+              totalSwitchDots);
+        }
+        cursor += stationRestSeconds;
+
+        if (workSeconds > 0 && podElapsedSeconds < cursor + workSeconds) {
+          int remainingSeconds = Math.max(cursor + workSeconds - podElapsedSeconds, 0);
+          return new TrainingPlaybackState(
+              pod.name + "|switch-work|" + loopIndex + "|" + pairIndex + "|B|" + setIndex,
+              "REMAINING",
+              "WORK",
+              buildSwitchTrainingHint("B", cardB, loopIndex + 1, safeLoops, pairIndex + 1, pairCount, setIndex + 1, setConfigs.size()),
+              remainingSeconds,
+              baseCards,
+              cardBIndex,
+              true,
+              false,
+              false,
+              false,
+              "",
+              "SET " + (setIndex + 1) + "/" + setConfigs.size(),
+              setIndex * 2 + 2,
+              totalSwitchDots);
+        }
+        cursor += workSeconds;
+
+        boolean hasNextSet = setIndex < setConfigs.size() - 1;
+        int setRestSeconds = Math.max(setConfig.restSeconds, 0);
+        if (hasNextSet && setRestSeconds > 0 && podElapsedSeconds < cursor + setRestSeconds) {
+          int remainingSeconds = Math.max(cursor + setRestSeconds - podElapsedSeconds, 0);
+          boolean fullScreenTransition = isInFirstTransitionThird(remainingSeconds, setRestSeconds);
+          return new TrainingPlaybackState(
+              pod.name + "|switch-set-rest|" + loopIndex + "|" + pairIndex + "|" + setIndex,
+              "REMAINING",
+              "SWITCH",
+              "",
+              remainingSeconds,
+              baseCards,
+              cardAIndex,
+              false,
+              false,
+              false,
+              fullScreenTransition,
+              "SWITCH",
+              "",
+              Math.min(setIndex * 2 + 2, totalSwitchDots),
+              totalSwitchDots);
+        }
+        if (hasNextSet) {
+          cursor += setRestSeconds;
+        }
+      }
+
+      boolean hasNextPairRound = pairIndex < pairCount - 1 || loopIndex < safeLoops - 1;
+      if (hasNextPairRound && stationRestSeconds > 0 && podElapsedSeconds < cursor + stationRestSeconds) {
+        int nextPairIndex = pairIndex < pairCount - 1 ? pairIndex + 1 : 0;
+        int nextCardAIndex = nextPairIndex * 2;
+        int remainingSeconds = Math.max(cursor + stationRestSeconds - podElapsedSeconds, 0);
+        boolean fullScreenTransition = isInFirstTransitionThird(remainingSeconds, stationRestSeconds);
+        return new TrainingPlaybackState(
+            pod.name + "|switch-next-station|" + loopIndex + "|" + pairIndex,
+            "REMAINING",
+            "SWITCH",
+            "",
+            remainingSeconds,
+            baseCards,
+            nextCardAIndex,
+            false,
+            false,
+            false,
+            fullScreenTransition,
+            "SWITCH",
+            "",
+            totalSwitchDots,
+            totalSwitchDots);
+      }
+      if (hasNextPairRound) {
+        cursor += stationRestSeconds;
+      }
+      }
+    }
+
+    return new TrainingPlaybackState(
+        pod.name + "|switch-idle",
+        "TRAINING",
+        "",
+        "",
+        0,
+        baseCards,
+        -1,
+        false);
+  }
+
   protected TrainingPlaybackState buildStationPodRunningState(
       CourseScript.Pod pod, EffectivePodScreen effectiveScreen, int podElapsedSeconds) {
     if (effectiveScreen == null || effectiveScreen.videoCards == null || effectiveScreen.videoCards.isEmpty()) {
@@ -74,7 +234,7 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
           pod.name + "|empty",
           "TRAINING",
           "",
-          "当前屏幕没有可播放的视频组内容。",
+          "",
           0,
           new ArrayList<>(),
           -1,
@@ -122,7 +282,7 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
               pod.name + "|station-set-rest|" + loopIndex + "|" + setIndex,
               "REMAINING",
               "REST",
-              buildRestTransitionHint(completedGroups, totalGroups),
+              "",
               remainingSeconds,
               baseCards,
               -1,
@@ -149,7 +309,7 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
             pod.name + "|station-move|" + loopIndex,
             "REMAINING",
             "MOVE STATION",
-            fullScreenTransition ? "" : "准备前往下一个站点。",
+            "",
             remainingSeconds,
             baseCards,
             -1,
@@ -168,7 +328,7 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
         pod.name + "|station-idle",
         "TRAINING",
         "",
-        "正式训练准备中",
+        "",
         0,
         baseCards,
         -1,
@@ -195,7 +355,7 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
           pod.name + "|move-zone",
           "REMAINING",
           "MOVE ZONE",
-          fullScreenTransition ? "" : "准备前往下一个区域。",
+          "",
           remainingSeconds,
           cards,
           previewWaterfall ? 0 : -1,
@@ -210,7 +370,7 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
         pod.name + "|hydrate",
         "REMAINING",
         "HYDRATE",
-        fullScreenTransition ? "" : "补水后继续下一段训练。",
+        "",
         remainingSeconds,
         cards,
         previewWaterfall ? 0 : -1,
@@ -236,17 +396,17 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
       int totalRounds,
       boolean restPhase,
       boolean moveStation) {
-    String safeAction = actionName == null || actionName.trim().isEmpty() ? "未命名动作" : actionName;
-    String safeStation = stationNumber == null || stationNumber.trim().isEmpty() ? "" : " · 站点 " + stationNumber;
-    String prefix = "正式训练";
+    String safeAction = actionName == null || actionName.trim().isEmpty() ? "ACTION" : actionName;
+    String safeStation = stationNumber == null || stationNumber.trim().isEmpty() ? "" : " · STATION " + stationNumber;
+    String prefix = "TRAINING";
 
     if (moveStation) {
       return prefix + safeStation + " · MOVE STATION · " + safeAction;
     }
     if (restPhase) {
-      return prefix + safeStation + " · REST · " + safeAction + " · 第 " + roundIndex + "/" + totalRounds + " 轮";
+      return prefix + safeStation + " · REST · " + safeAction + " · ROUND " + roundIndex + "/" + totalRounds;
     }
-    return prefix + safeStation + " · " + safeAction + " · 第 " + roundIndex + "/" + totalRounds + " 轮";
+    return prefix + safeStation + " · " + safeAction + " · ROUND " + roundIndex + "/" + totalRounds;
   }
 
   protected String buildStationTrainingHint(
@@ -257,29 +417,44 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
       int totalSets,
       boolean restPhase,
       boolean moveStation) {
-    String prefix = "正式训练";
+    String prefix = "TRAINING";
     if (moveStation) {
-      return prefix + " · MOVE STATION · 第 " + roundIndex + "/" + totalRounds + " 轮后换站";
+      return prefix + " · MOVE STATION";
     }
     if (restPhase) {
-      return prefix + " · 组间休息 · 第 " + setIndex + "/" + totalSets + " 组";
+      return prefix + " · REST · SET " + setIndex + "/" + totalSets;
     }
-    return prefix + " · 第 " + roundIndex + "/" + totalRounds + " 轮 · 第 " + setIndex + "/" + totalSets + " 组";
+    return prefix + " · ROUND " + roundIndex + "/" + totalRounds + " · SET " + setIndex + "/" + totalSets;
   }
 
   protected String buildRestTransitionHint(int completedGroups, int totalGroups) {
     int remainingGroups = Math.max(totalGroups - Math.max(completedGroups, 0), 0);
     if (remainingGroups <= 1) {
-      return "最后 1 组，加油";
+      return "LAST SET";
     }
-    return "还剩 " + remainingGroups + " 组";
+    return remainingGroups + " SETS LEFT";
+  }
+
+  protected String buildSwitchTrainingHint(
+      String sideLabel,
+      CourseScript.VideoCard activeCard,
+      int roundIndex,
+      int totalRounds,
+      int pairIndex,
+      int totalPairs,
+      int setIndex,
+      int totalSets) {
+    String safeAction = activeCard == null || activeCard.actionName == null || activeCard.actionName.trim().isEmpty()
+        ? "ACTION"
+        : activeCard.actionName;
+    return "TRAINING · " + sideLabel + " STATION · " + safeAction + " · SET " + setIndex + "/" + totalSets;
   }
 
   protected void renderTrainingCards(TrainingPlaybackState state) {
     trainingCardsContainer.removeAllViews();
     if (state.displayCards == null || state.displayCards.isEmpty()) {
       TextView emptyText = new TextView(this);
-      emptyText.setText("当前屏幕没有可展示的视频组。");
+      emptyText.setText("");
       emptyText.setTextColor(getColor(R.color.tv_text_subtle));
       emptyText.setTextSize(16f);
       emptyText.setGravity(android.view.Gravity.CENTER);
@@ -336,13 +511,13 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
 
     TextView index = new TextView(this);
     LinearLayout.LayoutParams indexParams =
-        new LinearLayout.LayoutParams(dp(88), LinearLayout.LayoutParams.MATCH_PARENT);
+        new LinearLayout.LayoutParams(dp(116), LinearLayout.LayoutParams.MATCH_PARENT);
     index.setLayoutParams(indexParams);
     index.setBackgroundResource(R.drawable.bg_playback_index_card);
     index.setGravity(android.view.Gravity.CENTER);
     index.setText(safeStationLabel(card.stationNumber, cardIndex + 1));
     index.setTextColor(getColor(R.color.tv_text_main));
-    index.setTextSize(34f);
+    index.setTextSize(48f);
     index.setTypeface(index.getTypeface(), android.graphics.Typeface.BOLD);
     wrapper.addView(index);
 
@@ -374,13 +549,13 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
 
     TextView index = new TextView(this);
     LinearLayout.LayoutParams indexParams =
-        new LinearLayout.LayoutParams(dp(68), LinearLayout.LayoutParams.MATCH_PARENT);
+        new LinearLayout.LayoutParams(dp(96), LinearLayout.LayoutParams.MATCH_PARENT);
     index.setLayoutParams(indexParams);
     index.setBackgroundResource(R.drawable.bg_playback_index_card);
     index.setGravity(android.view.Gravity.CENTER);
     index.setText(safeStationLabel(card.stationNumber, cardIndex + 1));
     index.setTextColor(getColor(R.color.tv_text_main));
-    index.setTextSize(30f);
+    index.setTextSize(42f);
     index.setTypeface(index.getTypeface(), android.graphics.Typeface.BOLD);
     wrapper.addView(index);
 
@@ -431,7 +606,7 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
       placeholder.setPadding(dp(16), dp(16), dp(16), dp(16));
       placeholder.setText(safeStationLabel(card == null ? null : card.stationNumber, 1));
       placeholder.setTextColor(getColor(R.color.tv_accent_gold_bright));
-      placeholder.setTextSize(34f);
+      placeholder.setTextSize(46f);
       placeholder.setTypeface(placeholder.getTypeface(), android.graphics.Typeface.BOLD);
       preview.addView(placeholder);
     }

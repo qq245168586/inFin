@@ -128,6 +128,11 @@ abstract class MainActivityContract04 extends MainActivityContract03 {
   protected abstract TrainingPlaybackState buildStationPodRunningState(
       CourseScript.Pod pod, EffectivePodScreen effectiveScreen, int podElapsedSeconds);
 
+  protected abstract TrainingPlaybackState buildSwitchPodRunningState(
+      CourseScript.Pod pod, EffectivePodScreen effectiveScreen, int podElapsedSeconds);
+
+  protected abstract boolean isSwitchPod(CourseScript.Pod pod);
+
   protected abstract TrainingPlaybackState buildPodEndingState(
       CourseScript.Pod pod,
       EffectivePodScreen effectiveScreen,
@@ -194,7 +199,7 @@ abstract class MainActivityContract04 extends MainActivityContract03 {
 
   protected abstract int getTrainingTotalSeconds(CourseScript course);
 
-  protected abstract int getPodDurationSeconds(EffectivePodScreen effectiveScreen);
+  protected abstract int getPodDurationSeconds(CourseScript.Pod pod, EffectivePodScreen effectiveScreen);
 
   protected abstract int getPodEndingDurationSeconds(CourseScript course, CourseScript.Pod pod);
 

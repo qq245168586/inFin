@@ -97,7 +97,7 @@ abstract class MainActivityBase extends MainActivityContracts {
           }
           refreshPlayback();
           if (playbackLoopRunning) {
-            playbackHandler.postDelayed(this, 400L);
+            playbackHandler.postDelayed(this, nextPlaybackTickDelayMs());
           }
         }
       };
@@ -156,6 +156,7 @@ abstract class MainActivityBase extends MainActivityContracts {
   protected View getReadyPanel;
   protected View finishPanel;
   protected View updatePanel;
+  protected FrameLayout coursePlanPanel;
   protected View updateCard;
   protected View playbackTimerCard;
   protected View playbackStageCard;
@@ -193,6 +194,7 @@ abstract class MainActivityBase extends MainActivityContracts {
   protected TextView transitionDesignTitle;
   protected TextView transitionDesignSubtitle;
   protected TextView transitionDesignLogo;
+  protected FrameLayout switchTransitionDiagram;
   protected String transitionDesignProgressKey = "";
   protected int transitionDesignTotalSeconds = 0;
   protected View horizontalRingContainer;
@@ -298,4 +300,44 @@ abstract class MainActivityBase extends MainActivityContracts {
   protected final List<WaterfallRowView> waterfallRows = new ArrayList<>();
   protected final List<TvScheduleItem> syncedTodaySchedules = new ArrayList<>();
   protected final Set<Integer> loadedCueSoundIds = new HashSet<>();
+
+  protected long nextPlaybackTickDelayMs() {
+    long nowElapsedRealtime = SystemClock.elapsedRealtime();
+    long anchorElapsedRealtimeMs = 0L;
+    long pauseOffsetMs = 0L;
+    if (!previewMode && activePlaybackItem != null && !playbackPaused) {
+      if (sessionDrivenPlayback
+          && sessionServerStartAtMs > 0L
+          && sessionServerNowBaseMs > 0L
+          && sessionServerNowBaseElapsedRealtimeMs > 0L) {
+        anchorElapsedRealtimeMs =
+            sessionServerNowBaseElapsedRealtimeMs + (sessionServerStartAtMs - sessionServerNowBaseMs);
+        pauseOffsetMs = Math.max(sessionPausedAccumulatedMs, 0L);
+      } else if (playbackStartElapsedRealtimeMs > 0L) {
+        anchorElapsedRealtimeMs = playbackStartElapsedRealtimeMs;
+        pauseOffsetMs = Math.max(accumulatedPauseElapsedRealtimeMs, 0L);
+      }
+    }
+    if (anchorElapsedRealtimeMs > 0L) {
+      long adjustedAnchorMs = anchorElapsedRealtimeMs + pauseOffsetMs;
+      if (nowElapsedRealtime < adjustedAnchorMs) {
+        long untilStartMs = adjustedAnchorMs - nowElapsedRealtime + 16L;
+        return Math.max(16L, Math.min(untilStartMs, 1024L));
+      }
+      long elapsedSinceAnchorMs = Math.max(nowElapsedRealtime - adjustedAnchorMs, 0L);
+      long anchorRemainder = elapsedSinceAnchorMs % 1000L;
+      long anchorDelayMs = 1000L - anchorRemainder + 24L;
+      if (anchorDelayMs < 90L) {
+        anchorDelayMs += 1000L;
+      }
+      return Math.max(90L, Math.min(anchorDelayMs, 1024L));
+    }
+    long elapsedMs = Math.max(currentPlaybackElapsedMs(), 0L);
+    long remainder = elapsedMs % 1000L;
+    long delayMs = 1000L - remainder + 24L;
+    if (delayMs < 90L) {
+      delayMs += 1000L;
+    }
+    return Math.max(90L, Math.min(delayMs, 1024L));
+  }
 }

@@ -92,6 +92,7 @@ abstract class TvScriptRepositoryPart06 extends TvScriptRepositoryPart05 {
               podObject.optString("name"),
               podObject.optString("videoGroupId"),
               podObject.optString("ending"),
+              podObject.optString("stationFlow", "NORMAL"),
               parsePodScreens(podObject.optJSONArray("screens"))));
     }
 

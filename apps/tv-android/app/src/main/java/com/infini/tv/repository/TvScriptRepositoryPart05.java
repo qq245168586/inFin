@@ -113,6 +113,7 @@ abstract class TvScriptRepositoryPart05 extends TvScriptRepositoryPart04 {
     JSONObject warmupObject = sectionsObject != null ? sectionsObject.optJSONObject("warmup") : null;
     JSONObject cooldownObject = sectionsObject != null ? sectionsObject.optJSONObject("cooldown") : null;
     JSONObject trainingObject = scriptObject.optJSONObject("training");
+    JSONObject planObject = scriptObject.optJSONObject("plan");
     JSONObject panelObject = metadataObject != null ? metadataObject.optJSONObject("trainingPanel") : null;
 
     return new CourseScript(
@@ -129,7 +130,8 @@ abstract class TvScriptRepositoryPart05 extends TvScriptRepositoryPart04 {
         parseWaterfallSection(warmupObject, "热身"),
         parseWaterfallSection(cooldownObject, "冷身"),
         parseVideoGroups(trainingObject != null ? trainingObject.optJSONArray("videoGroups") : null),
-        parsePods(trainingObject != null ? trainingObject.optJSONArray("pods") : null));
+        parsePods(trainingObject != null ? trainingObject.optJSONArray("pods") : null),
+        parseCoursePlan(planObject));
   }
 
   protected CourseScript localizeCourseScript(CourseScript source, Map<String, String> localMediaMap) {
@@ -142,7 +144,44 @@ abstract class TvScriptRepositoryPart05 extends TvScriptRepositoryPart04 {
         localizeWaterfall(source.warmup, localMediaMap),
         localizeWaterfall(source.cooldown, localMediaMap),
         localizeVideoGroups(source.videoGroups, localMediaMap),
-        source.pods);
+        source.pods,
+        source.plan);
+  }
+
+  protected CourseScript.Plan parseCoursePlan(JSONObject planObject) {
+    JSONArray sectionsArray = planObject != null ? planObject.optJSONArray("sections") : null;
+    List<CourseScript.PlanSection> sections = new ArrayList<>();
+    if (sectionsArray != null) {
+      for (int index = 0; index < sectionsArray.length(); index += 1) {
+        JSONObject sectionObject = sectionsArray.optJSONObject(index);
+        if (sectionObject == null) {
+          continue;
+        }
+        sections.add(
+            new CourseScript.PlanSection(
+                sectionObject.optString("title"),
+                parseCoursePlanItems(sectionObject.optJSONArray("items"))));
+      }
+    }
+    return new CourseScript.Plan(sections);
+  }
+
+  protected List<CourseScript.PlanItem> parseCoursePlanItems(JSONArray itemsArray) {
+    List<CourseScript.PlanItem> items = new ArrayList<>();
+    if (itemsArray == null) {
+      return items;
+    }
+    for (int index = 0; index < itemsArray.length(); index += 1) {
+      JSONObject itemObject = itemsArray.optJSONObject(index);
+      if (itemObject == null) {
+        continue;
+      }
+      String text = itemObject.optString("text", "").trim();
+      if (!text.isEmpty()) {
+        items.add(new CourseScript.PlanItem(text));
+      }
+    }
+    return items;
   }
 
   protected CourseScript.WaterfallSection localizeWaterfall(
