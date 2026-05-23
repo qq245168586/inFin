@@ -302,8 +302,13 @@ export function getTvDailyBundle(dateText, timeZone = "Asia/Shanghai", accountNa
   const resources = [...resourceMap.values()].sort((left, right) => left.key.localeCompare(right.key));
   const checksum = hashValue({
     date,
+    coursePackageId: activeCoursePackageId || 0,
+    scheduleCount: schedules.length,
     schedules: schedules.map((item) => ({
       id: item.id,
+      courseId: item.courseId,
+      coursePackageId: normalizeCoursePackageId(item.coursePackageId),
+      beginTime: item.beginTime,
       contentChecksum: item.contentChecksum
     })),
     resources: resources.map((item) => ({
