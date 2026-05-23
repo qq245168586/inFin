@@ -8,6 +8,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const legacyStorageRoot = path.resolve(__dirname, "../../server/storage");
 const storageRoot = path.resolve(process.env.INFINI_DATA_ROOT || legacyStorageRoot);
 const logRoot = path.resolve(process.env.MQTT_CLIENT_LOG_ROOT || path.join(storageRoot, "mqtt-logs"));
+const MIN_RETENTION_DAYS = 3;
+const DEFAULT_RETENTION_DAYS = 7;
+const LOG_RETENTION_DAYS = Math.max(
+  MIN_RETENTION_DAYS,
+  Number(process.env.MQTT_LOG_RETENTION_DAYS || DEFAULT_RETENTION_DAYS) || DEFAULT_RETENTION_DAYS
+);
 
 const HOST = process.env.HOST || "127.0.0.1";
 const PORT = Number(process.env.PORT || process.env.MQTT_CLIENT_PORT || 3205);
@@ -37,6 +43,36 @@ function dayKey(date = new Date()) {
   const mm = String(date.getMonth() + 1).padStart(2, "0");
   const dd = String(date.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
+}
+
+let lastRetentionSweepDay = "";
+
+function parseDayKey(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) return null;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function sweepOldLogDays() {
+  const today = dayKey();
+  if (lastRetentionSweepDay === today) return;
+  lastRetentionSweepDay = today;
+
+  try {
+    if (!fs.existsSync(logRoot)) return;
+    const cutoff = new Date();
+    cutoff.setUTCHours(0, 0, 0, 0);
+    cutoff.setUTCDate(cutoff.getUTCDate() - LOG_RETENTION_DAYS);
+
+    for (const entry of fs.readdirSync(logRoot, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const parsed = parseDayKey(entry.name);
+      if (!parsed || parsed >= cutoff) continue;
+      fs.rmSync(path.join(logRoot, entry.name), { recursive: true, force: true });
+    }
+  } catch (error) {
+    console.warn("Failed to sweep MQTT client logs:", error instanceof Error ? error.message : String(error));
+  }
 }
 
 function normalizeNamespace(value = "") {
@@ -83,6 +119,7 @@ function appendLog(event) {
   recentEvents.splice(300);
 
   try {
+    sweepOldLogDays();
     const namespace = normalizeNamespace(event.namespace) || "__unknown__";
     const deviceId = safeDeviceId(event.deviceId) || "__unknown__";
     const targetDir = path.join(logRoot, dayKey(), namespace);
@@ -326,6 +363,7 @@ function healthPayload() {
       lastError
     },
     logRoot,
+    logRetentionDays: LOG_RETENTION_DAYS,
     now: nowIso()
   };
 }
@@ -371,6 +409,7 @@ const server = http.createServer(async (request, response) => {
 });
 
 ensureDir(logRoot);
+sweepOldLogDays();
 ensureMqttClient().catch((error) => {
   lastError = error instanceof Error ? error.message : String(error);
   console.warn("Initial MQTT connection failed:", lastError);
