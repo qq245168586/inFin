@@ -126,16 +126,45 @@ function stripSeedCourseExamples(source) {
 }
 
 function normalizeLoadedState(parsed) {
+  const parsedCourses = Array.isArray(parsed.courses) ? parsed.courses : clone(defaultState.courses);
+  const defaultCourseIds = parsedCourses.map((course) => Number(course?.id)).filter((id) => Number.isFinite(id) && id > 0);
+  let coursePackages = Array.isArray(parsed.coursePackages)
+    ? parsed.coursePackages.map((item) => normalizeCoursePackageRecord(item))
+    : [];
+  if (!coursePackages.length) {
+    coursePackages = [
+      normalizeCoursePackageRecord(
+        {
+          ...defaultState.coursePackages[0],
+          courseIds: defaultCourseIds
+        },
+        defaultCourseIds
+      )
+    ];
+  }
+  if (!coursePackages.some((item) => item.isDefault)) {
+    coursePackages[0] = { ...coursePackages[0], isDefault: true };
+  }
+  const defaultPackageId = normalizeCoursePackageId(coursePackages.find((item) => item.isDefault)?.id || coursePackages[0]?.id);
+  const validPackageIds = new Set(coursePackages.map((item) => normalizeCoursePackageId(item.id)));
+
   return {
     media: Array.isArray(parsed.media) ? parsed.media : [],
     appPackages: Array.isArray(parsed.appPackages) ? parsed.appPackages : clone(defaultState.appPackages),
+    coursePackages,
     actionTypes: Array.isArray(parsed.actionTypes) ? parsed.actionTypes : clone(defaultState.actionTypes),
     lessonTypes: Array.isArray(parsed.lessonTypes) ? parsed.lessonTypes : clone(defaultState.lessonTypes),
     actions: Array.isArray(parsed.actions) ? parsed.actions : clone(defaultState.actions),
-    courses: Array.isArray(parsed.courses) ? parsed.courses : clone(defaultState.courses),
+    courses: parsedCourses,
     templates: Array.isArray(parsed.templates) ? parsed.templates : clone(defaultState.templates),
     schedules: Array.isArray(parsed.schedules)
-      ? parsed.schedules.map(normalizeScheduleEntry)
+      ? parsed.schedules.map((item) => {
+          const next = normalizeScheduleEntry(item);
+          if (!validPackageIds.has(next.coursePackageId)) {
+            next.coursePackageId = defaultPackageId;
+          }
+          return next;
+        })
       : clone(defaultState.schedules),
     tvScreens: Array.isArray(parsed.tvScreens)
       ? parsed.tvScreens.map((item) => ({
@@ -147,14 +176,23 @@ function normalizeLoadedState(parsed) {
       ? parsed.playbackSessions.map(normalizePlaybackSessionEntry)
       : clone(defaultState.playbackSessions),
     venues: Array.isArray(parsed.venues)
-      ? parsed.venues.map((item) => ({
-          ...item,
-          id: trimText(item?.id) || String(item?.id || ""),
-          name: trimText(item?.name),
-          accountNamespace: normalizeAccountNamespace(item?.accountNamespace),
-          createTime: trimText(item?.createTime),
-          updateTime: trimText(item?.updateTime)
-        }))
+      ? parsed.venues.map((item) => {
+          const coursePackageIds = numberList(item?.coursePackageIds).filter((id) => validPackageIds.has(id));
+          const boundPackageIds = coursePackageIds.length ? coursePackageIds : [defaultPackageId];
+          const activeCoursePackageId = normalizeCoursePackageId(item?.activeCoursePackageId, 0);
+          return {
+            ...item,
+            id: trimText(item?.id) || String(item?.id || ""),
+            name: trimText(item?.name),
+            accountNamespace: normalizeAccountNamespace(item?.accountNamespace),
+            coursePackageIds: boundPackageIds,
+            activeCoursePackageId: boundPackageIds.includes(activeCoursePackageId)
+              ? activeCoursePackageId
+              : boundPackageIds[0] || defaultPackageId,
+            createTime: trimText(item?.createTime),
+            updateTime: trimText(item?.updateTime)
+          };
+        })
       : clone(defaultState.venues),
     users: Array.isArray(parsed.users)
       ? parsed.users.map((item) => ({
@@ -164,7 +202,8 @@ function normalizeLoadedState(parsed) {
             trimText(item?.environmentLabel)
             || environmentLabelForNamespace(item?.accountNamespace || item?.username),
           role: trimText(item?.role) || (SUPERADMIN_USERNAMES.has(trimText(item?.username)) ? "superadmin" : "venue"),
-          venueId: trimText(item?.venueId) || ""
+          venueId: trimText(item?.venueId) || "",
+          coursePackageIds: numberList(item?.coursePackageIds).filter((id) => validPackageIds.has(id))
         }))
       : clone(defaultState.users),
     authSessions: Array.isArray(parsed.authSessions) ? parsed.authSessions : clone(defaultState.authSessions)

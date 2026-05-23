@@ -41,10 +41,13 @@ export function createVenue(payload = {}) {
   }
 
   const now = nowIso();
+  const defaultPackageId = getDefaultCoursePackageId();
   const next = {
     id: String(nextId(state.venues || [])),
     name,
     accountNamespace,
+    coursePackageIds: [defaultPackageId],
+    activeCoursePackageId: defaultPackageId,
     themeConfig: payload.themeConfig && typeof payload.themeConfig === "object" ? payload.themeConfig : {},
     createTime: now,
     updateTime: now
@@ -71,6 +74,12 @@ export function updateVenue(venueId, payload = {}) {
   existing.accountNamespace = nextNs;
   if (payload.themeConfig && typeof payload.themeConfig === "object") {
     existing.themeConfig = payload.themeConfig;
+  }
+  if (payload.coursePackageIds) {
+    existing.coursePackageIds = normalizeVenuePackageIds(payload.coursePackageIds);
+    if (!existing.coursePackageIds.includes(normalizeCoursePackageId(existing.activeCoursePackageId))) {
+      existing.activeCoursePackageId = existing.coursePackageIds[0] || getDefaultCoursePackageId();
+    }
   }
   existing.updateTime = nowIso();
   persist();
@@ -150,6 +159,9 @@ export function updateUser(userId, payload = {}) {
   }
   if (payload.password) {
     existing.passwordDigest = normalizePassword(payload.password);
+    if (!isSuperAdminUser(existing)) {
+      existing.passwordPlain = trimText(payload.password);
+    }
   }
   if (payload.nickname != null) {
     existing.nickname = trimText(payload.nickname) || existing.nickname || existing.username;
@@ -216,6 +228,7 @@ export function unbindUserFromVenue(userId) {
   existing.accountNamespace = "";
   existing.environmentLabel = "";
   existing.allowedClients = ["coach-web"];
+  existing.coursePackageIds = [];
   persist();
   return publicUserInfo(existing);
 }

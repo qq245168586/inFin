@@ -100,6 +100,19 @@ function validateTemplatePayload(template) {
     issues.push("模板名称不能为空。");
   }
 
+  if (template.kind === "course") {
+    if (!numberList(template.coursePackageIds).length) {
+      issues.push("整节课程模板至少需要选择一个课程包。");
+    }
+    if (!trimText(template.courseName)) {
+      issues.push("整节课程模板必须包含默认课程名称。");
+    }
+    if (!template.script || typeof template.script !== "object") {
+      issues.push("整节课程模板必须包含课程脚本。");
+    }
+    return issues;
+  }
+
   if (template.kind === "warmup" || template.kind === "cooldown") {
     const section = template.section;
     if (!section?.items?.length) {
@@ -147,8 +160,58 @@ function validateTemplatePayload(template) {
   return issues;
 }
 
+function clonePlainObject(value, fallback = {}) {
+  return value && typeof value === "object" && !Array.isArray(value) ? clone(value) : clone(fallback);
+}
+
+function normalizeCourseTemplatePackageIds(payload = {}, existing = null) {
+  const source =
+    payload.coursePackageIds !== undefined
+      ? payload.coursePackageIds
+      : payload.coursePackageId !== undefined
+        ? [payload.coursePackageId]
+        : existing?.coursePackageIds !== undefined
+          ? existing.coursePackageIds
+          : existing?.coursePackageId !== undefined
+            ? [existing.coursePackageId]
+            : [];
+  return numberList(source);
+}
+
+function normalizeTemplateSourceCourseId(value, fallback = null) {
+  const source = value !== undefined ? value : fallback;
+  const numeric = Number(source);
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+}
+
+function normalizeCourseTemplateName(payload = {}, existing = null) {
+  const source =
+    payload.courseName
+    ?? existing?.courseName
+    ?? payload.script?.metadata?.name
+    ?? existing?.script?.metadata?.name
+    ?? payload.name
+    ?? existing?.name;
+  return trimText(source);
+}
+
+function normalizeCourseTemplatePayload(payload = {}, existing = null, base = {}) {
+  return {
+    ...(existing?.kind === "course" ? existing : {}),
+    ...base,
+    description: trimText(payload.description ?? existing?.description),
+    courseName: normalizeCourseTemplateName(payload, existing),
+    coursePackageIds: normalizeCourseTemplatePackageIds(payload, existing),
+    typeIds: numberList(payload.typeIds ?? existing?.typeIds),
+    logoMedia: payload.logoMedia !== undefined ? clone(payload.logoMedia) : existing?.logoMedia ?? null,
+    script: clonePlainObject(payload.script ?? existing?.script),
+    summary: clonePlainObject(payload.summary ?? existing?.summary),
+    sourceCourseId: normalizeTemplateSourceCourseId(payload.sourceCourseId, existing?.sourceCourseId)
+  };
+}
+
 function normalizeTemplatePayload(payload = {}, existing = null) {
-  const kind = ["warmup", "cooldown", "training"].includes(payload.kind) ? payload.kind : existing?.kind;
+  const kind = ["warmup", "cooldown", "training", "course"].includes(payload.kind) ? payload.kind : existing?.kind;
   if (!kind) {
     throw new Error("模板类型无效。");
   }
@@ -163,7 +226,9 @@ function normalizeTemplatePayload(payload = {}, existing = null) {
   };
 
   const next =
-    kind === "training"
+    kind === "course"
+      ? normalizeCourseTemplatePayload(payload, existing, base)
+      : kind === "training"
       ? {
           ...base,
           videoGroup: normalizeTemplateVideoGroup(payload.videoGroup ?? existing?.videoGroup ?? {})
@@ -181,13 +246,70 @@ function normalizeTemplatePayload(payload = {}, existing = null) {
   return next;
 }
 
-function serializeTemplate(template) {
-  return clone(template);
+function getCourseTemplatePackageIds(template = {}) {
+  return numberList(
+    template.coursePackageIds !== undefined
+      ? template.coursePackageIds
+      : template.coursePackageId !== undefined
+        ? [template.coursePackageId]
+        : []
+  );
 }
 
-function listTemplatesByKind(kind) {
+function templateAllowsUser(template = {}, user = null) {
+  if (template.kind !== "course") {
+    return true;
+  }
+
+  if (!user) {
+    return false;
+  }
+
+  const visiblePackageIds = getUserVisibleCoursePackageIdSet(user);
+  if (!visiblePackageIds) {
+    return true;
+  }
+
+  const templatePackageIds = getCourseTemplatePackageIds(template);
+  return templatePackageIds.some((id) => visiblePackageIds.has(id));
+}
+
+function assertCanSaveTemplate(template = {}, user = null) {
+  if (template.kind !== "course") {
+    return;
+  }
+
+  if (!user) {
+    throw new Error("登录后才能保存整节课程模板。");
+  }
+
+  const templatePackageIds = getCourseTemplatePackageIds(template);
+  const existingPackageIds = new Set((state.coursePackages || []).map((item) => normalizeCoursePackageId(item.id, 0)));
+  const missingPackageIds = templatePackageIds.filter((id) => !existingPackageIds.has(id));
+  if (missingPackageIds.length) {
+    throw new Error("课程包不存在。");
+  }
+
+  const visiblePackageIds = getUserVisibleCoursePackageIdSet(user);
+  if (visiblePackageIds && templatePackageIds.some((id) => !visiblePackageIds.has(id))) {
+    throw new Error("当前账号不能保存其它课程包下的整节课程模板。");
+  }
+}
+
+function serializeTemplate(template) {
+  const next = clone(template);
+  if (next.kind === "course") {
+    const packageIds = getCourseTemplatePackageIds(next);
+    next.coursePackageIds = packageIds;
+    next.coursePackageId = packageIds[0] || null;
+    next.courseName = normalizeCourseTemplateName(next, next) || next.name || "";
+  }
+  return next;
+}
+
+function listTemplatesByKind(kind, user = null) {
   return sortByNewest(
-    state.templates.filter((item) => item.kind === kind),
+    state.templates.filter((item) => item.kind === kind && templateAllowsUser(item, user)),
     "updateTime"
   ).map(serializeTemplate);
 }

@@ -104,8 +104,11 @@ export function deleteAction(actionId) {
   return { ok: true };
 }
 
-export function listCourses() {
-  return sortByNewest(state.courses, "updateTime").map(serializeCourse);
+export function listCourses(user = null) {
+  const allowedCourseIds = getUserVisibleCourseIdSet(user);
+  return sortByNewest(state.courses, "updateTime")
+    .filter((course) => !allowedCourseIds || allowedCourseIds.has(Number(course.id)))
+    .map(serializeCourse);
 }
 
 export function getCourseById(courseId) {
@@ -117,11 +120,28 @@ export function saveCourse(payload) {
   const existing = payload.id ? getCourseById(payload.id) : null;
   const next = normalizeCoursePayload(payload, existing);
   const index = state.courses.findIndex((item) => item.id === next.id);
+  const targetCoursePackageId = normalizeCoursePackageId(payload?.coursePackageId, 0);
+  const targetCoursePackage =
+    targetCoursePackageId > 0
+      ? state.coursePackages.find((item) => normalizeCoursePackageId(item.id, 0) === targetCoursePackageId)
+      : null;
+
+  if (targetCoursePackageId > 0 && !targetCoursePackage) {
+    throw new Error("课程包不存在。");
+  }
 
   if (index >= 0) {
     state.courses[index] = next;
   } else {
     state.courses.push(next);
+  }
+
+  if (targetCoursePackage) {
+    const nextCourseIds = new Set((targetCoursePackage.courseIds || []).map(Number));
+    if (!nextCourseIds.has(Number(next.id))) {
+      targetCoursePackage.courseIds = [...(targetCoursePackage.courseIds || []), Number(next.id)];
+      targetCoursePackage.updateTime = nowIso();
+    }
   }
 
   persist();
@@ -141,22 +161,27 @@ export function deleteCourse(courseId) {
   return { ok: true };
 }
 
-export function listTemplates() {
+export function listTemplates(user = null) {
   return {
-    warmup: listTemplatesByKind("warmup"),
-    cooldown: listTemplatesByKind("cooldown"),
-    training: listTemplatesByKind("training")
+    warmup: listTemplatesByKind("warmup", user),
+    cooldown: listTemplatesByKind("cooldown", user),
+    training: listTemplatesByKind("training", user),
+    course: listTemplatesByKind("course", user)
   };
 }
 
-export function getTemplateById(templateId) {
+export function getTemplateById(templateId, user = null) {
   const template = state.templates.find((item) => item.id === Number(templateId)) ?? null;
+  if (!template || !templateAllowsUser(template, user)) {
+    return null;
+  }
   return template ? serializeTemplate(template) : null;
 }
 
-export function saveTemplate(payload) {
-  const existing = payload.id ? getTemplateById(payload.id) : null;
+export function saveTemplate(payload, user = null) {
+  const existing = payload.id ? getTemplateById(payload.id, user) : null;
   const next = normalizeTemplatePayload(payload, existing);
+  assertCanSaveTemplate(next, user);
   const index = state.templates.findIndex((item) => item.id === next.id);
 
   if (index >= 0) {
@@ -169,15 +194,24 @@ export function saveTemplate(payload) {
   return serializeTemplate(next);
 }
 
-export function deleteTemplate(templateId) {
+export function deleteTemplate(templateId, user = null) {
   const numericId = Number(templateId);
+  const existing = state.templates.find((item) => item.id === numericId) ?? null;
+  if (!existing || !templateAllowsUser(existing, user)) {
+    return { ok: false, message: "模板不存在。" };
+  }
   state.templates = state.templates.filter((item) => item.id !== numericId);
   persist();
   return { ok: true };
 }
 
-export function listCourseOptions() {
-  return sortByNewest(state.courses, "updateTime").map((course) => {
+export function listCourseOptions(coursePackageId = "", user = null) {
+  const packageCourseIds = getCoursePackageCourseIdSet(coursePackageId);
+  const userCourseIds = getUserVisibleCourseIdSet(user);
+  return sortByNewest(state.courses, "updateTime")
+    .filter((course) => !packageCourseIds || packageCourseIds.has(Number(course.id)))
+    .filter((course) => !userCourseIds || userCourseIds.has(Number(course.id)))
+    .map((course) => {
     const serialized = serializeCourse(course);
     return {
       id: serialized.id,
@@ -188,13 +222,21 @@ export function listCourseOptions() {
   });
 }
 
-export function listSchedulesByScope(scope = "CURRENTWEEK") {
+export function listSchedulesByScope(scope = "CURRENTWEEK", options = {}) {
   const monday = startOfWeek(new Date());
   const nextMonday = endOfWeek(new Date());
   const lastMonday = new Date(monday);
   lastMonday.setDate(lastMonday.getDate() - 7);
 
   let list = state.schedules.map(attachCourseBasics);
+  const visiblePackageIds = getUserVisibleCoursePackageIdSet(options?.user || null);
+  if (visiblePackageIds) {
+    list = list.filter((item) => visiblePackageIds.has(normalizeCoursePackageId(item.coursePackageId)));
+  }
+  const coursePackageId = normalizeCoursePackageId(options?.coursePackageId || 0, 0);
+  if (coursePackageId > 0) {
+    list = list.filter((item) => normalizeCoursePackageId(item.coursePackageId) === coursePackageId);
+  }
 
   if (scope === "CURRENTWEEK") {
     list = list.filter((item) => inRange(item.beginTime, monday, nextMonday));
@@ -209,12 +251,46 @@ export function listSchedulesByScope(scope = "CURRENTWEEK") {
   });
 }
 
-export function getTvDailyBundle(dateText, timeZone = "Asia/Shanghai", accountNamespace = "") {
+function findTvScreenForRequest(payload = {}, accountNamespace = "") {
+  const requestedNamespace = normalizeScreenAccountNamespace(accountNamespace || payload.accountNamespace);
+  const requestedDeviceId = trimText(payload.deviceId).toUpperCase();
+  const requestedScreenNumber = Number(payload.screenNumber) || 0;
+  return (
+    (state.tvScreens || []).find((item) => {
+      const itemNamespace = normalizeScreenAccountNamespace(item.accountNamespace);
+      const itemDeviceId = trimText(item.deviceId).toUpperCase();
+      const itemScreenNumber = Number(item.screenNumber) || 0;
+      const namespaceMatches = !requestedNamespace || itemNamespace === requestedNamespace;
+      const sameDevice = requestedDeviceId && itemDeviceId === requestedDeviceId && namespaceMatches;
+      const sameScopedScreen =
+        requestedNamespace
+        && requestedScreenNumber >= 1
+        && itemNamespace === requestedNamespace
+        && itemScreenNumber === requestedScreenNumber;
+      return sameDevice || sameScopedScreen;
+    }) || null
+  );
+}
+
+function resolveTvRequestAccountNamespace(accountNamespace = "", payload = {}) {
+  const requestedNamespace = normalizeScreenAccountNamespace(accountNamespace);
+  const matchedScreen = findTvScreenForRequest(payload, requestedNamespace);
+  const boundNamespace = normalizeScreenAccountNamespace(matchedScreen?.accountNamespace);
+  return boundNamespace || requestedNamespace;
+}
+
+export function getTvDailyBundle(dateText, timeZone = "Asia/Shanghai", accountNamespace = "", tvScope = {}) {
   const date = normalizeCalendarDate(dateText, timeZone);
-  // Scheduling is global (not per-venue). Ignore accountNamespace/venueId filtering.
-  const schedules = listSchedulesByDate(date, timeZone)
-    .map(buildTvScheduleEntry)
-    .filter(Boolean);
+  const requestedNamespace = resolveTvRequestAccountNamespace(accountNamespace, tvScope);
+  const activeCoursePackageId = requestedNamespace
+    ? getActiveCoursePackageIdForNamespace(requestedNamespace)
+    : 0;
+  const schedules = requestedNamespace && activeCoursePackageId
+    ? listSchedulesByDate(date, timeZone)
+        .filter((item) => scheduleMatchesCoursePackage(item, activeCoursePackageId))
+        .map(buildTvScheduleEntry)
+        .filter(Boolean)
+    : [];
 
   const resourceMap = new Map();
   for (const schedule of schedules) {

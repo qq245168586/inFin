@@ -133,21 +133,18 @@ export function createUploadedMedia({
   return record;
 }
 
-export function getMetaPayload() {
+export function getMetaPayload(user = null) {
   return {
     actionTypes: clone(state.actionTypes),
     lessonTypes: clone(state.lessonTypes),
+    coursePackages: listCoursePackagesForUser(user),
     actions: sortByNewest(state.actions, "updateTime"),
-    courses: sortByNewest(state.courses, "updateTime").map(serializeCourse),
-    templates: {
-      warmup: listTemplatesByKind("warmup"),
-      cooldown: listTemplatesByKind("cooldown"),
-      training: listTemplatesByKind("training")
-    },
+    courses: listCourses(user),
+    templates: listTemplates(user),
     schedules: {
-      currentWeek: listSchedulesByScope("CURRENTWEEK"),
-      lastWeek: listSchedulesByScope("LASTWEEK"),
-      history: listSchedulesByScope("HISTORY")
+      currentWeek: listSchedulesByScope("CURRENTWEEK", { user }),
+      lastWeek: listSchedulesByScope("LASTWEEK", { user }),
+      history: listSchedulesByScope("HISTORY", { user })
     }
   };
 }
@@ -186,12 +183,14 @@ export function createConsoleUser(payload = {}) {
     gender: trimText(payload.gender) || "MALE",
     userType: "CONSOLE",
     passwordDigest: normalizePassword(password),
+    passwordPlain: trimText(payload.role) === "superadmin" || SUPERADMIN_USERNAMES.has(username) ? "" : password,
     accountNamespace: normalizeAccountNamespace(payload.accountNamespace || username),
     environmentLabel:
       trimText(payload.environmentLabel)
       || environmentLabelForNamespace(payload.accountNamespace || username),
     role: trimText(payload.role) || (SUPERADMIN_USERNAMES.has(username) ? "superadmin" : "venue"),
     venueId: trimText(payload.venueId) || "",
+    coursePackageIds: numberList(payload.coursePackageIds),
     allowedClients:
       payload.allowedClients
       ? normalizeAllowedClients(payload.allowedClients)
@@ -232,6 +231,9 @@ export function upsertConsoleUser(payload = {}) {
   existing.allowedClients = normalizeAllowedClients(payload.allowedClients || existing.allowedClients);
   if (payload.password) {
     existing.passwordDigest = normalizePassword(payload.password);
+    if (!isSuperAdminUser(existing)) {
+      existing.passwordPlain = trimText(payload.password);
+    }
   }
   persist();
   return publicUserInfo(existing);

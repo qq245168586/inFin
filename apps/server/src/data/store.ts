@@ -21,6 +21,15 @@ export const getUserByUsername = legacyStore.getUserByUsername as (...args: any[
 export const createConsoleUser = legacyStore.createConsoleUser as (...args: any[]) => any;
 export const upsertConsoleUser = legacyStore.upsertConsoleUser as (...args: any[]) => any;
 export const isSuperAdminUser = legacyStore.isSuperAdminUser as (...args: any[]) => any;
+export const listCoursePackages = legacyStore.listCoursePackages as (...args: any[]) => any;
+export const getCoursePackageById = legacyStore.getCoursePackageById as (...args: any[]) => any;
+export const saveCoursePackage = legacyStore.saveCoursePackage as (...args: any[]) => any;
+export const deleteCoursePackage = legacyStore.deleteCoursePackage as (...args: any[]) => any;
+export const listVenueCoursePackages = legacyStore.listVenueCoursePackages as (...args: any[]) => any;
+export const bindCoursePackageToVenue = legacyStore.bindCoursePackageToVenue as (...args: any[]) => any;
+export const unbindCoursePackageFromVenue = legacyStore.unbindCoursePackageFromVenue as (...args: any[]) => any;
+export const setVenueActiveCoursePackage = legacyStore.setVenueActiveCoursePackage as (...args: any[]) => any;
+export const setUserCoursePackages = legacyStore.setUserCoursePackages as (...args: any[]) => any;
 export const listVenues = legacyStore.listVenues as (...args: any[]) => any;
 export const getVenueById = legacyStore.getVenueById as (...args: any[]) => any;
 export const getVenueByAccountNamespace = legacyStore.getVenueByAccountNamespace as (...args: any[]) => any;

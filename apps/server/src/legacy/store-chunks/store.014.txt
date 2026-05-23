@@ -1,0 +1,300 @@
+function getDefaultCoursePackageId() {
+  const packages = Array.isArray(state.coursePackages) ? state.coursePackages : [];
+  return normalizeCoursePackageId(packages.find((item) => item.isDefault)?.id || packages[0]?.id || 1);
+}
+
+function getCoursePackageByIdInternal(coursePackageId) {
+  const id = normalizeCoursePackageId(coursePackageId, 0);
+  if (!id) {
+    return null;
+  }
+  return (state.coursePackages || []).find((item) => normalizeCoursePackageId(item.id) === id) || null;
+}
+
+function serializeCoursePackage(item) {
+  const record = normalizeCoursePackageRecord(item);
+  return {
+    ...record,
+    courseCount: record.courseIds.length
+  };
+}
+
+function getCoursePackageCourseIdSet(coursePackageId = "") {
+  const id = normalizeCoursePackageId(coursePackageId, 0);
+  if (!id) {
+    return null;
+  }
+  const record = getCoursePackageByIdInternal(id);
+  if (!record) {
+    return new Set();
+  }
+  return new Set(numberList(record.courseIds));
+}
+
+function coursePackageAllowsCourse(coursePackageId, courseId) {
+  const allowedCourseIds = getCoursePackageCourseIdSet(coursePackageId);
+  if (!allowedCourseIds) {
+    return true;
+  }
+  return allowedCourseIds.has(Number(courseId));
+}
+
+function getUserVisibleCoursePackageIdSet(user = null) {
+  if (!user || isSuperAdminUser(user)) {
+    return null;
+  }
+  return new Set(normalizeUserPackageIds(user.coursePackageIds));
+}
+
+function getUserVisibleCourseIdSet(user = null) {
+  const packageIds = getUserVisibleCoursePackageIdSet(user);
+  if (!packageIds) {
+    return null;
+  }
+  const courseIds = new Set();
+  for (const packageId of packageIds) {
+    const pkg = getCoursePackageByIdInternal(packageId);
+    for (const courseId of numberList(pkg?.courseIds)) {
+      courseIds.add(courseId);
+    }
+  }
+  return courseIds;
+}
+
+function normalizeVenuePackageIds(value) {
+  const ids = numberList(value);
+  const validIds = new Set((state.coursePackages || []).map((item) => normalizeCoursePackageId(item.id)));
+  const filtered = ids.filter((id) => validIds.has(id));
+  return filtered.length ? [...new Set(filtered)] : [getDefaultCoursePackageId()];
+}
+
+function resolveVenueActiveCoursePackageId(venue) {
+  const boundIds = normalizeVenuePackageIds(venue?.coursePackageIds);
+  const activeId = normalizeCoursePackageId(venue?.activeCoursePackageId, 0);
+  return boundIds.includes(activeId) ? activeId : boundIds[0];
+}
+
+function normalizeUserPackageIds(value) {
+  const ids = numberList(value);
+  const validIds = new Set((state.coursePackages || []).map((item) => normalizeCoursePackageId(item.id)));
+  return [...new Set(ids.filter((id) => validIds.has(id)))];
+}
+
+function getActiveCoursePackageIdForNamespace(accountNamespace = "") {
+  const ns = normalizeScreenAccountNamespace(accountNamespace);
+  if (!ns) {
+    return 0;
+  }
+  const venue = getVenueByAccountNamespace(ns);
+  if (!venue) {
+    return 0;
+  }
+  return resolveVenueActiveCoursePackageId(venue);
+}
+
+function inferCoursePackageIdForCourse(courseId) {
+  const normalizedCourseId = Number(courseId);
+  if (!Number.isFinite(normalizedCourseId) || normalizedCourseId <= 0) {
+    return 0;
+  }
+  const matchedIds = (state.coursePackages || [])
+    .filter((item) => getCoursePackageCourseIdSet(item.id)?.has(normalizedCourseId))
+    .map((item) => normalizeCoursePackageId(item.id, 0))
+    .filter(Boolean);
+  if (matchedIds.length === 1) {
+    return matchedIds[0];
+  }
+  const defaultId = getDefaultCoursePackageId();
+  if (defaultId && matchedIds.includes(defaultId)) {
+    return defaultId;
+  }
+  return matchedIds[0] || 0;
+}
+
+function scheduleMatchesCoursePackage(schedule, coursePackageId) {
+  const activeId = normalizeCoursePackageId(coursePackageId, 0);
+  if (!activeId) {
+    return false;
+  }
+  const schedulePackageId = normalizeCoursePackageId(schedule?.coursePackageId, 0);
+  if (schedulePackageId === activeId) {
+    return true;
+  }
+  if (schedulePackageId > 0) {
+    return false;
+  }
+  const courseId = Number(schedule?.courseId);
+  if (!Number.isFinite(courseId) || courseId <= 0) {
+    return false;
+  }
+  return Boolean(getCoursePackageCourseIdSet(activeId)?.has(courseId));
+}
+
+function isVenuePlaybackActive(venue) {
+  const ns = normalizeAccountNamespace(venue?.accountNamespace);
+  if (!ns) {
+    return false;
+  }
+  return Boolean(getActivePlaybackSessionEntry(ns));
+}
+
+export function listCoursePackages() {
+  return sortByNewest(state.coursePackages || [], "updateTime").map(serializeCoursePackage);
+}
+
+function listCoursePackagesForUser(user = null) {
+  const visiblePackageIds = getUserVisibleCoursePackageIdSet(user);
+  return listCoursePackages().filter((item) => !visiblePackageIds || visiblePackageIds.has(Number(item.id)));
+}
+
+export function getCoursePackageById(coursePackageId) {
+  const record = getCoursePackageByIdInternal(coursePackageId);
+  return record ? serializeCoursePackage(record) : null;
+}
+
+export function saveCoursePackage(payload = {}) {
+  const existing = payload.id ? getCoursePackageByIdInternal(payload.id) : null;
+  const { courseIds: _ignoredCourseIds, ...safePayload } = payload || {};
+  const now = nowIso();
+  const next = normalizeCoursePackageRecord({
+    ...(existing || {}),
+    ...safePayload,
+    courseIds: existing?.courseIds || [],
+    id: existing?.id || nextId(state.coursePackages || []),
+    updateTime: now,
+    createTime: existing?.createTime || now
+  });
+
+  if (!next.name) {
+    throw new Error("课程包名称不能为空。");
+  }
+
+  state.coursePackages = state.coursePackages || [];
+  const index = state.coursePackages.findIndex((item) => normalizeCoursePackageId(item.id) === next.id);
+  if (index >= 0) {
+    state.coursePackages[index] = next;
+  } else {
+    state.coursePackages.push(next);
+  }
+  persist();
+  return serializeCoursePackage(next);
+}
+
+export function deleteCoursePackage(coursePackageId) {
+  const existing = getCoursePackageByIdInternal(coursePackageId);
+  if (!existing) {
+    return { ok: false, message: "课程包不存在。" };
+  }
+  if (existing.isDefault) {
+    return { ok: false, message: "默认课程包不能删除。" };
+  }
+  const id = normalizeCoursePackageId(existing.id);
+  if ((state.venues || []).some((venue) => numberList(venue.coursePackageIds).includes(id))) {
+    return { ok: false, message: "课程包已绑定场馆，不能删除。" };
+  }
+  if ((state.schedules || []).some((schedule) => normalizeCoursePackageId(schedule.coursePackageId) === id)) {
+    return { ok: false, message: "课程包已有排课，不能删除。" };
+  }
+  state.coursePackages = (state.coursePackages || []).filter((item) => normalizeCoursePackageId(item.id) !== id);
+  persist();
+  return { ok: true };
+}
+
+export function listVenueCoursePackages(venueId) {
+  const venue = getVenueById(venueId);
+  if (!venue) {
+    return null;
+  }
+  const boundIds = normalizeVenuePackageIds(venue.coursePackageIds);
+  const activeCoursePackageId = resolveVenueActiveCoursePackageId(venue);
+  return {
+    venueId: trimText(venue.id),
+    venueName: trimText(venue.name),
+    accountNamespace: normalizeAccountNamespace(venue.accountNamespace),
+    activeCoursePackageId,
+    running: isVenuePlaybackActive(venue),
+    items: boundIds
+      .map((id) => getCoursePackageByIdInternal(id))
+      .filter(Boolean)
+      .map(serializeCoursePackage)
+  };
+}
+
+export function bindCoursePackageToVenue(venueId, coursePackageId) {
+  const venue = getVenueById(venueId);
+  const pkg = getCoursePackageByIdInternal(coursePackageId);
+  if (!venue) {
+    throw new Error("场馆不存在。");
+  }
+  if (!pkg) {
+    throw new Error("课程包不存在。");
+  }
+  if (isVenuePlaybackActive(venue)) {
+    throw new Error("场馆正在上课，不能调整课程包。");
+  }
+  const ids = normalizeVenuePackageIds(venue.coursePackageIds);
+  const pkgId = normalizeCoursePackageId(pkg.id);
+  if (!ids.includes(pkgId)) {
+    ids.push(pkgId);
+  }
+  venue.coursePackageIds = ids;
+  const activeId = normalizeCoursePackageId(venue.activeCoursePackageId, 0);
+  venue.activeCoursePackageId = ids.includes(activeId) ? activeId : ids[0];
+  venue.updateTime = nowIso();
+  persist();
+  return listVenueCoursePackages(venue.id);
+}
+
+export function unbindCoursePackageFromVenue(venueId, coursePackageId) {
+  const venue = getVenueById(venueId);
+  if (!venue) {
+    throw new Error("场馆不存在。");
+  }
+  if (isVenuePlaybackActive(venue)) {
+    throw new Error("场馆正在上课，不能调整课程包。");
+  }
+  const pkgId = normalizeCoursePackageId(coursePackageId);
+  const ids = normalizeVenuePackageIds(venue.coursePackageIds).filter((id) => id !== pkgId);
+  if (!ids.length) {
+    throw new Error("场馆至少需要绑定一个课程包。");
+  }
+  if (normalizeCoursePackageId(venue.activeCoursePackageId) === pkgId) {
+    venue.activeCoursePackageId = ids[0];
+  } else if (!ids.includes(normalizeCoursePackageId(venue.activeCoursePackageId, 0))) {
+    venue.activeCoursePackageId = ids[0];
+  }
+  venue.coursePackageIds = ids;
+  venue.updateTime = nowIso();
+  persist();
+  return listVenueCoursePackages(venue.id);
+}
+
+export function setVenueActiveCoursePackage(venueId, coursePackageId) {
+  const venue = getVenueById(venueId);
+  if (!venue) {
+    throw new Error("场馆不存在。");
+  }
+  if (isVenuePlaybackActive(venue)) {
+    throw new Error("场馆正在上课，不能切换课程包。");
+  }
+  const pkgId = normalizeCoursePackageId(coursePackageId);
+  const ids = normalizeVenuePackageIds(venue.coursePackageIds);
+  if (!ids.includes(pkgId)) {
+    throw new Error("该课程包未绑定到当前场馆。");
+  }
+  venue.activeCoursePackageId = pkgId;
+  venue.updateTime = nowIso();
+  persist();
+  return listVenueCoursePackages(venue.id);
+}
+
+export function setUserCoursePackages(userId, coursePackageIds = []) {
+  const id = Number(userId);
+  const existing = (state.users || []).find((user) => Number(user.id) === id) || null;
+  if (!existing) {
+    throw new Error("账号不存在。");
+  }
+  existing.coursePackageIds = isSuperAdminUser(existing) ? [] : normalizeUserPackageIds(coursePackageIds);
+  persist();
+  return publicUserInfo(existing);
+}

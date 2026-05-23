@@ -1,6 +1,7 @@
   return {
     date,
     timeZone,
+    coursePackageId: activeCoursePackageId || 0,
     checksum,
     generatedAt: nowIso(),
     scheduleCount: schedules.length,
@@ -9,8 +10,8 @@
   };
 }
 
-export function getTvDailyChecksum(dateText, timeZone = "Asia/Shanghai", accountNamespace = "") {
-  const bundle = getTvDailyBundle(dateText, timeZone, accountNamespace);
+export function getTvDailyChecksum(dateText, timeZone = "Asia/Shanghai", accountNamespace = "", tvScope = {}) {
+  const bundle = getTvDailyBundle(dateText, timeZone, accountNamespace, tvScope);
   return {
     date: bundle.date,
     timeZone: bundle.timeZone,
@@ -20,6 +21,7 @@ export function getTvDailyChecksum(dateText, timeZone = "Asia/Shanghai", account
     schedules: bundle.schedules.map((item) => ({
       id: item.id,
       courseId: item.courseId,
+      coursePackageId: normalizeCoursePackageId(item.coursePackageId),
       beginTime: item.beginTime,
       duration: item.duration,
       contentChecksum: item.contentChecksum
@@ -46,6 +48,7 @@ export function getTvScheduleBundle(scheduleId) {
   const resources = [...(entry.resources || [])].sort((left, right) => left.key.localeCompare(right.key));
   return {
     scheduleId: entry.id,
+    coursePackageId: normalizeCoursePackageId(entry.coursePackageId),
     generatedAt: nowIso(),
     checksum: hashValue({
       scheduleId: entry.id,
@@ -68,11 +71,11 @@ export function getCurrentPlaybackSession(accountNamespace = "") {
 
 export function getCurrentPlaybackSessionForTv(payload = {}) {
   const requestedAccountNamespace = normalizeScreenAccountNamespace(payload.accountNamespace);
-  const requestedDeviceId = trimText(payload.deviceId);
+  const requestedDeviceId = trimText(payload.deviceId).toUpperCase();
   const requestedScreenNumber = Number(payload.screenNumber) || 0;
   const matchedScreen =
     (state.tvScreens || []).find((item) => {
-      const sameDevice = requestedDeviceId && trimText(item.deviceId) === requestedDeviceId;
+      const sameDevice = requestedDeviceId && trimText(item.deviceId).toUpperCase() === requestedDeviceId;
       const sameScreen =
         requestedScreenNumber >= 1
         && normalizeScreenAccountNamespace(item.accountNamespace) === requestedAccountNamespace
@@ -80,8 +83,8 @@ export function getCurrentPlaybackSessionForTv(payload = {}) {
       return sameDevice || sameScreen;
     }) || null;
   const accountNamespace =
-    requestedAccountNamespace
-    || normalizeScreenAccountNamespace(matchedScreen?.accountNamespace)
+    normalizeScreenAccountNamespace(matchedScreen?.accountNamespace)
+    || requestedAccountNamespace
     || DEFAULT_ACCOUNT_NAMESPACE;
   return serializePlaybackSession(getActivePlaybackSessionEntry(accountNamespace));
 }

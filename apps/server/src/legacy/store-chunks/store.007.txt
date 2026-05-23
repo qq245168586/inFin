@@ -73,6 +73,7 @@ function attachCourseBasics(schedule) {
   const { venueId: _venueId, ...rest } = schedule || {};
   return {
     ...rest,
+    coursePackageId: normalizeCoursePackageId(rest.coursePackageId),
     courseName: rest.courseName || serialized?.name || "",
     version: rest.version || serialized?.version || ""
   };
@@ -232,6 +233,7 @@ function buildTvScheduleEntry(schedule) {
   const entry = {
     id: schedule.id,
     courseId: schedule.courseId,
+    coursePackageId: normalizeCoursePackageId(schedule.coursePackageId),
     courseName: schedule.courseName,
     version: schedule.version,
     beginTime: schedule.beginTime,

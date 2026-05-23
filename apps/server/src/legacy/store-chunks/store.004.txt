@@ -19,7 +19,8 @@ function publicUserInfo(user) {
     ? getVenueById(user.venueId)
     : getVenueByAccountNamespace(user.accountNamespace || user.username);
   const venueName = trimText(venue?.name);
-  return {
+  const role = trimText(user.role) || (SUPERADMIN_USERNAMES.has(trimText(user.username)) ? "superadmin" : "venue");
+  const baseInfo = {
     id: user.id,
     username: user.username,
     nickname: user.nickname,
@@ -29,9 +30,16 @@ function publicUserInfo(user) {
     environmentLabel: venueName || trimText(user.environmentLabel) || environmentLabelForNamespace(user.accountNamespace || user.username),
     venueName,
     gymName: venueName,
-    role: trimText(user.role) || (SUPERADMIN_USERNAMES.has(trimText(user.username)) ? "superadmin" : "venue"),
+    role,
     venueId: trimText(user.venueId) || "",
+    coursePackageIds: numberList(user.coursePackageIds),
     allowedClients: normalizeAllowedClients(user.allowedClients)
+  };
+  if (role !== "superadmin") {
+    baseInfo.password = trimText(user.passwordPlain);
+  }
+  return {
+    ...baseInfo
   };
 }
 

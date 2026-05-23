@@ -9,15 +9,18 @@
         badRequest(response, issue);
         return;
       }
+      const requestedRole = String(payload.role || "venue").trim().toLowerCase();
+      const role = requestedRole === "editor" ? "editor" : "venue";
       try {
         sendJson(response, 201, {
           data: createConsoleUser({
             username: String(payload.username || "").trim(),
             password: String(payload.password || "").trim(),
             nickname: String(payload.nickname || "").trim(),
-            role: "venue",
+            role,
             venueId: "",
-            allowedClients: ["coach-web"]
+            coursePackageIds: role === "editor" ? payload.coursePackageIds || [] : [],
+            allowedClients: role === "editor" ? ["editor-web"] : ["coach-web"]
           })
         });
       } catch (error) {
@@ -64,6 +67,23 @@
       return;
     }
 
+    if (request.method === "PUT" && url.pathname.startsWith("/api/admin/users/") && url.pathname.endsWith("/course-packages")) {
+      const user = requireSuperAdmin(request, response);
+      if (!user) return;
+      const userId = url.pathname.replace("/api/admin/users/", "").replace("/course-packages", "");
+      if (!userId || userId.includes("/")) {
+        sendJson(response, 404, { message: "Route not found." });
+        return;
+      }
+      const payload = await readJsonBody(request);
+      try {
+        sendJson(response, 200, { data: setUserCoursePackages(userId, payload?.coursePackageIds || []) });
+      } catch (error) {
+        badRequest(response, error instanceof Error ? error.message : "更新账号课程包权限失败。");
+      }
+      return;
+    }
+
     if (request.method === "PATCH" && url.pathname.startsWith("/api/admin/users/")) {
       const user = requireSuperAdmin(request, response);
       if (!user) return;
@@ -82,7 +102,10 @@
       const date = url.searchParams.get("date") || "";
       const timeZone = url.searchParams.get("timeZone") || "Asia/Shanghai";
       const accountNamespace = url.searchParams.get("accountNamespace") || "";
-      sendJson(response, 200, getTvDailyBundle(date, timeZone, accountNamespace));
+      sendJson(response, 200, getTvDailyBundle(date, timeZone, accountNamespace, {
+        deviceId: url.searchParams.get("deviceId") || "",
+        screenNumber: url.searchParams.get("screenNumber") || ""
+      }));
       return;
     }
 
@@ -90,7 +113,10 @@
       const date = url.searchParams.get("date") || "";
       const timeZone = url.searchParams.get("timeZone") || "Asia/Shanghai";
       const accountNamespace = url.searchParams.get("accountNamespace") || "";
-      sendJson(response, 200, getTvDailyChecksum(date, timeZone, accountNamespace));
+      sendJson(response, 200, getTvDailyChecksum(date, timeZone, accountNamespace, {
+        deviceId: url.searchParams.get("deviceId") || "",
+        screenNumber: url.searchParams.get("screenNumber") || ""
+      }));
       return;
     }
 
@@ -121,13 +147,15 @@
       const accountNamespace = user
         ? resolveRequestAccountNamespace(user, url)
         : resolveOptionalAccountNamespace(url.searchParams.get("accountNamespace") || "");
-      const session = user || accountNamespace
+      const tvScope = {
+        deviceId: url.searchParams.get("deviceId") || "",
+        screenNumber: url.searchParams.get("screenNumber") || "",
+        accountNamespace
+      };
+      const hasTvScope = Boolean(tvScope.deviceId || tvScope.screenNumber);
+      const session = user && !hasTvScope
         ? getCurrentPlaybackSession(accountNamespace)
-        : getCurrentPlaybackSessionForTv({
-            deviceId: url.searchParams.get("deviceId") || "",
-            screenNumber: url.searchParams.get("screenNumber") || "",
-            accountNamespace
-          });
+        : getCurrentPlaybackSessionForTv(tvScope);
       const serverNowMs = Date.now();
       sendJson(response, 200, {
         ok: true,

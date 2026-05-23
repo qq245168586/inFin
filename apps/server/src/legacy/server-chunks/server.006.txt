@@ -165,7 +165,11 @@
         return;
       }
 
-      const normalizedAccountNamespace = resolveAccountNamespace(user.accountNamespace, user.username);
+      const userVenue = user?.venueId ? getVenueById(user.venueId) : null;
+      const normalizedAccountNamespace = resolveAccountNamespace(
+        userVenue?.accountNamespace || user.accountNamespace,
+        user.username
+      );
       const normalizedPayload = {
         ...payload,
         type: String(payload.type),

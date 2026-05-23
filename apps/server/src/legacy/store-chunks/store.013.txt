@@ -19,13 +19,23 @@ export function deleteSchedule(scheduleId) {
   return { ok: true };
 }
 
-export function copyLastWeekSchedules() {
+export function copyLastWeekSchedules(coursePackageId = "") {
   const monday = startOfWeek(new Date());
   const nextMonday = endOfWeek(new Date());
-  const lastWeek = listSchedulesByScope("LASTWEEK");
+  const targetCoursePackageId = normalizeCoursePackageId(coursePackageId, 0);
+  const lastWeek = listSchedulesByScope(
+    "LASTWEEK",
+    targetCoursePackageId > 0 ? { coursePackageId: targetCoursePackageId } : {}
+  );
 
   state.schedules = state.schedules.filter((item) => {
-    return !inRange(item.beginTime, monday, nextMonday);
+    if (!inRange(item.beginTime, monday, nextMonday)) {
+      return true;
+    }
+    if (targetCoursePackageId <= 0) {
+      return false;
+    }
+    return normalizeCoursePackageId(item.coursePackageId, 0) !== targetCoursePackageId;
   });
 
   let nextScheduleId = nextId(state.schedules);
@@ -37,6 +47,7 @@ export function copyLastWeekSchedules() {
     return {
       id: nextScheduleId++,
       courseId: item.courseId,
+      coursePackageId: normalizeCoursePackageId(item.coursePackageId),
       courseName: item.courseName,
       version: item.version,
       beginTime: nextDate.toISOString(),

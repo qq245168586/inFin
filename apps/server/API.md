@@ -69,6 +69,22 @@
 | `POST` | `/api/admin/users/{userId}/unbind` | 将账号从场馆解绑 |
 | `PATCH` | `/api/admin/users/{userId}` | 修改账号信息 |
 
+### 课程包与场馆课程包
+
+| Method | Path | 用途 |
+| --- | --- | --- |
+| `GET` | `/api/admin/course-packages` | 管理端查看全部课程包 |
+| `POST` | `/api/admin/course-packages` | 新建课程包，并选择可归属的课程 |
+| `PATCH` | `/api/admin/course-packages/{packageId}` | 修改课程包名称、描述和课程集合 |
+| `DELETE` | `/api/admin/course-packages/{packageId}` | 删除课程包（默认课程包不可删除） |
+| `GET` | `/api/admin/venues/{venueId}/course-packages` | 查看场馆绑定的课程包和当前启用课程包 |
+| `POST` | `/api/admin/venues/{venueId}/course-packages` | 给场馆绑定课程包 |
+| `DELETE` | `/api/admin/venues/{venueId}/course-packages/{packageId}` | 从场馆解绑课程包 |
+| `POST` | `/api/admin/venues/{venueId}/active-course-package` | 管理端切换场馆当前启用课程包 |
+| `PUT` | `/api/admin/users/{userId}/course-packages` | 设置编课账号可编辑/排课的课程包范围 |
+| `GET` | `/api/coach/course-packages` | Coach 查看当前场馆可切换的课程包 |
+| `POST` | `/api/coach/active-course-package` | Coach 切换当前场馆启用课程包，并通知 TV 重新校验课表 |
+
 ### MQTT 调试
 
 | Method | Path | 用途 |
@@ -80,8 +96,8 @@
 
 | Method | Path | 用途 |
 | --- | --- | --- |
-| `GET` | `/api/tv/daily-bundle` | TV 拉取某天课表及课程资源，用于进入 App 后预下载视频 |
-| `GET` | `/api/tv/daily-checksum` | TV 定时检查当天课表/课程内容 checksum 是否变化 |
+| `GET` | `/api/tv/daily-bundle` | TV 拉取某天课表及课程资源；服务端会按 TV 绑定场馆当前启用课程包过滤 |
+| `GET` | `/api/tv/daily-checksum` | TV 定时检查当天课表/课程内容 checksum 是否变化；checksum 同样基于当前启用课程包 |
 | `GET` | `/api/tv/schedule-bundle` | TV 根据单个排课 ID 拉取该课程完整播放资源 |
 
 ### Playback Session
@@ -172,6 +188,11 @@
 ## 关键业务约定
 
 - 课程本身不绑定场馆，排课绑定场馆，这样同一课程可以复用到多个场馆。
+- 课程包由 Admin 创建并绑定到场馆；新场馆默认绑定默认课程包。
+- 一个场馆可以绑定多个课程包，但同一时间只有一个 `activeCoursePackageId` 生效。
+- Coach 可以在场馆已绑定课程包之间切换当前启用课程包；切换后 Server 发布 `refresh_checksum`，TV 用原有 daily-bundle/daily-checksum 流程重新同步。
+- TV 不直接理解课程包，不新增课程包 MQTT 协议；它只按 `accountNamespace` 拉取 Server 已过滤好的当前有效课表。
+- 编课账号可被授权到一个或多个课程包；其课程列表、排课列表和可排课程都必须按授权课程包隔离。
 - TV 通过扫码绑定到场馆和屏幕号；场馆删除或屏幕解绑时，server 会发 MQTT 让 TV 回二维码页。
 - Playback session 是 TV 同步播放的唯一可信状态源；TV 收到控制命令后应拉取 server session，而不是用本机时间自行开始。
 - TV 资源下载应优先用 checksum 判断是否需要更新，避免 OSS/公网流量浪费。

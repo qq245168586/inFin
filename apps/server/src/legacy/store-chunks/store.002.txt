@@ -14,11 +14,31 @@ function normalizeVenueId(value) {
   return trimText(value);
 }
 
+function normalizeCoursePackageId(value, fallback = 1) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : fallback;
+}
+
+function normalizeCoursePackageRecord(entry = {}, fallbackCourseIds = []) {
+  const raw = entry && typeof entry === "object" ? entry : {};
+  const now = nowIso();
+  return {
+    id: normalizeCoursePackageId(raw.id),
+    name: trimText(raw.name) || DEFAULT_COURSE_PACKAGE_NAME,
+    description: trimText(raw.description),
+    courseIds: numberList(raw.courseIds ?? fallbackCourseIds),
+    isDefault: Boolean(raw.isDefault),
+    createTime: trimText(raw.createTime) || now,
+    updateTime: trimText(raw.updateTime) || trimText(raw.createTime) || now
+  };
+}
+
 function normalizeScheduleEntry(entry) {
   const raw = entry && typeof entry === "object" ? entry : {};
   return {
     id: Number(raw.id) || 0,
     courseId: Number(raw.courseId) || 0,
+    coursePackageId: normalizeCoursePackageId(raw.coursePackageId),
     courseName: trimText(raw.courseName),
     version: trimText(raw.version),
     beginTime: trimText(raw.beginTime),
@@ -205,6 +225,17 @@ function createDefaultState() {
   return {
     media: [],
     appPackages: [],
+    coursePackages: [
+      normalizeCoursePackageRecord({
+        id: 1,
+        name: DEFAULT_COURSE_PACKAGE_NAME,
+        description: "新建场馆默认绑定的课程包。",
+        courseIds: [],
+        isDefault: true,
+        createTime: createdAt,
+        updateTime: createdAt
+      })
+    ],
     actionTypes,
     lessonTypes,
     actions,

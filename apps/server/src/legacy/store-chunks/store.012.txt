@@ -239,10 +239,17 @@ export function saveSchedule(payload) {
   }
 
   const existing = payload.id ? state.schedules.find((item) => item.id === Number(payload.id)) ?? null : null;
+  const requestedCoursePackageId = normalizeCoursePackageId(payload.coursePackageId || existing?.coursePackageId, 0);
+  const coursePackageId = requestedCoursePackageId || inferCoursePackageIdForCourse(courseId);
+
+  if (!coursePackageAllowsCourse(coursePackageId, courseId)) {
+    throw new Error("该课程不属于当前课程包，不能排课。");
+  }
 
   const next = {
     id: payload.id ? Number(payload.id) : nextId(state.schedules),
     courseId,
+    coursePackageId,
     courseName: course.name,
     version: trimText(payload.version) || course.version,
     beginTime: trimText(payload.beginTime),
