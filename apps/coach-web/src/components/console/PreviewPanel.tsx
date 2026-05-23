@@ -36,7 +36,6 @@ export function PreviewPanel(props: PreviewPanelProps) {
       </div>
       <SessionMeta {...props} />
       <PreviewStage {...props} />
-      <PreviewDots {...props} />
     </div>
   );
 }
@@ -96,16 +95,5 @@ function PreviewNav(props: PreviewPanelProps) {
       <button type="button" className="coach-preview-nav is-prev" onClick={() => props.onSetPreviewIndex((current) => Math.max(current - 1, 0))} disabled={props.previewIndex === 0}>‹</button>
       <button type="button" className="coach-preview-nav is-next" onClick={() => props.onSetPreviewIndex((current) => Math.min(current + 1, props.previewItems.length - 1))} disabled={props.previewIndex >= props.previewItems.length - 1}>›</button>
     </>
-  );
-}
-
-function PreviewDots(props: PreviewPanelProps) {
-  if (props.previewItems.length <= 1) return null;
-  return (
-    <div className="coach-preview-dots">
-      {props.previewItems.map((item, index) => (
-        <button key={item.id} type="button" className={`coach-preview-dot ${props.previewIndex === index ? "is-active" : ""}`} onClick={() => props.onSetPreviewIndex(index)} aria-label={`查看第 ${index + 1} 个动作`} />
-      ))}
-    </div>
   );
 }

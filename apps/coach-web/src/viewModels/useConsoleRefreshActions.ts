@@ -15,7 +15,7 @@ export function useConsoleRefreshActions(params: ConsoleRefreshParams) {
   async function refreshBundle(manualNotice = true) {
     params.onBusyTextChange("正在刷新教练端课表...");
     try {
-      params.setBundle(await fetchDailyBundle(params.selectedDate));
+      params.setBundle(await fetchDailyBundle(params.selectedDate, params.authSession));
       if (manualNotice) {
         params.onNotice("教练端课表已刷新。");
       }
@@ -40,4 +40,3 @@ export function useConsoleRefreshActions(params: ConsoleRefreshParams) {
 
   return { handleRefreshTv, refreshBundle };
 }
-

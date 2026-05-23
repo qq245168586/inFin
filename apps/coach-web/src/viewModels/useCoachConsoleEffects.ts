@@ -31,7 +31,7 @@ export function useCoachConsoleEffects(params: ConsoleEffectsParams) {
   useEffect(() => {
     let cancelled = false;
     params.onBusyTextChange("正在加载教练端课表...");
-    fetchDailyBundle(params.selectedDate)
+    fetchDailyBundle(params.selectedDate, params.authSession)
       .then((payload) => {
         if (!cancelled) params.setBundle(payload);
       })
@@ -80,4 +80,3 @@ export function useCoachConsoleEffects(params: ConsoleEffectsParams) {
     };
   }, [params.authSession.access_token, params.authSession.token_type]);
 }
-

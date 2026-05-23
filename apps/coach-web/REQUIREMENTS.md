@@ -26,6 +26,12 @@
 ### 2. 课程控制（当日课表）
 
 - 拉取当日课表并展示为可滚动列表。
+- 课程包切换：
+  - Coach 登录后获取当前场馆已绑定的课程包列表。
+  - Coach 只能在这些课程包之间切换当前启用课程包。
+  - 切换课程包后调用 Server，Server 更新场馆 `activeCoursePackageId` 并向 TV 发布 `refresh_checksum`。
+  - TV 不接收“切换课程包”专用指令；它会继续通过现有 `daily-bundle / daily-checksum` 拉到过滤后的当前课程包课表。
+  - 若场馆正在上课（Preview/Running/Paused），Coach 不允许切换课程包，必须先结束课程。
 - 点击课程进入 **Preview**：
   - 对 TV 下发 `preview_course` 指令（携带 `scheduleId/courseId/scheduledStartAtMs/playbackSessionId/bundleChecksum`）。
   - TV 进入预览界面但不计时（等待后续开始指令）。

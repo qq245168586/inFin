@@ -74,19 +74,46 @@ Header:
 
 用途：
 
-- 获取当天所有排课与资源列表（TV 端用于缓存同步；Coach Web 可用于展示课程列表/调试）
+- 获取当前登录账号绑定场馆、当前启用课程包下的当天排课与资源列表
+- Coach Web 用于展示课程列表/调试；TV 端也使用同一逻辑做缓存同步
 
 ### GET `/api/tv/daily-checksum?date=YYYY-MM-DD&timeZone=Asia/Shanghai`
 
 用途：
 
-- 获取当天排课内容的 checksum（TV 定期校验是否需要重新拉取资源）
+- 获取当前启用课程包下当天排课内容的 checksum（TV 定期校验是否需要重新拉取资源）
 
 ### GET `/api/tv/schedule-bundle?scheduleId=<id>`
 
 用途：
 
 - 获取单节课的详细脚本与资源
+
+## 课程包切换
+
+### GET `/api/coach/course-packages`
+
+用途：
+
+- 获取当前 Coach 账号绑定场馆可用的课程包列表，以及当前启用课程包。
+- Coach 只展示场馆已绑定的课程包。
+
+### POST `/api/coach/active-course-package`
+
+请求：
+
+```json
+{
+  "coursePackageId": 1,
+  "commandId": "uuid"
+}
+```
+
+用途：
+
+- 切换当前场馆启用课程包。
+- Server 更新场馆 `activeCoursePackageId` 后发布 `refresh_checksum`，让 TV 用现有课表同步流程重新拉取当前课程包课表。
+- 如果场馆正在 Preview/Running/Paused，本接口应拒绝切换，避免正在播放的课程被中途换包。
 
 ## 屏幕管理
 

@@ -279,6 +279,35 @@ button {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.coach-package-select {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.coach-package-select select {
+  width: min(190px, 42vw);
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #ffffff;
+  font: inherit;
+}
+
+.coach-package-select option {
+  color: #171520;
 }
 
 .primary-button,
@@ -633,26 +662,6 @@ button {
 .coach-preview-nav:disabled {
   opacity: 0.45;
   cursor: default;
-}
-
-.coach-preview-dots {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.coach-preview-dot {
-  width: 10px;
-  height: 10px;
-  border: 0;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.22);
-}
-
-.coach-preview-dot.is-active {
-  width: 28px;
-  background: #bb2cff;
 }
 
 .coach-screens-summary {
@@ -1228,6 +1237,15 @@ button {
   .coach-console-toolbar {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .coach-toolbar-actions {
+    justify-content: stretch;
+  }
+
+  .coach-toolbar-actions > *,
+  .coach-package-select select {
+    flex: 1;
   }
 
   .coach-screen-update-bar {

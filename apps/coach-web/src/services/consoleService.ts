@@ -1,16 +1,20 @@
 import type { AuthSession } from "../models/common";
 import type { PlaybackSession, PlaybackSessionEnvelope } from "../models/playback";
-import type { TvDailyBundle, TvDailySchedule } from "../models/schedule";
+import type { TvDailyBundle, TvDailySchedule, VenueCoursePackagesPayload } from "../models/schedule";
 import { COURSE_TIME_ZONE, scheduleStartAtMs } from "../utils/time";
 import { createCommandId } from "../utils/format";
 import { normalizePlaybackSession } from "../utils/playback";
 import { authHeaders, requestJson } from "./apiClient";
 
-export function bundleUrl(dateValue: string): string {
+export function bundleUrl(dateValue: string, authSession?: AuthSession): string {
   const params = new URLSearchParams({
     date: dateValue,
     timeZone: COURSE_TIME_ZONE
   });
+  const accountNamespace = String(authSession?.accountNamespace || "").trim();
+  if (accountNamespace) {
+    params.set("accountNamespace", accountNamespace);
+  }
   return `/api/tv/daily-bundle?${params.toString()}`;
 }
 
@@ -37,8 +41,8 @@ export function venueBody(authSession: AuthSession, isSuperAdmin: boolean, body:
   };
 }
 
-export async function fetchDailyBundle(dateValue: string): Promise<TvDailyBundle> {
-  return requestJson<TvDailyBundle>(bundleUrl(dateValue));
+export async function fetchDailyBundle(dateValue: string, authSession?: AuthSession): Promise<TvDailyBundle> {
+  return requestJson<TvDailyBundle>(bundleUrl(dateValue, authSession));
 }
 
 export async function publishTvControl(authSession: AuthSession, payload: Record<string, unknown>) {
@@ -88,4 +92,20 @@ export async function showCoursePlanOnTv(authSession: AuthSession, body: Record<
     headers: authHeaders(authSession.token_type, authSession.access_token),
     body: JSON.stringify(body)
   });
+}
+
+export async function fetchVenueCoursePackages(authSession: AuthSession): Promise<VenueCoursePackagesPayload> {
+  const payload = await requestJson<{ data: VenueCoursePackagesPayload }>("/api/coach/course-packages", {
+    headers: authHeaders(authSession.token_type, authSession.access_token)
+  });
+  return payload.data;
+}
+
+export async function switchActiveCoursePackage(authSession: AuthSession, coursePackageId: number, commandId: string): Promise<VenueCoursePackagesPayload> {
+  const payload = await requestJson<{ data: VenueCoursePackagesPayload }>("/api/coach/active-course-package", {
+    method: "POST",
+    headers: authHeaders(authSession.token_type, authSession.access_token),
+    body: JSON.stringify({ coursePackageId, commandId })
+  });
+  return payload.data;
 }

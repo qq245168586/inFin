@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type TouchEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type TouchEvent } from "react";
 import type { AuthSession } from "../models/common";
 import type { CoachConsoleViewModelProps } from "../models/consoleVm";
 import type { CoachSessionState, PlaybackSession } from "../models/playback";
@@ -7,8 +7,10 @@ import {
   createPreviewSession,
   fetchCurrentPlayback,
   fetchDailyBundle,
+  fetchVenueCoursePackages,
   mutatePlaybackSession,
   showCoursePlanOnTv,
+  switchActiveCoursePackage,
   venueBody,
   venueQuery
 } from "../services/consoleService";
@@ -33,6 +35,8 @@ export function useCoachConsoleViewModel({
   const [selectedPlaybackSessionId, setSelectedPlaybackSessionId] = useState("");
   const [playbackSession, setPlaybackSession] = useState<PlaybackSession | null>(null);
   const [pendingAction, setPendingAction] = useState("");
+  const [coursePackages, setCoursePackages] = useState<Awaited<ReturnType<typeof fetchVenueCoursePackages>> | null>(null);
+  const [activeCoursePackageId, setActiveCoursePackageId] = useState<number>(0);
   const [serverClockBase, setServerClockBase] = useState<{ serverNowMs: number; localNowMs: number } | null>(null);
   const [previewIndex, setPreviewIndex] = useState(0);
   const touchStartXRef = useRef<number | null>(null);
@@ -48,6 +52,7 @@ export function useCoachConsoleViewModel({
     ? Math.max(0, (sessionState === "PAUSED" && playbackSession.pausedAtMs > 0 ? playbackSession.pausedAtMs : displayServerNowMs) - playbackSession.serverStartAtMs - Number(playbackSession.pausedAccumulatedMs || 0))
     : 0;
   const selectedScheduleSessionState = playbackSession && String(playbackSession.scheduleId) === String(selectedScheduleId) ? sessionState : "IDLE";
+  const isVenueBusy = isActiveSessionState(sessionState);
 
   function handleRequestError(error: unknown, fallbackMessage: string) {
     const message = getErrorMessage(error) || fallbackMessage;
@@ -115,6 +120,49 @@ export function useCoachConsoleViewModel({
   }
 
   const { handleRefreshTv, refreshBundle } = useConsoleRefreshActions({ authSession, handleRequestError, onBusyTextChange, onNotice, selectedDate, setBundle });
+
+  async function loadCoursePackages(showError = false) {
+    try {
+      const payload = await fetchVenueCoursePackages(authSession);
+      setCoursePackages(payload);
+      setActiveCoursePackageId(Number(payload.activeCoursePackageId || payload.venue?.activeCoursePackageId || payload.packages?.[0]?.id || 0));
+      return payload;
+    } catch (error) {
+      if (showError) {
+        handleRequestError(error, "加载课程包失败。");
+      } else if (isAuthExpiredMessage(getErrorMessage(error))) {
+        onAuthExpired(getErrorMessage(error));
+      }
+      return null;
+    }
+  }
+
+  async function changeActiveCoursePackage(coursePackageId: number) {
+    if (!coursePackageId || coursePackageId === activeCoursePackageId) {
+      return;
+    }
+    if (isVenueBusy) {
+      onNotice("课程正在运行，结束后才能切换课程包。", "error");
+      return;
+    }
+    const commandId = createCommandId();
+    setPendingAction(commandId);
+    onBusyTextChange("正在切换场馆课程包...");
+    try {
+      const payload = await switchActiveCoursePackage(authSession, coursePackageId, commandId);
+      setCoursePackages(payload);
+      setActiveCoursePackageId(Number(payload.activeCoursePackageId || coursePackageId));
+      setSelectedScheduleId("");
+      setPreviewIndex(0);
+      setBundle(await fetchDailyBundle(selectedDate, authSession));
+      onNotice("课程包已切换，TV 会重新同步课表资源。");
+    } catch (error) {
+      handleRequestError(error, "切换课程包失败。");
+    } finally {
+      setPendingAction("");
+      onBusyTextChange("");
+    }
+  }
 
   async function terminateCurrent(nextSchedule?: TvDailySchedule) {
     if (!selectedSchedule || !playbackSession?.id) {
@@ -293,8 +341,15 @@ export function useCoachConsoleViewModel({
     weekDays
   });
 
+  useEffect(() => {
+    void loadCoursePackages(false);
+  }, [authSession.access_token, authSession.token_type]);
+
   return {
     activePreviewItem,
+    activeCoursePackageId,
+    changeActiveCoursePackage,
+    coursePackages: coursePackages?.packages || [],
     displayElapsedMs,
     enterPreview,
     filteredSchedules: bundle?.schedules || [],

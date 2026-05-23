@@ -1,6 +1,7 @@
 export interface WeekScheduleRecord {
   id: number;
   venueId?: string;
+  coursePackageId?: number;
   courseId: number;
   courseName: string;
   version: string;
@@ -30,6 +31,7 @@ export interface TvDailyBundle {
   timeZone: string;
   checksum: string;
   generatedAt: string;
+  coursePackageId?: number;
   scheduleCount: number;
   schedules: TvDailySchedule[];
 }
@@ -38,6 +40,7 @@ export interface TvDailySchedule {
   id: number;
   venueId?: string;
   accountNamespace?: string;
+  coursePackageId?: number;
   courseId: number;
   courseName: string;
   version: string;
@@ -97,4 +100,23 @@ export interface CoachPreviewItem {
   id: string;
   mediaUrl: string;
   actionName: string;
+}
+
+export interface CoursePackageRecord {
+  id: number;
+  name: string;
+  description?: string;
+  courseIds?: number[];
+  isDefault?: boolean;
+}
+
+export interface VenueCoursePackagesPayload {
+  venue: {
+    id: string;
+    name: string;
+    accountNamespace: string;
+    activeCoursePackageId?: number;
+  };
+  packages: CoursePackageRecord[];
+  activeCoursePackageId?: number;
 }
