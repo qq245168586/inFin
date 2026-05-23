@@ -80,6 +80,10 @@ abstract class MainActivityPart05 extends MainActivityPart04 {
         && session.version > 0
         && session.version <= activePlaybackSessionVersion
         && TextUtils.equals(session.id, activePlaybackSessionId)) {
+      updateSessionClock(
+          result.serverNowMs,
+          result.requestStartedElapsedRealtimeMs,
+          result.responseReceivedElapsedRealtimeMs);
       return;
     }
 
@@ -94,7 +98,10 @@ abstract class MainActivityPart05 extends MainActivityPart04 {
             + " state="
             + session.state);
 
-    updateSessionClock(result.serverNowMs);
+    updateSessionClock(
+        result.serverNowMs,
+        result.requestStartedElapsedRealtimeMs,
+        result.responseReceivedElapsedRealtimeMs);
     String state = session.state == null ? "" : session.state.toUpperCase(Locale.US);
     if ("PREVIEW".equals(state)
         && !previewMode
@@ -136,7 +143,9 @@ abstract class MainActivityPart05 extends MainActivityPart04 {
       return;
     }
     hideCoursePlanPanel();
-    updateSessionClock(serverNowMs);
+    if (sessionServerNowBaseMs <= 0L || sessionServerNowBaseElapsedRealtimeMs <= 0L) {
+      updateSessionClock(serverNowMs);
+    }
     applyPlaybackSessionFields(session);
     activePlaybackItem = item;
     activeBundleChecksum =
@@ -170,11 +179,26 @@ abstract class MainActivityPart05 extends MainActivityPart04 {
   }
 
   protected void updateSessionClock(long serverNowMs) {
+    updateSessionClock(serverNowMs, 0L, 0L);
+  }
+
+  protected void updateSessionClock(
+      long serverNowMs, long requestStartedElapsedRealtimeMs, long responseReceivedElapsedRealtimeMs) {
     if (serverNowMs <= 0L) {
       return;
     }
+    long baseElapsedRealtimeMs = SystemClock.elapsedRealtime();
+    if (responseReceivedElapsedRealtimeMs > 0L) {
+      baseElapsedRealtimeMs = responseReceivedElapsedRealtimeMs;
+      if (requestStartedElapsedRealtimeMs > 0L
+          && responseReceivedElapsedRealtimeMs >= requestStartedElapsedRealtimeMs) {
+        long roundTripMs = responseReceivedElapsedRealtimeMs - requestStartedElapsedRealtimeMs;
+        long halfRoundTripMs = Math.min(Math.max(roundTripMs / 2L, 0L), 750L);
+        baseElapsedRealtimeMs = responseReceivedElapsedRealtimeMs - halfRoundTripMs;
+      }
+    }
     sessionServerNowBaseMs = serverNowMs;
-    sessionServerNowBaseElapsedRealtimeMs = SystemClock.elapsedRealtime();
+    sessionServerNowBaseElapsedRealtimeMs = baseElapsedRealtimeMs;
   }
 
   protected void applyPlaybackSessionFields(TvScriptRepository.PlaybackSessionSnapshot session) {

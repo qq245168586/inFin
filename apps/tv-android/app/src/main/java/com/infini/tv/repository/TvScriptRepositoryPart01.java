@@ -1,7 +1,9 @@
 package com.infini.tv.repository;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Environment;
+import android.os.SystemClock;
 import android.util.Log;
 import com.infini.tv.model.CourseScript;
 import com.infini.tv.model.TvScheduleItem;
@@ -48,6 +50,11 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 abstract class TvScriptRepositoryPart01 extends TvScriptRepositoryBase {
+  private static final String APP_PREFS_NAME = "infini_tv_app";
+  private static final String PREF_ACCOUNT_NAMESPACE = "account_namespace";
+  private static final String PREF_DEVICE_ID = "device_id";
+  private static final String PREF_SCREEN_NUMBER = "screen_number";
+
   protected TvScriptRepositoryPart01(Context context) {
     super(context);
   }
@@ -80,7 +87,8 @@ abstract class TvScriptRepositoryPart01 extends TvScriptRepositoryBase {
             "/tv/daily-bundle?date="
                 + encode(today)
                 + "&timeZone="
-                + encode(COURSE_ZONE.getId()));
+                + encode(COURSE_ZONE.getId())
+                + buildTvScopeQuery());
 
     JSONArray resourcesArray = payload.optJSONArray("resources");
     JSONArray schedulesArray = payload.optJSONArray("schedules");
@@ -104,11 +112,28 @@ abstract class TvScriptRepositoryPart01 extends TvScriptRepositoryBase {
             "/tv/daily-checksum?date="
                 + encode(today)
                 + "&timeZone="
-                + encode(COURSE_ZONE.getId()));
+                + encode(COURSE_ZONE.getId())
+                + buildTvScopeQuery());
     return new DailyChecksum(
         payload.optString("date", today),
         payload.optString("checksum", ""),
         payload.optInt("scheduleCount", 0));
+  }
+
+  private String buildTvScopeQuery() {
+    SharedPreferences preferences = context.getSharedPreferences(APP_PREFS_NAME, Context.MODE_PRIVATE);
+    String accountNamespace =
+        preferences.getString(PREF_ACCOUNT_NAMESPACE, "");
+    String deviceId =
+        preferences.getString(PREF_DEVICE_ID, "");
+    int screenNumber = Math.max(preferences.getInt(PREF_SCREEN_NUMBER, 0), 0);
+
+    return "&accountNamespace="
+        + encode(accountNamespace == null ? "" : accountNamespace.trim().toLowerCase(Locale.US))
+        + "&deviceId="
+        + encode(deviceId == null ? "" : deviceId.trim().toUpperCase(Locale.US))
+        + "&screenNumber="
+        + screenNumber;
   }
 
   public TvScheduleItem loadScheduleById(String scheduleId) throws IOException {
@@ -130,6 +155,7 @@ abstract class TvScriptRepositoryPart01 extends TvScriptRepositoryBase {
 
   public CurrentPlaybackSession loadCurrentPlaybackSession(
       String accountNamespace, String deviceId, int screenNumber) throws IOException {
+    long requestStartedElapsedRealtimeMs = SystemClock.elapsedRealtime();
     JSONObject payload =
         requestJson(
             "/tv/playback-sessions/current?accountNamespace="
@@ -138,7 +164,13 @@ abstract class TvScriptRepositoryPart01 extends TvScriptRepositoryBase {
                 + encode(deviceId == null ? "" : deviceId)
                 + "&screenNumber="
                 + Math.max(screenNumber, 0));
-    return parseCurrentPlaybackSession(payload);
+    long responseReceivedElapsedRealtimeMs = SystemClock.elapsedRealtime();
+    CurrentPlaybackSession parsed = parseCurrentPlaybackSession(payload);
+    return new CurrentPlaybackSession(
+        parsed.serverNowMs,
+        parsed.session,
+        requestStartedElapsedRealtimeMs,
+        responseReceivedElapsedRealtimeMs);
   }
 
   public ScreenRegistration bindScreen(

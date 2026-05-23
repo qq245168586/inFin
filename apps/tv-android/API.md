@@ -13,12 +13,13 @@ TV 端不携带登录 token；屏幕状态与绑定信息通过 body 字段上�
 
 ### 1. 获取当日课表与资源
 
-#### GET `/api/tv/daily-bundle?date=YYYY-MM-DD&timeZone=Asia/Shanghai`
+#### GET `/api/tv/daily-bundle?date=YYYY-MM-DD&timeZone=Asia/Shanghai&accountNamespace=<namespace>`
 
 用途：
 
-- 返回当天所有排课与资源清单
+- 返回 TV 当前绑定场馆“当前启用课程包”的当天排课与资源清单
 - TV 端用于预下载资源并构建本地 `schedule -> mediaLocalPath` 映射
+- TV 不需要知道课程包，也不需要额外传 `coursePackageId`；Server 会用 `accountNamespace` 找到场馆，再按场馆的 `activeCoursePackageId` 过滤排课
 
 响应关键字段（以服务端实现为准）：
 
@@ -27,11 +28,12 @@ TV 端不携带登录 token；屏幕状态与绑定信息通过 body 字段上�
 - `schedules[]`
 - `resources[]`（包含 `key/url/checksum/sizeBytes` 等）
 
-#### GET `/api/tv/daily-checksum?date=YYYY-MM-DD&timeZone=Asia/Shanghai`
+#### GET `/api/tv/daily-checksum?date=YYYY-MM-DD&timeZone=Asia/Shanghai&accountNamespace=<namespace>`
 
 用途：
 
 - 轻量校验是否需要重新同步当日 bundle
+- checksum 同样基于场馆当前启用课程包计算；Coach 切换课程包后会触发 `refresh_checksum`，TV 继续调用本接口即可发现变化
 
 响应关键字段：
 
@@ -282,4 +284,3 @@ TV 在二维码页面发布：
   "pairToken": "ABCDEF12"
 }
 ```
-

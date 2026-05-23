@@ -94,6 +94,11 @@ Pod 分两类：
 - 启动后拉取当天课表与资源清单：
   - 已缓存且 checksum 未变化的资源不重复下载
   - 下载期间 TV 不进入课程（显示下载中与进度）
+- TV 不感知“课程包”：
+  - TV 仍然只按已绑定的 `accountNamespace` 拉取当天课表和资源。
+  - 当前场馆启用哪个课程包，由 Server 根据场馆的 `activeCoursePackageId` 在 `daily-bundle / daily-checksum` 内部过滤。
+  - Coach 切换课程包后只需要触发 `refresh_checksum`，TV 继续复用现有同步流程重新拉取当天 bundle。
+  - 因此课程包切换不新增 TV 端字段、页面或 MQTT 协议；TV 只消费 Server 返回的“当前有效课表”。
 - 周期性校验：
   - 每 5 分钟调用 daily-checksum 判断是否变化；变化则重新同步
   - Coach 可通过 MQTT `refresh_checksum` 触发立即校验
@@ -111,4 +116,3 @@ Pod 分两类：
 - 盒子性能较弱：减少 UI 过度动画、避免频繁重排
 - 视频播放优先使用本地缓存路径；必要时降级为直链播放
 - 监听网络状态变化：断网时提示；恢复网络后自动重连 MQTT 并重试 HTTP 拉取
-

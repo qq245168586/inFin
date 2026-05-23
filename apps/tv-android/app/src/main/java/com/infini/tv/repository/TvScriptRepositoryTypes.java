@@ -139,9 +139,20 @@ abstract class TvScriptRepositoryTypes {
   public static class CurrentPlaybackSession {
     public final long serverNowMs;
     public final PlaybackSessionSnapshot session;
+    public final long requestStartedElapsedRealtimeMs;
+    public final long responseReceivedElapsedRealtimeMs;
     public CurrentPlaybackSession(long serverNowMs, PlaybackSessionSnapshot session) {
+      this(serverNowMs, session, 0L, 0L);
+    }
+    public CurrentPlaybackSession(
+        long serverNowMs,
+        PlaybackSessionSnapshot session,
+        long requestStartedElapsedRealtimeMs,
+        long responseReceivedElapsedRealtimeMs) {
       this.serverNowMs = serverNowMs;
       this.session = session;
+      this.requestStartedElapsedRealtimeMs = requestStartedElapsedRealtimeMs;
+      this.responseReceivedElapsedRealtimeMs = responseReceivedElapsedRealtimeMs;
     }
   }
   protected static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
