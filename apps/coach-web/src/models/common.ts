@@ -17,6 +17,8 @@ export interface AuthTokenPayload {
   refresh_token: string;
   token_type: string;
   expires_in: number;
+  issued_at?: number;
+  expires_at?: number;
 }
 
 export interface UserProfile {

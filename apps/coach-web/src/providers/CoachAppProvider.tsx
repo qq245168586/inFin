@@ -26,9 +26,14 @@ interface CoachAppContextValue {
 }
 
 const CoachAppContext = createContext<CoachAppContextValue | null>(null);
+const ACTIVE_SESSION_WINDOW_MS = 12 * 60 * 60 * 1000;
+const REFRESH_BEFORE_EXPIRE_MS = 10 * 60 * 1000;
+const REFRESH_CHECK_MS = 60 * 1000;
 
 export function CoachAppProvider({ children }: { children: ReactNode }) {
   const noticeTimerRef = useRef<number | null>(null);
+  const lastActivityAtRef = useRef(Date.now());
+  const refreshingRef = useRef(false);
   const [authReady, setAuthReady] = useState(false);
   const [authSession, setAuthSession] = useState<AuthSession | null>(null);
   const [currentWeekSchedules, setCurrentWeekSchedules] = useState<WeekScheduleRecord[]>([]);
@@ -46,6 +51,15 @@ export function CoachAppProvider({ children }: { children: ReactNode }) {
     noticeTimerRef.current = window.setTimeout(() => setNotice(null), 3200);
   }, []);
 
+  const enrichSession = useCallback((session: AuthSession): AuthSession => {
+    const issuedAt = Date.now();
+    return {
+      ...session,
+      issued_at: issuedAt,
+      expires_at: issuedAt + Math.max(0, Number(session.expires_in) || 0) * 1000
+    };
+  }, []);
+
   const handleSessionExpired = useCallback((message = "登录已失效，请重新登录。") => {
     removeStorageItem(AUTH_STORAGE_KEY);
     setAuthSession(null);
@@ -56,6 +70,19 @@ export function CoachAppProvider({ children }: { children: ReactNode }) {
     setLoginForm({ username: "", password: "" });
     pushNotice(message, "error");
   }, [pushNotice]);
+
+  const refreshSession = useCallback(async (current: AuthSession | null) => {
+    if (!current?.refresh_token || refreshingRef.current) return;
+    refreshingRef.current = true;
+    try {
+      const nextAuth = await refreshCoachSession(current.refresh_token);
+      setAuthSession(enrichSession(nextAuth));
+    } catch (error) {
+      handleSessionExpired(isAuthExpiredMessage(getErrorMessage(error)) ? "登录已过期，请重新登录。" : getErrorMessage(error));
+    } finally {
+      refreshingRef.current = false;
+    }
+  }, [enrichSession, handleSessionExpired]);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,7 +96,7 @@ export function CoachAppProvider({ children }: { children: ReactNode }) {
       try {
         const nextAuth = await refreshCoachSession(storedAuth.refresh_token);
         if (!cancelled) {
-          setAuthSession(nextAuth);
+          setAuthSession(enrichSession(nextAuth));
         }
       } catch {
         if (!cancelled) {
@@ -87,7 +114,7 @@ export function CoachAppProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [enrichSession]);
 
   useEffect(() => () => {
     if (noticeTimerRef.current) {
@@ -113,6 +140,44 @@ export function CoachAppProvider({ children }: { children: ReactNode }) {
     void loadMeta("正在加载教练端课表...");
   }, [authReady, authSession?.access_token]);
 
+  useEffect(() => {
+    const markActivity = () => {
+      lastActivityAtRef.current = Date.now();
+    };
+    const events = ["click", "keydown", "pointerdown", "touchstart", "input", "focus"];
+    events.forEach((eventName) => window.addEventListener(eventName, markActivity, { passive: true }));
+    return () => events.forEach((eventName) => window.removeEventListener(eventName, markActivity));
+  }, []);
+
+  useEffect(() => {
+    if (!authSession) return;
+    const tick = () => {
+      const now = Date.now();
+      if (now - lastActivityAtRef.current > ACTIVE_SESSION_WINDOW_MS) {
+        handleSessionExpired("登录已超过 12 小时未操作，请重新登录。");
+        return;
+      }
+      const expiresAt = Number(authSession.expires_at || 0);
+      if (expiresAt && expiresAt - now <= REFRESH_BEFORE_EXPIRE_MS) {
+        void refreshSession(authSession);
+      }
+    };
+    tick();
+    const timer = window.setInterval(tick, REFRESH_CHECK_MS);
+    return () => window.clearInterval(timer);
+  }, [authSession, handleSessionExpired, refreshSession]);
+
+  useEffect(() => {
+    function handleAuthExpired(event: Event) {
+      const message = String((event as CustomEvent<{ message?: string }>).detail?.message || "登录已过期，请重新登录。");
+      if (!isAuthExpiredMessage(message)) return;
+      handleSessionExpired("登录已过期，请重新登录。");
+    }
+
+    window.addEventListener("infini-auth-expired", handleAuthExpired as EventListener);
+    return () => window.removeEventListener("infini-auth-expired", handleAuthExpired as EventListener);
+  }, [handleSessionExpired]);
+
   async function handleLogin() {
     if (!loginForm.username.trim() || !loginForm.password.trim()) {
       pushNotice("请输入账号和密码。", "error");
@@ -121,7 +186,8 @@ export function CoachAppProvider({ children }: { children: ReactNode }) {
     setBusyText("正在登录...");
     try {
       const nextAuth = await loginCoach(loginForm.username.trim(), loginForm.password.trim());
-      setAuthSession(nextAuth);
+      setAuthSession(enrichSession(nextAuth));
+      lastActivityAtRef.current = Date.now();
       setLoginForm({ username: "", password: "" });
       pushNotice("登录成功。");
     } catch (error) {
@@ -187,4 +253,3 @@ export function useCoachApp() {
   }
   return value;
 }
-
