@@ -1,0 +1,33 @@
+export interface ChipOption {
+  id: number;
+  name: string;
+}
+
+export interface FilterChipsProps {
+  options: ChipOption[];
+  selectedIds: number[];
+  onToggle: (id: number) => void;
+  onAdd?: () => void;
+}
+
+export default function FilterChips({ options, selectedIds, onToggle, onAdd }: FilterChipsProps) {
+  return (
+    <div className="chip-row">
+      {options.map((item) => (
+        <button
+          key={item.id}
+          type="button"
+          className={`filter-chip ${selectedIds.includes(item.id) ? "is-active" : ""}`}
+          onClick={() => onToggle(item.id)}
+        >
+          {item.name}
+        </button>
+      ))}
+      {onAdd ? (
+        <button type="button" className="filter-chip is-add" onClick={onAdd}>
+          + 添加
+        </button>
+      ) : null}
+    </div>
+  );
+}
