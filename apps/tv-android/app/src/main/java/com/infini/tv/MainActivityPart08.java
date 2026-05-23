@@ -196,6 +196,7 @@ abstract class MainActivityPart08 extends MainActivityPart07 {
 
                       syncInProgress = false;
                       currentBundleChecksum = result.checksum;
+                      currentBundleScheduleCount = result.schedules == null ? 0 : result.schedules.size();
                       resourceCacheDirty = false;
                       lastScheduleSyncFailed = false;
                       bindHorizontalSchedule(result.schedules);

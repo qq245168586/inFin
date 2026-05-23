@@ -447,6 +447,7 @@ abstract class MainActivityPart06 extends MainActivityPart05 {
 
                       syncInProgress = false;
                       currentBundleChecksum = result.checksum;
+                      currentBundleScheduleCount = result.schedules == null ? 0 : result.schedules.size();
                       resourceCacheDirty = false;
                       lastScheduleSyncFailed = false;
                       bindScheduleItems(result.schedules);
@@ -488,9 +489,14 @@ abstract class MainActivityPart06 extends MainActivityPart05 {
                         return;
                       }
 
+                      int localScheduleCount = syncedTodaySchedules == null ? 0 : syncedTodaySchedules.size();
+                      boolean countMismatch =
+                          checksum.scheduleCount >= 0 && checksum.scheduleCount != localScheduleCount;
                       if (currentBundleChecksum == null
                           || currentBundleChecksum.trim().isEmpty()
-                          || !currentBundleChecksum.equals(checksum.checksum)) {
+                          || !currentBundleChecksum.equals(checksum.checksum)
+                          || currentBundleScheduleCount != checksum.scheduleCount
+                          || countMismatch) {
                         if (isVerticalCourseScreen(screenNumber)) {
                           syncTodaySchedule(screenNumber, false);
                         } else {

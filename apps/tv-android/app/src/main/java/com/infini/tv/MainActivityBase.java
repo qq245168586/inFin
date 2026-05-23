@@ -248,6 +248,7 @@ abstract class MainActivityBase extends MainActivityContracts {
   protected boolean syncInProgress = false;
   protected boolean lastScheduleSyncFailed = false;
   protected boolean resourceCacheDirty = false;
+  protected int currentBundleScheduleCount = -1;
   protected long lastNetworkRecoverySyncAtMs = 0L;
   protected volatile boolean screenHeartbeatInFlight = false;
   protected boolean previewMode = false;
