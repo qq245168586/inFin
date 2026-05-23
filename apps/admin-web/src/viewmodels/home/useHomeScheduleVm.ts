@@ -4,6 +4,7 @@ import type { CourseRecord } from "../../models/course/types.ts";
 import { groupCoursesByName } from "../../models/course/groupCoursesByName.ts";
 import type { HomeTabKey } from "../../app/navigation.ts";
 import type { ScheduleCollection } from "../../services/api/meta.ts";
+import type { CoursePackageRecord } from "../../pages/venues/types.ts";
 import { copyLastWeekSchedules, createSchedule, deleteSchedule } from "../../services/api/schedules.ts";
 import { composeCnDateTime, todayValue } from "../../utils/datetime.ts";
 import { getErrorMessage } from "../../utils/errors.ts";
@@ -11,14 +12,24 @@ import { getErrorMessage } from "../../utils/errors.ts";
 export interface ScheduleDraftValue {
   courseName: string;
   courseId: string;
+  coursePackageId: string;
   version: string;
   date: string;
   time: string;
   duration: string;
 }
 
-function createScheduleDraft(courses: CourseRecord[], preferredDate = ""): ScheduleDraftValue {
-  const first = [...courses].sort((left, right) => {
+function coursesForPackage(courses: CourseRecord[], coursePackage?: CoursePackageRecord | null): CourseRecord[] {
+  if (!coursePackage) return courses;
+  const ids = new Set((coursePackage.courseIds || []).map(Number));
+  if (!ids.size) return [];
+  return courses.filter((course) => ids.has(Number(course.id)));
+}
+
+function createScheduleDraft(courses: CourseRecord[], coursePackages: CoursePackageRecord[], preferredDate = ""): ScheduleDraftValue {
+  const firstPackage = coursePackages[0] || null;
+  const packageCourses = coursesForPackage(courses, firstPackage);
+  const first = [...packageCourses].sort((left, right) => {
     if (left.name === right.name) {
       return left.version.localeCompare(right.version);
     }
@@ -28,6 +39,7 @@ function createScheduleDraft(courses: CourseRecord[], preferredDate = ""): Sched
   return {
     courseName: first?.name ?? "",
     courseId: first ? String(first.id) : "",
+    coursePackageId: firstPackage ? String(firstPackage.id) : "",
     version: first?.version ?? "",
     date: preferredDate || todayValue(),
     time: "19:00",
@@ -59,12 +71,14 @@ function getWeekDays(offsetWeeks: number): CalendarDay[] {
 
 export default function useHomeScheduleVm({
   courses,
+  coursePackages,
   schedules,
   onBusyText,
   onNotice,
   onReloadMeta
 }: {
   courses: CourseRecord[];
+  coursePackages: CoursePackageRecord[];
   schedules: ScheduleCollection;
   onBusyText: (text: string) => void;
   onNotice: (message: string, tone?: "success" | "error") => void;
@@ -89,16 +103,25 @@ export default function useHomeScheduleVm({
     return current;
   }, [homeTab, schedules.currentWeek, schedules.history, schedules.lastWeek]);
 
-  const courseGroups = useMemo(() => groupCoursesByName(courses), [courses]);
+  const activeDraftPackage = useMemo(() => {
+    const packageId = scheduleDraft?.coursePackageId || "";
+    return coursePackages.find((item) => String(item.id) === String(packageId)) || coursePackages[0] || null;
+  }, [coursePackages, scheduleDraft?.coursePackageId]);
+
+  const courseGroups = useMemo(() => groupCoursesByName(coursesForPackage(courses, activeDraftPackage)), [activeDraftPackage, courses]);
 
   const openScheduleDialog = useCallback(() => {
     if (!courses.length) {
       onNotice("请先在课程页创建课程。", "error");
       return;
     }
+    if (!coursePackages.length) {
+      onNotice("请先创建或授权课程包。", "error");
+      return;
+    }
 
-    setScheduleDraft(createScheduleDraft(courses, selectedScheduleDate !== "all" ? selectedScheduleDate : ""));
-  }, [courses, onNotice, selectedScheduleDate]);
+    setScheduleDraft(createScheduleDraft(courses, coursePackages, selectedScheduleDate !== "all" ? selectedScheduleDate : ""));
+  }, [coursePackages, courses, onNotice, selectedScheduleDate]);
 
   const closeScheduleDialog = useCallback(() => setScheduleDraft(null), []);
 
@@ -114,6 +137,10 @@ export default function useHomeScheduleVm({
       onNotice("请选择课程。", "error");
       return;
     }
+    if (!scheduleDraft.coursePackageId) {
+      onNotice("请选择课程包。", "error");
+      return;
+    }
     if (!scheduleDraft.date || !scheduleDraft.time) {
       onNotice("请选择课程日期和开始时间。", "error");
       return;
@@ -127,6 +154,7 @@ export default function useHomeScheduleVm({
     try {
       await createSchedule({
         courseId: Number(scheduleDraft.courseId),
+        coursePackageId: Number(scheduleDraft.coursePackageId) || undefined,
         version: scheduleDraft.version,
         beginTime: composeCnDateTime(scheduleDraft.date, scheduleDraft.time),
         duration: Number(scheduleDraft.duration)

@@ -11,10 +11,12 @@ export default function HomeRoute() {
   const { pushNotice } = useNotice();
 
   const courses = appData?.courses || [];
+  const coursePackages = appData?.coursePackages || [];
   const schedules = appData?.schedules || { currentWeek: [], lastWeek: [], history: [] };
 
   const vm = useHomeScheduleVm({
     courses,
+    coursePackages,
     schedules,
     onBusyText: setBusyText,
     onNotice: pushNotice,
@@ -38,6 +40,7 @@ export default function HomeRoute() {
       {vm.scheduleDraft ? (
         <ScheduleDialog
           draft={vm.scheduleDraft}
+          coursePackages={coursePackages}
           courseGroups={vm.courseGroups}
           onDraftChange={vm.updateScheduleDraft}
           onClose={vm.closeScheduleDialog}

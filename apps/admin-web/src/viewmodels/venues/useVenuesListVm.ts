@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { NoticeFn, VenueRecord } from "../../pages/venues/types.ts";
-import { createVenue, deleteVenue, fetchVenues } from "../../pages/venues/api.ts";
+import { createVenue, deleteVenue, fetchVenues, updateVenueName } from "../../pages/venues/api.ts";
 import { persistActiveVenueId, readActiveVenueId } from "../../pages/venues/storage.ts";
 
 type VenuesChangeFn = (venues: VenueRecord[]) => void;
@@ -110,6 +110,30 @@ export function useVenuesListVm({
     }
   }
 
+  async function handleRenameVenue(nextName: string) {
+    if (!activeVenueId || !activeVenue) return;
+    const name = nextName.trim();
+    if (!name) {
+      onNotice("请填写场馆名称。", "error");
+      return;
+    }
+    if (name === activeVenue.name) return;
+    setLoading("正在更新场馆名称...");
+    try {
+      const updated = await updateVenueName(authHeader, activeVenueId, name);
+      setVenues((current) => {
+        const next = current.map((item) => (String(item.id) === String(updated.id) ? updated : item));
+        onVenuesChange?.(next);
+        return next;
+      });
+      onNotice("场馆名称已更新。");
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : "更新场馆名称失败。", "error");
+    } finally {
+      setLoading("");
+    }
+  }
+
   return {
     venues,
     activeVenueId,
@@ -124,6 +148,7 @@ export function useVenuesListVm({
     newVenueName,
     setNewVenueName,
     handleCreateVenue,
-    handleDeleteVenue
+    handleDeleteVenue,
+    handleRenameVenue
   };
 }

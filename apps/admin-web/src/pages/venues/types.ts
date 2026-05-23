@@ -4,6 +4,8 @@ export interface VenueRecord {
   id: string;
   name: string;
   accountNamespace: string;
+  coursePackageIds?: number[];
+  activeCoursePackageId?: number;
   createTime: string;
   updateTime: string;
 }
@@ -11,11 +13,31 @@ export interface VenueRecord {
 export interface ConsoleUser {
   id: number;
   username: string;
+  password?: string;
   nickname: string;
   accountNamespace: string;
   role?: string;
   venueId?: string;
   allowedClients?: string[];
+  coursePackageIds?: number[];
+}
+
+export interface CoursePackageRecord {
+  id: number;
+  name: string;
+  description: string;
+  courseIds: number[];
+  courseCount: number;
+  isDefault?: boolean;
+  createTime: string;
+  updateTime: string;
+}
+
+export interface VenueCoursePackagesPayload {
+  venueId: string;
+  activeCoursePackageId: number;
+  running: boolean;
+  items: CoursePackageRecord[];
 }
 
 export interface TvScreenSnapshot {

@@ -21,7 +21,7 @@ export default function CreateAccountModal({
     <div className="venue-modal-mask" role="dialog" aria-modal="true">
       <div className="venue-modal">
         <div className="venue-modal-head">
-          <strong>新建账号</strong>
+          <strong>新建 Coach 账号</strong>
           <button type="button" className="ghost-button" onClick={onClose}>
             关闭
           </button>
@@ -35,7 +35,7 @@ export default function CreateAccountModal({
             <span>密码</span>
             <input value={accountPassword} onChange={(e) => onAccountPasswordChange(e.target.value)} placeholder="密码" />
           </label>
-          <p className="venue-muted">账号创建后，需要在场馆里绑定才能用于 Coach 端登录。</p>
+          <p className="venue-muted">这里创建的是 Coach 端账号；编课账号请到“账号管理”的编课账号分区创建。</p>
           <div className="venue-form-actions">
             <button type="button" className="ghost-button" onClick={onClose}>
               取消

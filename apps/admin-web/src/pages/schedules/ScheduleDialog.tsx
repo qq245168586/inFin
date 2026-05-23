@@ -4,6 +4,7 @@ import type { CourseGroups } from "../../models/course/groupCoursesByName.ts";
 export interface ScheduleDraftValue {
   courseName: string;
   courseId: string;
+  coursePackageId: string;
   version: string;
   date: string;
   time: string;
@@ -12,12 +13,14 @@ export interface ScheduleDraftValue {
 
 export default function ScheduleDialog({
   draft,
+  coursePackages,
   courseGroups,
   onDraftChange,
   onClose,
   onConfirm
 }: {
   draft: ScheduleDraftValue;
+  coursePackages: Array<{ id: number; name: string; courseIds?: number[] }>;
   courseGroups: CourseGroups;
   onDraftChange: (updater: (current: ScheduleDraftValue) => ScheduleDraftValue) => void;
   onClose: () => void;
@@ -26,6 +29,30 @@ export default function ScheduleDialog({
   return (
     <Dialog title="添加排课" onClose={onClose} onConfirm={onConfirm}>
       <div className="dialog-form">
+        <label className="field">
+          <span>请选择课程包</span>
+          <select
+            value={draft.coursePackageId}
+            onChange={(event) => {
+              const nextPackageId = event.target.value;
+              onDraftChange((current) => ({
+                ...current,
+                coursePackageId: nextPackageId,
+                courseName: "",
+                courseId: "",
+                version: ""
+              }));
+            }}
+          >
+            <option value="">请选择课程包</option>
+            {coursePackages.map((pkg) => (
+              <option key={pkg.id} value={pkg.id}>
+                {pkg.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
         <label className="field">
           <span>请选择课程</span>
           <select

@@ -65,7 +65,7 @@ export default function AdminShell({
             <div className="workspace-top-left">
               <div>
                 <p className="workspace-kicker">Infini Admin</p>
-                <strong>课程编辑端</strong>
+                <strong>场馆管理端</strong>
               </div>
             </div>
             <div className="workspace-top-actions">

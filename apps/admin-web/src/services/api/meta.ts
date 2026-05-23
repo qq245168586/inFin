@@ -1,6 +1,7 @@
 import { requestJson } from "../requestJson.ts";
 import type { MediaRecord } from "../../models/media.ts";
 import type { CourseRecord } from "../../models/course/types.ts";
+import type { CoursePackageRecord } from "../../pages/venues/types.ts";
 
 export interface TypeOption {
   id: number;
@@ -19,6 +20,7 @@ export interface ActionRecord {
 export interface ScheduleRecord {
   id: number;
   courseId: number;
+  coursePackageId?: number;
   courseName: string;
   version: string;
   beginTime: string;
@@ -58,6 +60,7 @@ export interface MetaPayload {
   lessonTypes: TypeOption[];
   actions: ActionRecord[];
   courses: CourseRecord[];
+  coursePackages: CoursePackageRecord[];
   templates: TemplateCollections;
   schedules: ScheduleCollection;
   now: string;

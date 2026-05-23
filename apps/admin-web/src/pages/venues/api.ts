@@ -3,8 +3,10 @@ import type {
   AppPackageListPayload,
   AppPackageRecord,
   ConsoleUser,
+  CoursePackageRecord,
   TvInstallAppUpdateCommand,
   TvScreensPayload,
+  VenueCoursePackagesPayload,
   VenueRecord
 } from "./types.ts";
 
@@ -48,6 +50,104 @@ export async function fetchVenueScreens(
   return payload.data || null;
 }
 
+export async function fetchCoursePackages(authHeader: string, signal?: AbortSignal): Promise<CoursePackageRecord[]> {
+  const payload = await requestJson<{ data: CoursePackageRecord[] }>("/api/admin/course-packages", {
+    headers: { Authorization: authHeader },
+    signal
+  });
+  return payload.data || [];
+}
+
+export async function saveCoursePackage(
+  authHeader: string,
+  packageDraft: Partial<CoursePackageRecord>
+): Promise<CoursePackageRecord> {
+  const endpoint = packageDraft.id
+    ? `/api/admin/course-packages/${encodeURIComponent(String(packageDraft.id))}`
+    : "/api/admin/course-packages";
+  const payload = await requestJson<{ data: CoursePackageRecord }>(endpoint, {
+    method: packageDraft.id ? "PATCH" : "POST",
+    headers: { Authorization: authHeader },
+    body: JSON.stringify(packageDraft)
+  });
+  return payload.data;
+}
+
+export async function deleteCoursePackage(authHeader: string, coursePackageId: number): Promise<void> {
+  await requestJson<void>(`/api/admin/course-packages/${encodeURIComponent(String(coursePackageId))}`, {
+    method: "DELETE",
+    headers: { Authorization: authHeader }
+  });
+}
+
+export async function fetchVenueCoursePackages(
+  authHeader: string,
+  venueId: string,
+  signal?: AbortSignal
+): Promise<VenueCoursePackagesPayload | null> {
+  const payload = await requestJson<{ data: VenueCoursePackagesPayload }>(
+    `/api/admin/venues/${encodeURIComponent(venueId)}/course-packages`,
+    { headers: { Authorization: authHeader }, signal }
+  );
+  return payload.data || null;
+}
+
+export async function bindCoursePackageToVenue(
+  authHeader: string,
+  venueId: string,
+  coursePackageId: number
+): Promise<VenueCoursePackagesPayload> {
+  const payload = await requestJson<{ data: VenueCoursePackagesPayload }>(
+    `/api/admin/venues/${encodeURIComponent(venueId)}/course-packages`,
+    {
+      method: "POST",
+      headers: { Authorization: authHeader },
+      body: JSON.stringify({ coursePackageId })
+    }
+  );
+  return payload.data;
+}
+
+export async function unbindCoursePackageFromVenue(
+  authHeader: string,
+  venueId: string,
+  coursePackageId: number
+): Promise<VenueCoursePackagesPayload> {
+  const payload = await requestJson<{ data: VenueCoursePackagesPayload }>(
+    `/api/admin/venues/${encodeURIComponent(venueId)}/course-packages/${encodeURIComponent(String(coursePackageId))}`,
+    {
+      method: "DELETE",
+      headers: { Authorization: authHeader }
+    }
+  );
+  return payload.data;
+}
+
+export async function setVenueActiveCoursePackage(
+  authHeader: string,
+  venueId: string,
+  coursePackageId: number
+): Promise<VenueCoursePackagesPayload> {
+  const payload = await requestJson<{ data: VenueCoursePackagesPayload }>(
+    `/api/admin/venues/${encodeURIComponent(venueId)}/active-course-package`,
+    {
+      method: "POST",
+      headers: { Authorization: authHeader },
+      body: JSON.stringify({ coursePackageId })
+    }
+  );
+  return payload.data;
+}
+
+export async function setUserCoursePackages(authHeader: string, userId: number, coursePackageIds: number[]): Promise<ConsoleUser> {
+  const payload = await requestJson<{ data: ConsoleUser }>(`/api/admin/users/${encodeURIComponent(String(userId))}/course-packages`, {
+    method: "PUT",
+    headers: { Authorization: authHeader },
+    body: JSON.stringify({ coursePackageIds })
+  });
+  return payload.data;
+}
+
 export async function fetchTvPackages(authHeader: string): Promise<AppPackageRecord[]> {
   const payload = await requestJson<{ data: AppPackageListPayload }>("/api/app-packages?platform=tv", {
     headers: { Authorization: authHeader }
@@ -64,22 +164,46 @@ export async function createVenue(authHeader: string, name: string): Promise<Ven
   return payload.data;
 }
 
-export async function createConsoleUser(
-  authHeader: string,
-  username: string,
-  password: string
-): Promise<ConsoleUser> {
-  const payload = await requestJson<{ data: ConsoleUser }>("/api/admin/users", {
-    method: "POST",
+export async function updateVenueName(authHeader: string, venueId: string, name: string): Promise<VenueRecord> {
+  const payload = await requestJson<{ data: VenueRecord }>(`/api/admin/venues/${encodeURIComponent(venueId)}`, {
+    method: "PATCH",
     headers: { Authorization: authHeader },
-    body: JSON.stringify({ username, password })
+    body: JSON.stringify({ name })
   });
   return payload.data;
 }
 
-export async function fetchUnboundUsers(authHeader: string, query: string): Promise<ConsoleUser[]> {
+export async function createConsoleUser(
+  authHeader: string,
+  username: string,
+  password: string,
+  role: "venue" | "editor" = "venue",
+  coursePackageIds: number[] = []
+): Promise<ConsoleUser> {
+  const payload = await requestJson<{ data: ConsoleUser }>("/api/admin/users", {
+    method: "POST",
+    headers: { Authorization: authHeader },
+    body: JSON.stringify({ username, password, role, coursePackageIds })
+  });
+  return payload.data;
+}
+
+export async function updateConsoleUserPassword(
+  authHeader: string,
+  userId: number,
+  password: string
+): Promise<ConsoleUser> {
+  const payload = await requestJson<{ data: ConsoleUser }>(`/api/admin/users/${encodeURIComponent(String(userId))}`, {
+    method: "PATCH",
+    headers: { Authorization: authHeader },
+    body: JSON.stringify({ password })
+  });
+  return payload.data;
+}
+
+export async function fetchUnboundUsers(authHeader: string, query: string, role: "venue" | "editor" = "venue"): Promise<ConsoleUser[]> {
   const payload = await requestJson<{ data: ConsoleUser[] }>(
-    `/api/admin/users?unbound=1&q=${encodeURIComponent(query || "")}`,
+    `/api/admin/users?unbound=1&role=${encodeURIComponent(role)}&q=${encodeURIComponent(query || "")}`,
     { headers: { Authorization: authHeader } }
   );
   return payload.data || [];

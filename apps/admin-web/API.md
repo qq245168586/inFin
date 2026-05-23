@@ -23,8 +23,9 @@
 
 用于 Admin Web 启动时加载：
 
-- 动作列表、动作类型、课程列表、模板列表、排课列表等（以服务端 `getMetaPayload()` 为准）
+- 动作列表、动作类型、课程列表、模板列表、排课列表、课程包列表等（以服务端 `getMetaPayload()` 为准）
 - 多场馆排课：可选 `venueId` 参数，例如 `/api/meta?venueId=...`，用于只返回该场馆的排课列表。
+- 非超级管理员账号会按其授权课程包过滤课程、排课和可选课程。
 
 ## 认证相关
 
@@ -109,12 +110,13 @@ Header:
 
 ### GET `/api/courses`
 ### POST `/api/courses`
-### GET `/api/courses/options`
+### GET `/api/courses/options?coursePackageId=<id>`
 
 用途：
 
 - 课程列表/创建课程
 - options 用于下拉选择（例如课程模板、可选动作等）
+- `coursePackageId` 用于排课时只返回当前课程包允许的课程
 
 ### GET `/api/courses/:id`
 ### PUT `/api/courses/:id`
@@ -140,10 +142,11 @@ Header:
 
 - 获取排课（scope/时间范围等以服务端实现为准）
 - 多场馆排课：可选 `venueId` 参数，例如 `/api/schedules?venueId=...&scope=CURRENTWEEK`
+- 课程包排课：可选 `coursePackageId` 参数，例如 `/api/schedules?coursePackageId=1&scope=CURRENTWEEK`
 
 ### POST `/api/schedules`
 
-用途：创建/更新排课（多场馆时需要携带 `venueId` 字段）
+用途：创建/更新排课（多场馆时需要携带 `venueId` 字段；课程包隔离时需要携带 `coursePackageId` 字段）
 
 ### DELETE `/api/schedules/:id`
 
@@ -210,3 +213,38 @@ Header:
 ```
 
 用途：将账号绑定到指定场馆（一个账号暂时只绑定一个场馆）
+
+## 课程包管理（Super Admin / Course Editor）
+
+### GET `/api/admin/course-packages`
+### POST `/api/admin/course-packages`
+### PATCH `/api/admin/course-packages/:packageId`
+### DELETE `/api/admin/course-packages/:packageId`
+
+用途：
+
+- 超级管理员管理课程包、课程包名称、描述和课程集合。
+- 默认课程包不可删除。
+
+### GET `/api/admin/venues/:venueId/course-packages`
+### POST `/api/admin/venues/:venueId/course-packages`
+### DELETE `/api/admin/venues/:venueId/course-packages/:packageId`
+### POST `/api/admin/venues/:venueId/active-course-package`
+
+用途：
+
+- 查看、绑定、解绑场馆课程包。
+- 切换场馆当前启用课程包；Server 会通知 TV `refresh_checksum`，TV 继续使用原 daily-bundle/daily-checksum 流程同步当前有效课表。
+
+### PUT `/api/admin/users/:userId/course-packages`
+
+请求：
+
+```json
+{ "coursePackageIds": [1, 2] }
+```
+
+用途：
+
+- 设置编课账号可操作的课程包范围。
+- 编课账号后续通过 `/api/meta`、`/api/courses`、`/api/schedules` 获取数据时会按授权课程包过滤。

@@ -2,6 +2,7 @@ import { requestJson } from "../requestJson.ts";
 
 export interface CreateSchedulePayload {
   courseId: number;
+  coursePackageId?: number;
   version: string;
   beginTime: string;
   duration: number;

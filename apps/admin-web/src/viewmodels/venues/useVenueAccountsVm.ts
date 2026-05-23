@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ConsoleUser, NoticeFn } from "../../pages/venues/types.ts";
-import { bindUserToVenue, createConsoleUser, fetchAllUsers, fetchUnboundUsers, unbindUser } from "../../pages/venues/api.ts";
+import {
+  bindUserToVenue,
+  createConsoleUser,
+  fetchAllUsers,
+  fetchUnboundUsers,
+  unbindUser,
+  updateConsoleUserPassword
+} from "../../pages/venues/api.ts";
 
 export function useVenueAccountsVm({
   authHeader,
@@ -125,6 +132,26 @@ export function useVenueAccountsVm({
     }
   }
 
+  async function handleUpdateAccountPassword(user: Pick<ConsoleUser, "id" | "username" | "role">) {
+    if (String(user.role || "").trim() === "superadmin") return;
+    const nextPassword = window.prompt(`请输入账号「${user.username}」的新密码`, "");
+    if (nextPassword == null) return;
+    if (!nextPassword.trim()) {
+      onNotice("密码不能为空。", "error");
+      return;
+    }
+    setLoading("正在更新账号密码...");
+    try {
+      const updated = await updateConsoleUserPassword(authHeader, Number(user.id), nextPassword.trim());
+      setAllUsers((current) => current.map((item) => (Number(item.id) === Number(updated.id) ? updated : item)));
+      onNotice("账号密码已更新。");
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : "更新账号密码失败。", "error");
+    } finally {
+      setLoading("");
+    }
+  }
+
   function closeBindModal() {
     setBindAccountOpen(false);
     setBindQuery("");
@@ -155,6 +182,7 @@ export function useVenueAccountsVm({
     loadBindCandidates,
     handleBindAccount,
     closeBindModal,
-    handleUnbindAccount
+    handleUnbindAccount,
+    handleUpdateAccountPassword
   };
 }

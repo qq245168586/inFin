@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { AppPackageRecord, NoticeFn, TvScreenSnapshot, VenueRecord } from "../../pages/venues/types.ts";
-import { publishAdminTvCommand } from "../../pages/venues/api.ts";
+import { publishAdminTvCommand, setUserCoursePackages } from "../../pages/venues/api.ts";
 import { useVenueAccountsVm } from "./useVenueAccountsVm.ts";
 import { useVenueDetailVm } from "./useVenueDetailVm.ts";
 import { useVenueTvPackagesVm } from "./useVenueTvPackagesVm.ts";
@@ -33,8 +33,7 @@ export function useVenueManagementVm({
   async function refreshAll() {
     setActionLoading("正在刷新...");
     try {
-      await venuesVm.reloadVenues();
-      await detailVm.reloadDetail(venuesVm.activeVenueId);
+      await Promise.all([venuesVm.reloadVenues(), detailVm.reloadDetail(venuesVm.activeVenueId), accountsVm.reloadUsers()]);
       onNotice("已刷新。");
     } catch (error) {
       onNotice(error instanceof Error ? error.message : "刷新失败。", "error");
@@ -169,6 +168,20 @@ export function useVenueManagementVm({
     }
   }
 
+  async function handleSetAccountCoursePackages(userId: number, coursePackageIds: number[]) {
+    setActionLoading("正在更新账号课程包权限...");
+    try {
+      await setUserCoursePackages(authHeader, userId, coursePackageIds);
+      await accountsVm.reloadUsers();
+      await detailVm.reloadDetail(venuesVm.activeVenueId);
+      onNotice("账号课程包权限已更新。");
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : "更新账号课程包权限失败。", "error");
+    } finally {
+      setActionLoading("");
+    }
+  }
+
   const canInstall = useMemo(() => {
     const selected = Boolean(tvVm.selectedTvPackageId);
     return (screen: TvScreenSnapshot) =>
@@ -204,6 +217,7 @@ export function useVenueManagementVm({
     setNewVenueName: venuesVm.setNewVenueName,
     handleCreateVenue: venuesVm.handleCreateVenue,
     handleDeleteVenue: venuesVm.handleDeleteVenue,
+    handleRenameVenue: venuesVm.handleRenameVenue,
     createAccountOpen: accountsVm.createAccountOpen,
     setCreateAccountOpen: accountsVm.setCreateAccountOpen,
     accountUsername: accountsVm.accountUsername,
@@ -222,6 +236,7 @@ export function useVenueManagementVm({
     handleBindAccount: accountsVm.handleBindAccount,
     closeBindModal: accountsVm.closeBindModal,
     handleUnbindAccount: accountsVm.handleUnbindAccount,
+    handleUpdateAccountPassword: accountsVm.handleUpdateAccountPassword,
     allUsers: accountsVm.allUsers,
     accountsQuery: accountsVm.accountsQuery,
     setAccountsQuery: accountsVm.setAccountsQuery,
@@ -235,6 +250,7 @@ export function useVenueManagementVm({
     canInstall,
     canInstallAll,
     handleInstallTvPackage,
-    handleInstallAllTvPackages
+    handleInstallAllTvPackages,
+    handleSetAccountCoursePackages
   };
 }
