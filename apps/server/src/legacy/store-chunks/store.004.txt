@@ -52,13 +52,14 @@ function cleanupExpiredSessions() {
 }
 
 function createAuthPayload(userId, clientName = "editor-web") {
+  const normalizedClient = normalizeClientName(clientName);
   const tokenType = "Bearer";
   const accessToken = randomToken();
   const refreshToken = randomToken();
   const session = {
     id: nextId(state.authSessions),
     userId,
-    client: normalizeClientName(clientName),
+    client: normalizedClient,
     tokenType,
     accessToken,
     refreshToken,
@@ -67,7 +68,9 @@ function createAuthPayload(userId, clientName = "editor-web") {
     createTime: nowIso()
   };
 
-  state.authSessions = state.authSessions.filter((item) => item.userId !== userId);
+  state.authSessions = state.authSessions.filter(
+    (item) => item.userId !== userId || normalizeClientName(item.client) !== normalizedClient
+  );
   state.authSessions.push(session);
   persist();
 
