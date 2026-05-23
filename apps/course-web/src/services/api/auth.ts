@@ -12,6 +12,8 @@ export interface AuthTokenPayload {
   token_type: string;
   expires_in: number;
   refresh_token: string;
+  issued_at?: number;
+  expires_at?: number;
 }
 
 export interface UserProfile {
@@ -36,6 +38,20 @@ export async function loginWithPassword(username: string, password: string): Pro
       username,
       password,
       grant_type: "password",
+      client: "editor-web"
+    })
+  });
+  return response.data;
+}
+
+export async function refreshWithToken(refreshToken: string): Promise<AuthTokenPayload> {
+  const response = await requestJson<LegacyEnvelope<AuthTokenPayload>>("/api/app/refresh", {
+    method: "POST",
+    headers: {
+      Authorization: LEGACY_BASIC_AUTH
+    },
+    body: JSON.stringify({
+      refresh_token: refreshToken,
       client: "editor-web"
     })
   });

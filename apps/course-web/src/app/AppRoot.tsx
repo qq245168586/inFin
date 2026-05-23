@@ -33,7 +33,6 @@ export default function AppRoot() {
   const { appData, reloadMeta } = useMeta();
 
   const [activePage, setActivePage] = useState<NavKey>("home");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [typeDialog, setTypeDialog] = useState<TypeDialogState | null>(null);
   const [selectedCoursePackageId, setSelectedCoursePackageId] = useState("");
 
@@ -122,8 +121,6 @@ export default function AppRoot() {
   return (
     <>
       <AdminShell
-        sidebarCollapsed={sidebarCollapsed}
-        onSidebarCollapsedChange={setSidebarCollapsed}
         activePage={activePage}
         onActivePageChange={setActivePage}
         username={authSession.username || "admin"}
