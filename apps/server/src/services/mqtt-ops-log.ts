@@ -7,6 +7,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const legacyStorageRoot = path.resolve(__dirname, "../../storage");
 const storageRoot = path.resolve(process.env.INFINI_DATA_ROOT || legacyStorageRoot);
 const logRoot = path.join(storageRoot, "mqtt-logs");
+const MIN_RETENTION_DAYS = 3;
+const DEFAULT_RETENTION_DAYS = 7;
+const LOG_RETENTION_DAYS = Math.max(
+  MIN_RETENTION_DAYS,
+  Number(process.env.MQTT_LOG_RETENTION_DAYS || DEFAULT_RETENTION_DAYS) || DEFAULT_RETENTION_DAYS
+);
 
 const MQTT_HOST = process.env.MQTT_HOST || "8.130.65.113";
 const MQTT_PORT = Number(process.env.MQTT_PORT || 1883);
@@ -33,6 +39,36 @@ function dayKey(date = new Date()) {
   const mm = String(date.getMonth() + 1).padStart(2, "0");
   const dd = String(date.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
+}
+
+let lastRetentionSweepDay = "";
+
+function parseDayKey(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function sweepOldLogDays() {
+  const today = dayKey();
+  if (lastRetentionSweepDay === today) return;
+  lastRetentionSweepDay = today;
+
+  try {
+    if (!fs.existsSync(logRoot)) return;
+    const cutoff = new Date();
+    cutoff.setUTCHours(0, 0, 0, 0);
+    cutoff.setUTCDate(cutoff.getUTCDate() - LOG_RETENTION_DAYS);
+
+    for (const entry of fs.readdirSync(logRoot, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const parsed = parseDayKey(entry.name);
+      if (!parsed || parsed >= cutoff) continue;
+      fs.rmSync(path.join(logRoot, entry.name), { recursive: true, force: true });
+    }
+  } catch {
+    // Logging must never break TV control APIs.
+  }
 }
 
 function safeText(value) {
@@ -64,6 +100,7 @@ function guessType(payload) {
 
 function writeJsonl(event) {
   ensureDir(logRoot);
+  sweepOldLogDays();
   const dkey = dayKey();
   const namespace = safeText(event.namespace || "__unknown__") || "__unknown__";
   const deviceId = safeText(event.deviceId || "__unknown__") || "__unknown__";
