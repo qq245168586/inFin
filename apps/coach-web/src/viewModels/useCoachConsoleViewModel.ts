@@ -10,6 +10,7 @@ import {
   fetchVenueCoursePackages,
   mutatePlaybackSession,
   showCoursePlanOnTv,
+  startScheduleSession,
   switchActiveCoursePackage,
   venueBody,
   venueQuery
@@ -112,6 +113,24 @@ export function useCoachConsoleViewModel({
       return session;
     } catch (error) {
       handleRequestError(error, fallback);
+      return null;
+    } finally {
+      setPendingAction("");
+      onBusyTextChange("");
+    }
+  }
+
+  async function requestStartFromSchedule(schedule: TvDailySchedule, body: Record<string, unknown>) {
+    setPendingAction(String(body.commandId || schedule.id));
+    onBusyTextChange("正在发送开始课程指令...");
+    try {
+      const session = await startScheduleSession(authSession, schedule, body);
+      if (session) {
+        applyPlaybackSession(session);
+      }
+      return session;
+    } catch (error) {
+      handleRequestError(error, "开始课程失败。");
       return null;
     } finally {
       setPendingAction("");
@@ -225,6 +244,27 @@ export function useCoachConsoleViewModel({
     }
   }
 
+  async function exitPreview(schedule: TvDailySchedule) {
+    setSelectedScheduleId(String(schedule.id));
+    if (!playbackSession?.id || String(playbackSession.scheduleId) !== String(schedule.id) || sessionState !== "PREVIEW") {
+      return null;
+    }
+    const session = await requestSession(
+      `/api/tv/playback-sessions/${encodeURIComponent(playbackSession.id)}/terminate`,
+      venueBody(authSession, isSuperAdmin, { commandId: createCommandId() }, schedule, playbackSession),
+      "正在退出课程预览...",
+      "退出预览失败。"
+    );
+    if (!session) {
+      return null;
+    }
+    applyPlaybackSession(null);
+    setSelectedScheduleId(String(schedule.id));
+    setPreviewIndex(0);
+    onNotice("已退出预览，TV 端已回到课表页。");
+    return session;
+  }
+
   async function startCourse(schedule: TvDailySchedule) {
     setSelectedScheduleId(String(schedule.id));
     if (playbackSession?.id && isActiveSessionState(sessionState) && String(playbackSession.scheduleId) !== String(schedule.id)) {
@@ -235,18 +275,15 @@ export function useCoachConsoleViewModel({
         return;
       }
     }
-    const session = playbackSession?.id && String(playbackSession.scheduleId) === String(schedule.id) ? playbackSession : await enterPreview(schedule);
-    const sessionId = session?.id || selectedPlaybackSessionId;
-    if (!sessionId) {
-      onNotice("还没有可开始的课程 session，请先进入 preview。", "error");
-      return;
-    }
-    const nextSession = await requestSession(
-      `/api/tv/playback-sessions/${encodeURIComponent(sessionId)}/start`,
-      venueBody(authSession, isSuperAdmin, { commandId: createCommandId(), startDelayMs: 5000 }, schedule, session),
-      "正在发送开始课程指令...",
-      "开始课程失败。"
-    );
+    const startBody = venueBody(authSession, isSuperAdmin, { commandId: createCommandId(), startDelayMs: 5000 }, schedule, playbackSession);
+    const nextSession = playbackSession?.id && String(playbackSession.scheduleId) === String(schedule.id)
+      ? await requestSession(
+        `/api/tv/playback-sessions/${encodeURIComponent(playbackSession.id)}/start`,
+        startBody,
+        "正在发送开始课程指令...",
+        "开始课程失败。"
+      )
+      : await requestStartFromSchedule(schedule, startBody);
     if (nextSession) {
       onNotice("课程开始指令已发送，TV 端会按服务端时间同步开始。");
     }
@@ -352,6 +389,7 @@ export function useCoachConsoleViewModel({
     coursePackages: coursePackages?.packages || [],
     displayElapsedMs,
     enterPreview,
+    exitPreview,
     filteredSchedules: bundle?.schedules || [],
     handleRefreshTv,
     handleTouchEnd,

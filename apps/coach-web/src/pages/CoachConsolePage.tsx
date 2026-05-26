@@ -26,6 +26,7 @@ export default function CoachConsolePage(props: CoachConsoleViewModelProps) {
         schedules={vm.filteredSchedules}
         selectedScheduleId={vm.selectedScheduleId}
         onEnterPreview={(schedule) => void vm.enterPreview(schedule)}
+        onExitPreview={(schedule) => void vm.exitPreview(schedule)}
         onPause={() => void vm.pauseSelectedCourse()}
         onResume={() => void vm.resumeSelectedCourse()}
         onSelect={vm.selectSchedule}

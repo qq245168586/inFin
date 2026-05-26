@@ -9,6 +9,7 @@ interface ScheduleListProps {
   schedules: TvDailySchedule[];
   selectedScheduleId: string;
   onEnterPreview: (schedule: TvDailySchedule) => void;
+  onExitPreview: (schedule: TvDailySchedule) => void;
   onPause: () => void;
   onResume: () => void;
   onSelect: (schedule: TvDailySchedule) => void;
@@ -78,8 +79,13 @@ function ScheduleActions(props: ScheduleListProps & { schedule: TvDailySchedule;
       <button type="button" className="ghost-button" disabled={Boolean(props.pendingAction)} onClick={() => props.onShowPlan(props.schedule)}>
         计划
       </button>
-      <button type="button" className="ghost-button" disabled={Boolean(props.pendingAction)} onClick={() => props.onEnterPreview(props.schedule)}>
-        预览
+      <button
+        type="button"
+        className="ghost-button"
+        disabled={Boolean(props.pendingAction)}
+        onClick={() => props.scheduleState === "PREVIEW" ? props.onExitPreview(props.schedule) : props.onEnterPreview(props.schedule)}
+      >
+        {props.scheduleState === "PREVIEW" ? "退出预览" : "预览"}
       </button>
       <button type="button" className="primary-button" disabled={Boolean(props.pendingAction)} onClick={() => props.onStart(props.schedule)}>
         {props.pendingAction ? "处理中..." : "开始"}
