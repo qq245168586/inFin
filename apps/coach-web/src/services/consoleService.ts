@@ -77,6 +77,23 @@ export async function createPreviewSession(authSession: AuthSession, schedule: T
   return normalizePlaybackSession(payload);
 }
 
+export async function startScheduleSession(authSession: AuthSession, schedule: TvDailySchedule, body: Record<string, unknown>): Promise<PlaybackSession | null> {
+  const payload = await requestJson<PlaybackSessionEnvelope>("/api/tv/playback-sessions/start-from-schedule", {
+    method: "POST",
+    headers: authHeaders(authSession.token_type, authSession.access_token),
+    body: JSON.stringify({
+      ...body,
+      scheduleId: String(schedule.id),
+      venueId: String(schedule.venueId || ""),
+      accountNamespace: String(schedule.accountNamespace || ""),
+      courseId: schedule.courseId,
+      scheduledStartAtMs: scheduleStartAtMs(schedule),
+      bundleChecksum: String(schedule.contentChecksum || "")
+    })
+  });
+  return normalizePlaybackSession(payload);
+}
+
 export async function mutatePlaybackSession(authSession: AuthSession, path: string, body: Record<string, unknown>) {
   const payload = await requestJson<PlaybackSessionEnvelope>(path, {
     method: "POST",

@@ -9,10 +9,11 @@ interface PairPanelProps {
   pairToken: string;
   scannerError: string;
   onBind: () => void;
+  onChooseScreen: () => void;
   onOpenScanner: () => void;
+  onOpenPhotoPicker: () => void;
   onPhotoSelected: (file: File | null) => void;
   onRawInputChange: (value: string) => void;
-  onScreenNumberChange: (value: string) => void;
 }
 
 export function PairPanel(props: PairPanelProps) {
@@ -37,14 +38,15 @@ export function PairPanel(props: PairPanelProps) {
             </label>
             <label className="coach-screen-select">
               <span>屏幕编号</span>
-              <select value={props.pairScreenNumber} onChange={(event) => props.onScreenNumberChange(event.target.value)}>
-                {[1, 2, 3, 4, 5].map((screenNumber) => <option key={screenNumber} value={String(screenNumber)}>屏幕 {screenNumber}</option>)}
-              </select>
+              <button type="button" className="coach-screen-choice-trigger" onClick={props.onChooseScreen}>
+                <strong>屏幕 {props.pairScreenNumber}</strong>
+                <span>点击更换</span>
+              </button>
             </label>
           </div>
           <div className="coach-pair-actions">
             <button type="button" className="ghost-button" onClick={props.onOpenScanner}>打开扫码</button>
-            <button type="button" className="ghost-button" onClick={() => props.fileInputRef.current?.click()}>上传二维码照片</button>
+            <button type="button" className="ghost-button" onClick={props.onOpenPhotoPicker}>上传二维码照片</button>
             <button type="button" className="primary-button" disabled={!props.pairDeviceId || !props.pairToken || props.busyDeviceId === props.pairDeviceId} onClick={props.onBind}>绑定到屏幕</button>
           </div>
           <input ref={props.fileInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={(event) => props.onPhotoSelected(event.target.files?.[0] || null)} />
@@ -58,4 +60,3 @@ export function PairPanel(props: PairPanelProps) {
     </div>
   );
 }
-

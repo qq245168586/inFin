@@ -1,9 +1,11 @@
 import type { AuthSession, NoticeTone } from "../models/common";
+import { useState } from "react";
 import { BusyMask } from "../components/app/BusyMask";
 import { PackageSelector } from "../components/screens/PackageSelector";
 import { PairPanel } from "../components/screens/PairPanel";
 import { ScannerSheet } from "../components/screens/ScannerSheet";
 import { ScreenGrid } from "../components/screens/ScreenGrid";
+import { ScreenPickerSheet } from "../components/screens/ScreenPickerSheet";
 import { ScreensToolbar } from "../components/screens/ScreensToolbar";
 import { useScreensViewModel } from "../viewModels/useScreensViewModel";
 
@@ -16,6 +18,18 @@ interface CoachScreensPageProps {
 
 export default function CoachScreensPage(props: CoachScreensPageProps) {
   const vm = useScreensViewModel(props);
+  const [screenPickerMode, setScreenPickerMode] = useState<"scan" | "upload" | "select" | null>(null);
+
+  function handleScreenPicked(screenNumber: number) {
+    vm.setPairScreenNumber(String(screenNumber));
+    const mode = screenPickerMode;
+    setScreenPickerMode(null);
+    if (mode === "scan") {
+      window.setTimeout(() => void vm.scanner.startScanner(), 0);
+    } else if (mode === "upload") {
+      window.setTimeout(() => vm.scanner.fileInputRef.current?.click(), 0);
+    }
+  }
 
   return (
     <section className="coach-screens-page">
@@ -30,10 +44,11 @@ export default function CoachScreensPage(props: CoachScreensPageProps) {
         pairToken={vm.pairToken}
         scannerError={vm.scanner.scannerError}
         onBind={() => void vm.bindScannedDevice()}
-        onOpenScanner={() => void vm.scanner.startScanner()}
+        onChooseScreen={() => setScreenPickerMode("select")}
+        onOpenScanner={() => setScreenPickerMode("scan")}
+        onOpenPhotoPicker={() => setScreenPickerMode("upload")}
         onPhotoSelected={(file) => void vm.scanner.handleQrImageSelected(file)}
         onRawInputChange={vm.updatePairRawInput}
-        onScreenNumberChange={vm.setPairScreenNumber}
       />
       <ScreenGrid
         busyDeviceId={vm.busyDeviceId}
@@ -47,8 +62,8 @@ export default function CoachScreensPage(props: CoachScreensPageProps) {
         onUnbind={(screen) => void vm.unbindScreen(screen)}
       />
       <BusyMask text={vm.loading ? "正在刷新屏幕状态..." : ""} inline />
+      <ScreenPickerSheet mode={screenPickerMode} selectedScreenNumber={vm.pairScreenNumber} onClose={() => setScreenPickerMode(null)} onSelect={handleScreenPicked} />
       <ScannerSheet open={vm.scanner.scannerOpen} videoRef={vm.scanner.videoRef} onClose={vm.scanner.stopScanner} />
     </section>
   );
 }
-
