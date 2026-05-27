@@ -168,6 +168,9 @@ abstract class MainActivityPart12 extends MainActivityPart11 {
     if (course == null || course.warmup == null || course.warmup.items == null || course.warmup.items.isEmpty()) {
       return 0;
     }
+    if (course.metadata != null && course.metadata.readyWarmupSeconds >= 0) {
+      return course.metadata.readyWarmupSeconds;
+    }
     return WARMUP_READY_SECONDS;
   }
 
@@ -175,12 +178,18 @@ abstract class MainActivityPart12 extends MainActivityPart11 {
     if (course == null || course.pods == null || course.pods.isEmpty()) {
       return 0;
     }
+    if (course.metadata != null && course.metadata.readyWorkoutSeconds >= 0) {
+      return course.metadata.readyWorkoutSeconds;
+    }
     return TRAINING_READY_SECONDS;
   }
 
   protected int getCooldownReadySeconds(CourseScript course) {
     if (course == null || course.cooldown == null || course.cooldown.items == null || course.cooldown.items.isEmpty()) {
       return 0;
+    }
+    if (course.metadata != null && course.metadata.readyCooldownSeconds >= 0) {
+      return course.metadata.readyCooldownSeconds;
     }
     return COOLDOWN_READY_SECONDS;
   }

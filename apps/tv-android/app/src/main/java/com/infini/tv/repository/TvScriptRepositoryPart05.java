@@ -115,6 +115,7 @@ abstract class TvScriptRepositoryPart05 extends TvScriptRepositoryPart04 {
     JSONObject trainingObject = scriptObject.optJSONObject("training");
     JSONObject planObject = scriptObject.optJSONObject("plan");
     JSONObject panelObject = metadataObject != null ? metadataObject.optJSONObject("trainingPanel") : null;
+    JSONObject readyObject = metadataObject != null ? metadataObject.optJSONObject("readyDurations") : null;
 
     return new CourseScript(
         new CourseScript.Metadata(
@@ -123,6 +124,9 @@ abstract class TvScriptRepositoryPart05 extends TvScriptRepositoryPart04 {
             metadataObject != null ? metadataObject.optString("version") : "",
             metadataObject != null ? metadataObject.optString("creator") : "",
             metadataObject != null ? metadataObject.optInt("defaultHydrateSeconds", 0) : 0,
+            readOptionalNonNegativeSeconds(readyObject, "warmupSeconds"),
+            readOptionalNonNegativeSeconds(readyObject, "workoutSeconds"),
+            readOptionalNonNegativeSeconds(readyObject, "cooldownSeconds"),
             panelObject != null ? panelObject.optInt("setCount", 0) : 0,
             panelObject != null ? panelObject.optInt("breakCount", 0) : 0,
             panelObject != null ? panelObject.optInt("workSeconds", 0) : 0,
@@ -132,6 +136,13 @@ abstract class TvScriptRepositoryPart05 extends TvScriptRepositoryPart04 {
         parseVideoGroups(trainingObject != null ? trainingObject.optJSONArray("videoGroups") : null),
         parsePods(trainingObject != null ? trainingObject.optJSONArray("pods") : null),
         parseCoursePlan(planObject));
+  }
+
+  protected int readOptionalNonNegativeSeconds(JSONObject object, String key) {
+    if (object == null || key == null || !object.has(key)) {
+      return -1;
+    }
+    return Math.max(0, object.optInt(key, -1));
   }
 
   protected CourseScript localizeCourseScript(CourseScript source, Map<String, String> localMediaMap) {

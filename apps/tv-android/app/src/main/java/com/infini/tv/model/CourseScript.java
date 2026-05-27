@@ -57,6 +57,9 @@ public class CourseScript {
     public final String version;
     public final String creator;
     public final int defaultHydrateSeconds;
+    public final int readyWarmupSeconds;
+    public final int readyWorkoutSeconds;
+    public final int readyCooldownSeconds;
     public final int setCount;
     public final int breakCount;
     public final int workSeconds;
@@ -68,6 +71,9 @@ public class CourseScript {
         String version,
         String creator,
         int defaultHydrateSeconds,
+        int readyWarmupSeconds,
+        int readyWorkoutSeconds,
+        int readyCooldownSeconds,
         int setCount,
         int breakCount,
         int workSeconds,
@@ -77,6 +83,9 @@ public class CourseScript {
       this.version = version;
       this.creator = creator;
       this.defaultHydrateSeconds = defaultHydrateSeconds;
+      this.readyWarmupSeconds = readyWarmupSeconds;
+      this.readyWorkoutSeconds = readyWorkoutSeconds;
+      this.readyCooldownSeconds = readyCooldownSeconds;
       this.setCount = setCount;
       this.breakCount = breakCount;
       this.workSeconds = workSeconds;
