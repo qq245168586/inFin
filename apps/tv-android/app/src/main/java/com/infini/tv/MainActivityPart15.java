@@ -88,14 +88,14 @@ abstract class MainActivityPart15 extends MainActivityPart14 {
   protected int calculateWideTrainingRowHeight() {
     int contentWidth = getResources().getDisplayMetrics().widthPixels - dp(36);
     int previewWidth = Math.max(contentWidth - dp(98), dp(260));
-    return Math.max(Math.round(previewWidth * 10.5f / 16f), dp(240));
+    return Math.max(Math.round(previewWidth * 9f / 16f), dp(146));
   }
 
   protected int calculateGridTrainingRowHeight() {
     int contentWidth = getResources().getDisplayMetrics().widthPixels - dp(36);
-    int columnWidth = Math.max((contentWidth - dp(10)) / 2, dp(180));
-    int previewWidth = Math.max(columnWidth - dp(76), dp(160));
-    return Math.max(Math.round(previewWidth * 10.5f / 16f), dp(190));
+    int columnWidth = Math.max((contentWidth - dp(28)) / 2, dp(180));
+    int previewWidth = Math.max(columnWidth - dp(104), dp(160));
+    return Math.max(Math.round(previewWidth * 9f / 16f), dp(90));
   }
 
   protected int calculateTrainingRowHeight(int cardCount, int columns, int rowCount, int rowGap) {
@@ -112,11 +112,8 @@ abstract class MainActivityPart15 extends MainActivityPart14 {
     int fitHeight = Math.max(availableHeight / Math.max(rowCount, 1), dp(80));
     int aspectHeight = columns == 1 ? calculateWideTrainingRowHeight() : calculateGridTrainingRowHeight();
 
-    if (isPortraitViewport() && cardCount >= 4 && cardCount <= 10) {
-      return fitHeight;
-    }
     if (cardCount <= 10) {
-      return Math.min(aspectHeight, fitHeight);
+      return Math.max(Math.min(aspectHeight, fitHeight), dp(72));
     }
     return Math.max(Math.min(aspectHeight, fitHeight), dp(72));
   }
@@ -197,17 +194,20 @@ abstract class MainActivityPart15 extends MainActivityPart14 {
           return 0;
         }
         int stationRestSeconds = Math.max(effectiveScreen.rule.stationRestSeconds, 0);
-        for (int pairRoundIndex = 0; pairRoundIndex < loopCount; pairRoundIndex += 1) {
-          for (int setIndex = 0; setIndex < setConfigs.size(); setIndex += 1) {
-            CourseScript.PodSetConfig setConfig = setConfigs.get(setIndex);
-            duration += Math.max(setConfig.workSeconds, 0) * 2;
-            duration += stationRestSeconds;
-            if (setIndex < setConfigs.size() - 1) {
-              duration += Math.max(setConfig.restSeconds, 0);
+        for (int loopIndex = 0; loopIndex < loopCount; loopIndex += 1) {
+          for (int pairIndex = 0; pairIndex < pairCount; pairIndex += 1) {
+            for (int setIndex = 0; setIndex < setConfigs.size(); setIndex += 1) {
+              CourseScript.PodSetConfig setConfig = setConfigs.get(setIndex);
+              duration += Math.max(setConfig.workSeconds, 0) * 2;
+              duration += stationRestSeconds;
+              if (setIndex < setConfigs.size() - 1) {
+                duration += Math.max(setConfig.restSeconds, 0);
+              }
             }
-          }
-          if (pairRoundIndex < loopCount - 1) {
-            duration += stationRestSeconds;
+            boolean hasNextPairRound = pairIndex < pairCount - 1 || loopIndex < loopCount - 1;
+            if (hasNextPairRound) {
+              duration += stationRestSeconds;
+            }
           }
         }
         return duration;

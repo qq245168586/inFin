@@ -17,9 +17,21 @@ public final class HorizontalProgressBarComponent {
 
   private HorizontalProgressBarComponent() {}
 
+  public static final class WorkSegment {
+    public final int startOffsetSeconds;
+    public final int durationSeconds;
+    public final boolean markerAfter;
+
+    public WorkSegment(int startOffsetSeconds, int durationSeconds, boolean markerAfter) {
+      this.startOffsetSeconds = Math.max(startOffsetSeconds, 0);
+      this.durationSeconds = Math.max(durationSeconds, 1);
+      this.markerAfter = markerAfter;
+    }
+  }
+
   public static void render(
       LinearLayout progressRow,
-      List<Integer> segmentDurations,
+      List<WorkSegment> workSegments,
       int elapsedSeconds,
       int totalSeconds,
       int shortSide) {
@@ -27,7 +39,7 @@ public final class HorizontalProgressBarComponent {
       return;
     }
 
-    if (segmentDurations == null || segmentDurations.isEmpty()) {
+    if (workSegments == null || workSegments.isEmpty()) {
       progressRow.removeAllViews();
       progressRow.setVisibility(View.GONE);
       return;
@@ -35,7 +47,7 @@ public final class HorizontalProgressBarComponent {
 
     Context context = progressRow.getContext();
     progressRow.setVisibility(View.VISIBLE);
-    int segmentHeight = clamp(Math.round(shortSide * 0.027f), dp(context, 22), dp(context, 36));
+    int segmentHeight = dp(context, 48);
     int markerHeight = clamp(Math.round(shortSide * 0.10f), dp(context, 78), dp(context, 122));
     int markerWidth =
         clamp(Math.round(markerHeight * WATER_ICON_ASPECT_RATIO), dp(context, 42), dp(context, 68));
@@ -62,7 +74,7 @@ public final class HorizontalProgressBarComponent {
       }
     }
     progressView.setProgressData(
-        segmentDurations,
+        workSegments,
         safeElapsed,
         segmentHeight,
         markerWidth,
@@ -87,7 +99,7 @@ public final class HorizontalProgressBarComponent {
     private final int inactiveColor;
     private final int markerDoneColor;
     private final int markerIdleColor;
-    private final List<Integer> segmentDurations = new ArrayList<>();
+    private final List<WorkSegment> workSegments = new ArrayList<>();
     private int elapsedSeconds;
     private int segmentHeight;
     private int markerWidth;
@@ -106,16 +118,18 @@ public final class HorizontalProgressBarComponent {
     }
 
     void setProgressData(
-        List<Integer> durations,
+        List<WorkSegment> segments,
         int elapsed,
         int barHeight,
         int waterWidth,
         int waterHeight,
         int waterMargin) {
-      segmentDurations.clear();
-      if (durations != null) {
-        for (Integer duration : durations) {
-          segmentDurations.add(Math.max(duration == null ? 0 : duration, 1));
+      workSegments.clear();
+      if (segments != null) {
+        for (WorkSegment segment : segments) {
+          if (segment != null && segment.durationSeconds > 0) {
+            workSegments.add(segment);
+          }
         }
       }
       elapsedSeconds = Math.max(elapsed, 0);
@@ -129,7 +143,7 @@ public final class HorizontalProgressBarComponent {
     @Override
     protected void onDraw(Canvas canvas) {
       super.onDraw(canvas);
-      if (segmentDurations.isEmpty()) {
+      if (workSegments.isEmpty()) {
         return;
       }
       int width = getWidth();
@@ -138,36 +152,53 @@ public final class HorizontalProgressBarComponent {
         return;
       }
 
-      int markerCount = Math.max(segmentDurations.size() - 1, 0);
+      int markerCount = 0;
+      for (int index = 0; index < workSegments.size() - 1; index += 1) {
+        if (workSegments.get(index).markerAfter) {
+          markerCount += 1;
+        }
+      }
+      int blockGap = workSegments.size() > 24 ? dp(getContext(), 2) : dp(getContext(), 4);
+      int gapCount = Math.max(workSegments.size() - 1 - markerCount, 0);
       float fixedWidth = markerCount * (markerWidth + markerMargin * 2f);
+      fixedWidth += gapCount * blockGap;
       float availableSegmentWidth = Math.max(0f, width - fixedWidth);
       int totalDuration = 0;
-      for (Integer duration : segmentDurations) {
-        totalDuration += Math.max(duration, 1);
+      for (WorkSegment segment : workSegments) {
+        totalDuration += Math.max(segment.durationSeconds, 1);
       }
       if (totalDuration <= 0 || availableSegmentWidth <= 0f) {
         return;
       }
 
       float x = 0f;
-      int consumedSeconds = 0;
       float centerY = height / 2f;
-      for (int index = 0; index < segmentDurations.size(); index += 1) {
-        int duration = Math.max(segmentDurations.get(index), 1);
+      for (int index = 0; index < workSegments.size(); index += 1) {
+        WorkSegment segment = workSegments.get(index);
+        int duration = Math.max(segment.durationSeconds, 1);
         float segmentWidth =
-            index == segmentDurations.size() - 1
+            index == workSegments.size() - 1
                 ? Math.max(0f, width - x)
                 : availableSegmentWidth * duration / (float) totalDuration;
         if (segmentWidth > 0f) {
-          drawSegment(canvas, x, centerY, segmentWidth, duration, elapsedSeconds - consumedSeconds);
+          drawSegment(
+              canvas,
+              x,
+              centerY,
+              segmentWidth,
+              duration,
+              elapsedSeconds - segment.startOffsetSeconds);
         }
         x += segmentWidth;
-        consumedSeconds += duration;
 
-        if (index < segmentDurations.size() - 1) {
-          x += markerMargin;
-          drawMarker(canvas, x, centerY, elapsedSeconds >= consumedSeconds);
-          x += markerWidth + markerMargin;
+        if (index < workSegments.size() - 1) {
+          if (segment.markerAfter) {
+            x += markerMargin;
+            drawMarker(canvas, x, centerY, elapsedSeconds >= segment.startOffsetSeconds + duration);
+            x += markerWidth + markerMargin;
+          } else {
+            x += blockGap;
+          }
         }
       }
     }

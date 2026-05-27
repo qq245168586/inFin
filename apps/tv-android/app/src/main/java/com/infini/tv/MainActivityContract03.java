@@ -190,7 +190,18 @@ abstract class MainActivityContract03 extends MainActivityContract02 {
 
   protected abstract void configureHorizontalMainLayout(boolean finishMode);
 
-  protected abstract List<Integer> buildHorizontalTimeline(CourseScript course);
+  protected abstract List<HorizontalProgressBarComponent.WorkSegment> buildHorizontalWorkTimeline(CourseScript course);
+
+  protected abstract void addHorizontalWorkSegments(
+      List<HorizontalProgressBarComponent.WorkSegment> segments,
+      CourseScript.Pod pod,
+      EffectivePodScreen effectiveScreen,
+      int podOffsetSeconds);
+
+  protected abstract void addHorizontalSwitchWorkSegments(
+      List<HorizontalProgressBarComponent.WorkSegment> segments,
+      EffectivePodScreen effectiveScreen,
+      int podOffsetSeconds);
 
   protected abstract EffectivePodScreen materializeProgressPodScreen(CourseScript course, CourseScript.Pod pod);
 

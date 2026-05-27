@@ -464,14 +464,23 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
     }
 
     int cardCount = state.displayCards.size();
-    int columns = cardCount <= 3 ? 1 : 2;
+    int columns = cardCount == 1 || cardCount == 3 ? 1 : 2;
     int rowCount = Math.max((int) Math.ceil(cardCount / (float) columns), 1);
     int rowGap = calculateTrainingRowGap(rowCount);
     int previewHeight = calculateTrainingRowHeight(cardCount, columns, rowCount, rowGap);
+    int viewportHeight = playbackScrollView == null ? 0 : playbackScrollView.getHeight();
+    if (viewportHeight <= 0) {
+      viewportHeight = Math.round(getResources().getDisplayMetrics().heightPixels * 0.70f);
+    }
+    int totalRowsHeight = rowCount * previewHeight + Math.max(rowCount - 1, 0) * rowGap;
+    int verticalSpace = Math.max(viewportHeight - dp(24), 0);
+    trainingCardsContainer.setGravity(android.view.Gravity.CENTER_VERTICAL);
+    trainingCardsContainer.setMinimumHeight(Math.max(totalRowsHeight, verticalSpace));
 
     for (int rowStart = 0; rowStart < cardCount; rowStart += columns) {
       LinearLayout row = new LinearLayout(this);
       row.setOrientation(LinearLayout.HORIZONTAL);
+      row.setGravity(android.view.Gravity.CENTER);
       LinearLayout.LayoutParams rowParams =
           new LinearLayout.LayoutParams(
               LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -483,9 +492,6 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
       for (int column = 0; column < columns; column += 1) {
         int cardIndex = rowStart + column;
         if (cardIndex >= cardCount) {
-          View spacer = new View(this);
-          spacer.setLayoutParams(new LinearLayout.LayoutParams(0, 0, 1f));
-          row.addView(spacer);
           continue;
         }
 
@@ -504,14 +510,19 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
       CourseScript.VideoCard card, int cardIndex, int previewHeight) {
     LinearLayout wrapper = new LinearLayout(this);
     wrapper.setOrientation(LinearLayout.HORIZONTAL);
+    int indexWidth = dp(116);
+    int previewGap = dp(10);
+    int previewWidth = Math.round(previewHeight * 16f / 9f);
+    int contentWidth = Math.max(getResources().getDisplayMetrics().widthPixels - dp(36), dp(320));
+    int itemWidth = Math.min(contentWidth, indexWidth + previewGap + previewWidth);
     LinearLayout.LayoutParams params =
-        new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, previewHeight);
+        new LinearLayout.LayoutParams(itemWidth, previewHeight);
     wrapper.setLayoutParams(params);
     wrapper.setBackgroundResource(R.drawable.bg_training_card);
 
     TextView index = new TextView(this);
     LinearLayout.LayoutParams indexParams =
-        new LinearLayout.LayoutParams(dp(116), LinearLayout.LayoutParams.MATCH_PARENT);
+        new LinearLayout.LayoutParams(indexWidth, LinearLayout.LayoutParams.MATCH_PARENT);
     index.setLayoutParams(indexParams);
     index.setBackgroundResource(R.drawable.bg_playback_index_card);
     index.setGravity(android.view.Gravity.CENTER);
@@ -523,8 +534,10 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
 
     FrameLayout preview = new FrameLayout(this);
     LinearLayout.LayoutParams previewParams =
-        new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f);
-    previewParams.leftMargin = dp(10);
+        new LinearLayout.LayoutParams(
+            Math.max(itemWidth - indexWidth - previewGap, dp(120)),
+            LinearLayout.LayoutParams.MATCH_PARENT);
+    previewParams.leftMargin = previewGap;
     preview.setLayoutParams(previewParams);
     preview.setBackgroundColor(getColor(R.color.tv_training_card_inactive));
     wrapper.addView(preview);
@@ -538,7 +551,13 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
       CourseScript.VideoCard card, int cardIndex, int previewHeight) {
     LinearLayout wrapper = new LinearLayout(this);
     wrapper.setOrientation(LinearLayout.HORIZONTAL);
-    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, previewHeight, 1f);
+    int indexWidth = dp(96);
+    int previewGap = dp(8);
+    int previewWidth = Math.round(previewHeight * 16f / 9f);
+    int contentWidth = Math.max(getResources().getDisplayMetrics().widthPixels - dp(36), dp(320));
+    int columnWidth = Math.max((contentWidth - dp(28)) / 2, dp(180));
+    int itemWidth = Math.min(columnWidth, indexWidth + previewGap + previewWidth);
+    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(itemWidth, previewHeight);
     if (cardIndex % 2 == 0) {
       params.rightMargin = dp(7);
     } else {
@@ -549,7 +568,7 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
 
     TextView index = new TextView(this);
     LinearLayout.LayoutParams indexParams =
-        new LinearLayout.LayoutParams(dp(96), LinearLayout.LayoutParams.MATCH_PARENT);
+        new LinearLayout.LayoutParams(indexWidth, LinearLayout.LayoutParams.MATCH_PARENT);
     index.setLayoutParams(indexParams);
     index.setBackgroundResource(R.drawable.bg_playback_index_card);
     index.setGravity(android.view.Gravity.CENTER);
@@ -561,8 +580,10 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
 
     FrameLayout preview = new FrameLayout(this);
     LinearLayout.LayoutParams previewParams =
-        new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f);
-    previewParams.leftMargin = dp(8);
+        new LinearLayout.LayoutParams(
+            Math.max(itemWidth - indexWidth - previewGap, dp(84)),
+            LinearLayout.LayoutParams.MATCH_PARENT);
+    previewParams.leftMargin = previewGap;
     preview.setLayoutParams(previewParams);
     preview.setBackgroundColor(getColor(R.color.tv_training_card_inactive));
     wrapper.addView(preview);

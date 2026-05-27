@@ -448,8 +448,18 @@ abstract class MainActivityPart06 extends MainActivityPart05 {
                       syncInProgress = false;
                       currentBundleChecksum = result.checksum;
                       currentBundleScheduleCount = result.schedules == null ? 0 : result.schedules.size();
-                      resourceCacheDirty = false;
+                      resourceCacheDirty = !result.resourcesCached;
                       lastScheduleSyncFailed = false;
+                      Log.i(
+                          TAG,
+                          "Vertical schedule sync applied screen="
+                              + screenNumber
+                              + " checksum="
+                              + result.checksum
+                              + " schedules="
+                              + currentBundleScheduleCount
+                              + " resourcesCached="
+                              + result.resourcesCached);
                       bindScheduleItems(result.schedules);
                       dispatchScreenHeartbeat(false);
                       scheduleChecksumPolling();
@@ -485,18 +495,57 @@ abstract class MainActivityPart06 extends MainActivityPart05 {
                 runOnUiThread(
                     () -> {
                       if (!shouldApplyScreenUpdate(screenNumber) || syncInProgress) {
+                        Log.i(
+                            TAG,
+                            "Daily checksum deferred screen="
+                                + screenNumber
+                                + " syncInProgress="
+                                + syncInProgress);
                         scheduleChecksumPolling();
                         return;
                       }
 
                       int localScheduleCount = syncedTodaySchedules == null ? 0 : syncedTodaySchedules.size();
+                      String remoteScheduleSignature = buildScheduleSignature(checksum.schedules);
+                      String localScheduleSignature = buildScheduleSignature(syncedTodaySchedules);
+                      boolean scheduleSummaryMismatch =
+                          !TextUtils.equals(remoteScheduleSignature, localScheduleSignature);
                       boolean countMismatch =
                           checksum.scheduleCount >= 0 && checksum.scheduleCount != localScheduleCount;
-                      if (currentBundleChecksum == null
-                          || currentBundleChecksum.trim().isEmpty()
-                          || !currentBundleChecksum.equals(checksum.checksum)
-                          || currentBundleScheduleCount != checksum.scheduleCount
-                          || countMismatch) {
+                      boolean shouldSync =
+                          currentBundleChecksum == null
+                              || currentBundleChecksum.trim().isEmpty()
+                              || !currentBundleChecksum.equals(checksum.checksum)
+                              || currentBundleScheduleCount != checksum.scheduleCount
+                              || countMismatch
+                              || scheduleSummaryMismatch
+                              || lastScheduleSyncFailed
+                              || resourceCacheDirty;
+                      Log.i(
+                          TAG,
+                          "Daily checksum decision screen="
+                              + screenNumber
+                              + " remoteChecksum="
+                              + checksum.checksum
+                              + " remoteCount="
+                              + checksum.scheduleCount
+                              + " currentChecksum="
+                              + currentBundleChecksum
+                              + " currentCount="
+                              + currentBundleScheduleCount
+                              + " localCount="
+                              + localScheduleCount
+                              + " remoteSignature="
+                              + remoteScheduleSignature
+                              + " localSignature="
+                              + localScheduleSignature
+                              + " resourceCacheDirty="
+                              + resourceCacheDirty
+                              + " lastScheduleSyncFailed="
+                              + lastScheduleSyncFailed
+                              + " shouldSync="
+                              + shouldSync);
+                      if (shouldSync) {
                         if (isVerticalCourseScreen(screenNumber)) {
                           syncTodaySchedule(screenNumber, false);
                         } else {
@@ -508,6 +557,7 @@ abstract class MainActivityPart06 extends MainActivityPart05 {
                       scheduleChecksumPolling();
                     });
               } catch (Exception error) {
+                Log.w(TAG, "Daily checksum check failed for screen " + screenNumber, error);
                 runOnUiThread(
                     () -> {
                       if (!shouldApplyScreenUpdate(screenNumber)) {
@@ -518,5 +568,31 @@ abstract class MainActivityPart06 extends MainActivityPart05 {
               }
             })
         .start();
+  }
+
+  private String buildScheduleSignature(List<TvScheduleItem> schedules) {
+    if (schedules == null || schedules.isEmpty()) {
+      return "";
+    }
+    StringBuilder builder = new StringBuilder();
+    for (TvScheduleItem item : schedules) {
+      if (item == null) {
+        continue;
+      }
+      if (builder.length() > 0) {
+        builder.append("|");
+      }
+      builder
+          .append(item.id == null ? "" : item.id)
+          .append(":")
+          .append(item.courseId)
+          .append(":")
+          .append(item.startTime == null ? "" : item.startTime.toString())
+          .append(":")
+          .append(item.endTime == null ? "" : item.endTime.toString())
+          .append(":")
+          .append(item.contentChecksum == null ? "" : item.contentChecksum);
+    }
+    return builder.toString();
   }
 }

@@ -215,11 +215,15 @@ abstract class MainActivityPart11 extends MainActivityPart10 {
         Math.min(
             getResources().getDisplayMetrics().widthPixels,
             getResources().getDisplayMetrics().heightPixels);
+    List<HorizontalProgressBarComponent.WorkSegment> workTimeline =
+        buildHorizontalWorkTimeline(course);
+    int workElapsedSeconds = resolveHorizontalWorkElapsedSeconds(course, elapsedSeconds);
+    int totalWorkSeconds = getHorizontalWorkTotalSeconds(workTimeline);
     HorizontalProgressBarComponent.render(
         horizontalProgressRow,
-        buildHorizontalTimeline(course),
-        elapsedSeconds,
-        totalSeconds,
+        workTimeline,
+        workElapsedSeconds,
+        totalWorkSeconds,
         shortSide);
   }
 
@@ -341,32 +345,230 @@ abstract class MainActivityPart11 extends MainActivityPart10 {
     }
   }
 
-  protected List<Integer> buildHorizontalTimeline(CourseScript course) {
-    List<Integer> segments = new ArrayList<>();
-    if (course == null) {
-      return segments;
+  protected List<HorizontalProgressBarComponent.WorkSegment> buildHorizontalWorkTimeline(CourseScript course) {
+    List<HorizontalProgressBarComponent.WorkSegment> segments = new ArrayList<>();
+    for (HorizontalWorkTiming timing : buildHorizontalWorkTimings(course)) {
+      segments.add(
+          new HorizontalProgressBarComponent.WorkSegment(
+              timing.workStartSeconds,
+              timing.durationSeconds,
+              timing.markerAfter));
     }
 
-    int segmentDuration = 0;
-    if (course.pods != null) {
-      for (CourseScript.Pod pod : course.pods) {
-        segmentDuration +=
-            getPodDurationSeconds(pod, materializeProgressPodScreen(course, pod));
-        int endingDuration = getPodEndingDurationSeconds(course, pod);
-        if (endingDuration > 0 && isProgressMarkerPod(pod)) {
-          segmentDuration += endingDuration;
-          segments.add(Math.max(segmentDuration, 1));
-          segmentDuration = 0;
-        } else {
-          segmentDuration += endingDuration;
+    return segments;
+  }
+
+  protected int getHorizontalWorkTotalSeconds(
+      List<HorizontalProgressBarComponent.WorkSegment> segments) {
+    if (segments == null || segments.isEmpty()) {
+      return 0;
+    }
+
+    int totalSeconds = 0;
+    for (HorizontalProgressBarComponent.WorkSegment segment : segments) {
+      if (segment != null) {
+        totalSeconds += Math.max(segment.durationSeconds, 0);
+      }
+    }
+    return totalSeconds;
+  }
+
+  protected int resolveHorizontalWorkElapsedSeconds(CourseScript course, int elapsedSeconds) {
+    int safeElapsedSeconds = Math.max(elapsedSeconds, 0);
+    int workElapsedSeconds = 0;
+    for (HorizontalWorkTiming timing : buildHorizontalWorkTimings(course)) {
+      if (timing == null || timing.durationSeconds <= 0) {
+        continue;
+      }
+      if (safeElapsedSeconds < timing.realStartSeconds) {
+        return workElapsedSeconds;
+      }
+      int realEndSeconds = timing.realStartSeconds + timing.durationSeconds;
+      if (safeElapsedSeconds < realEndSeconds) {
+        return timing.workStartSeconds + Math.max(safeElapsedSeconds - timing.realStartSeconds, 0);
+      }
+      workElapsedSeconds = timing.workStartSeconds + timing.durationSeconds;
+    }
+    return workElapsedSeconds;
+  }
+
+  protected List<HorizontalWorkTiming> buildHorizontalWorkTimings(CourseScript course) {
+    List<HorizontalWorkTiming> timings = new ArrayList<>();
+    if (course == null || course.pods == null) {
+      return timings;
+    }
+
+    int realTrainingOffsetSeconds = 0;
+    int workOffsetSeconds = 0;
+    for (CourseScript.Pod pod : course.pods) {
+      EffectivePodScreen effectiveScreen = materializeProgressPodScreen(course, pod);
+      int firstIndex = timings.size();
+      workOffsetSeconds =
+          addHorizontalWorkTimings(
+              timings,
+              pod,
+              effectiveScreen,
+              realTrainingOffsetSeconds,
+              workOffsetSeconds);
+
+      int podDurationSeconds = getPodDurationSeconds(pod, effectiveScreen);
+      int endingDurationSeconds = getPodEndingDurationSeconds(course, pod);
+      if (endingDurationSeconds > 0 && isProgressMarkerPod(pod) && timings.size() > firstIndex) {
+        timings.get(timings.size() - 1).markerAfter = true;
+      }
+      realTrainingOffsetSeconds += podDurationSeconds + endingDurationSeconds;
+    }
+    return timings;
+  }
+
+  protected void addHorizontalWorkSegments(
+      List<HorizontalProgressBarComponent.WorkSegment> segments,
+      CourseScript.Pod pod,
+      EffectivePodScreen effectiveScreen,
+      int podOffsetSeconds) {
+    if (segments == null) {
+      return;
+    }
+
+    List<HorizontalWorkTiming> timings = new ArrayList<>();
+    addHorizontalWorkTimings(timings, pod, effectiveScreen, podOffsetSeconds, podOffsetSeconds);
+    for (HorizontalWorkTiming timing : timings) {
+      segments.add(
+          new HorizontalProgressBarComponent.WorkSegment(
+              timing.workStartSeconds,
+              timing.durationSeconds,
+              false));
+    }
+  }
+
+  protected int addHorizontalWorkTimings(
+      List<HorizontalWorkTiming> timings,
+      CourseScript.Pod pod,
+      EffectivePodScreen effectiveScreen,
+      int realPodOffsetSeconds,
+      int workOffsetSeconds) {
+    if (timings == null
+        || pod == null
+        || effectiveScreen == null
+        || effectiveScreen.rule == null
+        || effectiveScreen.rule.setConfigs == null
+        || effectiveScreen.rule.setConfigs.isEmpty()
+        || effectiveScreen.videoCards == null
+        || effectiveScreen.videoCards.isEmpty()) {
+      return workOffsetSeconds;
+    }
+
+    if ("SWITCH".equals(pod.stationFlow) && effectiveScreen.videoCards.size() >= 2) {
+      return addHorizontalSwitchWorkTimings(timings, effectiveScreen, realPodOffsetSeconds, workOffsetSeconds);
+    }
+
+    List<CourseScript.VideoCard> actionSequence = new ArrayList<>();
+    int safeLoops = Math.max(effectiveScreen.rule.loopCount, 1);
+    for (int loopIndex = 0; loopIndex < safeLoops; loopIndex += 1) {
+      actionSequence.addAll(effectiveScreen.videoCards);
+    }
+
+    int screenOffsetSeconds = 0;
+    for (int actionIndex = 0; actionIndex < actionSequence.size(); actionIndex += 1) {
+      for (int setIndex = 0; setIndex < effectiveScreen.rule.setConfigs.size(); setIndex += 1) {
+        CourseScript.PodSetConfig setConfig = effectiveScreen.rule.setConfigs.get(setIndex);
+        int workSeconds = Math.max(setConfig == null ? 0 : setConfig.workSeconds, 0);
+        if (workSeconds > 0) {
+          timings.add(
+              new HorizontalWorkTiming(
+                  realPodOffsetSeconds + screenOffsetSeconds,
+                  workOffsetSeconds,
+                  workSeconds));
+          workOffsetSeconds += workSeconds;
+        }
+        screenOffsetSeconds += workSeconds;
+
+        boolean hasNextSet = setIndex < effectiveScreen.rule.setConfigs.size() - 1;
+        if (hasNextSet && setConfig != null && setConfig.restSeconds > 0) {
+          screenOffsetSeconds += setConfig.restSeconds;
+        }
+      }
+
+      boolean hasNextAction = actionIndex < actionSequence.size() - 1;
+      if (hasNextAction && effectiveScreen.rule.stationRestSeconds > 0) {
+        screenOffsetSeconds += effectiveScreen.rule.stationRestSeconds;
+      }
+    }
+    return workOffsetSeconds;
+  }
+
+  protected void addHorizontalSwitchWorkSegments(
+      List<HorizontalProgressBarComponent.WorkSegment> segments,
+      EffectivePodScreen effectiveScreen,
+      int podOffsetSeconds) {
+    if (segments == null) {
+      return;
+    }
+    List<HorizontalWorkTiming> timings = new ArrayList<>();
+    addHorizontalSwitchWorkTimings(timings, effectiveScreen, podOffsetSeconds, podOffsetSeconds);
+    for (HorizontalWorkTiming timing : timings) {
+      segments.add(
+          new HorizontalProgressBarComponent.WorkSegment(
+              timing.workStartSeconds,
+              timing.durationSeconds,
+              false));
+    }
+  }
+
+  protected int addHorizontalSwitchWorkTimings(
+      List<HorizontalWorkTiming> timings,
+      EffectivePodScreen effectiveScreen,
+      int realPodOffsetSeconds,
+      int workOffsetSeconds) {
+    int screenOffsetSeconds = 0;
+    int safeLoops = Math.max(effectiveScreen.rule.loopCount, 1);
+    int pairCount = effectiveScreen.videoCards.size() / 2;
+    if (pairCount <= 0) {
+      return workOffsetSeconds;
+    }
+
+    for (int loopIndex = 0; loopIndex < safeLoops; loopIndex += 1) {
+      for (int pairIndex = 0; pairIndex < pairCount; pairIndex += 1) {
+        for (int setIndex = 0; setIndex < effectiveScreen.rule.setConfigs.size(); setIndex += 1) {
+          CourseScript.PodSetConfig setConfig = effectiveScreen.rule.setConfigs.get(setIndex);
+          int workSeconds = Math.max(setConfig == null ? 0 : setConfig.workSeconds, 0);
+          if (workSeconds > 0) {
+            timings.add(
+                new HorizontalWorkTiming(
+                    realPodOffsetSeconds + screenOffsetSeconds,
+                    workOffsetSeconds,
+                    workSeconds));
+            workOffsetSeconds += workSeconds;
+          }
+          screenOffsetSeconds += workSeconds;
+
+          if (effectiveScreen.rule.stationRestSeconds > 0) {
+            screenOffsetSeconds += effectiveScreen.rule.stationRestSeconds;
+          }
+
+          if (workSeconds > 0) {
+            timings.add(
+                new HorizontalWorkTiming(
+                    realPodOffsetSeconds + screenOffsetSeconds,
+                    workOffsetSeconds,
+                    workSeconds));
+            workOffsetSeconds += workSeconds;
+          }
+          screenOffsetSeconds += workSeconds;
+
+          boolean hasNextSet = setIndex < effectiveScreen.rule.setConfigs.size() - 1;
+          if (hasNextSet && setConfig != null && setConfig.restSeconds > 0) {
+            screenOffsetSeconds += setConfig.restSeconds;
+          }
+        }
+
+        boolean hasNextPairRound = pairIndex < pairCount - 1 || loopIndex < safeLoops - 1;
+        if (hasNextPairRound && effectiveScreen.rule.stationRestSeconds > 0) {
+          screenOffsetSeconds += effectiveScreen.rule.stationRestSeconds;
         }
       }
     }
-
-    if (segmentDuration > 0 || (segments.isEmpty() && getTrainingTotalSeconds(course) > 0)) {
-      segments.add(Math.max(segmentDuration, 1));
-    }
-    return segments;
+    return workOffsetSeconds;
   }
 
   protected EffectivePodScreen materializeProgressPodScreen(CourseScript course, CourseScript.Pod pod) {
@@ -377,16 +579,51 @@ abstract class MainActivityPart11 extends MainActivityPart10 {
     if (group.screenCount <= 1) {
       return materializePodScreen(pod, group, 1);
     }
-    if (findPodScreen(pod, 1) != null && findVideoGroupScreen(group, 1) != null) {
-      return materializePodScreen(pod, group, 1);
+
+    EffectivePodScreen bestScreen = null;
+    int bestWorkSegmentCount = -1;
+    for (int screenIndex = 1; screenIndex <= Math.max(group.screenCount, 3); screenIndex += 1) {
+      if (findPodScreen(pod, screenIndex) == null || findVideoGroupScreen(group, screenIndex) == null) {
+        continue;
+      }
+      EffectivePodScreen candidate = materializePodScreen(pod, group, screenIndex);
+      int workSegmentCount = countHorizontalProgressWorkSegments(pod, candidate);
+      if (candidate != null && workSegmentCount > bestWorkSegmentCount) {
+        bestScreen = candidate;
+        bestWorkSegmentCount = workSegmentCount;
+      }
     }
-    if (findPodScreen(pod, 2) != null && findVideoGroupScreen(group, 2) != null) {
-      return materializePodScreen(pod, group, 2);
+    return bestScreen;
+  }
+
+  protected int countHorizontalProgressWorkSegments(
+      CourseScript.Pod pod, EffectivePodScreen effectiveScreen) {
+    if (pod == null
+        || effectiveScreen == null
+        || effectiveScreen.rule == null
+        || effectiveScreen.rule.setConfigs == null
+        || effectiveScreen.rule.setConfigs.isEmpty()
+        || effectiveScreen.videoCards == null
+        || effectiveScreen.videoCards.isEmpty()) {
+      return 0;
     }
-    if (findPodScreen(pod, 3) != null && findVideoGroupScreen(group, 3) != null) {
-      return materializePodScreen(pod, group, 3);
+
+    int positiveWorkSetCount = 0;
+    for (CourseScript.PodSetConfig setConfig : effectiveScreen.rule.setConfigs) {
+      if (setConfig != null && setConfig.workSeconds > 0) {
+        positiveWorkSetCount += 1;
+      }
     }
-    return null;
+    if (positiveWorkSetCount <= 0) {
+      return 0;
+    }
+
+    int safeLoops = Math.max(effectiveScreen.rule.loopCount, 1);
+    if ("SWITCH".equals(pod.stationFlow) && effectiveScreen.videoCards.size() >= 2) {
+      int pairCount = effectiveScreen.videoCards.size() / 2;
+      return pairCount * safeLoops * positiveWorkSetCount * 2;
+    }
+    return effectiveScreen.videoCards.size() * safeLoops * positiveWorkSetCount;
   }
 
   protected boolean isProgressMarkerPod(CourseScript.Pod pod) {
@@ -441,6 +678,20 @@ abstract class MainActivityPart11 extends MainActivityPart10 {
       return Integer.parseInt(value.trim());
     } catch (NumberFormatException ignored) {
       return 0;
+    }
+  }
+
+  protected static final class HorizontalWorkTiming {
+    final int realStartSeconds;
+    final int workStartSeconds;
+    final int durationSeconds;
+    boolean markerAfter;
+
+    HorizontalWorkTiming(int realStartSeconds, int workStartSeconds, int durationSeconds) {
+      this.realStartSeconds = Math.max(realStartSeconds, 0);
+      this.workStartSeconds = Math.max(workStartSeconds, 0);
+      this.durationSeconds = Math.max(durationSeconds, 0);
+      this.markerAfter = false;
     }
   }
 }

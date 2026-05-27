@@ -428,7 +428,10 @@ abstract class MainActivityPart12 extends MainActivityPart11 {
       ViewGroup.LayoutParams rawParams = horizontalScheduleList.getLayoutParams();
       if (rawParams instanceof LinearLayout.LayoutParams) {
         LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) rawParams;
-        params.width = LinearLayout.LayoutParams.MATCH_PARENT;
+        params.width =
+            isPortraitViewport()
+                ? Math.min(Math.round(screenWidth * 0.82f), dp(520))
+                : LinearLayout.LayoutParams.MATCH_PARENT;
         horizontalScheduleList.setLayoutParams(params);
       }
     }
@@ -467,7 +470,7 @@ abstract class MainActivityPart12 extends MainActivityPart11 {
         playbackStageCard.setBackgroundResource(R.drawable.bg_playback_stage_card);
         break;
       case HYDRATE:
-        playbackTimerCard.setBackgroundResource(R.drawable.bg_playback_timer_card);
+        playbackTimerCard.setBackgroundResource(R.drawable.bg_playback_timer_card_hydrate);
         playbackStageCard.setBackgroundResource(R.drawable.bg_playback_stage_card);
         break;
       case NORMAL:

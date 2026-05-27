@@ -104,7 +104,7 @@ abstract class MainActivityPart13 extends MainActivityPart12 {
       return getColor(R.color.tv_playback_ready);
     }
     if ("HYDRATE".equals(transitionType)) {
-      return getColor(R.color.tv_playback_blue);
+      return getColor(R.color.tv_playback_hydrate);
     }
     if ("MOVE_STATION".equals(transitionType) || "MOVE_ZONE".equals(transitionType) || "SWITCH".equals(transitionType)) {
       return getColor(R.color.tv_playback_move_station);
@@ -124,7 +124,7 @@ abstract class MainActivityPart13 extends MainActivityPart12 {
       return getColor(R.color.tv_playback_move_station);
     }
     if (normalized.contains("HYDRATE")) {
-      return getColor(R.color.tv_playback_blue);
+      return getColor(R.color.tv_playback_hydrate);
     }
     return getColor(R.color.tv_playback_blue);
   }

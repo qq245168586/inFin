@@ -313,7 +313,7 @@ abstract class MainActivityPart16 extends MainActivityPart15 {
     int screenHeight = getResources().getDisplayMetrics().heightPixels;
     int shortSide = Math.min(screenWidth, screenHeight);
     boolean landscape = screenWidth > screenHeight;
-    int pagePadding = landscape ? clamp(Math.round(shortSide * 0.075f), dp(42), dp(90))
+    int pagePadding = landscape ? clamp(Math.round(shortSide * 0.045f), dp(28), dp(58))
         : clamp(Math.round(shortSide * 0.055f), dp(24), dp(46));
 
     LinearLayout root = new LinearLayout(this);
@@ -329,7 +329,7 @@ abstract class MainActivityPart16 extends MainActivityPart15 {
     eyebrow.setLetterSpacing(0.20f);
     eyebrow.setTextSize(
         TypedValue.COMPLEX_UNIT_PX,
-        landscape ? clampPx(shortSide * 0.05f, sp(22), sp(42)) : clampPx(shortSide * 0.038f, sp(16), sp(28)));
+        landscape ? clampPx(shortSide * 0.036f, sp(18), sp(30)) : clampPx(shortSide * 0.038f, sp(16), sp(28)));
     root.addView(eyebrow, new LinearLayout.LayoutParams(
         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
@@ -337,21 +337,21 @@ abstract class MainActivityPart16 extends MainActivityPart15 {
     title.setGravity(landscape ? android.view.Gravity.LEFT : android.view.Gravity.CENTER);
     title.setTextSize(
         TypedValue.COMPLEX_UNIT_PX,
-        landscape ? clampPx(shortSide * 0.095f, sp(48), sp(82)) : clampPx(shortSide * 0.075f, sp(30), sp(54)));
+        landscape ? clampPx(shortSide * 0.066f, sp(34), sp(58)) : clampPx(shortSide * 0.075f, sp(30), sp(54)));
     title.setMaxLines(2);
     title.setEllipsize(TextUtils.TruncateAt.END);
     LinearLayout.LayoutParams titleParams =
         new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-    titleParams.topMargin = dp(8);
+    titleParams.topMargin = landscape ? dp(4) : dp(8);
     root.addView(title, titleParams);
 
     ScrollView scrollView = new ScrollView(this);
-    scrollView.setFillViewport(false);
+    scrollView.setFillViewport(landscape);
     scrollView.setScrollBarStyle(View.SCROLLBARS_INSIDE_INSET);
     LinearLayout.LayoutParams scrollParams =
         new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0);
     scrollParams.weight = 1f;
-    scrollParams.topMargin = landscape ? dp(24) : dp(20);
+    scrollParams.topMargin = landscape ? dp(16) : dp(20);
     root.addView(scrollView, scrollParams);
 
     LinearLayout columns = new LinearLayout(this);
@@ -360,7 +360,8 @@ abstract class MainActivityPart16 extends MainActivityPart15 {
     scrollView.addView(
         columns,
         new ScrollView.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            landscape ? ViewGroup.LayoutParams.MATCH_PARENT : ViewGroup.LayoutParams.WRAP_CONTENT));
 
     List<CourseScript.PlanSection> sections =
         plan == null || plan.sections == null ? new ArrayList<>() : plan.sections;
@@ -370,16 +371,19 @@ abstract class MainActivityPart16 extends MainActivityPart15 {
       LinearLayout leftColumn = createCoursePlanColumn();
       LinearLayout rightColumn = createCoursePlanColumn();
       columns.addView(leftColumn, columnParams(true, 0));
-      columns.addView(rightColumn, columnParams(true, dp(24)));
+      columns.addView(rightColumn, columnParams(true, dp(18)));
+      int leftCount = (sections.size() + 1) / 2;
+      int rightCount = sections.size() / 2;
       for (int index = 0; index < sections.size(); index++) {
         LinearLayout target = index % 2 == 0 ? leftColumn : rightColumn;
-        target.addView(createCoursePlanSectionView(sections.get(index), index, true));
+        int sectionsInColumn = index % 2 == 0 ? leftCount : rightCount;
+        target.addView(createCoursePlanSectionView(sections.get(index), index, true, sectionsInColumn));
       }
     } else {
       LinearLayout singleColumn = createCoursePlanColumn();
       columns.addView(singleColumn, columnParams(false, 0));
       for (int index = 0; index < sections.size(); index++) {
-        singleColumn.addView(createCoursePlanSectionView(sections.get(index), index, false));
+        singleColumn.addView(createCoursePlanSectionView(sections.get(index), index, false, sections.size()));
       }
     }
 
@@ -393,13 +397,15 @@ abstract class MainActivityPart16 extends MainActivityPart15 {
   protected LinearLayout createCoursePlanColumn() {
     LinearLayout column = new LinearLayout(this);
     column.setOrientation(LinearLayout.VERTICAL);
+    column.setGravity(android.view.Gravity.TOP);
     return column;
   }
 
   protected LinearLayout.LayoutParams columnParams(boolean weighted, int leftMargin) {
     LinearLayout.LayoutParams params =
         new LinearLayout.LayoutParams(
-            weighted ? 0 : ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            weighted ? 0 : ViewGroup.LayoutParams.MATCH_PARENT,
+            weighted ? ViewGroup.LayoutParams.MATCH_PARENT : ViewGroup.LayoutParams.WRAP_CONTENT);
     if (weighted) {
       params.weight = 1f;
     }
@@ -420,18 +426,24 @@ abstract class MainActivityPart16 extends MainActivityPart15 {
   }
 
   protected View createCoursePlanSectionView(
-      CourseScript.PlanSection section, int sectionIndex, boolean landscape) {
+      CourseScript.PlanSection section, int sectionIndex, boolean landscape, int sectionsInColumn) {
     LinearLayout card = new LinearLayout(this);
     card.setOrientation(LinearLayout.VERTICAL);
+    int denseLevel = landscape ? Math.max(sectionsInColumn, 1) : 1;
     card.setPadding(
-        landscape ? dp(24) : dp(20),
-        landscape ? dp(20) : dp(18),
-        landscape ? dp(24) : dp(20),
-        landscape ? dp(22) : dp(20));
+        landscape ? dp(16) : dp(20),
+        landscape ? dp(12) : dp(18),
+        landscape ? dp(16) : dp(20),
+        landscape ? dp(12) : dp(20));
     card.setBackground(createCoursePlanCardBackground(0xaa13091f, 0x884b1f7c));
     LinearLayout.LayoutParams cardParams =
-        new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-    cardParams.bottomMargin = landscape ? dp(18) : dp(16);
+        new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            landscape ? 0 : ViewGroup.LayoutParams.WRAP_CONTENT);
+    if (landscape) {
+      cardParams.weight = 1f;
+    }
+    cardParams.bottomMargin = landscape ? dp(10) : dp(16);
     card.setLayoutParams(cardParams);
 
     String title = section == null ? "" : (section.title == null ? "" : section.title.trim());
@@ -441,10 +453,11 @@ abstract class MainActivityPart16 extends MainActivityPart15 {
     TextView titleView = createCoursePlanText(title, getColor(R.color.tv_accent_gold_bright), true);
     titleView.setTextSize(
         TypedValue.COMPLEX_UNIT_PX,
-        landscape ? clampPx(getResources().getDisplayMetrics().heightPixels * 0.056f, sp(26), sp(46))
+        landscape ? clampPx(getResources().getDisplayMetrics().heightPixels * 0.04f, sp(18), sp(denseLevel >= 4 ? 32 : 38))
             : clampPx(getResources().getDisplayMetrics().widthPixels * 0.054f, sp(20), sp(34)));
-    titleView.setMaxLines(2);
-    titleView.setEllipsize(TextUtils.TruncateAt.END);
+    titleView.setMaxLines(landscape && denseLevel >= 4 ? 1 : 2);
+    titleView.setEllipsize(null);
+    configureCoursePlanAutoSize(titleView, landscape ? 14 : 18, landscape && denseLevel >= 4 ? 32 : 38);
     card.addView(
         titleView,
         new LinearLayout.LayoutParams(
@@ -457,17 +470,36 @@ abstract class MainActivityPart16 extends MainActivityPart15 {
         continue;
       }
       TextView itemView = createCoursePlanText("• " + item.text.trim(), getColor(R.color.tv_text_main), false);
-      itemView.setLineSpacing(dp(4), 1.0f);
+      itemView.setLineSpacing(landscape ? dp(2) : dp(4), 1.0f);
       itemView.setTextSize(
           TypedValue.COMPLEX_UNIT_PX,
-          landscape ? clampPx(getResources().getDisplayMetrics().heightPixels * 0.044f, sp(22), sp(36))
+          landscape ? clampPx(getResources().getDisplayMetrics().heightPixels * 0.032f, sp(13), sp(denseLevel >= 4 ? 24 : 30))
               : clampPx(getResources().getDisplayMetrics().widthPixels * 0.044f, sp(17), sp(28)));
+      if (landscape) {
+        itemView.setMaxLines(denseLevel >= 4 ? 4 : 5);
+        itemView.setEllipsize(null);
+        configureCoursePlanAutoSize(itemView, 11, denseLevel >= 4 ? 24 : 30);
+      }
       LinearLayout.LayoutParams itemParams =
-          new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-      itemParams.topMargin = dp(10);
+          new LinearLayout.LayoutParams(
+              ViewGroup.LayoutParams.MATCH_PARENT,
+              landscape ? 0 : ViewGroup.LayoutParams.WRAP_CONTENT);
+      if (landscape) {
+        itemParams.weight = 1f;
+      }
+      itemParams.topMargin = landscape ? dp(6) : dp(10);
       card.addView(itemView, itemParams);
     }
     return card;
+  }
+
+  protected void configureCoursePlanAutoSize(TextView view, int minSp, int maxSp) {
+    if (view == null) {
+      return;
+    }
+    view.setAutoSizeTextTypeUniformWithConfiguration(minSp, maxSp, 1, TypedValue.COMPLEX_UNIT_SP);
+    view.setBreakStrategy(android.text.Layout.BREAK_STRATEGY_BALANCED);
+    view.setHyphenationFrequency(android.text.Layout.HYPHENATION_FREQUENCY_NONE);
   }
 
   protected TextView createCoursePlanText(String text, int color, boolean bold) {

@@ -197,8 +197,18 @@ abstract class MainActivityPart08 extends MainActivityPart07 {
                       syncInProgress = false;
                       currentBundleChecksum = result.checksum;
                       currentBundleScheduleCount = result.schedules == null ? 0 : result.schedules.size();
-                      resourceCacheDirty = false;
+                      resourceCacheDirty = !result.resourcesCached;
                       lastScheduleSyncFailed = false;
+                      Log.i(
+                          TAG,
+                          "Horizontal schedule sync applied screen="
+                              + screenNumber
+                              + " checksum="
+                              + result.checksum
+                              + " schedules="
+                              + currentBundleScheduleCount
+                              + " resourcesCached="
+                              + result.resourcesCached);
                       bindHorizontalSchedule(result.schedules);
                       dispatchScreenHeartbeat(false);
                       scheduleChecksumPolling();
@@ -271,6 +281,15 @@ abstract class MainActivityPart08 extends MainActivityPart07 {
       horizontalTransitionPanel.setVisibility(View.GONE);
     }
     dispatchScreenHeartbeat(false);
+
+    if (isPortraitViewport()) {
+      for (TvScheduleItem item : scheduleItems) {
+        if (horizontalScheduleList != null) {
+          horizontalScheduleList.addView(createVerticalScheduleCard(item));
+        }
+      }
+      return;
+    }
 
     for (int index = 0; index < scheduleItems.size(); index += 2) {
       LinearLayout row = new LinearLayout(this);

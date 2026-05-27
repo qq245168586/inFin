@@ -60,21 +60,37 @@ abstract class TvScriptRepositoryTypes {
     public final String checksum;
     public final int resourceCount;
     public final List<TvScheduleItem> schedules;
+    public final boolean resourcesCached;
     public SyncResult(String date, String checksum, int resourceCount, List<TvScheduleItem> schedules) {
+      this(date, checksum, resourceCount, schedules, true);
+    }
+    public SyncResult(
+        String date,
+        String checksum,
+        int resourceCount,
+        List<TvScheduleItem> schedules,
+        boolean resourcesCached) {
       this.date = date;
       this.checksum = checksum;
       this.resourceCount = resourceCount;
       this.schedules = schedules;
+      this.resourcesCached = resourcesCached;
     }
   }
   public static class DailyChecksum {
     public final String date;
     public final String checksum;
     public final int scheduleCount;
+    public final List<TvScheduleItem> schedules;
     public DailyChecksum(String date, String checksum, int scheduleCount) {
+      this(date, checksum, scheduleCount, new ArrayList<>());
+    }
+    public DailyChecksum(
+        String date, String checksum, int scheduleCount, List<TvScheduleItem> schedules) {
       this.date = date;
       this.checksum = checksum;
       this.scheduleCount = scheduleCount;
+      this.schedules = schedules == null ? new ArrayList<>() : schedules;
     }
   }
   public static class CacheStats {

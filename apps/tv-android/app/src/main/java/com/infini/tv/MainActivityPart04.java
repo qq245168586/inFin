@@ -449,12 +449,16 @@ abstract class MainActivityPart04 extends MainActivityPart03 {
   }
 
   protected void requestCurrentPlaybackSession(String reason) {
-    if (sessionRestoreInFlight
-        || TextUtils.isEmpty(activeAccountNamespace)
+    if (TextUtils.isEmpty(activeAccountNamespace)
         || activeScreenNumber < 1
         || activeScreenNumber > 5
         || selectorPanel == null
         || selectorPanel.getVisibility() == View.VISIBLE) {
+      return;
+    }
+    if (sessionRestoreInFlight) {
+      pendingSessionRestoreReason = reason == null ? "queued_session_restore" : reason;
+      Log.d(TAG, "Playback session restore already in flight, queued reason=" + pendingSessionRestoreReason);
       return;
     }
 
@@ -473,6 +477,12 @@ abstract class MainActivityPart04 extends MainActivityPart03 {
                 Log.d(TAG, "Current playback session unavailable reason=" + reason, error);
               } finally {
                 sessionRestoreInFlight = false;
+                final String queuedReason = pendingSessionRestoreReason;
+                pendingSessionRestoreReason = "";
+                if (!TextUtils.isEmpty(queuedReason)) {
+                  runOnUiThread(
+                      () -> requestCurrentPlaybackSession(queuedReason + "_after_inflight"));
+                }
               }
             })
         .start();

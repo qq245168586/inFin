@@ -94,15 +94,48 @@ abstract class TvScriptRepositoryPart01 extends TvScriptRepositoryBase {
     JSONArray schedulesArray = payload.optJSONArray("schedules");
     List<CachedResource> resources = parseResources(resourcesArray);
     resources.addAll(parseLogoResources(schedulesArray));
-    Map<String, String> localMediaMap = ensureResourcesCached(resources, listener);
+    Map<String, String> localMediaMap = new HashMap<>();
+    boolean resourcesCached = true;
+    try {
+      localMediaMap = ensureResourcesCached(resources, listener);
+    } catch (IOException error) {
+      resourcesCached = false;
+      Log.w(
+          TAG,
+          "Daily bundle resources cache failed; applying schedule with remote media fallback date="
+              + payload.optString("date", today)
+              + " checksum="
+              + payload.optString("checksum", "")
+              + " schedules="
+              + (schedulesArray == null ? 0 : schedulesArray.length())
+              + " resources="
+              + resources.size(),
+          error);
+      if (listener != null) {
+        listener.onStatus("资源缓存失败，先更新课表，稍后自动重试下载。", 0, resources.size());
+      }
+    }
     cleanupTemporaryDownloads();
 
     List<TvScheduleItem> schedules = parseBundleSchedules(schedulesArray, localMediaMap);
+    Log.i(
+        TAG,
+        "Daily bundle parsed date="
+            + payload.optString("date", today)
+            + " checksum="
+            + payload.optString("checksum", "")
+            + " schedules="
+            + schedules.size()
+            + " resources="
+            + resources.size()
+            + " resourcesCached="
+            + resourcesCached);
     return new SyncResult(
         payload.optString("date", today),
         payload.optString("checksum", ""),
         resources.size(),
-        schedules);
+        schedules,
+        resourcesCached);
   }
 
   public DailyChecksum loadTodayChecksum() throws IOException {
@@ -114,10 +147,25 @@ abstract class TvScriptRepositoryPart01 extends TvScriptRepositoryBase {
                 + "&timeZone="
                 + encode(COURSE_ZONE.getId())
                 + buildTvScopeQuery());
-    return new DailyChecksum(
-        payload.optString("date", today),
-        payload.optString("checksum", ""),
-        payload.optInt("scheduleCount", 0));
+    List<TvScheduleItem> schedules =
+        parseBundleSchedules(payload.optJSONArray("schedules"), new HashMap<>());
+    DailyChecksum checksum =
+        new DailyChecksum(
+            payload.optString("date", today),
+            payload.optString("checksum", ""),
+            payload.optInt("scheduleCount", schedules.size()),
+            schedules);
+    Log.i(
+        TAG,
+        "Daily checksum loaded date="
+            + checksum.date
+            + " checksum="
+            + checksum.checksum
+            + " scheduleCount="
+            + checksum.scheduleCount
+            + " summarySchedules="
+            + schedules.size());
+    return checksum;
   }
 
   private String buildTvScopeQuery() {

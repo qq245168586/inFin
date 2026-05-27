@@ -122,8 +122,7 @@ abstract class TvMqttManagerPart01 extends TvMqttManagerBase {
                 }
 
                 if (targetClient == null) {
-                  String brokerUrl =
-                      "tcp://" + ServerConfig.MQTT_HOST + ":" + ServerConfig.MQTT_PORT;
+                  String brokerUrl = ServerConfig.primaryMqttBrokerUri();
                   targetClient =
                       new MqttClient(
                           brokerUrl, clientId, new MemoryPersistence());
@@ -185,6 +184,7 @@ abstract class TvMqttManagerPart01 extends TvMqttManagerBase {
                 MqttConnectOptions options = new MqttConnectOptions();
                 options.setAutomaticReconnect(true);
                 options.setCleanSession(true);
+                options.setServerURIs(ServerConfig.mqttBrokerUris());
                 options.setConnectionTimeout(8);
                 options.setKeepAliveInterval(60);
                 if (connectUsername != null && !connectUsername.trim().isEmpty()) {
