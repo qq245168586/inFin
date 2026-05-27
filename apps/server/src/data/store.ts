@@ -53,6 +53,7 @@ export const getActionById = legacyStore.getActionById as (...args: any[]) => an
 export const saveAction = legacyStore.saveAction as (...args: any[]) => any;
 export const deleteAction = legacyStore.deleteAction as (...args: any[]) => any;
 export const listCourses = legacyStore.listCourses as (...args: any[]) => any;
+export const listCourseSummaries = legacyStore.listCourseSummaries as (...args: any[]) => any;
 export const getCourseById = legacyStore.getCourseById as (...args: any[]) => any;
 export const saveCourse = legacyStore.saveCourse as (...args: any[]) => any;
 export const deleteCourse = legacyStore.deleteCourse as (...args: any[]) => any;
@@ -75,6 +76,7 @@ export const bindTvScreen = legacyStore.bindTvScreen as (...args: any[]) => any;
 export const heartbeatTvScreen = legacyStore.heartbeatTvScreen as (...args: any[]) => any;
 export const unbindTvScreen = legacyStore.unbindTvScreen as (...args: any[]) => any;
 export const listTvScreens = legacyStore.listTvScreens as (...args: any[]) => any;
+export const listTvDevices = legacyStore.listTvDevices as (...args: any[]) => any;
 export const bindTvScreenByPairing = legacyStore.bindTvScreenByPairing as (...args: any[]) => any;
 export const saveSchedule = legacyStore.saveSchedule as (...args: any[]) => any;
 export const deleteSchedule = legacyStore.deleteSchedule as (...args: any[]) => any;

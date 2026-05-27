@@ -36,7 +36,7 @@
 }
 
 export function endExpiredPlaybackSessions() {
-  const endedSessions = [];
+  const terminalSessions = [];
   const sessions = Array.isArray(state.playbackSessions) ? state.playbackSessions : [];
 
   for (const session of sessions) {
@@ -53,12 +53,12 @@ export function endExpiredPlaybackSessions() {
     materializePlaybackSession(session);
 
     const afterState = normalizePlaybackState(session.state);
-    if (afterState === "ENDED" && (beforeState !== afterState || safeNumber(session.version) !== beforeVersion)) {
-      endedSessions.push(serializePlaybackSession(session));
+    if (PLAYBACK_TERMINAL_STATES.has(afterState) && (beforeState !== afterState || safeNumber(session.version) !== beforeVersion)) {
+      terminalSessions.push(serializePlaybackSession(session));
     }
   }
 
-  return endedSessions;
+  return terminalSessions;
 }
 
 export function bindTvScreen(payload = {}, accountNamespace = "") {
@@ -69,6 +69,36 @@ export function bindTvScreen(payload = {}, accountNamespace = "") {
 }
 
 export function heartbeatTvScreen(payload = {}, accountNamespace = "") {
+  const heartbeatDeviceId = trimText(payload.deviceId);
+  const unboundEntry = heartbeatDeviceId
+    ? state.tvScreens.find(
+        (item) =>
+          trimText(item.deviceId) === heartbeatDeviceId
+          && !normalizeScreenAccountNamespace(item.accountNamespace)
+      ) || null
+    : null;
+
+  if (unboundEntry) {
+    const screen = upsertTvScreen({
+      ...payload,
+      accountNamespace: "",
+      screenNumber: 0,
+      previousAccountNamespace:
+        trimText(unboundEntry.previousAccountNamespace)
+        || normalizeScreenAccountNamespace(payload.accountNamespace ?? accountNamespace),
+      previousScreenNumber:
+        Number(unboundEntry.previousScreenNumber)
+        || Number(payload.screenNumber)
+        || 0
+    });
+    return {
+      ...screen,
+      serverNowMs: Date.now(),
+      sessionOutdated: false,
+      session: null
+    };
+  }
+
   const screen = upsertTvScreen({
     ...payload,
     accountNamespace: normalizeScreenAccountNamespace(payload.accountNamespace ?? accountNamespace)
@@ -117,14 +147,18 @@ export function unbindTvScreen(payload = {}, accountNamespace = "") {
   const removedEntry = {
     ...existing,
     accountNamespace: "",
+    screenNumber: 0,
+    previousAccountNamespace: normalizedAccountNamespace || normalizeScreenAccountNamespace(existing.accountNamespace),
+    previousScreenNumber: Number(existing.screenNumber) || screenNumber || 0,
     playbackState: "IDLE",
     activeScheduleId: "",
     previewMode: false,
     playbackSessionId: "",
     bundleChecksum: "",
     playbackElapsedMs: 0,
-    pairToken: "",
-    pairUpdatedAt: "",
+    pairToken: trimText(existing.pairToken),
+    pairUpdatedAt: trimText(existing.pairUpdatedAt),
+    unboundAt: nowIso(),
     lastSeenAt: nowIso()
   };
 
@@ -139,6 +173,7 @@ export function unbindTvScreen(payload = {}, accountNamespace = "") {
       && Number(item.screenNumber) === screenNumber
     );
   });
+  state.tvScreens.push(removedEntry);
   persist();
   return buildTvScreenSnapshot(removedEntry);
 }
@@ -147,12 +182,17 @@ export function listTvScreens() {
   const accountNamespace =
     arguments.length > 0 ? normalizeAccountNamespace(arguments[0]) : DEFAULT_ACCOUNT_NAMESPACE;
   const snapshots = new Map();
+  const unboundDevices = [];
   for (const item of state.tvScreens || []) {
     const snapshot = buildTvScreenSnapshot(item);
     if (snapshot.deviceId) {
       const snapshotAccountNamespace = normalizeScreenAccountNamespace(snapshot.accountNamespace);
 
       if (!snapshotAccountNamespace) {
+        const previousAccountNamespace = normalizeScreenAccountNamespace(snapshot.previousAccountNamespace);
+        if (!previousAccountNamespace || previousAccountNamespace === accountNamespace) {
+          unboundDevices.push(snapshot);
+        }
         continue;
       }
 
@@ -166,6 +206,11 @@ export function listTvScreens() {
       }
     }
   }
+  unboundDevices.sort((left, right) => {
+    const leftMs = new Date(left.lastSeenAt || left.unboundAt || 0).getTime();
+    const rightMs = new Date(right.lastSeenAt || right.unboundAt || 0).getTime();
+    return rightMs - leftMs;
+  });
 
   return {
     generatedAt: nowIso(),
@@ -194,11 +239,66 @@ export function listTvScreens() {
           updateMessage: "",
           cacheBytes: 0,
           cacheFileCount: 0,
-          cacheUpdatedAt: ""
+          cacheUpdatedAt: "",
+          previousAccountNamespace: "",
+          previousScreenNumber: 0,
+          unboundAt: ""
         }
       );
     }),
-    unboundDevices: []
+    unboundDevices
+  };
+}
+
+function decorateTvDeviceSnapshot(snapshot) {
+  const venue = snapshot.accountNamespace ? getVenueByAccountNamespace(snapshot.accountNamespace) : null;
+  const previousVenue = snapshot.previousAccountNamespace
+    ? getVenueByAccountNamespace(snapshot.previousAccountNamespace)
+    : null;
+
+  return {
+    ...snapshot,
+    venueId: trimText(venue?.id),
+    venueName: trimText(venue?.name),
+    previousVenueId: trimText(previousVenue?.id),
+    previousVenueName: trimText(previousVenue?.name),
+    bindingState: snapshot.accountNamespace ? "BOUND" : "UNBOUND"
+  };
+}
+
+export function listTvDevices(filters = {}) {
+  const venueId = trimText(filters.venueId);
+  const onlineOnly = Boolean(filters.onlineOnly);
+  const venue = venueId ? getVenueById(venueId) : null;
+  const venueAccountNamespace = venue ? normalizeScreenAccountNamespace(venue.accountNamespace) : "";
+  const devices = (state.tvScreens || [])
+    .map((entry) => decorateTvDeviceSnapshot(buildTvScreenSnapshot(entry)))
+    .filter((item) => item.deviceId)
+    .filter((item) => !onlineOnly || item.online)
+    .filter((item) => {
+      if (!venueAccountNamespace) {
+        return true;
+      }
+      return (
+        item.accountNamespace === venueAccountNamespace
+        || (!item.accountNamespace && item.previousAccountNamespace === venueAccountNamespace)
+      );
+    })
+    .sort((left, right) => {
+      if (left.online !== right.online) {
+        return left.online ? -1 : 1;
+      }
+      if (left.accountNamespace !== right.accountNamespace) {
+        return left.accountNamespace ? -1 : 1;
+      }
+      const leftMs = new Date(left.lastSeenAt || left.unboundAt || 0).getTime();
+      const rightMs = new Date(right.lastSeenAt || right.unboundAt || 0).getTime();
+      return rightMs - leftMs;
+    });
+
+  return {
+    generatedAt: nowIso(),
+    devices
   };
 }
 

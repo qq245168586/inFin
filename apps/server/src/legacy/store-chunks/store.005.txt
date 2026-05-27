@@ -63,16 +63,20 @@ function buildTvScreenSnapshot(entry = null) {
   const online = lastSeenMs > 0 && Date.now() - lastSeenMs <= TV_ONLINE_THRESHOLD_MS;
   const screenNumber = Number(entry?.screenNumber) || 0;
   const accountNamespace = normalizeScreenAccountNamespace(entry?.accountNamespace);
+  const previousScreenNumber = Number(entry?.previousScreenNumber) || 0;
 
   return {
     accountNamespace,
     screenNumber,
     orientation: screenNumber === 2 || screenNumber === 4 ? "HORIZONTAL" : "VERTICAL",
+    previousAccountNamespace: normalizeScreenAccountNamespace(entry?.previousAccountNamespace),
+    previousScreenNumber,
     deviceId: trimText(entry?.deviceId),
     mqttClientId: trimText(entry?.mqttClientId),
     appVersion: trimText(entry?.appVersion),
     platform: trimText(entry?.platform) || "tv-android",
     boundAt: trimText(entry?.boundAt),
+    unboundAt: trimText(entry?.unboundAt),
     lastSeenAt,
     online,
     playbackState: normalizeTvPlaybackState(entry?.playbackState),
@@ -91,28 +95,34 @@ function buildTvScreenSnapshot(entry = null) {
   };
 }
 
-function normalizeTvScreenPayload(payload = {}, existing = null, fallbackAccountNamespace = DEFAULT_ACCOUNT_NAMESPACE) {
+function normalizeTvScreenPayload(payload = {}, existing = null, fallbackAccountNamespace = "") {
   const now = nowIso();
   const nextPairToken = trimText(payload.pairToken) || trimText(existing?.pairToken);
-  const nextScreenNumber = Number(payload.screenNumber) || Number(existing?.screenNumber) || 0;
+  const requestedScreenNumber = Number(payload.screenNumber) || Number(existing?.screenNumber) || 0;
   const payloadAccountNamespace = trimText(payload.accountNamespace).toLowerCase();
   const existingAccountNamespace = normalizeScreenAccountNamespace(existing?.accountNamespace);
-  const nextAccountNamespace =
-    nextScreenNumber >= 1
-      ? (
-        payloadAccountNamespace
-        || existingAccountNamespace
-        || normalizeScreenAccountNamespace(fallbackAccountNamespace)
-      )
-      : "";
+  const fallbackNamespace = normalizeScreenAccountNamespace(fallbackAccountNamespace);
+  const nextAccountNamespace = payloadAccountNamespace || existingAccountNamespace || fallbackNamespace;
+  const nextScreenNumber = nextAccountNamespace ? requestedScreenNumber : 0;
+  const previousAccountNamespace =
+    trimText(payload.previousAccountNamespace).toLowerCase()
+    || trimText(existing?.previousAccountNamespace).toLowerCase()
+    || (!nextAccountNamespace ? existingAccountNamespace : "");
+  const previousScreenNumber = safeNumber(
+    payload.previousScreenNumber,
+    safeNumber(existing?.previousScreenNumber, !nextAccountNamespace ? Number(existing?.screenNumber) || 0 : 0)
+  );
   return {
     accountNamespace: nextAccountNamespace,
     screenNumber: nextScreenNumber,
+    previousAccountNamespace,
+    previousScreenNumber,
     deviceId: trimText(payload.deviceId) || trimText(existing?.deviceId),
     mqttClientId: trimText(payload.mqttClientId) || trimText(existing?.mqttClientId),
     appVersion: trimText(payload.appVersion) || trimText(existing?.appVersion),
     platform: trimText(payload.platform) || trimText(existing?.platform) || "tv-android",
-    boundAt: trimText(existing?.boundAt) || now,
+    boundAt: nextAccountNamespace ? trimText(payload.boundAt) || trimText(existing?.boundAt) || now : "",
+    unboundAt: nextAccountNamespace ? "" : trimText(payload.unboundAt) || trimText(existing?.unboundAt),
     lastSeenAt: now,
     playbackState: normalizeTvPlaybackState(payload.playbackState || existing?.playbackState),
     activeScheduleId: trimText(payload.activeScheduleId) || trimText(existing?.activeScheduleId),

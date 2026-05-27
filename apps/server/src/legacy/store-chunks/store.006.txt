@@ -7,6 +7,9 @@
   const nextEntry = normalizeTvScreenPayload(payload, base, normalized.accountNamespace);
 
   if (!nextEntry.accountNamespace) {
+    state.tvScreens = state.tvScreens.filter((item) => trimText(item.deviceId) !== nextEntry.deviceId);
+    state.tvScreens.push(nextEntry);
+    persist();
     return buildTvScreenSnapshot(nextEntry);
   }
 
