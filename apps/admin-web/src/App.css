@@ -474,6 +474,136 @@ button.account-package-chip:hover {
   color: rgba(21, 184, 102, 0.95);
 }
 
+.device-shell {
+  display: grid;
+  gap: 18px;
+}
+
+.device-toolbar {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.device-check {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border: 1px solid rgba(222, 226, 234, 0.9);
+  border-radius: 10px;
+  background: #ffffff;
+  color: var(--text-main);
+  font-weight: 800;
+}
+
+.device-check input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--brand);
+}
+
+.device-summary {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.device-list {
+  display: grid;
+  gap: 14px;
+}
+
+.device-card {
+  border: 1px solid rgba(222, 226, 234, 0.9);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.96);
+  padding: 18px;
+  box-shadow: 0 14px 34px rgba(20, 22, 34, 0.05);
+}
+
+.device-card.is-unbound {
+  border-color: rgba(148, 28, 255, 0.26);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(148, 28, 255, 0.05));
+}
+
+.device-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.device-card-head strong {
+  display: block;
+  margin-top: 4px;
+  font-size: clamp(20px, 2.6vw, 30px);
+  line-height: 1.1;
+}
+
+.device-meta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.device-meta div {
+  min-width: 0;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(247, 248, 252, 0.92);
+}
+
+.device-meta span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.device-meta strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--text-main);
+  font-size: 15px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.device-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.device-bind-row {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 140px auto;
+  gap: 10px;
+}
+
+.device-bind-row select {
+  min-height: 40px;
+  border: 1px solid rgba(222, 226, 234, 0.9);
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 0 12px;
+  color: var(--text-main);
+  font-weight: 800;
+  outline: none;
+}
+
+.device-bind-row select:focus {
+  border-color: var(--brand-line);
+  box-shadow: 0 0 0 3px rgba(148, 28, 255, 0.14);
+}
+
 .danger-button {
   min-height: 34px;
   padding: 0 12px;
@@ -622,6 +752,18 @@ button.account-package-chip:hover {
   }
   .venue-screen-meta {
     grid-template-columns: 1fr;
+  }
+  .device-meta,
+  .device-bind-row {
+    grid-template-columns: 1fr;
+  }
+  .device-card-head,
+  .device-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .device-summary {
+    margin-left: 0;
   }
   .venue-card-actions,
   .venue-screen-top-actions {

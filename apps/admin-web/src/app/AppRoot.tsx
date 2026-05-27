@@ -2,6 +2,7 @@ import { useState } from "react";
 import AdminShell from "./AdminShell.tsx";
 import type { NavKey } from "./navigation.ts";
 import CoursePackagesPage from "../pages/coursePackages/CoursePackagesPage.tsx";
+import DeviceManagementPage from "../pages/devices/DeviceManagementPage.tsx";
 import VenueManagementPage from "../pages/venues/VenueManagementPage.tsx";
 import AppVersionsPage from "../AppVersionsPage.tsx";
 import AccountsPage from "../AccountsPage.tsx";
@@ -53,6 +54,12 @@ export default function AppRoot() {
         ) : null}
         {activePage === "venues" ? (
           <VenueManagementPage tokenType={authSession.token_type} accessToken={authSession.access_token} onNotice={pushNotice} />
+        ) : null}
+        {activePage === "devices" ? (
+          <DeviceManagementPage
+            authHeader={authSession ? `${authSession.token_type} ${authSession.access_token}` : ""}
+            onNotice={pushNotice}
+          />
         ) : null}
         {activePage === "accounts" ? (
           <AccountsPage tokenType={authSession.token_type} accessToken={authSession.access_token} onNotice={pushNotice} />

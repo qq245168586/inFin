@@ -5,6 +5,7 @@ import type {
   ConsoleUser,
   CoursePackageRecord,
   TvInstallAppUpdateCommand,
+  TvDevicesPayload,
   TvScreensPayload,
   VenueCoursePackagesPayload,
   VenueRecord
@@ -48,6 +49,49 @@ export async function fetchVenueScreens(
     signal
   });
   return payload.data || null;
+}
+
+export async function fetchTvDevices(
+  authHeader: string,
+  filters: { venueId?: string; onlineOnly?: boolean } = {},
+  signal?: AbortSignal
+): Promise<TvDevicesPayload> {
+  const params = new URLSearchParams();
+  if (filters.venueId) {
+    params.set("venueId", filters.venueId);
+  }
+  if (filters.onlineOnly) {
+    params.set("online", "1");
+  }
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  const payload = await requestJson<{ data: TvDevicesPayload }>(`/api/admin/tv-devices${suffix}`, {
+    headers: { Authorization: authHeader },
+    signal
+  });
+  return payload.data || { generatedAt: "", devices: [] };
+}
+
+export async function bindTvDeviceToVenue(
+  authHeader: string,
+  deviceId: string,
+  venueId: string,
+  screenNumber: number
+) {
+  const payload = await requestJson<{ data: unknown }>("/api/admin/tv-devices/bind", {
+    method: "POST",
+    headers: { Authorization: authHeader },
+    body: JSON.stringify({ deviceId, venueId, screenNumber })
+  });
+  return payload.data;
+}
+
+export async function unbindTvDevice(authHeader: string, deviceId: string, accountNamespace = "") {
+  const payload = await requestJson<{ data: unknown }>("/api/admin/tv-devices/unbind", {
+    method: "POST",
+    headers: { Authorization: authHeader },
+    body: JSON.stringify({ deviceId, accountNamespace })
+  });
+  return payload.data;
 }
 
 export async function fetchCoursePackages(authHeader: string, signal?: AbortSignal): Promise<CoursePackageRecord[]> {

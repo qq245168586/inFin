@@ -41,16 +41,25 @@ export interface VenueCoursePackagesPayload {
 }
 
 export interface TvScreenSnapshot {
+  accountNamespace?: string;
   screenNumber: number;
   orientation: "HORIZONTAL" | "VERTICAL";
+  previousAccountNamespace?: string;
+  previousScreenNumber?: number;
   deviceId: string;
   mqttClientId: string;
   appVersion: string;
   platform: string;
   boundAt: string;
+  unboundAt?: string;
   lastSeenAt: string;
   online: boolean;
   playbackState: string;
+  venueId?: string;
+  venueName?: string;
+  previousVenueId?: string;
+  previousVenueName?: string;
+  bindingState?: "BOUND" | "UNBOUND";
   updateState: string;
   updateTargetVersion: string;
   updateProgressPercent: number;
@@ -64,6 +73,11 @@ export interface TvScreensPayload {
   generatedAt: string;
   screens: TvScreenSnapshot[];
   unboundDevices: TvScreenSnapshot[];
+}
+
+export interface TvDevicesPayload {
+  generatedAt: string;
+  devices: TvScreenSnapshot[];
 }
 
 export interface AppPackageRecord {
