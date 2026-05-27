@@ -67,6 +67,21 @@ function serializeCourse(course) {
   };
 }
 
+function serializeCourseSummary(course) {
+  const serialized = serializeCourse(course);
+  return {
+    id: serialized.id,
+    name: serialized.name,
+    creator: serialized.creator,
+    version: serialized.version,
+    typeIds: serialized.typeIds,
+    logoMedia: serialized.logoMedia,
+    summary: serialized.summary,
+    updateTime: serialized.updateTime,
+    coursePackageId: normalizeCoursePackageId(serialized.coursePackageId, 0)
+  };
+}
+
 function attachCourseBasics(schedule) {
   const course = state.courses.find((item) => item.id === schedule.courseId);
   const serialized = course ? serializeCourse(course) : null;

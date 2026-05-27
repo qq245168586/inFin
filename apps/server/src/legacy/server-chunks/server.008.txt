@@ -30,7 +30,14 @@
 
     if (request.method === "GET" && url.pathname === "/api/courses") {
       const user = getAuthorizedConsoleUser(request);
-      sendJson(response, 200, { data: listCourses(user) });
+      const courseDetail = String(url.searchParams.get("detail") || "").trim().toLowerCase();
+      const includeFullCourses = ["full", "true", "1"].includes(courseDetail);
+      sendJson(response, 200, {
+        data: includeFullCourses ? listCourses(user) : listCourseSummaries(user),
+        meta: {
+          detail: includeFullCourses ? "full" : "summary"
+        }
+      });
       return;
     }
 

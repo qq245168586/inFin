@@ -133,13 +133,16 @@ export function createUploadedMedia({
   return record;
 }
 
-export function getMetaPayload(user = null) {
+export function getMetaPayload(user = null, options = {}) {
+  const includeFullCourses = options?.includeFullCourses === true;
+
   return {
     actionTypes: clone(state.actionTypes),
     lessonTypes: clone(state.lessonTypes),
     coursePackages: listCoursePackagesForUser(user),
     actions: sortByNewest(state.actions, "updateTime"),
-    courses: listCourses(user),
+    courses: includeFullCourses ? listCourses(user) : listCourseSummaries(user),
+    coursesMode: includeFullCourses ? "full" : "summary",
     templates: listTemplates(user),
     schedules: {
       currentWeek: listSchedulesByScope("CURRENTWEEK", { user }),

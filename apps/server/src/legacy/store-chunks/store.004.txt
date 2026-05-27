@@ -184,6 +184,23 @@ function materializePlaybackSession(session) {
     return null;
   }
   const serverNowMs = Date.now();
+  if (session.state === "PREVIEW") {
+    const previewTouchedAtMs = safeNumber(session.updatedAtMs, safeNumber(session.createdAtMs));
+    if (previewTouchedAtMs > 0 && serverNowMs - previewTouchedAtMs > PLAYBACK_PREVIEW_TTL_MS) {
+      session.state = "TERMINATED";
+      session.terminatedAtMs = serverNowMs;
+      session.endTime = nowIso();
+      session.version = Math.max(1, safeNumber(session.version, 1)) + 1;
+      session.updatedAtMs = serverNowMs;
+      session.updateTime = nowIso();
+      session.metadata = {
+        ...(session.metadata && typeof session.metadata === "object" ? session.metadata : {}),
+        expiredReason: "preview_timeout",
+        previewTtlMs: PLAYBACK_PREVIEW_TTL_MS
+      };
+      persist();
+    }
+  }
   if (session.state === "SCHEDULED" && session.serverStartAtMs > 0 && serverNowMs >= session.serverStartAtMs) {
     session.state = "RUNNING";
     session.version = Math.max(1, safeNumber(session.version, 1)) + 1;
