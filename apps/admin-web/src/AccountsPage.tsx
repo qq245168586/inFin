@@ -14,6 +14,7 @@ interface VenueRecord {
 interface ConsoleUser {
   id: number;
   username: string;
+  password?: string;
   nickname: string;
   accountNamespace: string;
   role?: string;
@@ -238,6 +239,33 @@ export default function AccountsPage({
     }
   }
 
+  async function updateAccountPassword(user: ConsoleUser) {
+    if (roleOf(user) === "superadmin") return;
+    const nextPassword = window.prompt(`请输入账号「${user.username}」的新密码`, "");
+    if (nextPassword == null) return;
+    if (!nextPassword.trim()) {
+      onNotice("密码不能为空。", "error");
+      return;
+    }
+    setLoading("正在修改密码...");
+    try {
+      const payload = await requestJson<{ data: ConsoleUser }>(
+        `/api/admin/users/${encodeURIComponent(String(user.id))}`,
+        {
+          method: "PATCH",
+          headers: { Authorization: authHeader },
+          body: JSON.stringify({ password: nextPassword.trim() })
+        }
+      );
+      setUsers((current) => current.map((item) => (Number(item.id) === Number(user.id) ? payload.data : item)));
+      onNotice("密码已修改。");
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : "修改密码失败。", "error");
+    } finally {
+      setLoading("");
+    }
+  }
+
   function toggleEditorPackage(user: ConsoleUser, coursePackageId: number) {
     const ids = new Set((user.coursePackageIds || []).map(Number));
     if (ids.has(coursePackageId)) {
@@ -328,9 +356,16 @@ export default function AccountsPage({
                         <div>
                           <strong>{user.username}</strong>
                           <p className="venue-muted">Coach 端 · {venue ? `${venue.name} (${venue.accountNamespace})` : "未绑定场馆"}</p>
+                          <div className="account-password-row">
+                            <span>密码</span>
+                            <code>{String(user.password || "").trim() || "未记录，请重置"}</code>
+                          </div>
                         </div>
                         <div className="venue-user-actions">
                           {venue ? <span className="venue-pill">已绑定</span> : <span className="venue-pill">未绑定</span>}
+                          <button type="button" className="ghost-button" onClick={() => void updateAccountPassword(user)}>
+                            改密码
+                          </button>
                           {venue ? (
                             <button type="button" className="ghost-button" onClick={() => void unbindUser(Number(user.id))}>
                               解绑
@@ -379,6 +414,10 @@ export default function AccountsPage({
                         <div className="account-user-main">
                           <strong>{user.username}</strong>
                           <p className="venue-muted">课程端 · {selectedNames.length ? selectedNames.join(" / ") : "未授权课程包"}</p>
+                          <div className="account-password-row">
+                            <span>密码</span>
+                            <code>{String(user.password || "").trim() || "未记录，请重置"}</code>
+                          </div>
                           <div className="account-package-row">
                             {coursePackages.length ? (
                               coursePackages.map((pkg) => {
@@ -402,6 +441,9 @@ export default function AccountsPage({
                         </div>
                         <div className="venue-user-actions">
                           <span className="venue-pill">编课</span>
+                          <button type="button" className="ghost-button" onClick={() => void updateAccountPassword(user)}>
+                            改密码
+                          </button>
                         </div>
                       </div>
                     );

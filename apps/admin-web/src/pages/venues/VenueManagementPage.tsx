@@ -1,10 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import VenueAccountsCard from "./VenueAccountsCard.tsx";
-import VenueAccountsListPanel from "./VenueAccountsListPanel.tsx";
 import VenueListPanel from "./VenueListPanel.tsx";
 import VenueScreensCard from "./VenueScreensCard.tsx";
-import BindAccountModal from "./modals/BindAccountModal.tsx";
-import CreateAccountModal from "./modals/CreateAccountModal.tsx";
 import CreateVenueModal from "./modals/CreateVenueModal.tsx";
 import type { CoursePackageRecord, NoticeFn, TvScreenSnapshot, VenueCoursePackagesPayload, VenueRecord } from "./types.ts";
 import {
@@ -138,9 +134,6 @@ export default function VenueManagementPage({
           <button type="button" className="ghost-button" onClick={() => void handleRefresh()}>
             刷新
           </button>
-          <button type="button" className="ghost-button" onClick={() => vm.setCreateAccountOpen(true)}>
-            + 新建账号
-          </button>
           <button type="button" className="primary-button" onClick={() => vm.setCreateVenueOpen(true)}>
             + 新建场馆
           </button>
@@ -176,17 +169,6 @@ export default function VenueManagementPage({
             <div className="venue-empty">请选择一个场馆。</div>
           ) : (
             <div className="venue-detail-body">
-              <VenueAccountsCard
-                venueUsers={vm.venueUsers}
-                onOpenBind={async () => {
-                  vm.setBindAccountOpen(true);
-                  vm.setBindQuery("");
-                  vm.setBindSelectedUserId(null);
-                  await vm.loadBindCandidates("");
-                }}
-                onUnbind={(userId) => vm.handleUnbindAccount(userId)}
-              />
-
               <div className="venue-card">
                 <div className="venue-card-head">
                   <div>
@@ -277,48 +259,12 @@ export default function VenueManagementPage({
         </div>
       </section>
 
-      <VenueAccountsListPanel
-        filteredAccounts={vm.filteredAccounts}
-        accountsQuery={vm.accountsQuery}
-        onAccountsQueryChange={vm.setAccountsQuery}
-        venueById={vm.venueById}
-        coursePackages={allCoursePackages}
-        onSetCoursePackages={(userId, coursePackageIds) => void vm.handleSetAccountCoursePackages(userId, coursePackageIds)}
-        onUnbind={(userId) => vm.handleUnbindAccount(userId)}
-        onUpdatePassword={(user) => void vm.handleUpdateAccountPassword(user)}
-      />
-
       <CreateVenueModal
         open={vm.createVenueOpen}
         newVenueName={vm.newVenueName}
         onNewVenueNameChange={vm.setNewVenueName}
         onClose={() => vm.setCreateVenueOpen(false)}
         onCreate={vm.handleCreateVenue}
-      />
-
-      <CreateAccountModal
-        open={vm.createAccountOpen}
-        accountUsername={vm.accountUsername}
-        accountPassword={vm.accountPassword}
-        onAccountUsernameChange={vm.setAccountUsername}
-        onAccountPasswordChange={vm.setAccountPassword}
-        onClose={() => vm.setCreateAccountOpen(false)}
-        onCreate={vm.handleCreateAccount}
-      />
-
-      <BindAccountModal
-        open={vm.bindAccountOpen}
-        bindQuery={vm.bindQuery}
-        onBindQueryChange={(next) => {
-          vm.setBindQuery(next);
-          vm.setBindSelectedUserId(null);
-          vm.loadBindCandidates(next);
-        }}
-        bindCandidates={vm.bindCandidates}
-        selectedUserId={vm.bindSelectedUserId}
-        onSelectUser={vm.setBindSelectedUserId}
-        onClose={vm.closeBindModal}
-        onConfirm={vm.handleBindAccount}
       />
 
       {vm.loading || packageActionLoading ? <div className="busy-mask">{vm.loading || packageActionLoading}</div> : null}
