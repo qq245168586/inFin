@@ -1,21 +1,20 @@
 import ActionMediaPreview, { type ActionMediaPreviewAction } from "../../components/ActionMediaPreview.tsx";
+import ActionPicker from "../../components/ActionPicker.tsx";
 import DraftNumberInput from "../../components/DraftNumberInput.tsx";
 import { createWaterfallItem, getWaterfallSectionTotal } from "../../models/course/factories.ts";
 import type { TemplateDraft } from "../../models/templates.ts";
+import type { TypeOption } from "../../services/api/meta.ts";
 import { formatSecondsLabel } from "../../utils/datetime.ts";
-
-function findActionName(actions: ActionMediaPreviewAction[], actionId: string): string {
-  const matched = actions.find((item) => String(item.id) === String(actionId));
-  return matched ? matched.name : "";
-}
 
 export default function WaterfallTemplateEditor({
   draft,
   actions,
+  actionTypes,
   onUpdateDraft
 }: {
   draft: TemplateDraft;
   actions: ActionMediaPreviewAction[];
+  actionTypes: TypeOption[];
   onUpdateDraft: (updater: (current: TemplateDraft) => TemplateDraft) => void;
 }) {
   if (draft.kind === "training" || !draft.section) {
@@ -42,9 +41,11 @@ export default function WaterfallTemplateEditor({
             <div className="stack-row-main">
               <label className="field grow">
                 <span>动作 {index + 1}</span>
-                <select
+                <ActionPicker
                   value={item.actionId}
-                  onChange={(event) =>
+                  actions={actions}
+                  actionTypes={actionTypes}
+                  onChange={(actionId, actionName) =>
                     onUpdateDraft((current) => ({
                       ...current,
                       section: current.section
@@ -54,8 +55,8 @@ export default function WaterfallTemplateEditor({
                               entry.id === item.id
                                 ? {
                                     ...entry,
-                                    actionId: event.target.value,
-                                    actionName: findActionName(actions, event.target.value)
+                                    actionId,
+                                    actionName
                                   }
                                 : entry
                             )
@@ -63,14 +64,7 @@ export default function WaterfallTemplateEditor({
                         : current.section
                     }))
                   }
-                >
-                  <option value="">请选择动作</option>
-                  {actions.map((action) => (
-                    <option key={action.id} value={action.id}>
-                      {action.name}
-                    </option>
-                  ))}
-                </select>
+                />
               </label>
 
               <label className="field narrow">

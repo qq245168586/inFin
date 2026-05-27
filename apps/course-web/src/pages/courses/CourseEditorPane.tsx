@@ -21,6 +21,7 @@ export default function CourseEditorPane({
   courseEditor,
   lessonTypes,
   actions,
+  actionTypes,
   onAddLessonType,
   onUseWarmupTemplate,
   onUseCooldownTemplate,
@@ -39,6 +40,7 @@ export default function CourseEditorPane({
   courseEditor: CourseDraft;
   lessonTypes: TypeOption[];
   actions: ActionRecord[];
+  actionTypes: TypeOption[];
   onAddLessonType: () => void;
   onUseWarmupTemplate: () => void;
   onUseCooldownTemplate: () => void;
@@ -138,6 +140,7 @@ export default function CourseEditorPane({
         <CourseWaterfallSections
           sections={courseEditor.script.sections}
           actions={actions}
+          actionTypes={actionTypes}
           sectionCopy={COURSE_SECTION_COPY}
           onUseTemplate={(key) => (key === "warmup" ? onUseWarmupTemplate() : onUseCooldownTemplate())}
           onUpdateScript={onUpdateCourseScript}
@@ -148,6 +151,7 @@ export default function CourseEditorPane({
         <CourseVideoGroupsEditor
           script={courseEditor.script}
           actions={actions}
+          actionTypes={actionTypes}
           onUseTemplate={(group) => onUseTrainingTemplate(group.id)}
           onUpdateScript={onUpdateCourseScript}
           syncPodsForVideoGroup={syncPodsForVideoGroup}

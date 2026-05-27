@@ -19,6 +19,7 @@ export default function useCourseCrudVm({
   authHeader,
   courseEditor,
   coursePackageId,
+  existingCourses = [],
   onBusyText,
   onNotice,
   onReloadMeta,
@@ -28,6 +29,7 @@ export default function useCourseCrudVm({
   authHeader: string;
   courseEditor: CourseDraft | null;
   coursePackageId?: number | null;
+  existingCourses?: CourseRecord[];
   onBusyText: (value: string) => void;
   onNotice: (message: string, tone?: NoticeTone) => void;
   onReloadMeta: () => Promise<void>;
@@ -40,6 +42,20 @@ export default function useCourseCrudVm({
     const issues = getCourseDraftIssues(courseEditor);
     if (issues.length) {
       onNotice(issues[0], "error");
+      return;
+    }
+
+    const nextName = courseEditor.script.metadata.name.trim();
+    const duplicatedCourse = existingCourses.find((course) => {
+      if (courseEditor.id && Number(course.id) === Number(courseEditor.id)) {
+        return false;
+      }
+
+      return course.name.trim().toLowerCase() === nextName.toLowerCase();
+    });
+
+    if (duplicatedCourse) {
+      onNotice(`课程名称“${nextName}”已存在，请修改名称后再保存。`, "error");
       return;
     }
 

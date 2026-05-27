@@ -1,19 +1,18 @@
 import ActionMediaPreview, { type ActionMediaPreviewAction } from "../../components/ActionMediaPreview.tsx";
+import ActionPicker from "../../components/ActionPicker.tsx";
 import { createVideoCard, createVideoGroupScreen } from "../../models/course/factories.ts";
 import type { TemplateDraft } from "../../models/templates.ts";
-
-function findActionName(actions: ActionMediaPreviewAction[], actionId: string): string {
-  const matched = actions.find((item) => String(item.id) === String(actionId));
-  return matched ? matched.name : "";
-}
+import type { TypeOption } from "../../services/api/meta.ts";
 
 export default function TrainingTemplateEditor({
   draft,
   actions,
+  actionTypes,
   onUpdateDraft
 }: {
   draft: TemplateDraft;
   actions: ActionMediaPreviewAction[];
+  actionTypes: TypeOption[];
   onUpdateDraft: (updater: (current: TemplateDraft) => TemplateDraft) => void;
 }) {
   if (draft.kind !== "training" || !draft.videoGroup) {
@@ -79,9 +78,13 @@ export default function TrainingTemplateEditor({
                   <div className="stack-row-main">
                     <label className="field grow action-field">
                       <span>动作位 {cardIndex + 1}</span>
-                      <select
+                      <ActionPicker
                         value={card.actionId}
-                        onChange={(event) =>
+                        actions={actions}
+                        actionTypes={actionTypes}
+                        placeholder="先留空，课程里再选动作"
+                        emptyLabel="保留空动作位"
+                        onChange={(actionId, actionName) =>
                           onUpdateDraft((current) => ({
                             ...current,
                             videoGroup: current.videoGroup
@@ -95,8 +98,8 @@ export default function TrainingTemplateEditor({
                                             videoCard.id === card.id
                                               ? {
                                                   ...videoCard,
-                                                  actionId: event.target.value,
-                                                  actionName: findActionName(actions, event.target.value)
+                                                  actionId,
+                                                  actionName
                                                 }
                                               : videoCard
                                           )
@@ -107,14 +110,7 @@ export default function TrainingTemplateEditor({
                               : current.videoGroup
                           }))
                         }
-                      >
-                        <option value="">先留空，课程里再选动作</option>
-                        {actions.map((action) => (
-                          <option key={action.id} value={action.id}>
-                            {action.name}
-                          </option>
-                        ))}
-                      </select>
+                      />
                     </label>
 
                     {draft.videoGroup.screenCount === 3 ? (

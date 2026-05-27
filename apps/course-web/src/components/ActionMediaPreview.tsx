@@ -8,6 +8,7 @@ interface ActionMedia {
 export interface ActionMediaPreviewAction {
   id: number;
   name: string;
+  typeIds?: number[];
   updateTime?: string;
   media?: ActionMedia | null;
 }

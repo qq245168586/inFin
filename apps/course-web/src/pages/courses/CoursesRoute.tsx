@@ -74,6 +74,7 @@ export default function CoursesRoute({
     authHeader,
     courseEditor,
     coursePackageId: activeCourseEditorTab?.coursePackageId || selectedCoursePackage?.id || null,
+    existingCourses: appData?.courses || [],
     onBusyText: setBusyText,
     onNotice: (message, tone) => pushNotice(message, tone === "error" ? "error" : undefined),
     onReloadMeta: reloadMeta,
@@ -377,6 +378,7 @@ export default function CoursesRoute({
             courseEditor={courseEditor}
             lessonTypes={lessonTypes}
             actions={appData?.actions || []}
+            actionTypes={appData?.actionTypes || []}
             onAddLessonType={onAddLessonType}
             onUseWarmupTemplate={() => openTemplateUseDialog("warmup")}
             onUseCooldownTemplate={() => openTemplateUseDialog("cooldown")}

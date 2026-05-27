@@ -1,23 +1,23 @@
 import ActionMediaPreview, { type ActionMediaPreviewAction } from "../../components/ActionMediaPreview.tsx";
+import ActionPicker from "../../components/ActionPicker.tsx";
 import DraftNumberInput from "../../components/DraftNumberInput.tsx";
 import EmptyBlock from "../../components/EmptyBlock.tsx";
 import type { CourseScript, CourseSectionKey, WaterfallSection } from "../../models/course/types.ts";
 import { createWaterfallItem } from "../../models/course/factories.ts";
+import type { TypeOption } from "../../services/api/meta.ts";
 import { formatSecondsLabel } from "../../utils/datetime.ts";
-
-function findActionName(actions: ActionMediaPreviewAction[], actionId: string): string {
-  return actions.find((item) => String(item.id) === String(actionId))?.name || "";
-}
 
 export default function CourseWaterfallSections({
   sections,
   actions,
+  actionTypes,
   sectionCopy,
   onUseTemplate,
   onUpdateScript
 }: {
   sections: CourseScript["sections"];
   actions: ActionMediaPreviewAction[];
+  actionTypes: TypeOption[];
   sectionCopy: Record<CourseSectionKey, string>;
   onUseTemplate: (key: CourseSectionKey) => void;
   onUpdateScript: (updater: (current: CourseScript) => CourseScript) => void;
@@ -78,9 +78,11 @@ export default function CourseWaterfallSections({
                     <div className="stack-row-main">
                       <label className="field grow">
                         <span>动作 {index + 1}</span>
-                        <select
+                        <ActionPicker
                           value={item.actionId}
-                          onChange={(event) =>
+                          actions={actions}
+                          actionTypes={actionTypes}
+                          onChange={(actionId, actionName) =>
                             onUpdateScript((current) => ({
                               ...current,
                               sections: {
@@ -91,8 +93,8 @@ export default function CourseWaterfallSections({
                                     entry.id === item.id
                                       ? {
                                           ...entry,
-                                          actionId: event.target.value,
-                                          actionName: findActionName(actions, event.target.value)
+                                          actionId,
+                                          actionName
                                         }
                                       : entry
                                   )
@@ -100,14 +102,7 @@ export default function CourseWaterfallSections({
                               }
                             }))
                           }
-                        >
-                          <option value="">请选择动作</option>
-                          {actions.map((action) => (
-                            <option key={action.id} value={action.id}>
-                              {action.name}
-                            </option>
-                          ))}
-                        </select>
+                        />
                       </label>
 
                       <label className="field narrow">

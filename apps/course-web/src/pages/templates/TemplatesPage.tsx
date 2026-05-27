@@ -15,6 +15,7 @@ import CourseTemplateEditor from "./CourseTemplateEditor.tsx";
 import TrainingTemplateEditor from "./TrainingTemplateEditor.tsx";
 import WaterfallTemplateEditor from "./WaterfallTemplateEditor.tsx";
 import type { ActionMediaPreviewAction } from "../../components/ActionMediaPreview.tsx";
+import type { TypeOption } from "../../services/api/meta.ts";
 
 export default function TemplatesPage({
   templateCollections,
@@ -22,6 +23,8 @@ export default function TemplatesPage({
   coursePackages,
   lessonTypes,
   actions,
+  actionTypes,
+  onAddLessonType,
   onReloadMeta,
   onBusyTextChange,
   onNotice
@@ -31,6 +34,8 @@ export default function TemplatesPage({
   coursePackages: CoursePackageRecord[];
   lessonTypes: Array<{ id: number; name: string }>;
   actions: ActionMediaPreviewAction[];
+  actionTypes: TypeOption[];
+  onAddLessonType: () => void;
   onReloadMeta: () => Promise<void>;
   onBusyTextChange: (text: string) => void;
   onNotice: (message: string, tone?: "success" | "error") => void;
@@ -77,13 +82,24 @@ export default function TemplatesPage({
               </label>
             </div>
 
-            <TrainingTemplateEditor draft={vm.templateEditor} actions={actions} onUpdateDraft={vm.updateTemplateEditor} />
-            <WaterfallTemplateEditor draft={vm.templateEditor} actions={actions} onUpdateDraft={vm.updateTemplateEditor} />
+            <TrainingTemplateEditor
+              draft={vm.templateEditor}
+              actions={actions}
+              actionTypes={actionTypes}
+              onUpdateDraft={vm.updateTemplateEditor}
+            />
+            <WaterfallTemplateEditor
+              draft={vm.templateEditor}
+              actions={actions}
+              actionTypes={actionTypes}
+              onUpdateDraft={vm.updateTemplateEditor}
+            />
             <CourseTemplateEditor
               draft={vm.templateEditor}
               courses={courses}
               coursePackages={coursePackages}
               lessonTypes={lessonTypes}
+              onAddLessonType={onAddLessonType}
               onUpdateDraft={vm.updateTemplateEditor}
             />
 

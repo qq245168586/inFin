@@ -141,6 +141,8 @@ export default function AppRoot() {
             coursePackages={coursePackages}
             lessonTypes={appData?.lessonTypes || []}
             actions={appData?.actions || []}
+            actionTypes={appData?.actionTypes || []}
+            onAddLessonType={() => setTypeDialog({ kind: "lesson", value: "" })}
             onReloadMeta={reloadMeta}
             onBusyTextChange={setBusyText}
             onNotice={pushNotice}

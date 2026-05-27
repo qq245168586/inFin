@@ -46,7 +46,7 @@ export interface MetaPayload {
 }
 
 export async function fetchMeta(authHeader = ""): Promise<MetaPayload> {
-  return await requestJson<MetaPayload>("/api/meta", {
+  return await requestJson<MetaPayload>("/api/meta?courseDetail=full", {
     headers: authHeader ? { Authorization: authHeader } : {}
   });
 }

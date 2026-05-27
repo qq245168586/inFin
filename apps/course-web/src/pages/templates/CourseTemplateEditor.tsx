@@ -11,12 +11,14 @@ export default function CourseTemplateEditor({
   courses,
   coursePackages,
   lessonTypes,
+  onAddLessonType,
   onUpdateDraft
 }: {
   draft: TemplateDraft;
   courses: CourseRecord[];
   coursePackages: CoursePackageRecord[];
   lessonTypes: Array<{ id: number; name: string }>;
+  onAddLessonType: () => void;
   onUpdateDraft: (updater: (current: TemplateDraft) => TemplateDraft) => void;
 }) {
   if (draft.kind !== "course") return null;
@@ -115,6 +117,7 @@ export default function CourseTemplateEditor({
           onToggle={(typeId) =>
             onUpdateDraft((current) => ({ ...current, typeIds: toggleNumberId(current.typeIds, typeId) }))
           }
+          onAdd={onAddLessonType}
         />
       </div>
 
