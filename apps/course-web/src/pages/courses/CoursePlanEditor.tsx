@@ -1,8 +1,10 @@
-import type { CoursePlan, CourseScript } from "../../models/course/types.ts";
+import DraftNumberInput from "../../components/DraftNumberInput.tsx";
+import type { CoursePlan, CourseScript, ReadyDurations } from "../../models/course/types.ts";
 import { createCoursePlanItem, createCoursePlanSection } from "../../models/course/factories.ts";
 
 interface CoursePlanEditorProps {
   plan: CoursePlan;
+  readyDurations: ReadyDurations;
   onUpdateScript: (updater: (current: CourseScript) => CourseScript) => void;
 }
 
@@ -21,8 +23,33 @@ function updatePlan(
   });
 }
 
-export default function CoursePlanEditor({ plan, onUpdateScript }: CoursePlanEditorProps) {
+function updateReadyDuration(
+  onUpdateScript: CoursePlanEditorProps["onUpdateScript"],
+  key: keyof ReadyDurations,
+  value: number
+) {
+  onUpdateScript((current) => ({
+    ...current,
+    metadata: {
+      ...current.metadata,
+      readyDurations: {
+        warmupSeconds: 15,
+        workoutSeconds: 15,
+        cooldownSeconds: 10,
+        ...(current.metadata.readyDurations || {}),
+        [key]: value
+      }
+    }
+  }));
+}
+
+export default function CoursePlanEditor({ plan, readyDurations, onUpdateScript }: CoursePlanEditorProps) {
   const sections = Array.isArray(plan?.sections) ? plan.sections : [];
+  const safeReadyDurations: ReadyDurations = {
+    warmupSeconds: readyDurations?.warmupSeconds ?? 15,
+    workoutSeconds: readyDurations?.workoutSeconds ?? 15,
+    cooldownSeconds: readyDurations?.cooldownSeconds ?? 10
+  };
 
   return (
     <section className="section-card course-plan-editor">
@@ -145,6 +172,39 @@ export default function CoursePlanEditor({ plan, onUpdateScript }: CoursePlanEdi
           还没有课程计划。点击右上角“添加小节”，就可以为这节课写一个会员可读的训练安排。
         </div>
       )}
+
+      <div className="ready-duration-panel">
+        <div>
+          <h4>准备倒计时</h4>
+          <p>这些时间会同步到 TV 端，控制每段开始前的 ready 提示。</p>
+        </div>
+        <div className="ready-duration-grid">
+          <label className="field">
+            <span>ready for warm up</span>
+            <DraftNumberInput
+              value={safeReadyDurations.warmupSeconds}
+              minValue={0}
+              onValueChange={(value) => updateReadyDuration(onUpdateScript, "warmupSeconds", value)}
+            />
+          </label>
+          <label className="field">
+            <span>ready for workout</span>
+            <DraftNumberInput
+              value={safeReadyDurations.workoutSeconds}
+              minValue={0}
+              onValueChange={(value) => updateReadyDuration(onUpdateScript, "workoutSeconds", value)}
+            />
+          </label>
+          <label className="field">
+            <span>ready for cool down</span>
+            <DraftNumberInput
+              value={safeReadyDurations.cooldownSeconds}
+              minValue={0}
+              onValueChange={(value) => updateReadyDuration(onUpdateScript, "cooldownSeconds", value)}
+            />
+          </label>
+        </div>
+      </div>
     </section>
   );
 }

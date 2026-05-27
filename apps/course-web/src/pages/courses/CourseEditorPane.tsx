@@ -133,7 +133,11 @@ export default function CourseEditorPane({
 
         <div className="divider" />
 
-        <CoursePlanEditor plan={courseEditor.script.plan} onUpdateScript={onUpdateCourseScript} />
+        <CoursePlanEditor
+          plan={courseEditor.script.plan}
+          readyDurations={courseEditor.script.metadata.readyDurations}
+          onUpdateScript={onUpdateCourseScript}
+        />
 
         <div className="divider" />
 

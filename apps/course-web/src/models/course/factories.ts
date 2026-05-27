@@ -8,6 +8,7 @@ import type {
   CourseScript,
   Pod,
   PodSetConfig,
+  ReadyDurations,
   TrainingPanel,
   VideoCard,
   VideoGroup,
@@ -24,6 +25,14 @@ export function createTrainingPanel(overrides: Partial<TrainingPanel> = {}): Tra
     workSeconds: 0,
     restSeconds: 0,
     ...overrides
+  };
+}
+
+export function createReadyDurations(overrides: Partial<ReadyDurations> = {}): ReadyDurations {
+  return {
+    warmupSeconds: readNonNegativeNumber(overrides.warmupSeconds, 15),
+    workoutSeconds: readNonNegativeNumber(overrides.workoutSeconds, 15),
+    cooldownSeconds: readNonNegativeNumber(overrides.cooldownSeconds, 10)
   };
 }
 
@@ -233,7 +242,8 @@ export function cloneCourseScriptWithFreshIds(script: CourseScript, metadataId =
       ...script.metadata,
       id: metadataId,
       tags: [...(script.metadata?.tags || [])],
-      trainingPanel: createTrainingPanel(script.metadata?.trainingPanel)
+      trainingPanel: createTrainingPanel(script.metadata?.trainingPanel),
+      readyDurations: createReadyDurations(script.metadata?.readyDurations)
     },
     sections: {
       warmup: {

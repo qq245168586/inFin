@@ -3,6 +3,7 @@ import {
   cloneCoursePlanForEditor,
   cloneWaterfallSectionForEditor,
   createCoursePlan,
+  createReadyDurations,
   createTrainingPanel,
   createVideoGroup,
   createWaterfallSection
@@ -37,6 +38,7 @@ export function createEmptyCourseScript(): CourseScript {
       creator: "",
       tags: [],
       defaultHydrateSeconds: 0,
+      readyDurations: createReadyDurations(),
       trainingPanel: createTrainingPanel({
         setCount: 1,
         breakCount: 0
@@ -114,6 +116,7 @@ export function normalizeCourseScriptLocal(script: CourseScript): CourseScript {
     metadata: {
       ...cloneDeep(cloned.metadata),
       defaultHydrateSeconds: readNonNegativeNumber(cloned.metadata?.defaultHydrateSeconds, 0),
+      readyDurations: createReadyDurations(cloned.metadata?.readyDurations),
       trainingPanel: createTrainingPanel(cloned.metadata?.trainingPanel)
     },
     training: {

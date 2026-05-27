@@ -14,6 +14,12 @@ export interface TrainingPanel {
   restSeconds: number;
 }
 
+export interface ReadyDurations {
+  warmupSeconds: number;
+  workoutSeconds: number;
+  cooldownSeconds: number;
+}
+
 export interface WaterfallItem {
   id: string;
   actionId: string;
@@ -99,6 +105,7 @@ export interface CourseScript {
     tags: string[];
     defaultHydrateSeconds: number;
     trainingPanel: TrainingPanel;
+    readyDurations: ReadyDurations;
   };
   sections: {
     warmup: WaterfallSection;

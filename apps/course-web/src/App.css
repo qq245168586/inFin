@@ -2104,6 +2104,33 @@ textarea:focus {
   line-height: 1.65;
 }
 
+.ready-duration-panel {
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(15, 19, 34, 0.08);
+  background: rgba(255, 255, 255, 0.72);
+  display: grid;
+  gap: 14px;
+}
+
+.ready-duration-panel h4 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.ready-duration-panel p {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.ready-duration-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
 .script-summary-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
