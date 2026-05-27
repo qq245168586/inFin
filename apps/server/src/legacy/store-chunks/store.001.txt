@@ -228,6 +228,14 @@ function safeNumber(value, fallback = 0) {
   return Number.isFinite(numeric) && numeric >= 0 ? numeric : fallback;
 }
 
+function normalizeReadyDurations(overrides = {}) {
+  return {
+    warmupSeconds: safeNumber(overrides?.warmupSeconds, 15),
+    workoutSeconds: safeNumber(overrides?.workoutSeconds, 15),
+    cooldownSeconds: safeNumber(overrides?.cooldownSeconds, 10)
+  };
+}
+
 function numberList(input) {
   if (!Array.isArray(input)) {
     return [];

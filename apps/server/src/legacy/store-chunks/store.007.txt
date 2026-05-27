@@ -20,10 +20,11 @@ function estimateCoursePlaybackDurationMs(script) {
   }
 
   const summary = summarizeCourseScript(script);
+  const readyDurations = normalizeReadyDurations(script.metadata?.readyDurations);
   const readySeconds =
-    (hasWaterfallPlaybackItems(script.sections?.warmup) ? PLAYBACK_WARMUP_READY_SECONDS : 0)
-    + (hasTrainingPlaybackPods(script) ? PLAYBACK_TRAINING_READY_SECONDS : 0)
-    + (hasWaterfallPlaybackItems(script.sections?.cooldown) ? PLAYBACK_COOLDOWN_READY_SECONDS : 0);
+    (hasWaterfallPlaybackItems(script.sections?.warmup) ? readyDurations.warmupSeconds : 0)
+    + (hasTrainingPlaybackPods(script) ? readyDurations.workoutSeconds : 0)
+    + (hasWaterfallPlaybackItems(script.sections?.cooldown) ? readyDurations.cooldownSeconds : 0);
   const totalSeconds = safeNumber(summary.totalSeconds) + readySeconds;
   return totalSeconds > 0 ? totalSeconds * 1000 : 0;
 }

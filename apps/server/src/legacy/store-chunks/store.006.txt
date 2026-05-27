@@ -352,6 +352,7 @@ function coerceCourseScript(source = {}) {
     version: trimText(source.version) || script.metadata?.version || "v1.0.0",
     creator: trimText(source.creator) || script.metadata?.creator || "",
     defaultHydrateSeconds: defaultHydrateSecondsFromCourse(source),
+    readyDurations: normalizeReadyDurations(source?.script?.metadata?.readyDurations || script.metadata?.readyDurations),
     trainingPanel: deriveTrainingPanel(source, script)
   };
   script.plan = normalizeCoursePlan(source?.script?.plan || source?.plan || script.plan);
