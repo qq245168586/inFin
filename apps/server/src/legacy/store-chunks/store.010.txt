@@ -49,7 +49,7 @@ export function getUserByAccessToken(accessToken) {
 }
 
 export function addActionType(name) {
-  const next = { id: nextId(state.actionTypes), name: trimText(name) };
+  const next = { id: nextId(state.actionTypes), name: stripMediaSuffix(name) };
   state.actionTypes.push(next);
   persist();
   return next;
@@ -60,7 +60,7 @@ export function listLessonTypes() {
 }
 
 export function addLessonType(name) {
-  const next = { id: nextId(state.lessonTypes), name: trimText(name) };
+  const next = { id: nextId(state.lessonTypes), name: stripMediaSuffix(name) };
   state.lessonTypes.push(next);
   persist();
   return next;

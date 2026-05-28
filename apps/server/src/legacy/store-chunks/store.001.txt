@@ -248,4 +248,13 @@ function trimText(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function stripMediaSuffix(value) {
+  let next = trimText(value);
+  const mediaExtensionPattern = /\.(mp4|mov|m4v|webm|avi|mkv|mpeg|mpg|wmv)$/i;
+  while (mediaExtensionPattern.test(next)) {
+    next = next.replace(mediaExtensionPattern, "").trim();
+  }
+  return next;
+}
+
 function normalizeAccountNamespace(value, fallback = DEFAULT_ACCOUNT_NAMESPACE) {
