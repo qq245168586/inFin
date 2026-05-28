@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 export interface DialogProps {
   title: string;
@@ -19,7 +20,7 @@ export default function Dialog({
   confirmDisabled = false,
   children
 }: DialogProps) {
-  return (
+  const dialog = (
     <div className="dialog-mask">
       <div className="dialog-card" style={{ width }}>
         <div className="dialog-head">
@@ -40,4 +41,10 @@ export default function Dialog({
       </div>
     </div>
   );
+
+  if (typeof document === "undefined") {
+    return dialog;
+  }
+
+  return createPortal(dialog, document.body);
 }

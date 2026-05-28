@@ -1,3 +1,5 @@
+import { displayTypeName } from "../utils/typeNames.ts";
+
 export interface ChipOption {
   id: number;
   name: string;
@@ -20,7 +22,7 @@ export default function FilterChips({ options, selectedIds, onToggle, onAdd }: F
           className={`filter-chip ${selectedIds.includes(item.id) ? "is-active" : ""}`}
           onClick={() => onToggle(item.id)}
         >
-          {item.name}
+          {displayTypeName(item.name)}
         </button>
       ))}
       {onAdd ? (

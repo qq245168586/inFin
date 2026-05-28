@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import ActionMediaPreview, { type ActionMediaPreviewAction } from "./ActionMediaPreview.tsx";
 import Dialog from "./Dialog.tsx";
 import type { TypeOption } from "../services/api/meta.ts";
+import { displayTypeName } from "../utils/typeNames.ts";
 
 function normalizeSearch(value: string): string {
   return String(value || "").trim().toLowerCase();
@@ -37,7 +38,7 @@ export default function ActionPicker({
 
   const selectedName = findActionName(actions, value);
   const draftAction = findAction(actions, draftActionId);
-  const typeNameById = useMemo(() => new Map(actionTypes.map((item) => [Number(item.id), item.name])), [actionTypes]);
+  const typeNameById = useMemo(() => new Map(actionTypes.map((item) => [Number(item.id), displayTypeName(item.name)])), [actionTypes]);
 
   const filteredActions = useMemo(() => {
     const keyword = normalizeSearch(search);
@@ -88,7 +89,7 @@ export default function ActionPicker({
                     <option value="">全部类型</option>
                     {actionTypes.map((type) => (
                       <option key={type.id} value={type.id}>
-                        {type.name}
+                        {displayTypeName(type.name)}
                       </option>
                     ))}
                   </select>

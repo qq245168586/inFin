@@ -13,6 +13,7 @@ import { useMeta } from "../providers/MetaProvider.tsx";
 import { useNotice } from "../providers/NoticeProvider.tsx";
 import { requestJson } from "../services/requestJson.ts";
 import { getErrorMessage } from "../utils/errors.ts";
+import { stripMediaSuffix } from "../utils/typeNames.ts";
 
 type TypeDialogState = TypeDialogStateValue;
 
@@ -80,7 +81,8 @@ export default function AppRoot() {
   }, [authSession, coursePackageStorageKey, selectedCoursePackageId]);
 
   async function confirmTypeDialog() {
-    if (!typeDialog?.value.trim()) {
+    const cleanedTypeName = stripMediaSuffix(typeDialog?.value || "");
+    if (!cleanedTypeName) {
       pushNotice("名称不能为空。", "error");
       return;
     }
@@ -92,7 +94,7 @@ export default function AppRoot() {
         typeDialog.kind === "action" ? "/api/action-types" : "/api/lesson-types",
         {
           method: "POST",
-          body: JSON.stringify({ name: typeDialog.value.trim() })
+          body: JSON.stringify({ name: cleanedTypeName })
         }
       );
       await reloadMeta();

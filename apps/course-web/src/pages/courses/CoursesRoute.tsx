@@ -25,6 +25,7 @@ import useCourseCrudVm from "../../viewmodels/courses/useCourseCrudVm.ts";
 import { createCourseDraftFromCourseTemplate } from "../../viewmodels/courses/courseEditorFactories.ts";
 import { formatSecondsStrategy } from "../../viewmodels/courses/podFormatters.ts";
 import { filterCoursesByCoursePackage } from "../../utils/coursePackageScope.ts";
+import { displayTypeName } from "../../utils/typeNames.ts";
 
 export default function CoursesRoute({
   selectedCoursePackage,
@@ -40,7 +41,10 @@ export default function CoursesRoute({
 
   const courses = filterCoursesByCoursePackage(appData?.courses || [], selectedCoursePackage);
   const lessonTypes = appData?.lessonTypes || [];
-  const lessonTypeMap = useMemo(() => new Map(lessonTypes.map((item) => [item.id, item.name])), [lessonTypes]);
+  const lessonTypeMap = useMemo(
+    () => new Map(lessonTypes.map((item) => [item.id, displayTypeName(item.name)])),
+    [lessonTypes]
+  );
   const templateCollections = appData?.templates || { warmup: [], cooldown: [], training: [], course: [] };
   const courseTemplates = useMemo(
     () =>

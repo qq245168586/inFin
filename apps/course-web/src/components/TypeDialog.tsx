@@ -1,4 +1,5 @@
 import Dialog from "./Dialog.tsx";
+import { stripMediaSuffix } from "../utils/typeNames.ts";
 
 export interface TypeDialogStateValue {
   kind: "action" | "lesson";
@@ -29,7 +30,7 @@ export default function TypeDialog({
           <span>名称</span>
           <input
             value={state.value}
-            onChange={(event) => onStateChange((current) => ({ ...current, value: event.target.value }))}
+            onChange={(event) => onStateChange((current) => ({ ...current, value: stripMediaSuffix(event.target.value) }))}
             placeholder="请输入分类名称"
           />
         </label>

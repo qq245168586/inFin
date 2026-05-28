@@ -6,6 +6,7 @@ import { uploadBinary } from "../../services/uploadBinary.ts";
 import { triggerFileInput } from "../../utils/dom.ts";
 import { getErrorMessage } from "../../utils/errors.ts";
 import { uid } from "../../utils/uid.ts";
+import { displayTypeName, stripMediaSuffix } from "../../utils/typeNames.ts";
 import { useMeta } from "../../providers/MetaProvider.tsx";
 import { useBusy } from "../../providers/BusyProvider.tsx";
 import { useNotice } from "../../providers/NoticeProvider.tsx";
@@ -42,8 +43,7 @@ interface BatchUploadDialogState {
 }
 
 function normalizeBatchKey(value: string): string {
-  return String(value || "")
-    .trim()
+  return stripMediaSuffix(value)
     .toLowerCase()
     .replace(/\\s+/g, "");
 }
@@ -57,7 +57,7 @@ function buildActionTypeLookup(actionTypes: TypeOption[]): Map<string, TypeOptio
 }
 
 function formatGeneratedTypeName(rawTypeName: string): string {
-  const cleaned = String(rawTypeName || "").trim();
+  const cleaned = stripMediaSuffix(rawTypeName);
   if (!cleaned) return "未命名";
   return cleaned.length > 20 ? cleaned.slice(0, 20) : cleaned;
 }
@@ -81,8 +81,8 @@ function createBatchUploadItem(file: File, actionTypes: TypeOption[]): BatchUplo
     };
   }
 
-  const actionName = rawName.slice(0, separatorIndex).trim();
-  const rawTypeName = rawName.slice(separatorIndex + 1).trim();
+  const actionName = stripMediaSuffix(rawName.slice(0, separatorIndex));
+  const rawTypeName = stripMediaSuffix(rawName.slice(separatorIndex + 1));
 
   if (!actionName || !rawTypeName) {
     return {
@@ -154,7 +154,10 @@ export default function ActionsRoute({
   const [actionBatchGuideOpen, setActionBatchGuideOpen] = useState(false);
   const [actionBatchDialog, setActionBatchDialog] = useState<BatchUploadDialogState | null>(null);
 
-  const actionTypeNameById = useMemo(() => new Map(actionTypes.map((item) => [item.id, item.name])), [actionTypes]);
+  const actionTypeNameById = useMemo(
+    () => new Map(actionTypes.map((item) => [item.id, displayTypeName(item.name)])),
+    [actionTypes]
+  );
 
   const filteredActions = useMemo(() => {
     return actions.filter((action) => {
