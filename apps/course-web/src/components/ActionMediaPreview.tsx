@@ -145,17 +145,19 @@ export function FirstFrameVideo({ src, className }: { src: string; className?: s
 export default function ActionMediaPreview({
   actionId,
   actions,
-  emptyCopy = "请选择动作查看视频"
+  emptyCopy = "请选择动作查看视频",
+  compact = false
 }: {
   actionId: string;
   actions: ActionMediaPreviewAction[];
   emptyCopy?: string;
+  compact?: boolean;
 }) {
   const action = findActionRecord(actions, actionId);
   const mediaUrl = action?.media?.url ? withCacheToken(action.media.url, action.updateTime) : "";
 
   return (
-    <div className="action-media-preview">
+    <div className={`action-media-preview${compact ? " is-compact" : ""}`}>
       <div className="action-media-preview-frame">
         {mediaUrl ? <FirstFrameVideo src={mediaUrl} /> : <div className="action-media-preview-empty">{action ? "该动作暂无视频" : emptyCopy}</div>}
       </div>

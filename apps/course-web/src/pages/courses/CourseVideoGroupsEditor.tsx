@@ -4,6 +4,22 @@ import type { CourseScript, VideoGroup } from "../../models/course/types.ts";
 import { createVideoCard, createVideoGroup, createVideoGroupScreen } from "../../models/course/factories.ts";
 import type { TypeOption } from "../../services/api/meta.ts";
 
+function getScreenVideoGridClass(actionCount: number) {
+  if (actionCount <= 1) {
+    return "is-one";
+  }
+
+  if (actionCount === 2) {
+    return "is-two";
+  }
+
+  if (actionCount === 3) {
+    return "is-three";
+  }
+
+  return "is-many";
+}
+
 export default function CourseVideoGroupsEditor({
   script,
   actions,
@@ -154,42 +170,40 @@ export default function CourseVideoGroupsEditor({
                     </div>
                   </div>
 
-                  <div className="stack-list">
+                  <div className={`screen-video-grid ${getScreenVideoGridClass(screen.videoCards.length)}`}>
                     {screen.videoCards.map((card, cardIndex) => (
-                      <div key={card.id} className="stack-row compact card-row">
-                        <div className="stack-row-main">
-                          <label className="field grow action-field">
-                            <span>动作 {cardIndex + 1}</span>
-                            <ActionPicker
-                              value={card.actionId}
-                              actions={actions}
-                              actionTypes={actionTypes}
-                              onChange={(actionId, actionName) =>
-                                onUpdateScript((current) => {
-                                  const nextGroup = {
-                                    ...group,
-                                    screens: group.screens.map((entry) =>
-                                      entry.id === screen.id
-                                        ? {
-                                            ...entry,
-                                            videoCards: entry.videoCards.map((videoCard) =>
-                                              videoCard.id === card.id
-                                                ? {
-                                                    ...videoCard,
-                                                    actionId,
-                                                    actionName
-                                                  }
-                                                : videoCard
-                                            )
-                                          }
-                                        : entry
-                                    )
-                                  };
-                                  return syncPodsForVideoGroup(current, nextGroup);
-                                })
-                              }
-                            />
-                          </label>
+                      <div key={card.id} className="screen-video-edit-card">
+                        <div className="screen-video-edit-toolbar">
+                          <div className="screen-video-action-title">动作 {cardIndex + 1}</div>
+                          <ActionPicker
+                            value={card.actionId}
+                            actions={actions}
+                            actionTypes={actionTypes}
+                            onChange={(actionId, actionName) =>
+                              onUpdateScript((current) => {
+                                const nextGroup = {
+                                  ...group,
+                                  screens: group.screens.map((entry) =>
+                                    entry.id === screen.id
+                                      ? {
+                                          ...entry,
+                                          videoCards: entry.videoCards.map((videoCard) =>
+                                            videoCard.id === card.id
+                                              ? {
+                                                  ...videoCard,
+                                                  actionId,
+                                                  actionName
+                                                }
+                                              : videoCard
+                                          )
+                                        }
+                                      : entry
+                                  )
+                                };
+                                return syncPodsForVideoGroup(current, nextGroup);
+                              })
+                            }
+                          />
 
                           {group.screenCount === 3 ? (
                             <label className="field station-field">
@@ -248,7 +262,10 @@ export default function CourseVideoGroupsEditor({
                           </button>
                         </div>
 
-                        <ActionMediaPreview actionId={card.actionId} actions={actions} />
+                        <div className="screen-video-preview-shell">
+                          <div className="screen-video-index">{cardIndex + 1}</div>
+                          <ActionMediaPreview actionId={card.actionId} actions={actions} compact />
+                        </div>
                       </div>
                     ))}
                   </div>
