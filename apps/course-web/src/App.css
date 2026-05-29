@@ -2276,18 +2276,71 @@ textarea:focus {
   display: none;
 }
 
+.screen-video-rows {
+  display: grid;
+  gap: 12px;
+}
+
+.screen-video-row {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px dashed rgba(15, 19, 34, 0.12);
+  background: rgba(248, 250, 253, 0.88);
+}
+
+.screen-video-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.screen-video-row-head > span {
+  color: var(--text-subtle);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.row-layout-toggle {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 999px;
+  background: #eef3fb;
+  border: 1px solid rgba(15, 19, 34, 0.08);
+}
+
+.row-layout-toggle button {
+  height: 26px;
+  min-width: 48px;
+  padding: 0 10px;
+  border-radius: 999px;
+  color: var(--text-subtle);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.row-layout-toggle button.is-active {
+  color: #ffffff;
+  background: var(--brand);
+  box-shadow: 0 6px 16px rgba(29, 111, 255, 0.22);
+}
+
 .screen-video-grid {
   display: grid;
   gap: 12px;
 }
 
 .screen-video-grid.is-one,
-.screen-video-grid.is-three {
+.screen-video-grid.is-three,
+.screen-video-grid.is-1 {
   grid-template-columns: minmax(0, 1fr);
 }
 
 .screen-video-grid.is-two,
-.screen-video-grid.is-many {
+.screen-video-grid.is-many,
+.screen-video-grid.is-2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
@@ -2349,18 +2402,21 @@ textarea:focus {
 }
 
 .screen-video-grid.is-two .screen-video-edit-toolbar,
-.screen-video-grid.is-many .screen-video-edit-toolbar {
+.screen-video-grid.is-many .screen-video-edit-toolbar,
+.screen-video-grid.is-2 .screen-video-edit-toolbar {
   grid-template-columns: minmax(0, 1fr) 72px;
 }
 
 .screen-video-grid.is-two .screen-video-edit-toolbar .table-link,
-.screen-video-grid.is-many .screen-video-edit-toolbar .table-link {
+.screen-video-grid.is-many .screen-video-edit-toolbar .table-link,
+.screen-video-grid.is-2 .screen-video-edit-toolbar .table-link {
   grid-column: 1 / -1;
   justify-self: end;
 }
 
 .screen-video-grid.is-two .screen-video-edit-toolbar .field.station-field,
-.screen-video-grid.is-many .screen-video-edit-toolbar .field.station-field {
+.screen-video-grid.is-many .screen-video-edit-toolbar .field.station-field,
+.screen-video-grid.is-2 .screen-video-edit-toolbar .field.station-field {
   width: 72px;
   min-width: 72px;
   max-width: 72px;
@@ -2596,16 +2652,19 @@ textarea:focus {
 .dialog-mask {
   position: fixed;
   inset: 0;
-  z-index: 30;
+  z-index: 10000;
   background: rgba(16, 18, 28, 0.58);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .dialog-card {
+  position: relative;
+  z-index: 1;
   max-width: calc(100vw - 48px);
   max-height: min(calc(100vh - 48px), 920px);
   border-radius: 18px;
@@ -2617,6 +2676,8 @@ textarea:focus {
 }
 
 .dialog-head {
+  position: relative;
+  z-index: 3;
   min-height: 72px;
   padding: 0 24px;
   display: flex;
@@ -2631,6 +2692,8 @@ textarea:focus {
 }
 
 .dialog-close {
+  position: relative;
+  z-index: 4;
   width: 36px;
   height: 36px;
   border-radius: 999px;
@@ -2638,6 +2701,8 @@ textarea:focus {
   background: #f3f4f8;
   font-size: 22px;
   line-height: 1;
+  pointer-events: auto;
+  touch-action: manipulation;
 }
 
 .dialog-body {
@@ -2648,12 +2713,19 @@ textarea:focus {
 }
 
 .dialog-foot {
+  position: relative;
+  z-index: 3;
   padding: 0 24px 24px;
   display: flex;
   justify-content: flex-end;
   gap: 12px;
   flex: 0 0 auto;
   background: #ffffff;
+}
+
+.dialog-foot button {
+  pointer-events: auto;
+  touch-action: manipulation;
 }
 
 .dialog-form {

@@ -6,6 +6,7 @@ export type CourseLayout = "WATERFALL" | "STATIONS";
 export type PodEnding = "HYDRATE" | "MOVE_ZONE" | "FINISH";
 export type PodStationFlow = "NORMAL" | "SWITCH";
 export type VideoGroupScreenCount = 1 | 3;
+export type VideoRowLayout = 1 | 2;
 
 export interface TrainingPanel {
   setCount: number;
@@ -62,6 +63,7 @@ export interface VideoGroupScreen {
   screenIndex: number;
   stationLabel: string;
   layout: CourseLayout;
+  rowLayouts: VideoRowLayout[];
   videoCards: VideoCard[];
 }
 

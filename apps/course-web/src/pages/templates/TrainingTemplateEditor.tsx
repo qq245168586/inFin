@@ -1,6 +1,7 @@
 import ActionMediaPreview, { type ActionMediaPreviewAction } from "../../components/ActionMediaPreview.tsx";
 import ActionPicker from "../../components/ActionPicker.tsx";
 import { createVideoCard, createVideoGroupScreen } from "../../models/course/factories.ts";
+import { normalizeVideoRowLayouts } from "../../models/course/videoRows.ts";
 import type { TemplateDraft } from "../../models/templates.ts";
 import type { TypeOption } from "../../services/api/meta.ts";
 
@@ -46,6 +47,7 @@ export default function TrainingTemplateEditor({
                             ...existingScreen,
                             stationLabel: screenCount === 1 ? "瀑布流屏幕" : `屏幕 ${screenIndex}`,
                             layout: screenCount === 1 ? "WATERFALL" : "STATIONS",
+                            rowLayouts: normalizeVideoRowLayouts(existingScreen.rowLayouts, existingScreen.videoCards, screenCount),
                             videoCards: existingScreen.videoCards.map((card) => ({
                               ...card,
                               stationNumber: screenCount === 1 ? "" : card.stationNumber

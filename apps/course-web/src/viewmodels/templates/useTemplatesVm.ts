@@ -3,8 +3,10 @@ import type { TemplateCollections, TemplateDraft, TemplateKind, TemplateRecord }
 import { createTemplateCollections, createTemplateDraft, getTemplateKindLabel } from "../../models/templates.ts";
 import { cloneCourseScriptWithFreshIds } from "../../models/course/factories.ts";
 import { requestJson } from "../../services/requestJson.ts";
+import { uploadBinary } from "../../services/uploadBinary.ts";
 import { getErrorMessage } from "../../utils/errors.ts";
 import { getCourseDraftIssues } from "../courses/courseValidation.ts";
+import { normalizeCourseScriptLocal } from "../courses/courseScriptNormalize.ts";
 
 interface ApiResponse<T> {
   data: T;
@@ -13,11 +15,13 @@ interface ApiResponse<T> {
 
 export function useTemplatesVm({
   templateCollections,
+  authHeader,
   onReloadMeta,
   onBusyText,
   onNotice
 }: {
   templateCollections: TemplateCollections | null | undefined;
+  authHeader: string;
   onReloadMeta: () => Promise<void>;
   onBusyText: (text: string) => void;
   onNotice: (message: string, tone?: "success" | "error") => void;
@@ -64,14 +68,19 @@ export function useTemplatesVm({
           return;
         }
 
-        const script = cloneCourseScriptWithFreshIds(templateEditor.script);
+        let logoMedia = templateEditor.logoMedia;
+        if (templateEditor.logoFile) {
+          logoMedia = await uploadBinary("image", templateEditor.logoFile);
+        }
+
+        const script = normalizeCourseScriptLocal(cloneCourseScriptWithFreshIds(templateEditor.script));
         script.metadata.name = (templateEditor.courseName || templateEditor.name).trim();
         const issues = getCourseDraftIssues({
           id: null,
           typeIds: templateEditor.typeIds,
-          logoMedia: templateEditor.logoMedia,
+          logoMedia,
           logoFile: null,
-          logoPreview: templateEditor.logoMedia?.url || "",
+          logoPreview: logoMedia?.url || "",
           script
         });
         if (issues.length) {
@@ -83,7 +92,7 @@ export function useTemplatesVm({
           kind: "course",
           name: templateEditor.name.trim(),
           courseName: (templateEditor.courseName || templateEditor.name).trim(),
-          logoMedia: templateEditor.logoMedia,
+          logoMedia,
           typeIds: templateEditor.typeIds,
           script,
           coursePackageId: templateEditor.coursePackageId || undefined,
@@ -102,11 +111,13 @@ export function useTemplatesVm({
     if (templateEditor.id) {
         await requestJson<ApiResponse<TemplateRecord>>(`/api/templates/${templateEditor.id}`, {
           method: "PUT",
+          headers: authHeader ? { Authorization: authHeader } : {},
           body: JSON.stringify(payload)
         });
       } else {
         await requestJson<ApiResponse<TemplateRecord>>("/api/templates", {
           method: "POST",
+          headers: authHeader ? { Authorization: authHeader } : {},
           body: JSON.stringify(payload)
         });
       }
@@ -125,7 +136,7 @@ export function useTemplatesVm({
     if (!window.confirm(`确认删除模板“${template.name}”吗？`)) return;
     onBusyText("正在删除模板...");
     try {
-      await requestJson(`/api/templates/${template.id}`, { method: "DELETE" });
+      await requestJson(`/api/templates/${template.id}`, { method: "DELETE", headers: authHeader ? { Authorization: authHeader } : {} });
       await onReloadMeta();
       if (templateEditor?.id === template.id) {
         setTemplateEditor(null);

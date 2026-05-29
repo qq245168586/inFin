@@ -1,24 +1,9 @@
 import ActionMediaPreview, { type ActionMediaPreviewAction } from "../../components/ActionMediaPreview.tsx";
 import ActionPicker from "../../components/ActionPicker.tsx";
-import type { CourseScript, VideoGroup } from "../../models/course/types.ts";
+import type { CourseScript, VideoGroup, VideoRowLayout } from "../../models/course/types.ts";
 import { createVideoCard, createVideoGroup, createVideoGroupScreen } from "../../models/course/factories.ts";
+import { buildVideoRows, normalizeVideoRowLayouts } from "../../models/course/videoRows.ts";
 import type { TypeOption } from "../../services/api/meta.ts";
-
-function getScreenVideoGridClass(actionCount: number) {
-  if (actionCount <= 1) {
-    return "is-one";
-  }
-
-  if (actionCount === 2) {
-    return "is-two";
-  }
-
-  if (actionCount === 3) {
-    return "is-three";
-  }
-
-  return "is-many";
-}
 
 export default function CourseVideoGroupsEditor({
   script,
@@ -39,6 +24,38 @@ export default function CourseVideoGroupsEditor({
   onRemoveGroup: (groupId: string) => void;
   onNotice: (message: string, tone?: "success" | "error") => void;
 }) {
+  function updateScreen(
+    group: VideoGroup,
+    screenIndex: number,
+    updater: (screen: VideoGroup["screens"][number], group: VideoGroup) => VideoGroup["screens"][number]
+  ) {
+    return (current: CourseScript) => {
+      const currentGroup = current.training.videoGroups.find((entry) => entry.id === group.id) || group;
+      const nextGroup = {
+        ...currentGroup,
+        screens: currentGroup.screens.map((entry) => {
+          if (entry.screenIndex !== screenIndex) return entry;
+          const nextScreen = updater(entry, currentGroup);
+          return {
+            ...nextScreen,
+            rowLayouts: normalizeVideoRowLayouts(nextScreen.rowLayouts, nextScreen.videoCards, currentGroup.screenCount)
+          };
+        })
+      };
+      return syncPodsForVideoGroup(current, nextGroup);
+    };
+  }
+
+  function updateRowLayout(group: VideoGroup, screenIndex: number, rowIndex: number, columns: VideoRowLayout) {
+    onUpdateScript(
+      updateScreen(group, screenIndex, (screen) => {
+        const nextRows = normalizeVideoRowLayouts(screen.rowLayouts, screen.videoCards, group.screenCount);
+        nextRows[rowIndex] = columns;
+        return { ...screen, rowLayouts: nextRows };
+      })
+    );
+  }
+
   return (
     <div className="section-card">
       <div className="section-card-head">
@@ -133,7 +150,8 @@ export default function CourseVideoGroupsEditor({
                           ? {
                               ...existingScreen,
                               stationLabel: nextScreenCount === 1 ? "瀑布流屏幕" : `屏幕 ${screenIndex}`,
-                              layout: nextScreenCount === 1 ? "WATERFALL" : "STATIONS"
+                              layout: nextScreenCount === 1 ? "WATERFALL" : "STATIONS",
+                              rowLayouts: normalizeVideoRowLayouts(existingScreen.rowLayouts, existingScreen.videoCards, nextScreenCount)
                             }
                           : createVideoGroupScreen(screenIndex, nextScreenCount);
                       })
@@ -168,40 +186,95 @@ export default function CourseVideoGroupsEditor({
                       <strong>{screen.stationLabel}</strong>
                       <span>{screen.layout === "WATERFALL" ? "瀑布流动作列表" : "站点动作列表"}</span>
                     </div>
+                    {group.screenCount === 3 ? (
+                      <div className="screen-card-actions">
+                        <button
+                          type="button"
+                          className="ghost-button small"
+                          onClick={() =>
+                            onUpdateScript(
+                              updateScreen(group, screen.screenIndex, (entry) => ({
+                                ...entry,
+                                rowLayouts: Array.from(
+                                  { length: Math.ceil(Math.max(entry.videoCards.length, 1) / 2) },
+                                  () => 2 as VideoRowLayout
+                                )
+                              }))
+                            )
+                          }
+                        >
+                          全部双列
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost-button small"
+                          onClick={() =>
+                            onUpdateScript(
+                              updateScreen(group, screen.screenIndex, (entry) => ({
+                                ...entry,
+                                rowLayouts: Array.from({ length: Math.max(entry.videoCards.length, 1) }, () => 1 as VideoRowLayout)
+                              }))
+                            )
+                          }
+                        >
+                          全部单列
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
 
-                  <div className={`screen-video-grid ${getScreenVideoGridClass(screen.videoCards.length)}`}>
-                    {screen.videoCards.map((card, cardIndex) => (
-                      <div key={card.id} className="screen-video-edit-card">
+                  <div className="screen-video-rows">
+                    {buildVideoRows(screen, group.screenCount).map((row) => (
+                      <div key={`${screen.id}-row-${row.index}`} className={`screen-video-row is-${row.columns}`}>
+                        {group.screenCount === 3 ? (
+                          <div className="screen-video-row-head">
+                            <span>第 {row.index + 1} 行</span>
+                            <div className="row-layout-toggle" aria-label={`第 ${row.index + 1} 行视频数量`}>
+                              <button
+                                type="button"
+                                className={row.columns === 1 ? "is-active" : ""}
+                                onClick={() => updateRowLayout(group, screen.screenIndex, row.index, 1)}
+                              >
+                                1 个
+                              </button>
+                              <button
+                                type="button"
+                                className={row.columns === 2 ? "is-active" : ""}
+                                onClick={() => updateRowLayout(group, screen.screenIndex, row.index, 2)}
+                              >
+                                2 个
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
+
+                        <div className={`screen-video-grid is-${row.columns}`}>
+                          {row.cards.map((card, rowCardIndex) => {
+                            const cardIndex = screen.videoCards.findIndex((entry) => entry.id === card.id);
+                            const displayIndex = cardIndex >= 0 ? cardIndex : row.index + rowCardIndex;
+                            return (
+                              <div key={card.id} className="screen-video-edit-card">
                         <div className="screen-video-edit-toolbar">
-                          <div className="screen-video-action-title">动作 {cardIndex + 1}</div>
+                          <div className="screen-video-action-title">动作 {displayIndex + 1}</div>
                           <ActionPicker
                             value={card.actionId}
                             actions={actions}
                             actionTypes={actionTypes}
                             onChange={(actionId, actionName) =>
-                              onUpdateScript((current) => {
-                                const nextGroup = {
-                                  ...group,
-                                  screens: group.screens.map((entry) =>
-                                    entry.id === screen.id
+                              onUpdateScript(
+                                updateScreen(group, screen.screenIndex, (entry) => ({
+                                  ...entry,
+                                  videoCards: entry.videoCards.map((videoCard) =>
+                                    videoCard.id === card.id
                                       ? {
-                                          ...entry,
-                                          videoCards: entry.videoCards.map((videoCard) =>
-                                            videoCard.id === card.id
-                                              ? {
-                                                  ...videoCard,
-                                                  actionId,
-                                                  actionName
-                                                }
-                                              : videoCard
-                                          )
+                                          ...videoCard,
+                                          actionId,
+                                          actionName
                                         }
-                                      : entry
+                                      : videoCard
                                   )
-                                };
-                                return syncPodsForVideoGroup(current, nextGroup);
-                              })
+                                }))
+                              )
                             }
                           />
 
@@ -213,24 +286,14 @@ export default function CourseVideoGroupsEditor({
                                 value={card.stationNumber}
                                 placeholder="1 / A / 1A"
                                 onChange={(event) =>
-                                  onUpdateScript((current) => {
-                                    const nextGroup = {
-                                      ...group,
-                                      screens: group.screens.map((entry) =>
-                                        entry.id === screen.id
-                                          ? {
-                                              ...entry,
-                                              videoCards: entry.videoCards.map((videoCard) =>
-                                                videoCard.id === card.id
-                                                  ? { ...videoCard, stationNumber: event.target.value }
-                                                  : videoCard
-                                              )
-                                            }
-                                          : entry
+                                  onUpdateScript(
+                                    updateScreen(group, screen.screenIndex, (entry) => ({
+                                      ...entry,
+                                      videoCards: entry.videoCards.map((videoCard) =>
+                                        videoCard.id === card.id ? { ...videoCard, stationNumber: event.target.value } : videoCard
                                       )
-                                    };
-                                    return syncPodsForVideoGroup(current, nextGroup);
-                                  })
+                                    }))
+                                  )
                                 }
                               />
                             </label>
@@ -240,22 +303,15 @@ export default function CourseVideoGroupsEditor({
                             type="button"
                             className="table-link danger"
                             onClick={() =>
-                              onUpdateScript((current) => {
-                                const nextGroup = {
-                                  ...group,
-                                  screens: group.screens.map((entry) =>
-                                    entry.id === screen.id
-                                      ? {
-                                          ...entry,
-                                          videoCards: entry.videoCards.filter((videoCard) => videoCard.id !== card.id).length
-                                            ? entry.videoCards.filter((videoCard) => videoCard.id !== card.id)
-                                            : [createVideoCard()]
-                                        }
-                                      : entry
-                                  )
-                                };
-                                return syncPodsForVideoGroup(current, nextGroup);
-                              })
+                              onUpdateScript(
+                                updateScreen(group, screen.screenIndex, (entry) => {
+                                  const nextCards = entry.videoCards.filter((videoCard) => videoCard.id !== card.id);
+                                  return {
+                                    ...entry,
+                                    videoCards: nextCards.length ? nextCards : [createVideoCard()]
+                                  };
+                                })
+                              )
                             }
                           >
                             删除
@@ -263,8 +319,12 @@ export default function CourseVideoGroupsEditor({
                         </div>
 
                         <div className="screen-video-preview-shell">
-                          <div className="screen-video-index">{cardIndex + 1}</div>
+                          <div className="screen-video-index">{card.stationNumber || displayIndex + 1}</div>
                           <ActionMediaPreview actionId={card.actionId} actions={actions} compact />
+                        </div>
+                      </div>
+                            );
+                          })}
                         </div>
                       </div>
                     ))}
@@ -275,15 +335,12 @@ export default function CourseVideoGroupsEditor({
                       type="button"
                       className="ghost-button small"
                       onClick={() =>
-                        onUpdateScript((current) => {
-                          const nextGroup = {
-                            ...group,
-                            screens: group.screens.map((entry) =>
-                              entry.id === screen.id ? { ...entry, videoCards: [...entry.videoCards, createVideoCard()] } : entry
-                            )
-                          };
-                          return syncPodsForVideoGroup(current, nextGroup);
-                        })
+                        onUpdateScript(
+                          updateScreen(group, screen.screenIndex, (entry) => ({
+                            ...entry,
+                            videoCards: [...entry.videoCards, createVideoCard()]
+                          }))
+                        )
                       }
                     >
                       + 添加动作

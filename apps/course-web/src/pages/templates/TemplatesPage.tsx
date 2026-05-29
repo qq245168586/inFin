@@ -14,8 +14,8 @@ import type { CoursePackageRecord } from "../venues/types.ts";
 import CourseTemplateEditor from "./CourseTemplateEditor.tsx";
 import TrainingTemplateEditor from "./TrainingTemplateEditor.tsx";
 import WaterfallTemplateEditor from "./WaterfallTemplateEditor.tsx";
-import type { ActionMediaPreviewAction } from "../../components/ActionMediaPreview.tsx";
-import type { TypeOption } from "../../services/api/meta.ts";
+import type { ActionRecord, TypeOption } from "../../services/api/meta.ts";
+import { useAuth } from "../../providers/AuthProvider.tsx";
 
 export default function TemplatesPage({
   templateCollections,
@@ -33,15 +33,17 @@ export default function TemplatesPage({
   courses: CourseRecord[];
   coursePackages: CoursePackageRecord[];
   lessonTypes: Array<{ id: number; name: string }>;
-  actions: ActionMediaPreviewAction[];
+  actions: ActionRecord[];
   actionTypes: TypeOption[];
   onAddLessonType: () => void;
   onReloadMeta: () => Promise<void>;
   onBusyTextChange: (text: string) => void;
   onNotice: (message: string, tone?: "success" | "error") => void;
 }) {
+  const { authHeader } = useAuth();
   const vm = useTemplatesVm({
     templateCollections,
+    authHeader,
     onReloadMeta,
     onBusyText: onBusyTextChange,
     onNotice
@@ -99,8 +101,13 @@ export default function TemplatesPage({
               courses={courses}
               coursePackages={coursePackages}
               lessonTypes={lessonTypes}
+              actions={actions}
+              actionTypes={actionTypes}
               onAddLessonType={onAddLessonType}
+              templateCollections={templateCollections}
               onUpdateDraft={vm.updateTemplateEditor}
+              onSaveTemplate={vm.saveTemplate}
+              onNotice={onNotice}
             />
 
             <div className="editor-actions">

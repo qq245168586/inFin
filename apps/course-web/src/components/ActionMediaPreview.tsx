@@ -9,6 +9,7 @@ export interface ActionMediaPreviewAction {
   id: number;
   name: string;
   typeIds?: number[];
+  courseTags?: string[];
   updateTime?: string;
   media?: ActionMedia | null;
 }

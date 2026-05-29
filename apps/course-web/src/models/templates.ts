@@ -60,6 +60,8 @@ export interface TemplateDraft {
   videoGroup: VideoGroup | null;
   courseName: string;
   logoMedia: MediaRecord | null;
+  logoFile: File | null;
+  logoPreview: string;
   typeIds: number[];
   script: CourseScript | null;
   coursePackageId: number | null;
@@ -90,6 +92,8 @@ export function createTemplateDraft(template: TemplateRecord | null = null, kind
       videoGroup: cloneVideoGroupForEditor(trainingTemplate?.videoGroup, trainingTemplate?.name ?? "正式组模板"),
       courseName: "",
       logoMedia: null,
+      logoFile: null,
+      logoPreview: "",
       typeIds: [],
       script: null,
       coursePackageId: null,
@@ -109,6 +113,8 @@ export function createTemplateDraft(template: TemplateRecord | null = null, kind
       videoGroup: null,
       courseName: courseTemplate?.courseName ?? courseTemplate?.script?.metadata?.name ?? courseTemplate?.name ?? "",
       logoMedia: courseTemplate?.logoMedia ?? null,
+      logoFile: null,
+      logoPreview: courseTemplate?.logoMedia?.url ?? "",
       typeIds: [...(courseTemplate?.typeIds ?? [])],
       script: courseTemplate?.script ? cloneCourseScriptWithFreshIds(courseTemplate.script) : null,
       coursePackageId,
@@ -127,6 +133,8 @@ export function createTemplateDraft(template: TemplateRecord | null = null, kind
     videoGroup: null,
     courseName: "",
     logoMedia: null,
+    logoFile: null,
+    logoPreview: "",
     typeIds: [],
     script: null,
     coursePackageId: null,

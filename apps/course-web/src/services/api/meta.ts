@@ -13,6 +13,7 @@ export interface ActionRecord {
   id: number;
   name: string;
   typeIds: number[];
+  courseTags: string[];
   media: MediaRecord | null;
   createTime: string;
   updateTime: string;

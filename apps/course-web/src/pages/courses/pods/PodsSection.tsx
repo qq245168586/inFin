@@ -1,7 +1,45 @@
 import type { CourseScript, Pod, PodEnding, PodScreen, VideoGroup } from "../../../models/course/types.ts";
 import { createVideoGroup } from "../../../models/course/factories.ts";
+import { normalizePodSetConfigsForLayout } from "../../../models/course/podSetConfigs.ts";
 import type { PodEndingOption } from "../../../viewmodels/courses/podEndings.ts";
+import { uid } from "../../../utils/uid.ts";
 import PodCard from "./PodCard.tsx";
+
+function clonePodScreenForNewPod(source: PodScreen, targetScreen: PodScreen, targetGroup: VideoGroup): PodScreen {
+  const linkedScreen = targetGroup.screens.find((screen) => screen.screenIndex === targetScreen.screenIndex) || null;
+  const isSingleScreenRule = targetGroup.screenCount === 1 || linkedScreen?.layout === "WATERFALL";
+  const clonedSetConfigs = source.setConfigs.map((setConfig) => ({
+    ...setConfig,
+    id: uid("pod-set")
+  }));
+
+  return {
+    ...targetScreen,
+    loopCount: source.loopCount,
+    stationRestSeconds: source.stationRestSeconds,
+    setConfigs: normalizePodSetConfigsForLayout(clonedSetConfigs, isSingleScreenRule, 1),
+    isCustomized: source.isCustomized
+  };
+}
+
+function createCopiedPodFromPrevious(previousPod: Pod, basePod: Pod, targetGroup: VideoGroup): Pod {
+  const sourceIsSingleScreenRule = previousPod.screens.length === 1;
+  const canUseSwitchFlow = targetGroup.screenCount === 3;
+
+  return {
+    ...basePod,
+    videoGroupId: previousPod.videoGroupId || basePod.videoGroupId,
+    stationFlow: canUseSwitchFlow ? previousPod.stationFlow : "NORMAL",
+    ending: previousPod.ending === "FINISH" ? "HYDRATE" : previousPod.ending,
+    screens: basePod.screens.map((targetScreen) => {
+      const sourceScreen = sourceIsSingleScreenRule
+        ? previousPod.screens[0]
+        : previousPod.screens.find((screen) => screen.screenIndex === targetScreen.screenIndex) || previousPod.screens[0];
+
+      return sourceScreen ? clonePodScreenForNewPod(sourceScreen, targetScreen, targetGroup) : targetScreen;
+    })
+  };
+}
 
 export default function PodsSection({
   script,
@@ -53,11 +91,17 @@ export default function PodsSection({
           className="ghost-button"
           onClick={() =>
             onUpdateScript((current) => {
-              const targetGroup = current.training.videoGroups[0] || createVideoGroup(3);
-              const nextPod = {
+              const previousPod = current.training.pods[current.training.pods.length - 1] || null;
+              const targetGroup = previousPod
+                ? current.training.videoGroups.find((group) => group.id === previousPod.videoGroupId) ||
+                  current.training.videoGroups[0] ||
+                  createVideoGroup(3)
+                : current.training.videoGroups[0] || createVideoGroup(3);
+              const basePod = {
                 ...createPod(targetGroup),
                 name: createPodName(current.training.pods.length)
               };
+              const nextPod = previousPod ? createCopiedPodFromPrevious(previousPod, basePod, targetGroup) : basePod;
 
               return {
                 ...current,

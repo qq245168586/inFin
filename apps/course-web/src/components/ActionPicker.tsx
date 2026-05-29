@@ -34,22 +34,30 @@ export default function ActionPicker({
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [typeId, setTypeId] = useState("");
+  const [courseTag, setCourseTag] = useState("");
   const [draftActionId, setDraftActionId] = useState(value || "");
 
   const selectedName = findActionName(actions, value);
   const draftAction = findAction(actions, draftActionId);
   const typeNameById = useMemo(() => new Map(actionTypes.map((item) => [Number(item.id), displayTypeName(item.name)])), [actionTypes]);
+  const courseTagOptions = useMemo(
+    () => [...new Set(actions.flatMap((action) => action.courseTags || []).map((tag) => String(tag || "").trim()).filter(Boolean))].sort(),
+    [actions]
+  );
 
   const filteredActions = useMemo(() => {
     const keyword = normalizeSearch(search);
     const selectedTypeId = typeId ? Number(typeId) : null;
+    const selectedCourseTag = normalizeSearch(courseTag);
 
     return actions.filter((action) => {
       const matchesName = !keyword || normalizeSearch(action.name).includes(keyword);
       const matchesType = !selectedTypeId || (action.typeIds || []).some((id) => Number(id) === selectedTypeId);
-      return matchesName && matchesType;
+      const matchesCourseTag =
+        !selectedCourseTag || (action.courseTags || []).some((tag) => normalizeSearch(tag) === selectedCourseTag);
+      return matchesName && matchesType && matchesCourseTag;
     });
-  }, [actions, search, typeId]);
+  }, [actions, search, typeId, courseTag]);
 
   function openDialog() {
     setDraftActionId(value || "");
@@ -59,12 +67,13 @@ export default function ActionPicker({
   function resetFilters() {
     setSearch("");
     setTypeId("");
+    setCourseTag("");
   }
 
   function confirmSelection() {
     const nextAction = findAction(actions, draftActionId);
-    onChange(draftActionId, nextAction?.name || "");
     setIsOpen(false);
+    onChange(draftActionId, nextAction?.name || "");
   }
 
   return (
@@ -94,6 +103,19 @@ export default function ActionPicker({
                     ))}
                   </select>
                 </label>
+                {courseTagOptions.length ? (
+                  <label className="action-picker-filter">
+                    <span>课程标签</span>
+                    <select value={courseTag} onChange={(event) => setCourseTag(event.target.value)}>
+                      <option value="">全部标签</option>
+                      {courseTagOptions.map((tag) => (
+                        <option key={tag} value={tag}>
+                          {tag}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
               </div>
 
               <div className="action-picker-toolbar">
@@ -115,6 +137,7 @@ export default function ActionPicker({
                       .map((id) => typeNameById.get(Number(id)))
                       .filter(Boolean)
                       .join(" / ");
+                    const courseTags = (action.courseTags || []).join(" / ");
 
                     return (
                       <button
@@ -124,7 +147,7 @@ export default function ActionPicker({
                         onClick={() => setDraftActionId(String(action.id))}
                       >
                         <strong>{action.name}</strong>
-                        <span>{typeNames || "未分类"}</span>
+                        <span>{[typeNames || "未分类", courseTags].filter(Boolean).join(" · ")}</span>
                       </button>
                     );
                   })

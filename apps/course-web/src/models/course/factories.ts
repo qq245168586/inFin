@@ -1,6 +1,7 @@
 import { readNonNegativeNumber } from "../../utils/number.ts";
 import { stationInputValue } from "../../utils/station.ts";
 import { uid } from "../../utils/uid.ts";
+import { normalizeVideoRowLayouts } from "./videoRows.ts";
 import type {
   CoursePlan,
   CoursePlanItem,
@@ -91,6 +92,7 @@ export function createVideoGroupScreen(screenIndex: number, screenCount: VideoGr
     screenIndex,
     stationLabel: screenCount === 1 ? "瀑布流屏幕" : `屏幕 ${screenIndex}`,
     layout: screenCount === 1 ? "WATERFALL" : "STATIONS",
+    rowLayouts: screenCount === 1 ? [] : [1],
     videoCards: [createVideoCard()]
   };
 }
@@ -167,7 +169,8 @@ export function cloneVideoGroupForEditor(group: Partial<VideoGroup> | null | und
         screenIndex,
         stationLabel: screenCount === 1 ? "瀑布流屏幕" : `屏幕 ${screenIndex}`,
         layout: screenCount === 1 ? "WATERFALL" : "STATIONS",
-        videoCards: sourceCards.map((card) => cloneVideoCardForEditor(card, screenCount))
+        videoCards: sourceCards.map((card) => cloneVideoCardForEditor(card, screenCount)),
+        rowLayouts: normalizeVideoRowLayouts(sourceScreen?.rowLayouts, sourceCards, screenCount)
       };
     })
   };
@@ -212,6 +215,7 @@ export function cloneCourseScriptWithFreshIds(script: CourseScript, metadataId =
         id: uid("video-group-screen"),
         screenIndex: screen.screenIndex || screenIndex + 1,
         layout: screenCount === 1 ? "WATERFALL" : "STATIONS",
+        rowLayouts: normalizeVideoRowLayouts(screen.rowLayouts, screen.videoCards || [], screenCount),
         videoCards: (screen.videoCards || []).map((card) => ({
           ...card,
           id: uid("video-card"),

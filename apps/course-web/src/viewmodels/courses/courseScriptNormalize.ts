@@ -12,6 +12,7 @@ import { cloneDeep } from "../../utils/cloneDeep.ts";
 import { stationInputValue } from "../../utils/station.ts";
 import { uid } from "../../utils/uid.ts";
 import { readNonNegativeNumber } from "../../utils/number.ts";
+import { normalizeVideoRowLayouts } from "../../models/course/videoRows.ts";
 import { createPod, createPodScreensFromGroup, rebalancePodEndings } from "./podGraph.ts";
 
 function syncTrainingPanelCounters(script: CourseScript): CourseScript {
@@ -83,6 +84,7 @@ export function normalizeCourseScriptLocal(script: CourseScript): CourseScript {
         stationLabel:
           screen.stationLabel || (resolvedScreenCount === 1 ? "瀑布流屏幕" : `屏幕 ${screen.screenIndex || screenIndex + 1}`),
         layout: resolvedScreenCount === 1 ? "WATERFALL" : "STATIONS",
+        rowLayouts: normalizeVideoRowLayouts(screen.rowLayouts, screen.videoCards || [], resolvedScreenCount),
         videoCards: (screen.videoCards || []).map((card) => ({
           ...card,
           id: card.id || uid("video-card"),
