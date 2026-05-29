@@ -1,0 +1,5 @@
+{
+  "name": "@infini/shared",
+  "private": true,
+  "type": "module"
+}
