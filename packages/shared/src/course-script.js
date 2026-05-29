@@ -50,8 +50,10 @@ function normalizeVideoRowLayouts(rowLayouts = [], videoCards = [], screenCount 
   }
 
   const source = Array.isArray(rowLayouts) ? rowLayouts : [];
-  const firstRows = [0, 1, 2].map((index) => (Number(source[index]) === 2 ? 2 : 1));
-  return firstRows.every((columns) => columns === 2) ? [2, 2, 2, 2, 2] : firstRows;
+  if (!source.length) return [1, 1, 1];
+
+  const rows = source.map((columns) => (Number(columns) === 2 ? 2 : 1));
+  return rows.length === 3 && rows.every((columns) => columns === 2) ? [2, 2, 2, 2, 2] : rows;
 }
 
 function fitVideoCardsForRows(videoCards = [], rowLayouts = [], screenCount = 3) {
@@ -65,6 +67,14 @@ function fitVideoCardsForRows(videoCards = [], rowLayouts = [], screenCount = 3)
     nextCards.push(createVideoCard());
   }
   return nextCards;
+}
+
+function isFilledVideoCard(card = {}) {
+  return Boolean(card.actionId || card.actionName || stationCode(card.stationNumber));
+}
+
+function filledVideoCards(cards = []) {
+  return (Array.isArray(cards) ? cards : []).filter((card) => isFilledVideoCard(card));
 }
 
 function normalizeSetConfigs(setConfigs = []) {
@@ -689,11 +699,12 @@ export function validateCourseScript(courseScript) {
     }
 
     group.screens.forEach((screen) => {
-      if (!screen.videoCards.length) {
+      const activeCards = filledVideoCards(screen.videoCards);
+      if (!activeCards.length) {
         issues.push(`视频组 ${group.name} 的屏幕 ${screen.screenIndex} 没有动作卡片。`);
       }
       if (group.screenCount !== 1) {
-        const stationCodes = screen.videoCards.map((card) => stationCode(card.stationNumber));
+        const stationCodes = activeCards.map((card) => stationCode(card.stationNumber));
         if (stationCodes.some((code) => !code)) {
           issues.push(`视频组 ${group.name} 的屏幕 ${screen.screenIndex} 存在空站点标签。`);
         }
@@ -702,7 +713,7 @@ export function validateCourseScript(courseScript) {
         }
       }
 
-      screen.videoCards.forEach((card, index) => {
+      activeCards.forEach((card, index) => {
         if (!card.actionId && !card.actionName) {
           issues.push(
             `视频组 ${group.name} 的屏幕 ${screen.screenIndex} 第 ${index + 1} 个卡片未选择动作。`
@@ -730,30 +741,9 @@ export function validateCourseScript(courseScript) {
       issues.push(`Pod ${pod.name} 的站点流转方式无效。`);
     }
 
-    if (pod.screens.length !== linkedGroup.screenCount) {
-      issues.push(`Pod ${pod.name} 的屏幕数量必须与视频组 ${linkedGroup.name} 一致。`);
-    }
-
-    if (pod.stationFlow === POD_STATION_FLOW.SWITCH) {
-      if (linkedGroup.screenCount !== 3) {
-        issues.push(`Pod ${pod.name} 使用 SWITCH 时必须绑定三屏视频组。`);
-      }
-      linkedGroup.screens.forEach((screen) => {
-        if ((screen.videoCards?.length || 0) % 2 !== 0) {
-          issues.push(`Pod ${pod.name} 使用 SWITCH 时，视频组 ${linkedGroup.name} 的屏幕 ${screen.screenIndex} 需要偶数个视频。`);
-        }
-      });
-    }
-
-    const totals = pod.screens.map((screen) => {
-      const linkedScreen = linkedGroup.screens.find((item) => item.screenIndex === screen.screenIndex);
-      return podScreenTotal(screen, linkedScreen?.videoCards || [], linkedScreen?.layout, pod.stationFlow);
-    });
-
     pod.screens.forEach((screen) => {
       const linkedScreen = linkedGroup.screens.find((item) => item.screenIndex === screen.screenIndex);
       if (!linkedScreen) {
-        issues.push(`Pod ${pod.name} 的屏幕 ${screen.screenIndex} 没有对应的视频组屏幕。`);
         return;
       }
       if (seconds(screen.loopCount) <= 0) {
@@ -773,15 +763,7 @@ export function validateCourseScript(courseScript) {
           issues.push(`Pod ${pod.name} 的屏幕 ${screen.screenIndex} 第 ${setIndex + 1} 组间休息不能小于 0。`);
         }
       });
-      if (!linkedScreen.videoCards.length) {
-        issues.push(`Pod ${pod.name} 的屏幕 ${screen.screenIndex} 绑定的视频组没有动作。`);
-      }
     });
-
-    const firstTotal = totals[0] ?? 0;
-    if (totals.some((total) => total !== firstTotal)) {
-      issues.push(`Pod ${pod.name} 的各屏总时长必须一致。`);
-    }
 
     const isLastPod = podIndex === training.pods.length - 1;
     if (isLastPod && pod.ending !== POD_ENDING.FINISH) {
