@@ -1,7 +1,7 @@
 import { readNonNegativeNumber } from "../../utils/number.ts";
 import { stationInputValue } from "../../utils/station.ts";
 import { uid } from "../../utils/uid.ts";
-import { normalizeVideoRowLayouts } from "./videoRows.ts";
+import { getDefaultVideoRowLayouts, getVideoRowCapacity, normalizeVideoRowLayouts } from "./videoRows.ts";
 import type {
   CoursePlan,
   CoursePlanItem,
@@ -15,6 +15,7 @@ import type {
   VideoGroup,
   VideoGroupScreen,
   VideoGroupScreenCount,
+  VideoRowLayout,
   WaterfallItem,
   WaterfallSection
 } from "./types.ts";
@@ -86,14 +87,32 @@ export function createVideoCard(stationNumber = ""): VideoCard {
   };
 }
 
+function fitVideoCardsForRows(
+  cards: VideoCard[],
+  rowLayouts: VideoRowLayout[],
+  screenCount: VideoGroupScreenCount
+): VideoCard[] {
+  if (screenCount === 1) {
+    return cards.length ? cards : [createVideoCard()];
+  }
+
+  const capacity = getVideoRowCapacity(rowLayouts);
+  const nextCards = cards.slice(0, capacity);
+  while (nextCards.length < capacity) {
+    nextCards.push(createVideoCard());
+  }
+  return nextCards;
+}
+
 export function createVideoGroupScreen(screenIndex: number, screenCount: VideoGroupScreenCount): VideoGroupScreen {
+  const rowLayouts = getDefaultVideoRowLayouts(screenCount);
   return {
     id: uid("video-group-screen"),
     screenIndex,
     stationLabel: screenCount === 1 ? "瀑布流屏幕" : `屏幕 ${screenIndex}`,
     layout: screenCount === 1 ? "WATERFALL" : "STATIONS",
-    rowLayouts: screenCount === 1 ? [] : [1],
-    videoCards: [createVideoCard()]
+    rowLayouts,
+    videoCards: fitVideoCardsForRows([createVideoCard()], rowLayouts, screenCount)
   };
 }
 
@@ -163,14 +182,20 @@ export function cloneVideoGroupForEditor(group: Partial<VideoGroup> | null | und
         Array.isArray(sourceScreen?.videoCards) && sourceScreen.videoCards.length
           ? sourceScreen.videoCards
           : [createVideoCard()];
+      const rowLayouts = normalizeVideoRowLayouts(sourceScreen?.rowLayouts, screenCount);
+      const videoCards = fitVideoCardsForRows(
+        sourceCards.map((card) => cloneVideoCardForEditor(card, screenCount)),
+        rowLayouts,
+        screenCount
+      );
 
       return {
         id: uid("video-group-screen"),
         screenIndex,
         stationLabel: screenCount === 1 ? "瀑布流屏幕" : `屏幕 ${screenIndex}`,
         layout: screenCount === 1 ? "WATERFALL" : "STATIONS",
-        videoCards: sourceCards.map((card) => cloneVideoCardForEditor(card, screenCount)),
-        rowLayouts: normalizeVideoRowLayouts(sourceScreen?.rowLayouts, sourceCards, screenCount)
+        videoCards,
+        rowLayouts
       };
     })
   };
@@ -210,18 +235,27 @@ export function cloneCourseScriptWithFreshIds(script: CourseScript, metadataId =
       ...group,
       id: nextGroupId,
       screenCount,
-      screens: (group.screens || []).map((screen, screenIndex) => ({
-        ...screen,
-        id: uid("video-group-screen"),
-        screenIndex: screen.screenIndex || screenIndex + 1,
-        layout: screenCount === 1 ? "WATERFALL" : "STATIONS",
-        rowLayouts: normalizeVideoRowLayouts(screen.rowLayouts, screen.videoCards || [], screenCount),
-        videoCards: (screen.videoCards || []).map((card) => ({
-          ...card,
-          id: uid("video-card"),
-          stationNumber: screenCount === 1 ? "" : stationInputValue(card.stationNumber)
-        }))
-      }))
+      screens: (group.screens || []).map((screen, screenIndex) => {
+        const rowLayouts = normalizeVideoRowLayouts(screen.rowLayouts, screenCount);
+        const videoCards = fitVideoCardsForRows(
+          (screen.videoCards || []).map((card) => ({
+            ...card,
+            id: uid("video-card"),
+            stationNumber: screenCount === 1 ? "" : stationInputValue(card.stationNumber)
+          })),
+          rowLayouts,
+          screenCount
+        );
+
+        return {
+          ...screen,
+          id: uid("video-group-screen"),
+          screenIndex: screen.screenIndex || screenIndex + 1,
+          layout: screenCount === 1 ? "WATERFALL" : "STATIONS",
+          rowLayouts,
+          videoCards
+        };
+      })
     };
   });
 

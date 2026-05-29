@@ -1,10 +1,19 @@
-import type { CourseScript, PodScreen, PodStationFlow, VideoGroup, VideoGroupScreenCount } from "../../models/course/types.ts";
+import type {
+  CourseScript,
+  PodScreen,
+  PodStationFlow,
+  VideoCard,
+  VideoGroup,
+  VideoGroupScreenCount,
+  VideoRowLayout
+} from "../../models/course/types.ts";
 import {
   cloneCoursePlanForEditor,
   cloneWaterfallSectionForEditor,
   createCoursePlan,
   createReadyDurations,
   createTrainingPanel,
+  createVideoCard,
   createVideoGroup,
   createWaterfallSection
 } from "../../models/course/factories.ts";
@@ -12,8 +21,25 @@ import { cloneDeep } from "../../utils/cloneDeep.ts";
 import { stationInputValue } from "../../utils/station.ts";
 import { uid } from "../../utils/uid.ts";
 import { readNonNegativeNumber } from "../../utils/number.ts";
-import { normalizeVideoRowLayouts } from "../../models/course/videoRows.ts";
+import { getVideoRowCapacity, normalizeVideoRowLayouts } from "../../models/course/videoRows.ts";
 import { createPod, createPodScreensFromGroup, rebalancePodEndings } from "./podGraph.ts";
+
+function fitVideoCardsForRows(
+  cards: VideoCard[],
+  rowLayouts: VideoRowLayout[],
+  screenCount: VideoGroupScreenCount
+): VideoCard[] {
+  if (screenCount === 1) {
+    return cards.length ? cards : [createVideoCard()];
+  }
+
+  const capacity = getVideoRowCapacity(rowLayouts);
+  const nextCards = cards.slice(0, capacity);
+  while (nextCards.length < capacity) {
+    nextCards.push(createVideoCard());
+  }
+  return nextCards;
+}
 
 function syncTrainingPanelCounters(script: CourseScript): CourseScript {
   return {
@@ -77,20 +103,29 @@ export function normalizeCourseScriptLocal(script: CourseScript): CourseScript {
       id: group.id || uid("video-group"),
       name: typeof group.name === "string" ? group.name : "",
       screenCount: resolvedScreenCount,
-      screens: (group.screens || []).map((screen, screenIndex) => ({
-        ...screen,
-        id: screen.id || uid("video-group-screen"),
-        screenIndex: screen.screenIndex || screenIndex + 1,
-        stationLabel:
-          screen.stationLabel || (resolvedScreenCount === 1 ? "瀑布流屏幕" : `屏幕 ${screen.screenIndex || screenIndex + 1}`),
-        layout: resolvedScreenCount === 1 ? "WATERFALL" : "STATIONS",
-        rowLayouts: normalizeVideoRowLayouts(screen.rowLayouts, screen.videoCards || [], resolvedScreenCount),
-        videoCards: (screen.videoCards || []).map((card) => ({
-          ...card,
-          id: card.id || uid("video-card"),
-          stationNumber: stationInputValue(card.stationNumber)
-        }))
-      }))
+      screens: (group.screens || []).map((screen, screenIndex) => {
+        const rowLayouts = normalizeVideoRowLayouts(screen.rowLayouts, resolvedScreenCount);
+        const videoCards = fitVideoCardsForRows(
+          (screen.videoCards || []).map((card) => ({
+            ...card,
+            id: card.id || uid("video-card"),
+            stationNumber: resolvedScreenCount === 1 ? "" : stationInputValue(card.stationNumber)
+          })),
+          rowLayouts,
+          resolvedScreenCount
+        );
+
+        return {
+          ...screen,
+          id: screen.id || uid("video-group-screen"),
+          screenIndex: screen.screenIndex || screenIndex + 1,
+          stationLabel:
+            screen.stationLabel || (resolvedScreenCount === 1 ? "瀑布流屏幕" : `屏幕 ${screen.screenIndex || screenIndex + 1}`),
+          layout: resolvedScreenCount === 1 ? "WATERFALL" : "STATIONS",
+          rowLayouts,
+          videoCards
+        };
+      })
     };
   });
 

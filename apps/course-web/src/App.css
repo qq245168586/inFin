@@ -2317,8 +2317,8 @@ textarea:focus {
 
 .row-layout-toggle button {
   height: 26px;
-  min-width: 48px;
-  padding: 0 10px;
+  min-width: 34px;
+  padding: 0 8px;
   border-radius: 999px;
   color: var(--text-subtle);
   font-size: 12px;
@@ -2346,6 +2346,63 @@ textarea:focus {
 .screen-video-grid.is-many,
 .screen-video-grid.is-2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.screen-video-slot-card {
+  width: 100%;
+  min-width: 0;
+  aspect-ratio: 16 / 9;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 19, 34, 0.1);
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  text-align: left;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.screen-video-slot-card:hover {
+  border-color: rgba(29, 111, 255, 0.36);
+  box-shadow: 0 12px 24px rgba(15, 19, 34, 0.08);
+  transform: translateY(-1px);
+}
+
+.screen-video-slot-card.has-action {
+  background: linear-gradient(180deg, #ffffff, #eef5ff);
+}
+
+.screen-video-slot-station {
+  max-width: 100%;
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: #8a6411;
+  background: #fff2c2;
+  font-size: 11px;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.screen-video-slot-card strong {
+  width: 100%;
+  min-width: 0;
+  color: var(--text-main);
+  font-size: 15px;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.screen-video-slot-hint {
+  color: var(--text-subtle);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .screen-video-edit-card {
@@ -2451,6 +2508,22 @@ textarea:focus {
   padding: 8px;
   min-width: 0;
   background: #ffffff;
+}
+
+.video-slot-modal .action-picker-filters {
+  grid-template-columns: 120px minmax(180px, 1fr) minmax(140px, 0.7fr) minmax(140px, 0.7fr);
+}
+
+.video-slot-modal .video-slot-station-field input {
+  font-weight: 900;
+  text-align: center;
+}
+
+.action-picker-preview-card p {
+  margin: -8px 0 0;
+  color: var(--text-subtle);
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .module-list {

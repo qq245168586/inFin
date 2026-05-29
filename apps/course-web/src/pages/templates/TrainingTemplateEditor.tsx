@@ -47,7 +47,7 @@ export default function TrainingTemplateEditor({
                             ...existingScreen,
                             stationLabel: screenCount === 1 ? "瀑布流屏幕" : `屏幕 ${screenIndex}`,
                             layout: screenCount === 1 ? "WATERFALL" : "STATIONS",
-                            rowLayouts: normalizeVideoRowLayouts(existingScreen.rowLayouts, existingScreen.videoCards, screenCount),
+                            rowLayouts: normalizeVideoRowLayouts(existingScreen.rowLayouts, screenCount),
                             videoCards: existingScreen.videoCards.map((card) => ({
                               ...card,
                               stationNumber: screenCount === 1 ? "" : card.stationNumber
