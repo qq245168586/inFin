@@ -233,7 +233,9 @@ abstract class TvScriptRepositoryPart05 extends TvScriptRepositoryPart04 {
                   localMediaMap.getOrDefault(card.mediaUrl, card.mediaUrl),
                   card.stationNumber));
         }
-        screens.add(new CourseScript.VideoGroupScreen(screen.screenIndex, screen.stationLabel, cards));
+        screens.add(
+            new CourseScript.VideoGroupScreen(
+                screen.screenIndex, screen.stationLabel, screen.rowLayouts, cards));
       }
       groups.add(new CourseScript.VideoGroup(group.id, group.name, group.screenCount, screens));
     }
@@ -304,6 +306,7 @@ abstract class TvScriptRepositoryPart05 extends TvScriptRepositoryPart04 {
           new CourseScript.VideoGroupScreen(
               screenObject.optInt("screenIndex", index + 1),
               screenObject.optString("stationLabel"),
+              parseVideoRowLayouts(screenObject.optJSONArray("rowLayouts")),
               parseVideoCards(screenObject.optJSONArray("videoCards"))));
     }
 

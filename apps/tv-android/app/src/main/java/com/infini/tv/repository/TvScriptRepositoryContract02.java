@@ -52,6 +52,8 @@ abstract class TvScriptRepositoryContract02 extends TvScriptRepositoryContract01
 
   protected abstract List<CourseScript.VideoCard> parseVideoCards(JSONArray cardsArray);
 
+  protected abstract List<Integer> parseVideoRowLayouts(JSONArray rowLayoutsArray);
+
   protected abstract List<CourseScript.Pod> parsePods(JSONArray podsArray);
 
   protected abstract List<CourseScript.PodScreen> parsePodScreens(JSONArray screensArray);

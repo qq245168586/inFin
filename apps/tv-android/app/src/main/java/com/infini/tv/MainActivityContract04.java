@@ -180,6 +180,9 @@ abstract class MainActivityContract04 extends MainActivityContract03 {
 
   protected abstract String buildTrainingLayoutSignature(List<CourseScript.VideoCard> cards);
 
+  protected abstract String buildTrainingLayoutSignature(
+      List<CourseScript.VideoCard> cards, List<Integer> rowLayouts);
+
   protected abstract int calculateWideTrainingRowHeight();
 
   protected abstract int calculateGridTrainingRowHeight();
@@ -189,6 +192,11 @@ abstract class MainActivityContract04 extends MainActivityContract03 {
   protected abstract boolean isPortraitViewport();
 
   protected abstract int calculateTrainingRowGap(int rowCount);
+
+  protected abstract List<Integer> normalizeTrainingRowLayouts(
+      List<Integer> rowLayouts, List<CourseScript.VideoCard> cards);
+
+  protected abstract List<Integer> getRowLayoutsForScreen(EffectivePodScreen effectiveScreen);
 
   protected abstract String safeStationLabel(String stationNumber, int fallbackIndex);
 

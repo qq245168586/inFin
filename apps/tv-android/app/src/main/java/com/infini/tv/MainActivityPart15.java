@@ -68,12 +68,25 @@ import java.time.format.DateTimeFormatter;
 
 abstract class MainActivityPart15 extends MainActivityPart14 {
   protected String buildTrainingLayoutSignature(List<CourseScript.VideoCard> cards) {
+    return buildTrainingLayoutSignature(cards, null);
+  }
+
+  protected String buildTrainingLayoutSignature(List<CourseScript.VideoCard> cards, List<Integer> rowLayouts) {
     if (cards == null || cards.isEmpty()) {
       return "empty";
     }
 
     StringBuilder builder = new StringBuilder();
     builder.append(cards.size());
+    if (rowLayouts != null && !rowLayouts.isEmpty()) {
+      builder.append("|rows=");
+      for (int index = 0; index < rowLayouts.size(); index += 1) {
+        if (index > 0) {
+          builder.append(",");
+        }
+        builder.append(rowLayouts.get(index) == 2 ? 2 : 1);
+      }
+    }
     for (int index = 0; index < cards.size(); index += 1) {
       CourseScript.VideoCard card = cards.get(index);
       builder
@@ -316,6 +329,42 @@ abstract class MainActivityPart15 extends MainActivityPart14 {
       return null;
     }
     return new EffectivePodScreen(displayScreenIndex, rule, sourceScreen, false);
+  }
+
+  protected List<Integer> normalizeTrainingRowLayouts(
+      List<Integer> rowLayouts, List<CourseScript.VideoCard> cards) {
+    List<Integer> rows = new ArrayList<>();
+    if (cards == null || cards.isEmpty()) {
+      return rows;
+    }
+
+    if (rowLayouts == null || rowLayouts.isEmpty()) {
+      int cardCount = cards.size();
+      int legacyColumns = cardCount == 1 || cardCount == 3 ? 1 : 2;
+      int consumed = 0;
+      while (consumed < cardCount) {
+        rows.add(legacyColumns);
+        consumed += legacyColumns;
+      }
+      return rows;
+    }
+
+    int consumed = 0;
+    int rowIndex = 0;
+    while (consumed < cards.size()) {
+      int columns = rowIndex < rowLayouts.size() && rowLayouts.get(rowIndex) == 2 ? 2 : 1;
+      rows.add(columns);
+      consumed += columns;
+      rowIndex += 1;
+    }
+    return rows;
+  }
+
+  protected List<Integer> getRowLayoutsForScreen(EffectivePodScreen effectiveScreen) {
+    if (effectiveScreen == null || effectiveScreen.sourceScreen == null || effectiveScreen.waterfallLayout) {
+      return new ArrayList<>();
+    }
+    return normalizeTrainingRowLayouts(effectiveScreen.sourceScreen.rowLayouts, effectiveScreen.videoCards);
   }
 
   protected boolean safeEquals(String left, String right) {

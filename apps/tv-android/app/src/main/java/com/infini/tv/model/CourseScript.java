@@ -136,11 +136,14 @@ public class CourseScript {
   public static class VideoGroupScreen {
     public final int screenIndex;
     public final String stationLabel;
+    public final List<Integer> rowLayouts;
     public final List<VideoCard> videoCards;
 
-    public VideoGroupScreen(int screenIndex, String stationLabel, List<VideoCard> videoCards) {
+    public VideoGroupScreen(
+        int screenIndex, String stationLabel, List<Integer> rowLayouts, List<VideoCard> videoCards) {
       this.screenIndex = screenIndex;
       this.stationLabel = stationLabel;
+      this.rowLayouts = rowLayouts;
       this.videoCards = videoCards;
     }
   }

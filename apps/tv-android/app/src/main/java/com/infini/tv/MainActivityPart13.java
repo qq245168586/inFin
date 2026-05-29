@@ -264,7 +264,7 @@ abstract class MainActivityPart13 extends MainActivityPart12 {
       lastTrainingSignature = "";
     }
 
-    String layoutSignature = buildTrainingLayoutSignature(state.displayCards);
+    String layoutSignature = buildTrainingLayoutSignature(state.displayCards, state.rowLayouts);
     if (!layoutSignature.equals(lastTrainingSignature)) {
       renderTrainingCards(state);
       lastTrainingSignature = layoutSignature;

@@ -52,6 +52,20 @@ abstract class TvScriptRepositoryPart06 extends TvScriptRepositoryPart05 {
     super(context);
   }
 
+  protected List<Integer> parseVideoRowLayouts(JSONArray rowLayoutsArray) {
+    List<Integer> rowLayouts = new ArrayList<>();
+    if (rowLayoutsArray == null) {
+      return rowLayouts;
+    }
+
+    for (int index = 0; index < rowLayoutsArray.length(); index += 1) {
+      int columns = rowLayoutsArray.optInt(index, 1) == 2 ? 2 : 1;
+      rowLayouts.add(columns);
+    }
+
+    return rowLayouts;
+  }
+
   protected List<CourseScript.VideoCard> parseVideoCards(JSONArray cardsArray) {
     List<CourseScript.VideoCard> cards = new ArrayList<>();
     if (cardsArray == null) {

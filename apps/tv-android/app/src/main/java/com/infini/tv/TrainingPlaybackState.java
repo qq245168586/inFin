@@ -73,6 +73,7 @@ class TrainingPlaybackState {
   final String hintText;
   final int remainingSeconds;
   final List<CourseScript.VideoCard> displayCards;
+  final List<Integer> rowLayouts;
   final int activeCardIndex;
   final boolean playActiveCard;
   final boolean waterfallLayout;
@@ -122,6 +123,39 @@ class TrainingPlaybackState {
       boolean waterfallLayout,
       boolean messageOnly,
       boolean fullScreenTransition,
+      String transitionType,
+      List<Integer> rowLayouts) {
+    this(
+        renderKey,
+        stageLabel,
+        stageProgress,
+        hintText,
+        remainingSeconds,
+        displayCards,
+        activeCardIndex,
+        playActiveCard,
+        waterfallLayout,
+        messageOnly,
+        fullScreenTransition,
+        transitionType,
+        "",
+        0,
+        0,
+        rowLayouts);
+  }
+
+  TrainingPlaybackState(
+      String renderKey,
+      String stageLabel,
+      String stageProgress,
+      String hintText,
+      int remainingSeconds,
+      List<CourseScript.VideoCard> displayCards,
+      int activeCardIndex,
+      boolean playActiveCard,
+      boolean waterfallLayout,
+      boolean messageOnly,
+      boolean fullScreenTransition,
       String transitionType) {
     this(
         renderKey,
@@ -157,12 +191,49 @@ class TrainingPlaybackState {
       String stageSecondaryText,
       int completedDots,
       int totalDots) {
+    this(
+        renderKey,
+        stageLabel,
+        stageProgress,
+        hintText,
+        remainingSeconds,
+        displayCards,
+        activeCardIndex,
+        playActiveCard,
+        waterfallLayout,
+        messageOnly,
+        fullScreenTransition,
+        transitionType,
+        stageSecondaryText,
+        completedDots,
+        totalDots,
+        new ArrayList<>());
+  }
+
+  TrainingPlaybackState(
+      String renderKey,
+      String stageLabel,
+      String stageProgress,
+      String hintText,
+      int remainingSeconds,
+      List<CourseScript.VideoCard> displayCards,
+      int activeCardIndex,
+      boolean playActiveCard,
+      boolean waterfallLayout,
+      boolean messageOnly,
+      boolean fullScreenTransition,
+      String transitionType,
+      String stageSecondaryText,
+      int completedDots,
+      int totalDots,
+      List<Integer> rowLayouts) {
     this.renderKey = renderKey;
     this.stageLabel = stageLabel;
     this.stageProgress = stageProgress;
     this.hintText = hintText;
     this.remainingSeconds = remainingSeconds;
     this.displayCards = displayCards;
+    this.rowLayouts = rowLayouts == null ? new ArrayList<>() : rowLayouts;
     this.activeCardIndex = activeCardIndex;
     this.playActiveCard = playActiveCard;
     this.waterfallLayout = waterfallLayout;

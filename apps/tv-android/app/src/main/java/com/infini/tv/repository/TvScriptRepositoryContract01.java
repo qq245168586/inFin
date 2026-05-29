@@ -52,6 +52,9 @@ abstract class TvScriptRepositoryContract01 extends TvScriptRepositoryTypes {
 
   public abstract SyncResult syncTodayBundle(SyncProgressListener listener) throws IOException;
 
+  public abstract SyncResult syncTodayBundle(SyncProgressListener listener, boolean cacheResources)
+      throws IOException;
+
   public abstract DailyChecksum loadTodayChecksum() throws IOException;
 
   public abstract TvScheduleItem loadScheduleById(String scheduleId) throws IOException;

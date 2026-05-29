@@ -81,6 +81,11 @@ abstract class TvScriptRepositoryPart01 extends TvScriptRepositoryBase {
   }
 
   public SyncResult syncTodayBundle(SyncProgressListener listener) throws IOException {
+    return syncTodayBundle(listener, true);
+  }
+
+  public SyncResult syncTodayBundle(SyncProgressListener listener, boolean cacheResources)
+      throws IOException {
     String today = LocalDate.now(COURSE_ZONE).format(DATE_FORMATTER);
     JSONObject payload =
         requestJson(
@@ -96,26 +101,42 @@ abstract class TvScriptRepositoryPart01 extends TvScriptRepositoryBase {
     resources.addAll(parseLogoResources(schedulesArray));
     Map<String, String> localMediaMap = new HashMap<>();
     boolean resourcesCached = true;
-    try {
-      localMediaMap = ensureResourcesCached(resources, listener);
-    } catch (IOException error) {
-      resourcesCached = false;
+    if (cacheResources) {
+      try {
+        localMediaMap = ensureResourcesCached(resources, listener);
+      } catch (IOException error) {
+        resourcesCached = false;
+        Log.w(
+            TAG,
+            "Daily bundle resources cache failed; applying schedule with remote media fallback date="
+                + payload.optString("date", today)
+                + " checksum="
+                + payload.optString("checksum", "")
+                + " schedules="
+                + (schedulesArray == null ? 0 : schedulesArray.length())
+                + " resources="
+                + resources.size(),
+            error);
+        if (listener != null) {
+          listener.onStatus("资源缓存失败，先更新课表，稍后自动重试下载。", 0, resources.size());
+        }
+      }
+      cleanupTemporaryDownloads();
+    } else {
       Log.w(
           TAG,
-          "Daily bundle resources cache failed; applying schedule with remote media fallback date="
+          "Daily bundle resource cache skipped for progress-only screen date="
               + payload.optString("date", today)
               + " checksum="
               + payload.optString("checksum", "")
               + " schedules="
               + (schedulesArray == null ? 0 : schedulesArray.length())
               + " resources="
-              + resources.size(),
-          error);
+              + resources.size());
       if (listener != null) {
-        listener.onStatus("资源缓存失败，先更新课表，稍后自动重试下载。", 0, resources.size());
+        listener.onStatus("已同步课表，当前屏幕无需缓存视频资源。", 0, 0);
       }
     }
-    cleanupTemporaryDownloads();
 
     List<TvScheduleItem> schedules = parseBundleSchedules(schedulesArray, localMediaMap);
     Log.i(
@@ -129,7 +150,9 @@ abstract class TvScriptRepositoryPart01 extends TvScriptRepositoryBase {
             + " resources="
             + resources.size()
             + " resourcesCached="
-            + resourcesCached);
+            + resourcesCached
+            + " cacheResources="
+            + cacheResources);
     return new SyncResult(
         payload.optString("date", today),
         payload.optString("checksum", ""),

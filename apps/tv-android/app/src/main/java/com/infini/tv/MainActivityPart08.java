@@ -158,9 +158,14 @@ abstract class MainActivityPart08 extends MainActivityPart07 {
     }
 
     syncInProgress = true;
+    boolean cacheResources = shouldCacheHorizontalResources(screenNumber);
     if (horizontalLoadingText != null) {
       horizontalLoadingText.setVisibility(View.VISIBLE);
-      horizontalLoadingText.setText(immediate ? "正在同步今日课程资源..." : "检测到课程更新，正在重新同步资源...");
+      if (cacheResources) {
+        horizontalLoadingText.setText(immediate ? "正在同步今日课程资源..." : "检测到课程更新，正在重新同步资源...");
+      } else {
+        horizontalLoadingText.setText(immediate ? "正在同步今日课程数据..." : "检测到课程更新，正在同步课程数据...");
+      }
     }
     if (horizontalContentPanel != null) {
       horizontalContentPanel.setVisibility(View.GONE);
@@ -185,7 +190,8 @@ abstract class MainActivityPart08 extends MainActivityPart07 {
                                     horizontalLoadingText.setVisibility(View.VISIBLE);
                                     horizontalLoadingText.setText(buildSyncMessage(message, completed, total));
                                   }
-                                }));
+                                }),
+                        cacheResources);
 
                 runOnUiThread(
                     () -> {
@@ -208,7 +214,9 @@ abstract class MainActivityPart08 extends MainActivityPart07 {
                               + " schedules="
                               + currentBundleScheduleCount
                               + " resourcesCached="
-                              + result.resourcesCached);
+                              + result.resourcesCached
+                              + " cacheResources="
+                              + cacheResources);
                       bindHorizontalSchedule(result.schedules);
                       dispatchScreenHeartbeat(false);
                       scheduleChecksumPolling();
@@ -234,6 +242,10 @@ abstract class MainActivityPart08 extends MainActivityPart07 {
               }
             })
         .start();
+  }
+
+  protected boolean shouldCacheHorizontalResources(int screenNumber) {
+    return screenNumber != 2 && screenNumber != 4;
   }
 
   protected void bindHorizontalSchedule(List<TvScheduleItem> scheduleItems) {

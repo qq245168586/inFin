@@ -78,6 +78,7 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
     }
 
     List<CourseScript.VideoCard> baseCards = effectiveScreen.videoCards;
+    List<Integer> rowLayouts = getRowLayoutsForScreen(effectiveScreen);
     List<CourseScript.PodSetConfig> setConfigs = getEffectiveSetConfigs(effectiveScreen.rule);
     int safeLoops = Math.max(effectiveScreen.rule.loopCount, 1);
     int pairCount = baseCards.size() / 2;
@@ -113,7 +114,8 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
               "",
               "SET " + (setIndex + 1) + "/" + setConfigs.size(),
               setIndex * 2 + 1,
-              totalSwitchDots);
+              totalSwitchDots,
+              rowLayouts);
         }
         cursor += workSeconds;
 
@@ -135,7 +137,8 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
               "SWITCH",
               "",
               setIndex * 2 + 1,
-              totalSwitchDots);
+              totalSwitchDots,
+              rowLayouts);
         }
         cursor += stationRestSeconds;
 
@@ -156,7 +159,8 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
               "",
               "SET " + (setIndex + 1) + "/" + setConfigs.size(),
               setIndex * 2 + 2,
-              totalSwitchDots);
+              totalSwitchDots,
+              rowLayouts);
         }
         cursor += workSeconds;
 
@@ -180,7 +184,8 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
               "SWITCH",
               "",
               Math.min(setIndex * 2 + 2, totalSwitchDots),
-              totalSwitchDots);
+              totalSwitchDots,
+              rowLayouts);
         }
         if (hasNextSet) {
           cursor += setRestSeconds;
@@ -208,7 +213,8 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
             "SWITCH",
             "",
             totalSwitchDots,
-            totalSwitchDots);
+            totalSwitchDots,
+            rowLayouts);
       }
       if (hasNextPairRound) {
         cursor += stationRestSeconds;
@@ -242,6 +248,7 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
     }
 
     List<CourseScript.VideoCard> baseCards = effectiveScreen.videoCards;
+    List<Integer> rowLayouts = getRowLayoutsForScreen(effectiveScreen);
     List<CourseScript.PodSetConfig> setConfigs = getEffectiveSetConfigs(effectiveScreen.rule);
     int safeLoops = Math.max(effectiveScreen.rule.loopCount, 1);
     int cursor = 0;
@@ -267,7 +274,8 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
               "",
               "SET " + (setIndex + 1),
               0,
-              0);
+              0,
+              rowLayouts);
         }
         cursor += workSeconds;
 
@@ -293,7 +301,8 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
               "REST",
               "",
               completedGroups,
-              totalGroups);
+              totalGroups,
+              rowLayouts);
         }
         if (hasNextSet) {
           cursor += setRestSeconds;
@@ -317,7 +326,8 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
             false,
             false,
             fullScreenTransition,
-            "MOVE_STATION");
+            "MOVE_STATION",
+            rowLayouts);
       }
       if (hasNextLoop) {
         cursor += stationRestSeconds;
@@ -349,6 +359,7 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
     int remainingSeconds = Math.max(endingDurationSeconds - endingElapsedSeconds, 0);
     boolean fullScreenTransition = isInFirstTransitionThird(remainingSeconds, endingDurationSeconds);
     boolean previewWaterfall = previewScreen != null && previewScreen.waterfallLayout;
+    List<Integer> rowLayouts = getRowLayoutsForScreen(previewScreen);
 
     if ("MOVE_ZONE".equals(pod.ending)) {
       return new TrainingPlaybackState(
@@ -363,7 +374,8 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
           previewWaterfall,
           false,
           fullScreenTransition,
-          "MOVE_ZONE");
+          "MOVE_ZONE",
+          rowLayouts);
     }
 
     return new TrainingPlaybackState(
@@ -378,7 +390,8 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
         previewWaterfall,
         false,
         fullScreenTransition,
-        "HYDRATE");
+        "HYDRATE",
+        rowLayouts);
   }
 
   protected boolean isInFirstTransitionThird(int remainingSeconds, int totalSeconds) {
@@ -464,10 +477,12 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
     }
 
     int cardCount = state.displayCards.size();
-    int columns = cardCount == 1 || cardCount == 3 ? 1 : 2;
-    int rowCount = Math.max((int) Math.ceil(cardCount / (float) columns), 1);
-    int rowGap = calculateTrainingRowGap(rowCount);
-    int previewHeight = calculateTrainingRowHeight(cardCount, columns, rowCount, rowGap);
+    List<Integer> rowLayouts = normalizeTrainingRowLayouts(state.rowLayouts, state.displayCards);
+    int rowCount = Math.max(rowLayouts.size(), 1);
+    boolean hasWideRow = rowLayouts.contains(1);
+    int visibleRowCount = hasWideRow ? Math.min(rowCount, 3) : Math.min(rowCount, 5);
+    int rowGap = calculateTrainingRowGap(visibleRowCount);
+    int previewHeight = calculateTrainingRowHeight(cardCount, hasWideRow ? 1 : 2, visibleRowCount, rowGap);
     int viewportHeight = playbackScrollView == null ? 0 : playbackScrollView.getHeight();
     if (viewportHeight <= 0) {
       viewportHeight = Math.round(getResources().getDisplayMetrics().heightPixels * 0.70f);
@@ -477,14 +492,16 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
     trainingCardsContainer.setGravity(android.view.Gravity.CENTER_VERTICAL);
     trainingCardsContainer.setMinimumHeight(Math.max(totalRowsHeight, verticalSpace));
 
-    for (int rowStart = 0; rowStart < cardCount; rowStart += columns) {
+    int rowStart = 0;
+    for (int rowIndex = 0; rowIndex < rowLayouts.size(); rowIndex += 1) {
+      int columns = rowLayouts.get(rowIndex) == 2 ? 2 : 1;
       LinearLayout row = new LinearLayout(this);
       row.setOrientation(LinearLayout.HORIZONTAL);
       row.setGravity(android.view.Gravity.CENTER);
       LinearLayout.LayoutParams rowParams =
           new LinearLayout.LayoutParams(
               LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-      if (rowStart > 0) {
+      if (rowIndex > 0) {
         rowParams.topMargin = rowGap;
       }
       row.setLayoutParams(rowParams);
@@ -502,6 +519,7 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
         row.addView(card);
       }
       trainingCardsContainer.addView(row);
+      rowStart += columns;
     }
     playbackScrollView.post(() -> playbackScrollView.scrollTo(0, 0));
   }
