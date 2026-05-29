@@ -229,11 +229,30 @@ export default function TrainingTemplateEditor({
                             className={`screen-video-slot-card ${card?.actionId || card?.stationNumber ? "has-action" : "is-empty"}`}
                             onClick={() => openSlotDialog(screen, slotIndex, card)}
                           >
-                            {card?.stationNumber ? <span className="screen-video-slot-station">站点 {card.stationNumber}</span> : <span />}
-                            {actionName ? <strong>{actionName}</strong> : <strong />}
-                            <span className="screen-video-slot-hint">
-                              {actionName ? "点击这里修改" : "点击这里选动作"}
-                            </span>
+                            {actionName ? (
+                              <>
+                                <div className="screen-video-slot-preview">
+                                  <ActionMediaPreview
+                                    actionId={card?.actionId || ""}
+                                    actions={actions}
+                                    compact
+                                    interactive={false}
+                                  />
+                                </div>
+                                <div className="screen-video-slot-overlay">
+                                  {card?.stationNumber ? (
+                                    <span className="screen-video-slot-station">站点 {card.stationNumber}</span>
+                                  ) : null}
+                                  <strong>{actionName}</strong>
+                                  <span className="screen-video-slot-hint">点击这里修改</span>
+                                </div>
+                              </>
+                            ) : (
+                              <div className="screen-video-slot-empty-copy">
+                                {card?.stationNumber ? <span className="screen-video-slot-station">站点 {card.stationNumber}</span> : null}
+                                <strong>点击这里选动作</strong>
+                              </div>
+                            )}
                           </button>
                         );
                       })}
