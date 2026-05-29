@@ -50,19 +50,21 @@ function normalizeVideoRowLayouts(rowLayouts = [], videoCards = [], screenCount 
   }
 
   const source = Array.isArray(rowLayouts) ? rowLayouts : [];
-  const rows = [];
-  let cardIndex = 0;
-  let rowIndex = 0;
-  const cardCount = Math.max(Array.isArray(videoCards) ? videoCards.length : 0, 1);
+  const firstRows = [0, 1, 2].map((index) => (Number(source[index]) === 2 ? 2 : 1));
+  return firstRows.every((columns) => columns === 2) ? [2, 2, 2, 2, 2] : firstRows;
+}
 
-  while (cardIndex < cardCount) {
-    const columns = Number(source[rowIndex]) === 2 ? 2 : 1;
-    rows.push(columns);
-    cardIndex += columns;
-    rowIndex += 1;
+function fitVideoCardsForRows(videoCards = [], rowLayouts = [], screenCount = 3) {
+  if (screenCount === 1) {
+    return videoCards.length ? videoCards : [createVideoCard()];
   }
 
-  return rows;
+  const capacity = rowLayouts.reduce((total, columns) => total + columns, 0);
+  const nextCards = videoCards.slice(0, capacity);
+  while (nextCards.length < capacity) {
+    nextCards.push(createVideoCard());
+  }
+  return nextCards;
 }
 
 function normalizeSetConfigs(setConfigs = []) {
@@ -127,13 +129,14 @@ export function createVideoCard(overrides = {}) {
 }
 
 export function createVideoGroupScreen(screenIndex, screenCount) {
+  const rowLayouts = screenCount === 1 ? [] : [1, 1, 1];
   return {
     id: uid("group-screen"),
     screenIndex,
     stationLabel: screenCount === 1 ? "瀑布流屏幕" : `屏幕 ${screenIndex}`,
     layout: screenCount === 1 ? SECTION_LAYOUT.WATERFALL : SECTION_LAYOUT.STATIONS,
-    rowLayouts: screenCount === 1 ? [] : [1],
-    videoCards: [createVideoCard()]
+    rowLayouts,
+    videoCards: fitVideoCardsForRows([createVideoCard()], rowLayouts, screenCount)
   };
 }
 
@@ -443,20 +446,29 @@ export function legacyCourseToScript(legacyCourse = {}, options = {}) {
       ...cloned.training,
       videoGroups: groups.map((group) => ({
         ...group,
-        screens: (group.screens || []).map((screen, screenIndex) => ({
-          ...screen,
-          screenIndex: screen.screenIndex || screenIndex + 1,
-          stationLabel:
-            screen.stationLabel ||
-            (group.screenCount === 1 ? "瀑布流屏幕" : `屏幕 ${screen.screenIndex || screenIndex + 1}`),
-          layout: group.screenCount === 1 ? SECTION_LAYOUT.WATERFALL : SECTION_LAYOUT.STATIONS,
-          videoCards: (screen.videoCards || []).map((card) => ({
-            ...card,
-            id: card.id || uid("video-card"),
-            stationNumber: stationInputValue(card.stationNumber)
-          })),
-          rowLayouts: normalizeVideoRowLayouts(screen.rowLayouts, screen.videoCards || [], group.screenCount)
-        }))
+        screens: (group.screens || []).map((screen, screenIndex) => {
+          const rowLayouts = normalizeVideoRowLayouts(screen.rowLayouts, screen.videoCards || [], group.screenCount);
+          const videoCards = fitVideoCardsForRows(
+            (screen.videoCards || []).map((card) => ({
+              ...card,
+              id: card.id || uid("video-card"),
+              stationNumber: group.screenCount === 1 ? "" : stationInputValue(card.stationNumber)
+            })),
+            rowLayouts,
+            group.screenCount
+          );
+
+          return {
+            ...screen,
+            screenIndex: screen.screenIndex || screenIndex + 1,
+            stationLabel:
+              screen.stationLabel ||
+              (group.screenCount === 1 ? "瀑布流屏幕" : `屏幕 ${screen.screenIndex || screenIndex + 1}`),
+            layout: group.screenCount === 1 ? SECTION_LAYOUT.WATERFALL : SECTION_LAYOUT.STATIONS,
+            videoCards,
+            rowLayouts
+          };
+        })
       })),
       pods: (cloned.training.pods || []).map((pod, podIndex) => {
         const linkedGroup =
