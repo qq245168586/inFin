@@ -482,12 +482,16 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
     boolean hasWideRow = rowLayouts.contains(1);
     int visibleRowCount = hasWideRow ? Math.min(rowCount, 3) : Math.min(rowCount, 5);
     int rowGap = calculateTrainingRowGap(visibleRowCount);
-    int previewHeight = calculateTrainingRowHeight(cardCount, hasWideRow ? 1 : 2, visibleRowCount, rowGap);
     int viewportHeight = playbackScrollView == null ? 0 : playbackScrollView.getHeight();
     if (viewportHeight <= 0) {
       viewportHeight = Math.round(getResources().getDisplayMetrics().heightPixels * 0.70f);
     }
-    int totalRowsHeight = rowCount * previewHeight + Math.max(rowCount - 1, 0) * rowGap;
+    List<Integer> rowHeights = calculateTrainingRowHeights(rowLayouts);
+    int totalRowsHeight = 0;
+    for (int height : rowHeights) {
+      totalRowsHeight += height;
+    }
+    totalRowsHeight += Math.max(rowCount - 1, 0) * rowGap;
     int verticalSpace = Math.max(viewportHeight - dp(24), 0);
     trainingCardsContainer.setGravity(android.view.Gravity.CENTER_VERTICAL);
     trainingCardsContainer.setMinimumHeight(Math.max(totalRowsHeight, verticalSpace));
@@ -512,10 +516,11 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
           continue;
         }
 
+        int rowHeight = rowIndex < rowHeights.size() ? rowHeights.get(rowIndex) : calculateGridTrainingRowHeight();
         View card =
             columns == 1
-                ? createTrainingWideCard(state.displayCards.get(cardIndex), cardIndex, previewHeight)
-                : createTrainingGridCard(state.displayCards.get(cardIndex), cardIndex, previewHeight);
+                ? createTrainingWideCard(state.displayCards.get(cardIndex), cardIndex, rowHeight)
+                : createTrainingGridCard(state.displayCards.get(cardIndex), cardIndex, rowHeight);
         row.addView(card);
       }
       trainingCardsContainer.addView(row);
@@ -524,13 +529,24 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
     playbackScrollView.post(() -> playbackScrollView.scrollTo(0, 0));
   }
 
+  protected List<Integer> calculateTrainingRowHeights(List<Integer> rowLayouts) {
+    List<Integer> heights = new ArrayList<>();
+    if (rowLayouts == null || rowLayouts.isEmpty()) {
+      return heights;
+    }
+
+    for (int index = 0; index < rowLayouts.size(); index += 1) {
+      heights.add(rowLayouts.get(index) == 1 ? calculateWideTrainingRowHeight() : calculateGridTrainingRowHeight());
+    }
+    return heights;
+  }
+
   protected View createTrainingWideCard(
       CourseScript.VideoCard card, int cardIndex, int previewHeight) {
     FrameLayout wrapper = new FrameLayout(this);
     int contentWidth = Math.max(getResources().getDisplayMetrics().widthPixels - dp(36), dp(320));
-    int itemWidth = Math.min(contentWidth, Math.max(Math.round(previewHeight * 16f / 9f), dp(260)));
     LinearLayout.LayoutParams params =
-        new LinearLayout.LayoutParams(itemWidth, previewHeight);
+        new LinearLayout.LayoutParams(contentWidth, previewHeight);
     wrapper.setLayoutParams(params);
     wrapper.setBackgroundResource(R.drawable.bg_training_card);
 

@@ -297,6 +297,13 @@ abstract class MainActivityPart02 extends MainActivityPart01 {
     }
   }
 
+  protected boolean isAppUpdateInProgress() {
+    return "DOWNLOADING".equals(currentUpdateState)
+        || "DOWNLOADED".equals(currentUpdateState)
+        || "INSTALLING".equals(currentUpdateState)
+        || "INSTALLED".equals(currentUpdateState);
+  }
+
   protected void installAppUpdateFromRemote(
       String targetDeviceId,
       int screenNumber,
@@ -333,6 +340,17 @@ abstract class MainActivityPart02 extends MainActivityPart01 {
               + screenNumber
               + ", activeScreen="
               + activeScreenNumber);
+    }
+
+    if (isAppUpdateInProgress()) {
+      Log.d(
+          TAG,
+          "Ignoring install_app_update because an update is already in progress. state="
+              + currentUpdateState
+              + ", targetVersion="
+              + currentUpdateTargetVersion);
+      dispatchScreenHeartbeat(false);
+      return;
     }
 
     stopPlayback();

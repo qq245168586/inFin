@@ -121,7 +121,8 @@ abstract class MainActivityPart10 extends MainActivityPart09 {
     clearWaterfallRows();
     warmupRowsContainer.setVisibility(View.GONE);
     trainingCardsContainer.setVisibility(View.VISIBLE);
-    String layoutSignature = buildTrainingLayoutSignature(previewScreen.videoCards);
+    List<Integer> rowLayouts = getRowLayoutsForScreen(previewScreen);
+    String layoutSignature = buildTrainingLayoutSignature(previewScreen.videoCards, rowLayouts);
     if (!layoutSignature.equals(lastTrainingSignature)) {
       renderTrainingCards(
           new TrainingPlaybackState(
@@ -132,7 +133,12 @@ abstract class MainActivityPart10 extends MainActivityPart09 {
               0,
               previewScreen.videoCards,
               -1,
-              false));
+              false,
+              false,
+              false,
+              false,
+              "",
+              rowLayouts));
       lastTrainingSignature = layoutSignature;
     }
   }
