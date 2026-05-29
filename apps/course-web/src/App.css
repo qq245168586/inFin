@@ -860,6 +860,10 @@ textarea:focus {
   border-radius: 20px;
 }
 
+.action-picker-preview-card .action-media-preview-frame video {
+  pointer-events: none;
+}
+
 .action-picker-preview-card .action-media-preview-copy strong {
   font-size: clamp(24px, 3vw, 42px);
 }

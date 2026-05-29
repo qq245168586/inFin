@@ -162,7 +162,12 @@ export default function ActionPicker({
                 <span className="eyebrow">VIDEO PREVIEW</span>
                 <h3>{draftAction?.name || "未选择动作"}</h3>
               </div>
-              <ActionMediaPreview actionId={draftActionId} actions={actions} emptyCopy="在左侧选择动作后，可以先播放确认视频内容。" />
+              <ActionMediaPreview
+                actionId={draftActionId}
+                actions={actions}
+                emptyCopy="在左侧选择动作后，可以先确认视频内容。"
+                interactive={false}
+              />
             </section>
           </div>
         </Dialog>

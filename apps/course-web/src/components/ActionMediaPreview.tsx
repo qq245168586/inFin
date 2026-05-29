@@ -27,7 +27,15 @@ function getVideoPreviewCaptureTime(video: HTMLVideoElement) {
   return Math.min(0.12, Math.max(duration * 0.02, 0.04), Math.max(duration - 0.01, 0));
 }
 
-export function FirstFrameVideo({ src, className }: { src: string; className?: string }) {
+export function FirstFrameVideo({
+  src,
+  className,
+  interactive = true
+}: {
+  src: string;
+  className?: string;
+  interactive?: boolean;
+}) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const captureStateRef = useRef<"idle" | "seeking" | "done">("idle");
   const [posterUrl, setPosterUrl] = useState("");
@@ -126,9 +134,11 @@ export function FirstFrameVideo({ src, className }: { src: string; className?: s
       className={className}
       src={src}
       poster={posterUrl || undefined}
-      controls
+      controls={interactive}
       playsInline
       preload="auto"
+      tabIndex={interactive ? undefined : -1}
+      aria-hidden={interactive ? undefined : true}
       onPlay={() => {
         const video = videoRef.current;
         if (!video) {
@@ -147,12 +157,14 @@ export default function ActionMediaPreview({
   actionId,
   actions,
   emptyCopy = "请选择动作查看视频",
-  compact = false
+  compact = false,
+  interactive = true
 }: {
   actionId: string;
   actions: ActionMediaPreviewAction[];
   emptyCopy?: string;
   compact?: boolean;
+  interactive?: boolean;
 }) {
   const action = findActionRecord(actions, actionId);
   const mediaUrl = action?.media?.url ? withCacheToken(action.media.url, action.updateTime) : "";
@@ -160,7 +172,11 @@ export default function ActionMediaPreview({
   return (
     <div className={`action-media-preview${compact ? " is-compact" : ""}`}>
       <div className="action-media-preview-frame">
-        {mediaUrl ? <FirstFrameVideo src={mediaUrl} /> : <div className="action-media-preview-empty">{action ? "该动作暂无视频" : emptyCopy}</div>}
+        {mediaUrl ? (
+          <FirstFrameVideo src={mediaUrl} interactive={interactive} />
+        ) : (
+          <div className="action-media-preview-empty">{action ? "该动作暂无视频" : emptyCopy}</div>
+        )}
       </div>
       <div className="action-media-preview-copy">
         <strong>{action?.name || "未选择动作"}</strong>
