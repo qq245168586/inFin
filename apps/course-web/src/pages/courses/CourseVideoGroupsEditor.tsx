@@ -330,14 +330,12 @@ export default function CourseVideoGroupsEditor({
                                 <button
                                   key={`${screen.id}-slot-${slotIndex}`}
                                   type="button"
-                                  className={`screen-video-slot-card ${card?.actionId ? "has-action" : ""}`}
+                                  className={`screen-video-slot-card ${card?.actionId || card?.stationNumber ? "has-action" : "is-empty"}`}
                                   onClick={() => openSlotDialog(group, screen, slotIndex, card)}
                                 >
-                                  <span className="screen-video-slot-station">
-                                    {card?.stationNumber ? `站点 ${card.stationNumber}` : "未填站点"}
-                                  </span>
-                                  <strong>{actionName || "未选择动作"}</strong>
-                                  <span className="screen-video-slot-hint">点击编辑</span>
+                                  {card?.stationNumber ? <span className="screen-video-slot-station">站点 {card.stationNumber}</span> : <span />}
+                                  {actionName ? <strong>{actionName}</strong> : <strong />}
+                                  <span className="screen-video-slot-hint">{actionName || card?.stationNumber ? "点击编辑" : ""}</span>
                                 </button>
                               );
                             })}
@@ -399,7 +397,6 @@ export default function CourseVideoGroupsEditor({
                                   </div>
 
                                   <div className="screen-video-preview-shell">
-                                    <div className="screen-video-index">{displayIndex + 1}</div>
                                     <ActionMediaPreview actionId={card.actionId} actions={actions} compact />
                                   </div>
                                 </div>
@@ -502,7 +499,7 @@ function VideoSlotDialog({
   return (
     <Dialog
       title="编辑动作位"
-      width={1080}
+      width={1120}
       onClose={onClose}
       onConfirm={() => onConfirm(draftActionId, draftStationNumber)}
       confirmText="确认"

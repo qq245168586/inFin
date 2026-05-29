@@ -2371,6 +2371,11 @@ textarea:focus {
   transform: translateY(-1px);
 }
 
+.screen-video-slot-card.is-empty {
+  background: #ffffff;
+  border-style: dashed;
+}
+
 .screen-video-slot-card.has-action {
   background: linear-gradient(180deg, #ffffff, #eef5ff);
 }
@@ -2390,6 +2395,7 @@ textarea:focus {
 
 .screen-video-slot-card strong {
   width: 100%;
+  min-height: 1.4em;
   min-width: 0;
   color: var(--text-main);
   font-size: 15px;
@@ -2400,6 +2406,7 @@ textarea:focus {
 }
 
 .screen-video-slot-hint {
+  min-height: 1.2em;
   color: var(--text-subtle);
   font-size: 12px;
   font-weight: 700;
@@ -2484,24 +2491,11 @@ textarea:focus {
 }
 
 .screen-video-preview-shell {
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1fr);
-  gap: 0;
+  display: block;
   overflow: hidden;
   border-radius: 14px;
   border: 1px solid rgba(15, 19, 34, 0.08);
   background: #0d1018;
-}
-
-.screen-video-index {
-  min-height: 100%;
-  color: #ffffff;
-  background: linear-gradient(180deg, #7a2cff, #5c19c9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 22px;
-  font-weight: 900;
 }
 
 .screen-video-preview-shell .action-media-preview {
@@ -2588,7 +2582,7 @@ textarea:focus {
 
 .screen-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(360px, 1fr));
+  grid-template-columns: repeat(3, minmax(460px, 1fr));
   gap: 16px;
   align-items: start;
   align-content: start;
@@ -3308,7 +3302,7 @@ textarea:focus {
   }
 
   .screen-grid {
-    grid-template-columns: repeat(3, minmax(320px, 1fr));
+    grid-template-columns: repeat(3, minmax(420px, 1fr));
     overflow-x: auto;
   }
 
