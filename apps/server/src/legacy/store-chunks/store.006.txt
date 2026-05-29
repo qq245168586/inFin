@@ -70,20 +70,20 @@ function normalizeWaterfallTemplateSection(kind, section = {}) {
 function normalizeTemplateVideoGroup(videoGroup = {}) {
   const screenCount = Number(videoGroup.screenCount) === 1 ? 1 : 3;
   const rawScreens = Array.isArray(videoGroup.screens) ? videoGroup.screens : [];
-  const normalizeRowLayouts = (rowLayouts, cards) => {
+  const normalizeRowLayouts = (rowLayouts) => {
     if (screenCount === 1) return [];
     const source = Array.isArray(rowLayouts) ? rowLayouts : [];
-    const rows = [];
-    let cardIndex = 0;
-    let rowIndex = 0;
-    const cardCount = Math.max(Array.isArray(cards) ? cards.length : 0, 1);
-    while (cardIndex < cardCount) {
-      const columns = Number(source[rowIndex]) === 2 ? 2 : 1;
-      rows.push(columns);
-      cardIndex += columns;
-      rowIndex += 1;
+    const firstRows = [0, 1, 2].map((rowIndex) => (Number(source[rowIndex]) === 2 ? 2 : 1));
+    return firstRows.every((columns) => columns === 2) ? [2, 2, 2, 2, 2] : firstRows;
+  };
+  const fitCardsForRows = (cards, rowLayouts) => {
+    if (screenCount === 1) return cards.length ? cards : [{}];
+    const capacity = rowLayouts.reduce((total, columns) => total + columns, 0);
+    const nextCards = cards.slice(0, capacity);
+    while (nextCards.length < capacity) {
+      nextCards.push({});
     }
-    return rows;
+    return nextCards;
   };
 
   return {
@@ -94,14 +94,16 @@ function normalizeTemplateVideoGroup(videoGroup = {}) {
       const screenIndex = index + 1;
       const rawScreen = rawScreens.find((item) => Number(item.screenIndex) === screenIndex) || {};
       const rawCards = Array.isArray(rawScreen.videoCards) && rawScreen.videoCards.length ? rawScreen.videoCards : [{}];
+      const rowLayouts = normalizeRowLayouts(rawScreen.rowLayouts);
+      const videoCards = fitCardsForRows(rawCards, rowLayouts);
 
       return {
         id: rawScreen.id || templateUid("template-group-screen"),
         screenIndex,
         stationLabel: screenCount === 1 ? "瀑布流屏幕" : `屏幕 ${screenIndex}`,
         layout: screenCount === 1 ? "WATERFALL" : "STATIONS",
-        rowLayouts: normalizeRowLayouts(rawScreen.rowLayouts, rawCards),
-        videoCards: rawCards.map((card) => ({
+        rowLayouts,
+        videoCards: videoCards.map((card) => ({
           id: card.id || templateUid("template-video-card"),
           actionId: String(card.actionId || ""),
           actionName: resolveActionName(card.actionId, card.actionName),
