@@ -118,11 +118,34 @@ export default function CourseVideoGroupsEditor({
     setSlotDialog(null);
     onUpdateScript(
       updateScreen(group, screenIndex, (screen) => {
-        const firstRows = normalizeVideoRowLayouts(screen.rowLayouts, group.screenCount).slice(0, 3) as VideoRowLayout[];
-        const targetRowIndex = rowIndex < 3 ? rowIndex : 2;
-        firstRows[targetRowIndex] = columns;
-        const nextRows = normalizeVideoRowLayouts(firstRows, group.screenCount);
-        return { ...screen, rowLayouts: nextRows };
+        const nextRows = normalizeVideoRowLayouts(screen.rowLayouts, group.screenCount);
+        const rowStart = nextRows.slice(0, rowIndex).reduce((total, rowColumns) => total + rowColumns, 0);
+        const currentColumns = nextRows[rowIndex] || columns;
+        const nextCards = [...screen.videoCards];
+
+        if (columns > currentColumns) {
+          nextCards.splice(rowStart + currentColumns, 0, createVideoCard());
+        }
+        if (columns < currentColumns) {
+          nextCards.splice(rowStart + columns, currentColumns - columns);
+        }
+
+        nextRows[rowIndex] = columns;
+        return { ...screen, rowLayouts: nextRows, videoCards: nextCards };
+      })
+    );
+  }
+
+  function deleteRowLayout(group: VideoGroup, screenIndex: number, rowIndex: number) {
+    setSlotDialog(null);
+    onUpdateScript(
+      updateScreen(group, screenIndex, (screen) => {
+        const currentRows = normalizeVideoRowLayouts(screen.rowLayouts, group.screenCount);
+        if (currentRows.length <= 1) return screen;
+        const rowStart = currentRows.slice(0, rowIndex).reduce((total, rowColumns) => total + rowColumns, 0);
+        const rowColumns = currentRows[rowIndex] || 1;
+        const nextCards = screen.videoCards.filter((_, index) => index < rowStart || index >= rowStart + rowColumns);
+        return { ...screen, rowLayouts: currentRows.filter((_, index) => index !== rowIndex), videoCards: nextCards };
       })
     );
   }
@@ -305,20 +328,30 @@ export default function CourseVideoGroupsEditor({
                         <div key={`${screen.id}-row-${row.index}`} className={`screen-video-row is-${row.columns}`}>
                           <div className="screen-video-row-head">
                             <span>第 {row.index + 1} 行</span>
-                            <div className="row-layout-toggle" aria-label={`第 ${row.index + 1} 行视频数量`}>
+                            <div className="screen-video-row-actions">
+                              <div className="row-layout-toggle" aria-label={`第 ${row.index + 1} 行视频数量`}>
+                                <button
+                                  type="button"
+                                  className={row.columns === 1 ? "is-active" : ""}
+                                  onClick={() => updateRowLayout(group, screen.screenIndex, row.index, 1)}
+                                >
+                                  1
+                                </button>
+                                <button
+                                  type="button"
+                                  className={row.columns === 2 ? "is-active" : ""}
+                                  onClick={() => updateRowLayout(group, screen.screenIndex, row.index, 2)}
+                                >
+                                  2
+                                </button>
+                              </div>
                               <button
                                 type="button"
-                                className={row.columns === 1 ? "is-active" : ""}
-                                onClick={() => updateRowLayout(group, screen.screenIndex, row.index, 1)}
+                                className="row-delete-button"
+                                disabled={normalizeVideoRowLayouts(screen.rowLayouts, group.screenCount).length <= 1}
+                                onClick={() => deleteRowLayout(group, screen.screenIndex, row.index)}
                               >
-                                1
-                              </button>
-                              <button
-                                type="button"
-                                className={row.columns === 2 ? "is-active" : ""}
-                                onClick={() => updateRowLayout(group, screen.screenIndex, row.index, 2)}
-                              >
-                                2
+                                删除
                               </button>
                             </div>
                           </div>

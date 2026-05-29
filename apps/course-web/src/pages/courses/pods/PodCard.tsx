@@ -42,16 +42,7 @@ export default function PodCard({
   onOpenPodCopyDialog: (pod: Pod, screen: PodScreen, screenLabel: string) => void;
   onOpenPodConfigCopyDialog: (pod: Pod, podLabel: string) => void;
 }) {
-  const podTotals = pod.screens.map((screen) => {
-    const linkedScreen = linkedGroup?.screens.find((entry) => entry.screenIndex === screen.screenIndex) || null;
-    return getPodScreenTotal(pod, screen, linkedScreen);
-  });
-  const isBalanced = podTotals.every((total) => total === (podTotals[0] ?? 0));
   const isLastPod = podIndex === script.training.pods.length - 1;
-  const canUseSwitch = linkedGroup?.screenCount === 3;
-  const hasOddSwitchCards = Boolean(
-    pod.stationFlow === "SWITCH" && linkedGroup?.screens.some((screen) => (screen.videoCards.length || 0) % 2 !== 0)
-  );
   const switchReferenceScreen = pod.screens[0] || null;
   const switchReferenceLinkedScreen =
     switchReferenceScreen && linkedGroup?.screens.find((entry) => entry.screenIndex === switchReferenceScreen.screenIndex);
@@ -190,9 +181,7 @@ export default function PodCard({
             }
           >
             <option value="NORMAL">正常换站</option>
-            <option value="SWITCH" disabled={!canUseSwitch}>
-              SWITCH A/B
-            </option>
+            <option value="SWITCH">SWITCH A/B</option>
           </select>
         </label>
 
@@ -235,12 +224,6 @@ export default function PodCard({
           <span>当前设置：每个 AB 内 {switchGroupCount} 组；播放顺序：{switchSequence}</span>
         </div>
       ) : null}
-
-      {!isBalanced ? <div className="inline-warning">{formatPodTimingMismatch(pod, linkedGroup || null)}</div> : null}
-      {pod.stationFlow === "SWITCH" && !canUseSwitch ? (
-        <div className="inline-warning">SWITCH 只能绑定三屏视频组。</div>
-      ) : null}
-      {hasOddSwitchCards ? <div className="inline-warning">SWITCH 视频组每个屏幕都需要偶数个视频卡片。</div> : null}
 
       <div className={`screen-grid ${linkedGroup?.screenCount === 1 ? "is-single" : ""}`}>
         {pod.screens.map((screen) => (

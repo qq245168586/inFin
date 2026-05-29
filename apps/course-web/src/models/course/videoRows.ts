@@ -1,4 +1,5 @@
 import type { VideoCard, VideoGroupScreen, VideoGroupScreenCount, VideoRowLayout } from "./types.ts";
+import { stationCode } from "../../utils/station.ts";
 
 export interface VideoRow {
   index: number;
@@ -17,16 +18,24 @@ export function normalizeVideoRowLayouts(
   if (screenCount === 1) return [];
 
   const source = Array.isArray(rowLayouts) ? rowLayouts : [];
-  const firstRows: VideoRowLayout[] = [0, 1, 2].map((index) => (Number(source[index]) === 2 ? 2 : 1));
-  const shouldExpand = firstRows.every((columns) => columns === 2);
+  if (!source.length) return getDefaultVideoRowLayouts(screenCount);
 
-  if (!shouldExpand) return firstRows;
+  const rows = source.map((columns) => (Number(columns) === 2 ? 2 : 1)) as VideoRowLayout[];
+  const shouldExpand = rows.length === 3 && rows.every((columns) => columns === 2);
 
-  return [2, 2, 2, 2, 2];
+  return shouldExpand ? [2, 2, 2, 2, 2] : rows;
 }
 
 export function getVideoRowCapacity(rowLayouts: VideoRowLayout[]): number {
   return rowLayouts.reduce((total, columns) => total + columns, 0);
+}
+
+export function isFilledVideoCard(card: Partial<VideoCard> | null | undefined): boolean {
+  return Boolean(card?.actionId || card?.actionName || stationCode(card?.stationNumber));
+}
+
+export function getFilledVideoCards(cards: VideoCard[] = []): VideoCard[] {
+  return cards.filter((card) => isFilledVideoCard(card));
 }
 
 export function buildVideoRows(screen: VideoGroupScreen, screenCount: VideoGroupScreenCount = 3): VideoRow[] {

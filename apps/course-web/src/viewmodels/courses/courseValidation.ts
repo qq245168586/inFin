@@ -1,8 +1,8 @@
 import type { CourseDraft } from "./types.ts";
 import type { CourseSectionKey } from "../../models/course/types.ts";
 import { normalizePodSetConfigsForLayout } from "../../models/course/podSetConfigs.ts";
+import { getFilledVideoCards } from "../../models/course/videoRows.ts";
 import { stationCode } from "../../utils/station.ts";
-import { getPodScreenTotalForFlow } from "./podTiming.ts";
 import { createTrainingSnapshot } from "./courseEditorFactories.ts";
 
 export function getCourseDraftIssues(draft: CourseDraft): string[] {
@@ -63,8 +63,9 @@ export function getCourseDraftIssues(draft: CourseDraft): string[] {
     }
 
     group.screens.forEach((screen) => {
+      const activeCards = getFilledVideoCards(screen.videoCards);
       if (group.screenCount !== 1) {
-        const stationCodes = screen.videoCards.map((card) => stationCode(card.stationNumber));
+        const stationCodes = activeCards.map((card) => stationCode(card.stationNumber));
         if (stationCodes.some((code) => !code)) {
           issues.push(`视频组 ${group.name || "未命名"} 的屏幕 ${screen.screenIndex} 站点标签不能为空。`);
         }
@@ -72,10 +73,10 @@ export function getCourseDraftIssues(draft: CourseDraft): string[] {
           issues.push(`视频组 ${group.name || "未命名"} 的屏幕 ${screen.screenIndex} 站点标签不能重复。`);
         }
       }
-      if (!screen.videoCards.length) {
+      if (!activeCards.length) {
         issues.push(`视频组 ${group.name || "未命名"} 的屏幕 ${screen.screenIndex} 至少需要一个动作。`);
       }
-      screen.videoCards.forEach((card, index) => {
+      activeCards.forEach((card, index) => {
         if (!card.actionId) {
           issues.push(`视频组 ${group.name || "未命名"} 的屏幕 ${screen.screenIndex} 第 ${index + 1} 个卡片未选择动作。`);
         }
@@ -94,33 +95,7 @@ export function getCourseDraftIssues(draft: CourseDraft): string[] {
       return;
     }
 
-    if (pod.screens.length !== linkedGroup.screenCount) {
-      issues.push(`Pod ${pod.name || podIndex + 1} 的屏幕数量必须和视频组保持一致。`);
-    }
-
-    if (pod.stationFlow === "SWITCH") {
-      if (linkedGroup.screenCount !== 3) {
-        issues.push(`Pod ${pod.name || podIndex + 1} 使用 SWITCH 时必须绑定三屏视频组。`);
-      }
-      linkedGroup.screens.forEach((screen) => {
-        if ((screen.videoCards.length || 0) % 2 !== 0) {
-          issues.push(
-            `Pod ${pod.name || podIndex + 1} 使用 SWITCH 时，视频组 ${linkedGroup.name || "未命名"} 的屏幕 ${screen.screenIndex} 需要偶数个视频。`
-          );
-        }
-      });
-    }
-
-    const totals = pod.screens.map((screen) => {
-      const linkedScreen = linkedGroup.screens.find((item) => item.screenIndex === screen.screenIndex) || null;
-      return getPodScreenTotalForFlow(pod, screen, linkedScreen);
-    });
-    if (totals.some((total) => total !== totals[0])) {
-      issues.push(`Pod ${pod.name || podIndex + 1} 的各屏总时长必须一致。`);
-    }
-
     pod.screens.forEach((screen) => {
-      const linkedScreen = linkedGroup.screens.find((item) => item.screenIndex === screen.screenIndex);
       const isSingleScreen = linkedGroup.screenCount === 1;
       const effectiveSetConfigs = normalizePodSetConfigsForLayout(screen.setConfigs, isSingleScreen, 1);
       if (!effectiveSetConfigs.length) {
@@ -140,9 +115,6 @@ export function getCourseDraftIssues(draft: CourseDraft): string[] {
           issues.push(`Pod ${pod.name || podIndex + 1} 的屏幕 ${screen.screenIndex} 第 ${setIndex + 1} 组间休息不能小于 0。`);
         }
       });
-      if (!linkedScreen?.videoCards.length) {
-        issues.push(`Pod ${pod.name || podIndex + 1} 的屏幕 ${screen.screenIndex} 绑定的视频组还没有动作。`);
-      }
     });
 
     const isLastPod = podIndex === script.training.pods.length - 1;

@@ -2333,6 +2333,27 @@ textarea:focus {
   box-shadow: 0 6px 16px rgba(29, 111, 255, 0.22);
 }
 
+.screen-video-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.row-delete-button {
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 999px;
+  color: #f04f3d;
+  background: rgba(240, 79, 61, 0.08);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.row-delete-button:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
 .screen-video-grid {
   display: grid;
   gap: 12px;
