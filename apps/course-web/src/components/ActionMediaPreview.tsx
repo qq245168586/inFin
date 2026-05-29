@@ -30,11 +30,13 @@ function getVideoPreviewCaptureTime(video: HTMLVideoElement) {
 export function FirstFrameVideo({
   src,
   className,
-  interactive = true
+  interactive = true,
+  autoPlayPreview = false
 }: {
   src: string;
   className?: string;
   interactive?: boolean;
+  autoPlayPreview?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const captureStateRef = useRef<"idle" | "seeking" | "done">("idle");
@@ -49,6 +51,29 @@ export function FirstFrameVideo({
     const video = videoRef.current;
     if (!video || !src) {
       return;
+    }
+
+    if (autoPlayPreview) {
+      const playMutedPreview = () => {
+        video.muted = true;
+        video.loop = true;
+        video.playsInline = true;
+        const playPromise = video.play();
+        if (playPromise && typeof playPromise.catch === "function") {
+          playPromise.catch(() => {
+            // Autoplay can still be blocked by the browser; retry on media readiness events.
+          });
+        }
+      };
+
+      playMutedPreview();
+      video.addEventListener("loadeddata", playMutedPreview);
+      video.addEventListener("canplay", playMutedPreview);
+
+      return () => {
+        video.removeEventListener("loadeddata", playMutedPreview);
+        video.removeEventListener("canplay", playMutedPreview);
+      };
     }
 
     let cancelled = false;
@@ -125,7 +150,7 @@ export function FirstFrameVideo({
       video.removeEventListener("seeked", handleSeeked);
       video.removeEventListener("error", handleError);
     };
-  }, [src]);
+  }, [src, autoPlayPreview]);
 
   return (
     <video
@@ -135,6 +160,9 @@ export function FirstFrameVideo({
       src={src}
       poster={posterUrl || undefined}
       controls={interactive}
+      autoPlay={autoPlayPreview}
+      muted={autoPlayPreview}
+      loop={autoPlayPreview}
       playsInline
       preload="auto"
       tabIndex={interactive ? undefined : -1}
@@ -158,13 +186,15 @@ export default function ActionMediaPreview({
   actions,
   emptyCopy = "请选择动作查看视频",
   compact = false,
-  interactive = true
+  interactive = true,
+  autoPlayPreview = false
 }: {
   actionId: string;
   actions: ActionMediaPreviewAction[];
   emptyCopy?: string;
   compact?: boolean;
   interactive?: boolean;
+  autoPlayPreview?: boolean;
 }) {
   const action = findActionRecord(actions, actionId);
   const mediaUrl = action?.media?.url ? withCacheToken(action.media.url, action.updateTime) : "";
@@ -173,7 +203,7 @@ export default function ActionMediaPreview({
     <div className={`action-media-preview${compact ? " is-compact" : ""}`}>
       <div className="action-media-preview-frame">
         {mediaUrl ? (
-          <FirstFrameVideo src={mediaUrl} interactive={interactive} />
+          <FirstFrameVideo src={mediaUrl} interactive={interactive} autoPlayPreview={autoPlayPreview} />
         ) : (
           <div className="action-media-preview-empty">{action ? "该动作暂无视频" : emptyCopy}</div>
         )}

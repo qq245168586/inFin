@@ -167,6 +167,7 @@ export default function ActionPicker({
                 actions={actions}
                 emptyCopy="在左侧选择动作后，可以先确认视频内容。"
                 interactive={false}
+                autoPlayPreview
               />
             </section>
           </div>

@@ -237,6 +237,7 @@ export default function TrainingTemplateEditor({
                                     actions={actions}
                                     compact
                                     interactive={false}
+                                    autoPlayPreview
                                   />
                                 </div>
                                 <div className="screen-video-slot-overlay">
@@ -481,6 +482,7 @@ function VideoSlotDialog({
             actions={actions}
             emptyCopy="在左侧选择动作后，可以先确认视频内容。"
             interactive={false}
+            autoPlayPreview
           />
         </section>
       </div>
