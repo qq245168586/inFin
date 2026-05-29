@@ -66,12 +66,88 @@ export function addLessonType(name) {
   return next;
 }
 
+function courseTypeTagsFromTypeIds(typeIds = []) {
+  const ids = new Set(numberList(typeIds));
+  return normalizeCourseTags(
+    (state.lessonTypes || [])
+      .filter((type) => ids.has(Number(type.id)))
+      .map((type) => type.name)
+  );
+}
+
+function collectActionIdsFromCourseScript(script = {}) {
+  const ids = new Set();
+  const add = (value) => {
+    const id = trimText(String(value ?? ""));
+    if (id) {
+      ids.add(id);
+    }
+  };
+
+  for (const item of script?.sections?.warmup?.items || []) {
+    add(item?.actionId);
+  }
+  for (const item of script?.sections?.cooldown?.items || []) {
+    add(item?.actionId);
+  }
+  for (const group of script?.training?.videoGroups || []) {
+    for (const screen of group?.screens || []) {
+      for (const card of screen?.videoCards || []) {
+        add(card?.actionId);
+      }
+    }
+  }
+
+  return ids;
+}
+
+function syncActionCourseTagsForCourse(course = {}) {
+  const tags = courseTypeTagsFromTypeIds(course.typeIds);
+  if (!tags.length) {
+    return false;
+  }
+
+  const actionIds = collectActionIdsFromCourseScript(coerceCourseScript(course));
+  if (!actionIds.size) {
+    return false;
+  }
+
+  let changed = false;
+  state.actions = state.actions.map((action) => {
+    const normalized = normalizeActionRecord(action);
+    if (!actionIds.has(String(normalized.id))) {
+      return normalized;
+    }
+
+    const nextTags = normalizeCourseTags([...normalized.courseTags, ...tags]);
+    if (JSON.stringify(nextTags) === JSON.stringify(normalized.courseTags)) {
+      return normalized;
+    }
+
+    changed = true;
+    return {
+      ...normalized,
+      courseTags: nextTags
+    };
+  });
+
+  return changed;
+}
+
+function syncAllActionCourseTagsFromCourses() {
+  const changed = (state.courses || []).reduce((didChange, course) => syncActionCourseTagsForCourse(course) || didChange, false);
+  if (changed) {
+    persist();
+  }
+}
+
 export function listActions() {
-  return sortByNewest(state.actions, "updateTime");
+  return sortByNewest(state.actions.map(normalizeActionRecord), "updateTime");
 }
 
 export function getActionById(actionId) {
-  return state.actions.find((item) => item.id === Number(actionId)) ?? null;
+  const action = state.actions.find((item) => item.id === Number(actionId)) ?? null;
+  return action ? normalizeActionRecord(action) : null;
 }
 
 export function saveAction(payload) {
@@ -165,6 +241,7 @@ export function saveCourse(payload) {
     }
   }
 
+  syncActionCourseTagsForCourse(next);
   persist();
   return next;
 }

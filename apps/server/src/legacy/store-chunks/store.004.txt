@@ -89,6 +89,7 @@ function normalizeActionPayload(payload = {}, existing = null) {
     name: trimText(payload.name),
     typeIds: numberList(payload.typeIds),
     media: payload.media ?? existing?.media ?? null,
+    courseTags: normalizeCourseTags(payload.courseTags ?? existing?.courseTags),
     createTime: existing?.createTime ?? timestamp,
     updateTime: timestamp
   };

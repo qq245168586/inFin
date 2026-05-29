@@ -46,6 +46,33 @@ function normalizeScheduleEntry(entry) {
   };
 }
 
+function normalizeCourseTag(value) {
+  return stripMediaSuffix(value).toLowerCase().replace(/\s+/g, "-");
+}
+
+function normalizeCourseTags(value) {
+  const source = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? value.split(/[,/]+/)
+      : [];
+  return [...new Set(source.map(normalizeCourseTag).filter(Boolean))];
+}
+
+function normalizeActionRecord(action = {}) {
+  const raw = action && typeof action === "object" ? action : {};
+  return {
+    ...raw,
+    id: Number(raw.id) || 0,
+    name: trimText(raw.name),
+    typeIds: numberList(raw.typeIds),
+    media: raw.media ?? null,
+    courseTags: normalizeCourseTags(raw.courseTags),
+    createTime: trimText(raw.createTime),
+    updateTime: trimText(raw.updateTime)
+  };
+}
+
 function normalizeClientName(value, fallback = "editor-web") {
   const text = trimText(value).toLowerCase();
   if (text === "coach-web") {

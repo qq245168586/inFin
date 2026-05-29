@@ -154,7 +154,7 @@ function normalizeLoadedState(parsed) {
     coursePackages,
     actionTypes: Array.isArray(parsed.actionTypes) ? parsed.actionTypes : clone(defaultState.actionTypes),
     lessonTypes: Array.isArray(parsed.lessonTypes) ? parsed.lessonTypes : clone(defaultState.lessonTypes),
-    actions: Array.isArray(parsed.actions) ? parsed.actions : clone(defaultState.actions),
+    actions: (Array.isArray(parsed.actions) ? parsed.actions : clone(defaultState.actions)).map(normalizeActionRecord),
     courses: parsedCourses,
     templates: Array.isArray(parsed.templates) ? parsed.templates : clone(defaultState.templates),
     schedules: Array.isArray(parsed.schedules)

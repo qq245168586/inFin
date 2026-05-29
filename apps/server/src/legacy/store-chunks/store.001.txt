@@ -68,6 +68,7 @@ migrateLegacyStorageIfNeeded();
 const defaultState = createDefaultState();
 let state = loadState();
 ensureConsoleAccountSeeds();
+syncAllActionCourseTagsFromCourses();
 
 function ensureDir(target) {
   fs.mkdirSync(target, { recursive: true });
