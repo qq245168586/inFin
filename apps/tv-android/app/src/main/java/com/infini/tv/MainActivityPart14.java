@@ -526,55 +526,36 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
 
   protected View createTrainingWideCard(
       CourseScript.VideoCard card, int cardIndex, int previewHeight) {
-    LinearLayout wrapper = new LinearLayout(this);
-    wrapper.setOrientation(LinearLayout.HORIZONTAL);
-    int indexWidth = dp(116);
-    int previewGap = dp(10);
-    int previewWidth = Math.round(previewHeight * 16f / 9f);
+    FrameLayout wrapper = new FrameLayout(this);
     int contentWidth = Math.max(getResources().getDisplayMetrics().widthPixels - dp(36), dp(320));
-    int itemWidth = Math.min(contentWidth, indexWidth + previewGap + previewWidth);
+    int itemWidth = Math.min(contentWidth, Math.max(Math.round(previewHeight * 16f / 9f), dp(260)));
     LinearLayout.LayoutParams params =
         new LinearLayout.LayoutParams(itemWidth, previewHeight);
     wrapper.setLayoutParams(params);
     wrapper.setBackgroundResource(R.drawable.bg_training_card);
 
-    TextView index = new TextView(this);
-    LinearLayout.LayoutParams indexParams =
-        new LinearLayout.LayoutParams(indexWidth, LinearLayout.LayoutParams.MATCH_PARENT);
-    index.setLayoutParams(indexParams);
-    index.setBackgroundResource(R.drawable.bg_playback_index_card);
-    index.setGravity(android.view.Gravity.CENTER);
-    index.setText(safeStationLabel(card.stationNumber, cardIndex + 1));
-    index.setTextColor(getColor(R.color.tv_text_main));
-    index.setTextSize(48f);
-    index.setTypeface(index.getTypeface(), android.graphics.Typeface.BOLD);
-    wrapper.addView(index);
-
     FrameLayout preview = new FrameLayout(this);
-    LinearLayout.LayoutParams previewParams =
-        new LinearLayout.LayoutParams(
-            Math.max(itemWidth - indexWidth - previewGap, dp(120)),
-            LinearLayout.LayoutParams.MATCH_PARENT);
-    previewParams.leftMargin = previewGap;
+    FrameLayout.LayoutParams previewParams =
+        new FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
     preview.setLayoutParams(previewParams);
     preview.setBackgroundColor(getColor(R.color.tv_training_card_inactive));
     wrapper.addView(preview);
 
     bindTrainingPreview(preview, card);
+    wrapper.addView(
+        createTrainingStationBadge(
+            safeStationLabel(card == null ? null : card.stationNumber, cardIndex + 1), true));
 
     return wrapper;
   }
 
   protected View createTrainingGridCard(
       CourseScript.VideoCard card, int cardIndex, int previewHeight) {
-    LinearLayout wrapper = new LinearLayout(this);
-    wrapper.setOrientation(LinearLayout.HORIZONTAL);
-    int indexWidth = dp(96);
-    int previewGap = dp(8);
-    int previewWidth = Math.round(previewHeight * 16f / 9f);
+    FrameLayout wrapper = new FrameLayout(this);
     int contentWidth = Math.max(getResources().getDisplayMetrics().widthPixels - dp(36), dp(320));
-    int columnWidth = Math.max((contentWidth - dp(28)) / 2, dp(180));
-    int itemWidth = Math.min(columnWidth, indexWidth + previewGap + previewWidth);
+    int columnWidth = Math.max((contentWidth - dp(14)) / 2, dp(180));
+    int itemWidth = Math.min(columnWidth, Math.max(Math.round(previewHeight * 16f / 9f), dp(160)));
     LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(itemWidth, previewHeight);
     if (cardIndex % 2 == 0) {
       params.rightMargin = dp(7);
@@ -584,31 +565,44 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
     wrapper.setLayoutParams(params);
     wrapper.setBackgroundResource(R.drawable.bg_training_card);
 
-    TextView index = new TextView(this);
-    LinearLayout.LayoutParams indexParams =
-        new LinearLayout.LayoutParams(indexWidth, LinearLayout.LayoutParams.MATCH_PARENT);
-    index.setLayoutParams(indexParams);
-    index.setBackgroundResource(R.drawable.bg_playback_index_card);
-    index.setGravity(android.view.Gravity.CENTER);
-    index.setText(safeStationLabel(card.stationNumber, cardIndex + 1));
-    index.setTextColor(getColor(R.color.tv_text_main));
-    index.setTextSize(42f);
-    index.setTypeface(index.getTypeface(), android.graphics.Typeface.BOLD);
-    wrapper.addView(index);
-
     FrameLayout preview = new FrameLayout(this);
-    LinearLayout.LayoutParams previewParams =
-        new LinearLayout.LayoutParams(
-            Math.max(itemWidth - indexWidth - previewGap, dp(84)),
-            LinearLayout.LayoutParams.MATCH_PARENT);
-    previewParams.leftMargin = previewGap;
+    FrameLayout.LayoutParams previewParams =
+        new FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
     preview.setLayoutParams(previewParams);
     preview.setBackgroundColor(getColor(R.color.tv_training_card_inactive));
     wrapper.addView(preview);
 
     bindTrainingPreview(preview, card);
+    wrapper.addView(
+        createTrainingStationBadge(
+            safeStationLabel(card == null ? null : card.stationNumber, cardIndex + 1), false));
 
     return wrapper;
+  }
+
+  protected TextView createTrainingStationBadge(String label, boolean isWide) {
+    TextView badge = new TextView(this);
+    FrameLayout.LayoutParams params =
+        new FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+    params.gravity = android.view.Gravity.TOP | android.view.Gravity.START;
+    params.leftMargin = dp(isWide ? 14 : 10);
+    params.topMargin = dp(isWide ? 14 : 10);
+    badge.setLayoutParams(params);
+    badge.setText(label);
+    badge.setTextColor(getColor(R.color.tv_accent_gold_bright));
+    badge.setTextSize(isWide ? 26f : 21f);
+    badge.setTypeface(badge.getTypeface(), android.graphics.Typeface.BOLD);
+    badge.setGravity(android.view.Gravity.CENTER);
+    badge.setPadding(dp(isWide ? 14 : 10), dp(5), dp(isWide ? 14 : 10), dp(6));
+    android.graphics.drawable.GradientDrawable background =
+        new android.graphics.drawable.GradientDrawable();
+    background.setColor(Color.argb(218, 0, 0, 0));
+    background.setCornerRadius(dp(8));
+    background.setStroke(dp(1), getColor(R.color.tv_accent_gold_bright));
+    badge.setBackground(background);
+    return badge;
   }
 
   protected void bindTrainingPreview(FrameLayout preview, CourseScript.VideoCard card) {

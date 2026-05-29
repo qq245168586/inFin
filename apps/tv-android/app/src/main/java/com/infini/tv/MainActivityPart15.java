@@ -100,14 +100,14 @@ abstract class MainActivityPart15 extends MainActivityPart14 {
 
   protected int calculateWideTrainingRowHeight() {
     int contentWidth = getResources().getDisplayMetrics().widthPixels - dp(36);
-    int previewWidth = Math.max(contentWidth - dp(98), dp(260));
+    int previewWidth = Math.max(contentWidth, dp(260));
     return Math.max(Math.round(previewWidth * 9f / 16f), dp(146));
   }
 
   protected int calculateGridTrainingRowHeight() {
     int contentWidth = getResources().getDisplayMetrics().widthPixels - dp(36);
-    int columnWidth = Math.max((contentWidth - dp(28)) / 2, dp(180));
-    int previewWidth = Math.max(columnWidth - dp(104), dp(160));
+    int columnWidth = Math.max((contentWidth - dp(14)) / 2, dp(180));
+    int previewWidth = Math.max(columnWidth, dp(160));
     return Math.max(Math.round(previewWidth * 9f / 16f), dp(90));
   }
 
