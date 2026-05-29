@@ -1,6 +1,14 @@
 import type { AuthSession } from "../../models/common";
 
-export function CoachTopbar({ authSession, onLogout }: { authSession: AuthSession; onLogout: () => void }) {
+export function CoachTopbar({
+  authSession,
+  onLogout,
+  onOpenSettings
+}: {
+  authSession: AuthSession;
+  onLogout: () => void;
+  onOpenSettings: () => void;
+}) {
   const venueName = getVenueDisplayName(authSession);
 
   return (
@@ -14,6 +22,10 @@ export function CoachTopbar({ authSession, onLogout }: { authSession: AuthSessio
           <strong>{authSession.username}</strong>
           <span title="当前账号所属健身房">健身房：{venueName}</span>
         </div>
+        <button type="button" className="coach-settings-button" onClick={onOpenSettings} aria-label="打开设置">
+          <span className="coach-settings-icon" aria-hidden="true" />
+          <span>设置</span>
+        </button>
         <button type="button" className="ghost-button" onClick={onLogout}>
           退出
         </button>

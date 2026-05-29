@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { BusyMask } from "../components/app/BusyMask";
-import { CoachBottomTabbar } from "../components/app/CoachBottomTabbar";
+import { CoachSettingsMenu } from "../components/app/CoachSettingsMenu";
 import { CoachTopbar } from "../components/app/CoachTopbar";
 import { NoticeToast } from "../components/app/NoticeToast";
 import CoachConsolePage from "./CoachConsolePage";
@@ -7,6 +8,7 @@ import CoachScreensPage from "./CoachScreensPage";
 import { useCoachApp } from "../providers/CoachAppProvider";
 
 export default function CoachShellPage() {
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const {
     activePage,
     authSession,
@@ -27,7 +29,7 @@ export default function CoachShellPage() {
   return (
     <div className="coach-web-shell">
       <div className="coach-app-frame">
-        <CoachTopbar authSession={authSession} onLogout={handleLogout} />
+        <CoachTopbar authSession={authSession} onLogout={handleLogout} onOpenSettings={() => setSettingsOpen(true)} />
         <main className="coach-page-body">
           {activePage === "console" ? (
             <CoachConsolePage
@@ -46,12 +48,11 @@ export default function CoachShellPage() {
             />
           )}
         </main>
-        <CoachBottomTabbar activePage={activePage} onPageChange={setActivePage} />
       </div>
 
+      {settingsOpen ? <CoachSettingsMenu activePage={activePage} onClose={() => setSettingsOpen(false)} onSelectPage={setActivePage} /> : null}
       <NoticeToast notice={notice} />
       <BusyMask text={busyText} />
     </div>
   );
 }
-

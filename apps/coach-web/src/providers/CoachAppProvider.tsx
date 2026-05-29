@@ -188,6 +188,7 @@ export function CoachAppProvider({ children }: { children: ReactNode }) {
       const nextAuth = await loginCoach(loginForm.username.trim(), loginForm.password.trim());
       setAuthSession(enrichSession(nextAuth));
       lastActivityAtRef.current = Date.now();
+      setActivePage("console");
       setLoginForm({ username: "", password: "" });
       pushNotice("登录成功。");
     } catch (error) {
@@ -201,6 +202,7 @@ export function CoachAppProvider({ children }: { children: ReactNode }) {
     removeStorageItem(AUTH_STORAGE_KEY);
     setAuthSession(null);
     setCurrentWeekSchedules([]);
+    setActivePage("console");
     setLoginForm({ username: "", password: "" });
     setPasswordVisible(false);
     pushNotice("已退出登录。");
