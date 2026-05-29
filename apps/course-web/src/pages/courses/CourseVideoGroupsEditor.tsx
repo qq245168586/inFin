@@ -335,7 +335,9 @@ export default function CourseVideoGroupsEditor({
                                 >
                                   {card?.stationNumber ? <span className="screen-video-slot-station">站点 {card.stationNumber}</span> : <span />}
                                   {actionName ? <strong>{actionName}</strong> : <strong />}
-                                  <span className="screen-video-slot-hint">{actionName || card?.stationNumber ? "点击编辑" : ""}</span>
+                                  <span className="screen-video-slot-hint">
+                                    {actionName ? "点击这里修改" : "点击这里选动作"}
+                                  </span>
                                 </button>
                               );
                             })}

@@ -835,6 +835,7 @@ textarea:focus {
   background: #ffffff;
   display: grid;
   gap: 14px;
+  min-width: 0;
 }
 
 .action-picker-preview-card {
@@ -916,6 +917,7 @@ textarea:focus {
 
 .action-picker-option {
   width: 100%;
+  min-width: 0;
   border: 1px solid transparent;
   border-radius: 14px;
   padding: 14px;
@@ -2374,6 +2376,7 @@ textarea:focus {
 .screen-video-slot-card.is-empty {
   background: #ffffff;
   border-style: dashed;
+  border-color: rgba(29, 111, 255, 0.28);
 }
 
 .screen-video-slot-card.has-action {
@@ -2407,9 +2410,9 @@ textarea:focus {
 
 .screen-video-slot-hint {
   min-height: 1.2em;
-  color: var(--text-subtle);
+  color: var(--brand);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 900;
 }
 
 .screen-video-edit-card {
@@ -2504,8 +2507,34 @@ textarea:focus {
   background: #ffffff;
 }
 
+.video-slot-modal {
+  grid-template-columns: minmax(420px, 0.95fr) minmax(360px, 1fr);
+  align-items: start;
+}
+
+.video-slot-modal .action-picker-search-card,
+.video-slot-modal .action-picker-preview-card {
+  overflow: hidden;
+}
+
 .video-slot-modal .action-picker-filters {
-  grid-template-columns: 120px minmax(180px, 1fr) minmax(140px, 0.7fr) minmax(140px, 0.7fr);
+  grid-template-columns: minmax(108px, 0.75fr) minmax(0, 1.25fr);
+  align-items: end;
+}
+
+.video-slot-modal .action-picker-options {
+  max-height: min(48vh, 520px);
+}
+
+.video-slot-modal .action-picker-preview-card .action-media-preview {
+  min-height: 0;
+}
+
+.video-slot-modal .action-picker-preview-card .action-media-preview-frame {
+  width: 100%;
+  height: auto;
+  max-height: 360px;
+  aspect-ratio: 16 / 9;
 }
 
 .video-slot-modal .video-slot-station-field input {
