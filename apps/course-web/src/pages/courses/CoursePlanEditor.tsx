@@ -184,6 +184,7 @@ export default function CoursePlanEditor({ plan, readyDurations, onUpdateScript 
             <DraftNumberInput
               value={safeReadyDurations.warmupSeconds}
               minValue={0}
+              commitOnBlur
               onValueChange={(value) => updateReadyDuration(onUpdateScript, "warmupSeconds", value)}
             />
           </label>
@@ -192,6 +193,7 @@ export default function CoursePlanEditor({ plan, readyDurations, onUpdateScript 
             <DraftNumberInput
               value={safeReadyDurations.workoutSeconds}
               minValue={0}
+              commitOnBlur
               onValueChange={(value) => updateReadyDuration(onUpdateScript, "workoutSeconds", value)}
             />
           </label>
@@ -200,6 +202,7 @@ export default function CoursePlanEditor({ plan, readyDurations, onUpdateScript 
             <DraftNumberInput
               value={safeReadyDurations.cooldownSeconds}
               minValue={0}
+              commitOnBlur
               onValueChange={(value) => updateReadyDuration(onUpdateScript, "cooldownSeconds", value)}
             />
           </label>

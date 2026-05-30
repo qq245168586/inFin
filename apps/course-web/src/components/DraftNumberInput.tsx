@@ -4,10 +4,19 @@ export interface DraftNumberInputProps
   extends Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "value" | "onChange"> {
   value: number;
   minValue?: number;
+  commitOnBlur?: boolean;
   onValueChange: (value: number) => void;
 }
 
-export default function DraftNumberInput({ value, minValue = 0, onValueChange, onBlur, onFocus, ...props }: DraftNumberInputProps) {
+export default function DraftNumberInput({
+  value,
+  minValue = 0,
+  commitOnBlur = false,
+  onValueChange,
+  onBlur,
+  onFocus,
+  ...props
+}: DraftNumberInputProps) {
   const [draft, setDraft] = useState(String(value));
   const [isFocused, setIsFocused] = useState(false);
 
@@ -30,6 +39,10 @@ export default function DraftNumberInput({ value, minValue = 0, onValueChange, o
       onChange={(event) => {
         const nextValue = event.target.value;
         setDraft(nextValue);
+
+        if (commitOnBlur) {
+          return;
+        }
 
         if (nextValue === "" || nextValue === "-") {
           return;
