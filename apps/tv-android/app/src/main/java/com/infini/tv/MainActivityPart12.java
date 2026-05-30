@@ -214,16 +214,14 @@ abstract class MainActivityPart12 extends MainActivityPart11 {
       screenTag.setTextSize(TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.03f, sp(12), sp(18)));
     }
 
-    // Keep the vertical workout header low enough for three 16:9 training rows.
+    // Keep the vertical workout header at two thirds of the original tall status area.
     boolean previewHeader =
         playbackStatusGroup != null
             && playbackStatusGroup.getVisibility() == View.VISIBLE
             && playbackTimerCard != null
             && playbackTimerCard.getVisibility() == View.GONE;
     int statusHeight =
-        previewHeader
-            ? clamp(Math.round(shortSide * 0.11f), dp(82), dp(124))
-            : clamp(Math.round(shortSide * 0.15f), dp(108), dp(164));
+        clamp(Math.round(shortSide * 0.213f), dp(100), dp(226));
     if (playbackStatusGroup != null) {
       ViewGroup.LayoutParams params = playbackStatusGroup.getLayoutParams();
       if (params != null) {
@@ -258,18 +256,18 @@ abstract class MainActivityPart12 extends MainActivityPart11 {
 
     if (playbackCountdownText != null) {
       playbackCountdownText.setTextSize(
-          TypedValue.COMPLEX_UNIT_PX, clampPx(statusHeight * 0.72f, sp(64), sp(116)));
+          TypedValue.COMPLEX_UNIT_PX, clampPx(statusHeight * 0.82f, sp(84), sp(156)));
     }
     if (playbackStageProgress != null) {
       playbackStageProgress.setGravity(android.view.Gravity.CENTER);
       playbackStageProgress.setTextSize(
           TypedValue.COMPLEX_UNIT_PX,
-          previewHeader ? clampPx(statusHeight * 0.34f, sp(28), sp(42)) : clampPx(statusHeight * 0.35f, sp(34), sp(58)));
+          previewHeader ? clampPx(statusHeight * 0.30f, sp(34), sp(58)) : clampPx(statusHeight * 0.38f, sp(44), sp(72)));
     }
     if (playbackStageSecondary != null) {
       playbackStageSecondary.setGravity(android.view.Gravity.CENTER);
       playbackStageSecondary.setTextSize(
-          TypedValue.COMPLEX_UNIT_PX, previewHeader ? sp(18) : clampPx(statusHeight * 0.18f, sp(18), sp(28)));
+          TypedValue.COMPLEX_UNIT_PX, previewHeader ? sp(20) : clampPx(statusHeight * 0.20f, sp(22), sp(34)));
     }
     if (playbackHint != null) {
       playbackHint.setTextSize(TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.034f, sp(16), sp(28)));

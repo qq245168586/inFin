@@ -237,9 +237,7 @@ abstract class MainActivityPart11 extends MainActivityPart10 {
             getResources().getDisplayMetrics().widthPixels,
             getResources().getDisplayMetrics().heightPixels);
     int statusHeight =
-        previewHeader
-            ? clamp(Math.round(shortSide * 0.11f), dp(82), dp(124))
-            : clamp(Math.round(shortSide * 0.15f), dp(108), dp(164));
+        clamp(Math.round(shortSide * 0.213f), dp(100), dp(226));
     if (playbackStatusGroup != null) {
       ViewGroup.LayoutParams statusParams = playbackStatusGroup.getLayoutParams();
       if (statusParams != null) {
@@ -288,17 +286,17 @@ abstract class MainActivityPart11 extends MainActivityPart10 {
     if (playbackCountdownText != null) {
       playbackCountdownText.setTextSize(
           TypedValue.COMPLEX_UNIT_PX,
-          previewHeader ? sp(44) : clampPx(statusHeight * 0.72f, sp(64), sp(116)));
+          previewHeader ? clampPx(statusHeight * 0.30f, sp(34), sp(58)) : clampPx(statusHeight * 0.82f, sp(84), sp(156)));
     }
     if (playbackStageProgress != null) {
       playbackStageProgress.setTextSize(
           TypedValue.COMPLEX_UNIT_PX,
-          previewHeader ? clampPx(statusHeight * 0.34f, sp(28), sp(42)) : clampPx(statusHeight * 0.35f, sp(34), sp(58)));
+          previewHeader ? clampPx(statusHeight * 0.30f, sp(34), sp(58)) : clampPx(statusHeight * 0.38f, sp(44), sp(72)));
     }
     if (playbackStageSecondary != null) {
       playbackStageSecondary.setTextSize(
           TypedValue.COMPLEX_UNIT_PX,
-          previewHeader ? sp(18) : clampPx(statusHeight * 0.18f, sp(18), sp(28)));
+          previewHeader ? sp(20) : clampPx(statusHeight * 0.20f, sp(22), sp(34)));
     }
     if (playbackStageCard instanceof LinearLayout) {
       ((LinearLayout) playbackStageCard).setGravity(android.view.Gravity.CENTER);

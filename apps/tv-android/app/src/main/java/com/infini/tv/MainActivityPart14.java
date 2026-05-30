@@ -82,7 +82,7 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
     List<CourseScript.PodSetConfig> setConfigs = getEffectiveSetConfigs(effectiveScreen.rule);
     int safeLoops = Math.max(effectiveScreen.rule.loopCount, 1);
     int pairCount = baseCards.size() / 2;
-    int totalSwitchDots = Math.max(setConfigs.size(), 0) * 2;
+    int totalSwitchDots = 0;
     int cursor = 0;
     int stationRestSeconds = Math.max(effectiveScreen.rule.stationRestSeconds, 0);
 
@@ -486,7 +486,7 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
     if (viewportHeight <= 0) {
       viewportHeight = Math.round(getResources().getDisplayMetrics().heightPixels * 0.70f);
     }
-    List<Integer> rowHeights = calculateTrainingRowHeights(rowLayouts);
+    List<Integer> rowHeights = calculateTrainingRowHeights(rowLayouts, rowGap, viewportHeight);
     int totalRowsHeight = 0;
     for (int height : rowHeights) {
       totalRowsHeight += height;
@@ -529,14 +529,38 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
     playbackScrollView.post(() -> playbackScrollView.scrollTo(0, 0));
   }
 
-  protected List<Integer> calculateTrainingRowHeights(List<Integer> rowLayouts) {
+  protected List<Integer> calculateTrainingRowHeights(List<Integer> rowLayouts, int rowGap, int viewportHeight) {
     List<Integer> heights = new ArrayList<>();
     if (rowLayouts == null || rowLayouts.isEmpty()) {
       return heights;
     }
 
+    int desiredRowsHeight = 0;
     for (int index = 0; index < rowLayouts.size(); index += 1) {
-      heights.add(rowLayouts.get(index) == 1 ? calculateWideTrainingRowHeight() : calculateGridTrainingRowHeight());
+      int height = rowLayouts.get(index) == 1 ? calculateWideTrainingRowHeight() : calculateGridTrainingRowHeight();
+      heights.add(height);
+      desiredRowsHeight += height;
+    }
+
+    int availableRowsHeight =
+        Math.max(viewportHeight - dp(4) - Math.max(rowLayouts.size() - 1, 0) * rowGap, dp(64));
+    if (desiredRowsHeight <= availableRowsHeight || desiredRowsHeight <= 0) {
+      return heights;
+    }
+
+    float scale = availableRowsHeight / (float) desiredRowsHeight;
+    int usedHeight = 0;
+    for (int index = 0; index < heights.size(); index += 1) {
+      int scaled = Math.max(Math.round(heights.get(index) * scale), dp(48));
+      heights.set(index, scaled);
+      usedHeight += scaled;
+    }
+
+    int overflow = usedHeight - availableRowsHeight;
+    for (int index = heights.size() - 1; overflow > 0 && index >= 0; index -= 1) {
+      int next = Math.max(heights.get(index) - overflow, dp(42));
+      overflow -= heights.get(index) - next;
+      heights.set(index, next);
     }
     return heights;
   }
@@ -557,8 +581,7 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
     if (measuredWidth <= 0) {
       measuredWidth = getResources().getDisplayMetrics().widthPixels;
     }
-    int safeInset = isPortraitViewport() ? dp(160) : dp(96);
-    return Math.max(measuredWidth - safeInset, dp(280));
+    return Math.max(measuredWidth, dp(280));
   }
 
   protected View createTrainingWideCard(
@@ -661,6 +684,8 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
           mediaPlayer -> {
             mediaPlayer.setLooping(true);
             mediaPlayer.setVolume(0f, 0f);
+            centerTrainingVideoInPreview(
+                videoView, preview, mediaPlayer.getVideoWidth(), mediaPlayer.getVideoHeight());
             videoView.start();
           });
       videoView.setOnErrorListener((mediaPlayer, what, extra) -> true);
@@ -687,6 +712,37 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
       placeholder.setTypeface(placeholder.getTypeface(), android.graphics.Typeface.BOLD);
       preview.addView(placeholder);
     }
+  }
+
+  protected void centerTrainingVideoInPreview(
+      VideoView videoView, FrameLayout preview, int videoWidth, int videoHeight) {
+    if (videoView == null || preview == null || videoWidth <= 0 || videoHeight <= 0) {
+      return;
+    }
+    preview.post(
+        () -> {
+          int boxWidth = preview.getWidth();
+          int boxHeight = preview.getHeight();
+          if (boxWidth <= 0 || boxHeight <= 0) {
+            return;
+          }
+
+          float videoRatio = videoWidth / (float) videoHeight;
+          float boxRatio = boxWidth / (float) boxHeight;
+          int targetWidth;
+          int targetHeight;
+          if (videoRatio > boxRatio) {
+            targetWidth = boxWidth;
+            targetHeight = Math.max(Math.round(boxWidth / videoRatio), 1);
+          } else {
+            targetHeight = boxHeight;
+            targetWidth = Math.max(Math.round(boxHeight * videoRatio), 1);
+          }
+
+          FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(targetWidth, targetHeight);
+          params.gravity = android.view.Gravity.CENTER;
+          videoView.setLayoutParams(params);
+        });
   }
 
   protected void ensureTrainingCardVideosPlaying() {
