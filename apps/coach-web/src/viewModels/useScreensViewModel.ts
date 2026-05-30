@@ -3,6 +3,7 @@ import type { AuthSession, NoticeTone } from "../models/common";
 import type { AppPackageListPayload, ParsedPairPayload, TvScreenItem, TvScreensPayload } from "../models/screens";
 import { bindTvScreen, clearTvCache, fetchScreens, fetchTvPackages, installTvPackage, unbindTvScreen } from "../services/screensService";
 import { getErrorMessage, isAuthExpiredMessage } from "../utils/format";
+import { updateInProgress } from "../utils/screens";
 import { usePairScannerViewModel } from "./usePairScannerViewModel";
 
 const POLL_INTERVAL_MS = 5000;
@@ -146,6 +147,7 @@ export function useScreensViewModel({ authSession, onBusyTextChange, onNotice, o
     const selectedPackage = tvPackages.find((item) => String(item.id) === String(selectedPackageId)) || null;
     if (!selectedPackageId) onNotice("请先选择一个 TV 版本。", "error");
     else if (!screen.online) onNotice("屏幕当前离线，暂时无法更新。", "error");
+    else if (updateInProgress(screen.updateState)) onNotice("屏幕正在更新中，请等待当前更新完成。", "error");
     else if (String(screen.playbackState || "").toUpperCase() !== "IDLE") onNotice("请先确保屏幕处于待机状态，再执行更新。", "error");
     else if (!selectedPackage) onNotice("没有找到所选 TV 版本。", "error");
     else if (window.confirm(`确定把 ${screen.deviceId} 更新到 ${selectedPackage.version} 吗？`)) {
@@ -232,4 +234,3 @@ export function useScreensViewModel({ authSession, onBusyTextChange, onNotice, o
     updatePairRawInput
   };
 }
-

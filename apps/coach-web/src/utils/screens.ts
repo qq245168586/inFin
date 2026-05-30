@@ -60,6 +60,12 @@ export function updateStateTone(value: string): string {
   }
 }
 
+export function updateInProgress(value: string): boolean {
+  return ["DOWNLOADING", "DOWNLOADED", "INSTALLING", "INSTALLED"].includes(
+    String(value || "").toUpperCase()
+  );
+}
+
 export function parsePairPayload(rawValue: string): ParsedPairPayload | null {
   const raw = String(rawValue || "").trim();
   if (!raw) {
@@ -90,4 +96,3 @@ export function parsePairPayload(rawValue: string): ParsedPairPayload | null {
 export function barcodeDetectorApi(): BarcodeDetectorConstructorShape | undefined {
   return (window as Window & { BarcodeDetector?: BarcodeDetectorConstructorShape }).BarcodeDetector;
 }
-

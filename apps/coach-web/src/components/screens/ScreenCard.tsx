@@ -1,7 +1,7 @@
 import type { TvScreenItem } from "../../models/screens";
 import { formatStorageBytes } from "../../utils/format";
 import { formatDateTime } from "../../utils/time";
-import { stateLabel, stateTone, updateStateLabel, updateStateTone } from "../../utils/screens";
+import { stateLabel, stateTone, updateInProgress, updateStateLabel, updateStateTone } from "../../utils/screens";
 
 interface ScreenCardProps {
   busyDeviceId: string;
@@ -50,6 +50,7 @@ function SummaryLine({ label, value }: { label: string; value: string }) {
 
 function ScreenDetails(props: ScreenCardProps) {
   const { screen } = props;
+  const isUpdating = updateInProgress(screen.updateState);
   return (
     <>
       <div className="coach-screen-body">
@@ -63,7 +64,7 @@ function ScreenDetails(props: ScreenCardProps) {
       </div>
       <div className="coach-screen-actions">
         <button type="button" className="ghost-button coach-screen-action-button" disabled={!screen.deviceId || props.busyDeviceId === screen.deviceId || !props.canClearCache(screen)} onClick={() => props.onClearCache(screen)}>清除缓存</button>
-        <button type="button" className="ghost-button coach-screen-action-button" disabled={!screen.deviceId || props.busyDeviceId === screen.deviceId || !props.selectedPackageId || !screen.online} onClick={() => props.onInstallPackage(screen)}>更新 TV</button>
+        <button type="button" className="ghost-button coach-screen-action-button" disabled={!screen.deviceId || props.busyDeviceId === screen.deviceId || !props.selectedPackageId || !screen.online || isUpdating} onClick={() => props.onInstallPackage(screen)}>{isUpdating ? "更新中" : "更新 TV"}</button>
         <button type="button" className="ghost-button coach-screen-action-button danger" disabled={!screen.deviceId || props.busyDeviceId === screen.deviceId} onClick={() => props.onUnbind(screen)}>解绑</button>
       </div>
     </>
@@ -87,4 +88,3 @@ function DetailTone({ label, tone, value }: { label: string; tone: string; value
     </div>
   );
 }
-
