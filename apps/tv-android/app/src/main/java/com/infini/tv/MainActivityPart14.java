@@ -479,8 +479,7 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
     int cardCount = state.displayCards.size();
     List<Integer> rowLayouts = normalizeTrainingRowLayouts(state.rowLayouts, state.displayCards);
     int rowCount = Math.max(rowLayouts.size(), 1);
-    boolean hasWideRow = rowLayouts.contains(1);
-    int visibleRowCount = hasWideRow ? Math.min(rowCount, 3) : Math.min(rowCount, 5);
+    int visibleRowCount = Math.min(rowCount, 5);
     int rowGap = calculateTrainingRowGap(visibleRowCount);
     int viewportHeight = playbackScrollView == null ? 0 : playbackScrollView.getHeight();
     if (viewportHeight <= 0) {
