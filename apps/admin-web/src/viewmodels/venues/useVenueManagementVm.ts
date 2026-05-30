@@ -50,12 +50,19 @@ export function useVenueManagementVm({
     return tvVm.tvPackages.find((item) => String(item.id) === String(tvVm.selectedTvPackageId)) || null;
   }
 
+  function screenUpdateInProgress(screen: TvScreenSnapshot): boolean {
+    return ["DOWNLOADING", "DOWNLOADED", "INSTALLING", "INSTALLED"].includes(
+      String(screen.updateState || "").toUpperCase()
+    );
+  }
+
   function screenCanReceiveInstall(screen: TvScreenSnapshot): boolean {
     return Boolean(
       screen.deviceId &&
         screen.online &&
         tvVm.selectedTvPackageId &&
-        String(screen.playbackState || "").toUpperCase() === "IDLE"
+        String(screen.playbackState || "").toUpperCase() === "IDLE" &&
+        !screenUpdateInProgress(screen)
     );
   }
 
@@ -90,6 +97,9 @@ export function useVenueManagementVm({
     if (!deviceId) return onNotice("该屏幕还没有绑定设备。", "error");
     if (!tvVm.selectedTvPackageId) return onNotice("请先选择一个 TV 版本。", "error");
     if (!screen.online) return onNotice("屏幕当前离线，暂时无法更新。", "error");
+    if (screenUpdateInProgress(screen)) {
+      return onNotice("屏幕正在更新中，请等待当前更新完成。", "error");
+    }
     if (String(screen.playbackState || "").toUpperCase() !== "IDLE") {
       return onNotice("请先确保屏幕处于待机状态，再执行更新。", "error");
     }
@@ -132,7 +142,7 @@ export function useVenueManagementVm({
     const namespace = String(venuesVm.activeVenue.accountNamespace || "").trim().toLowerCase();
     const installableScreens = (detailVm.venueScreens?.screens || []).filter(screenCanReceiveInstall);
     if (!installableScreens.length) {
-      return onNotice("当前场馆没有可更新的在线待机设备。", "error");
+      return onNotice("当前场馆没有可更新的在线待机设备，或设备正在更新中。", "error");
     }
 
     const confirmLines = [
