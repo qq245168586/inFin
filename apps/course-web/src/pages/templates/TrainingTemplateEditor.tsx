@@ -121,11 +121,18 @@ export default function TrainingTemplateEditor({
       }
 
       nextRows[rowIndex] = columns;
-      const limitedRows = columns === 1 ? nextRows.slice(0, 3) : normalizeVideoRowLayouts(nextRows, group.screenCount);
-      if (columns === 1 && !limitedRows.some((rowColumns) => rowColumns === 1)) {
-        limitedRows[Math.min(rowIndex, limitedRows.length - 1)] = 1;
-      }
-      return { ...screen, rowLayouts: limitedRows, videoCards: fitVideoCardsForRows(nextCards, limitedRows, group.screenCount) };
+      const normalizedRows = normalizeVideoRowLayouts(nextRows, group.screenCount);
+      return { ...screen, rowLayouts: normalizedRows, videoCards: fitVideoCardsForRows(nextCards, normalizedRows, group.screenCount) };
+    });
+  }
+
+  function addRowLayout(screenId: string) {
+    setSlotDialog(null);
+    updateScreen(screenId, (screen, group) => {
+      const currentRows = normalizeVideoRowLayouts(screen.rowLayouts, group.screenCount);
+      if (currentRows.length >= 5) return screen;
+      const nextRows = normalizeVideoRowLayouts([...currentRows, 1], group.screenCount);
+      return { ...screen, rowLayouts: nextRows, videoCards: fitVideoCardsForRows(screen.videoCards || [], nextRows, group.screenCount) };
     });
   }
 
@@ -296,6 +303,11 @@ export default function TrainingTemplateEditor({
                     </div>
                   </div>
                 ))}
+                {normalizeVideoRowLayouts(screen.rowLayouts, draft.videoGroup.screenCount).length < 5 ? (
+                  <button type="button" className="row-add-button" onClick={() => addRowLayout(screen.id)}>
+                    + 添加行
+                  </button>
+                ) : null}
               </div>
             ) : (
               <>
