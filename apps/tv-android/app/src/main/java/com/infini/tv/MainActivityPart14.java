@@ -283,8 +283,8 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
         int setRestSeconds = Math.max(setConfig.restSeconds, 0);
         if (hasNextSet && setRestSeconds > 0 && podElapsedSeconds < cursor + setRestSeconds) {
           int remainingSeconds = Math.max(cursor + setRestSeconds - podElapsedSeconds, 0);
-          int completedGroups = loopIndex * setConfigs.size() + setIndex + 1;
-          int totalGroups = safeLoops * setConfigs.size();
+          int completedGroups = setIndex + 1;
+          int totalGroups = setConfigs.size();
           boolean fullScreenTransition = isInFirstTransitionThird(remainingSeconds, setRestSeconds);
           return new TrainingPlaybackState(
               pod.name + "|station-set-rest|" + loopIndex + "|" + setIndex,
