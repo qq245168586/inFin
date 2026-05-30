@@ -21,9 +21,12 @@ export function normalizeVideoRowLayouts(
   if (!source.length) return getDefaultVideoRowLayouts(screenCount);
 
   const rows = source.map((columns) => (Number(columns) === 2 ? 2 : 1)) as VideoRowLayout[];
+  if (rows.some((columns) => columns === 1)) {
+    return rows.slice(0, 3);
+  }
   const shouldExpand = rows.length === 3 && rows.every((columns) => columns === 2);
 
-  return shouldExpand ? [2, 2, 2, 2, 2] : rows;
+  return shouldExpand ? [2, 2, 2, 2, 2] : rows.slice(0, 5);
 }
 
 export function getVideoRowCapacity(rowLayouts: VideoRowLayout[]): number {

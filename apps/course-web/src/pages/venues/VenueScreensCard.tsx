@@ -16,6 +16,12 @@ export interface AppPackageOption {
   filename: string;
 }
 
+function isScreenUpdateInProgress(screen: TvScreenSnapshot): boolean {
+  return ["DOWNLOADING", "DOWNLOADED", "INSTALLING", "INSTALLED"].includes(
+    String(screen.updateState || "").toUpperCase()
+  );
+}
+
 export default function VenueScreensCard({
   tvPackages,
   selectedTvPackageId,
@@ -72,22 +78,24 @@ export default function VenueScreensCard({
         </div>
       </div>
       <div className="venue-screens">
-        {screens.map((screen) => (
-          <div key={screen.screenNumber} className="venue-screen">
-            <div className="venue-screen-top">
-              <strong>屏幕 {screen.screenNumber}</strong>
-              <div className="venue-screen-top-actions">
-                <button
-                  type="button"
-                  className="venue-screen-command"
-                  disabled={!canInstall(screen)}
-                  onClick={() => onInstall(screen)}
-                >
-                  {installingDeviceId === screen.deviceId ? "下发中" : "更新 TV"}
-                </button>
-                <span className={`venue-dot ${screen.online ? "is-on" : ""}`}>{screen.online ? "在线" : "离线"}</span>
+        {screens.map((screen) => {
+          const updateInProgress = isScreenUpdateInProgress(screen);
+          return (
+            <div key={screen.screenNumber} className="venue-screen">
+              <div className="venue-screen-top">
+                <strong>屏幕 {screen.screenNumber}</strong>
+                <div className="venue-screen-top-actions">
+                  <button
+                    type="button"
+                    className="venue-screen-command"
+                    disabled={!canInstall(screen)}
+                    onClick={() => onInstall(screen)}
+                  >
+                    {installingDeviceId === screen.deviceId ? "下发中" : updateInProgress ? "更新中" : "更新 TV"}
+                  </button>
+                  <span className={`venue-dot ${screen.online ? "is-on" : ""}`}>{screen.online ? "在线" : "离线"}</span>
+                </div>
               </div>
-            </div>
             <div className="venue-screen-meta">
               <div>
                 <span className="venue-muted">设备</span>
@@ -111,7 +119,8 @@ export default function VenueScreensCard({
               </div>
             ) : null}
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
