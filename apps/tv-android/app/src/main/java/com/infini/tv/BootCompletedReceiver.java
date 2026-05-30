@@ -31,6 +31,7 @@ public class BootCompletedReceiver extends BroadcastReceiver {
     }
 
     try {
+      KeepAliveService.start(context);
       Intent launchIntent = new Intent(context, MainActivity.class);
       launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
       PendingIntent pendingIntent =

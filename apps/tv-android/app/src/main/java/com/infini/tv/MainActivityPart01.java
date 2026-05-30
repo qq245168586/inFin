@@ -71,6 +71,8 @@ abstract class MainActivityPart01 extends MainActivityBase {
 
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
+    KeepAliveService.start(this);
+    KeepAliveService.markActivityVisible();
     deviceId = ensureDeviceId();
     activeAccountNamespace = readSavedAccountNamespace();
     int initialSavedScreenNumber = readSavedScreenNumber();
@@ -391,6 +393,21 @@ abstract class MainActivityPart01 extends MainActivityBase {
     super.onNewIntent(intent);
     setIntent(intent);
     handleLaunchIntent();
+  }
+
+  @Override
+
+  protected void onResume() {
+    super.onResume();
+    KeepAliveService.start(this);
+    KeepAliveService.markActivityVisible();
+  }
+
+  @Override
+
+  protected void onPause() {
+    KeepAliveService.markActivityHidden();
+    super.onPause();
   }
 
   @Override
