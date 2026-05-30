@@ -557,7 +557,7 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
     if (measuredWidth <= 0) {
       measuredWidth = getResources().getDisplayMetrics().widthPixels;
     }
-    int safeInset = isPortraitViewport() ? dp(72) : dp(96);
+    int safeInset = isPortraitViewport() ? dp(160) : dp(96);
     return Math.max(measuredWidth - safeInset, dp(280));
   }
 
@@ -628,7 +628,7 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
     badge.setLayoutParams(params);
     badge.setText(label);
     badge.setTextColor(getColor(R.color.tv_accent_gold_bright));
-    badge.setTextSize(isWide ? 26f : 20f);
+    badge.setTextSize(isWide ? 34f : 30f);
     badge.setTypeface(badge.getTypeface(), android.graphics.Typeface.BOLD);
     badge.setGravity(android.view.Gravity.CENTER);
     badge.setSingleLine(true);
@@ -637,7 +637,7 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
     int maxBadgeWidth =
         isWide
             ? Math.max(contentWidth - dp(32), dp(180))
-            : Math.max((contentWidth - dp(14)) / 2 - dp(32), dp(120));
+            : Math.max((contentWidth - dp(14)) / 2 - dp(28), dp(132));
     badge.setMaxWidth(maxBadgeWidth);
     badge.setPadding(dp(isWide ? 14 : 10), dp(5), dp(isWide ? 14 : 10), dp(6));
     android.graphics.drawable.GradientDrawable background =

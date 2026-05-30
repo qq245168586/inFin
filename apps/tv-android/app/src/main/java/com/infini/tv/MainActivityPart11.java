@@ -232,6 +232,22 @@ abstract class MainActivityPart11 extends MainActivityPart10 {
       return;
     }
 
+    int shortSide =
+        Math.min(
+            getResources().getDisplayMetrics().widthPixels,
+            getResources().getDisplayMetrics().heightPixels);
+    int statusHeight =
+        previewHeader
+            ? clamp(Math.round(shortSide * 0.11f), dp(82), dp(124))
+            : clamp(Math.round(shortSide * 0.15f), dp(108), dp(164));
+    if (playbackStatusGroup != null) {
+      ViewGroup.LayoutParams statusParams = playbackStatusGroup.getLayoutParams();
+      if (statusParams != null) {
+        statusParams.height = statusHeight;
+        playbackStatusGroup.setLayoutParams(statusParams);
+      }
+    }
+
     LinearLayout.LayoutParams timerParams =
         (LinearLayout.LayoutParams) playbackTimerCard.getLayoutParams();
     LinearLayout.LayoutParams stageParams =
@@ -249,7 +265,7 @@ abstract class MainActivityPart11 extends MainActivityPart10 {
         stageParams.leftMargin = 0;
         playbackStageCard.setLayoutParams(stageParams);
       }
-      playbackStageCard.setPadding(dp(20), dp(14), dp(20), dp(14));
+      playbackStageCard.setPadding(dp(16), dp(8), dp(16), dp(8));
     } else {
       playbackTimerCard.setVisibility(View.VISIBLE);
       if (timerParams != null) {
@@ -267,7 +283,22 @@ abstract class MainActivityPart11 extends MainActivityPart10 {
                 * 0.02f), dp(8), dp(16));
         playbackStageCard.setLayoutParams(stageParams);
       }
-      playbackStageCard.setPadding(dp(22), dp(14), dp(22), dp(14));
+      playbackStageCard.setPadding(dp(18), dp(8), dp(18), dp(8));
+    }
+    if (playbackCountdownText != null) {
+      playbackCountdownText.setTextSize(
+          TypedValue.COMPLEX_UNIT_PX,
+          previewHeader ? sp(44) : clampPx(statusHeight * 0.72f, sp(64), sp(116)));
+    }
+    if (playbackStageProgress != null) {
+      playbackStageProgress.setTextSize(
+          TypedValue.COMPLEX_UNIT_PX,
+          previewHeader ? clampPx(statusHeight * 0.34f, sp(28), sp(42)) : clampPx(statusHeight * 0.35f, sp(34), sp(58)));
+    }
+    if (playbackStageSecondary != null) {
+      playbackStageSecondary.setTextSize(
+          TypedValue.COMPLEX_UNIT_PX,
+          previewHeader ? sp(18) : clampPx(statusHeight * 0.18f, sp(18), sp(28)));
     }
     if (playbackStageCard instanceof LinearLayout) {
       ((LinearLayout) playbackStageCard).setGravity(android.view.Gravity.CENTER);

@@ -214,9 +214,16 @@ abstract class MainActivityPart12 extends MainActivityPart11 {
       screenTag.setTextSize(TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.03f, sp(12), sp(18)));
     }
 
-    // Keep the header compact while preserving the larger type sizing users read from distance.
-    int statusHeight = clamp(Math.round(shortSide * 0.32f), dp(150), dp(340));
-    int statusTextBasisHeight = clamp(Math.round(shortSide * 0.46f), dp(220), dp(480));
+    // Keep the vertical workout header low enough for three 16:9 training rows.
+    boolean previewHeader =
+        playbackStatusGroup != null
+            && playbackStatusGroup.getVisibility() == View.VISIBLE
+            && playbackTimerCard != null
+            && playbackTimerCard.getVisibility() == View.GONE;
+    int statusHeight =
+        previewHeader
+            ? clamp(Math.round(shortSide * 0.11f), dp(82), dp(124))
+            : clamp(Math.round(shortSide * 0.15f), dp(108), dp(164));
     if (playbackStatusGroup != null) {
       ViewGroup.LayoutParams params = playbackStatusGroup.getLayoutParams();
       if (params != null) {
@@ -229,7 +236,7 @@ abstract class MainActivityPart12 extends MainActivityPart11 {
       if (params != null) {
         params.height = statusHeight;
         params.width = 0;
-        params.weight = 0.28f;
+        params.weight = previewHeader ? 0f : 0.28f;
         playbackTimerCard.setLayoutParams(params);
       }
     }
@@ -237,26 +244,32 @@ abstract class MainActivityPart12 extends MainActivityPart11 {
       LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) playbackStageCard.getLayoutParams();
       if (params != null) {
         params.height = statusHeight;
-        params.width = 0;
-        params.weight = 0.72f;
-        params.leftMargin = clamp(Math.round(shortSide * 0.02f), dp(8), dp(16));
+        params.width = previewHeader ? LinearLayout.LayoutParams.MATCH_PARENT : 0;
+        params.weight = previewHeader ? 0f : 0.72f;
+        params.leftMargin = previewHeader ? 0 : clamp(Math.round(shortSide * 0.02f), dp(8), dp(16));
         playbackStageCard.setLayoutParams(params);
       }
+      playbackStageCard.setPadding(
+          dp(previewHeader ? 16 : 18),
+          dp(8),
+          dp(previewHeader ? 16 : 18),
+          dp(8));
     }
 
     if (playbackCountdownText != null) {
       playbackCountdownText.setTextSize(
-          TypedValue.COMPLEX_UNIT_PX, clampPx(statusTextBasisHeight * 1.65f, sp(160), sp(620)));
+          TypedValue.COMPLEX_UNIT_PX, clampPx(statusHeight * 0.72f, sp(64), sp(116)));
     }
     if (playbackStageProgress != null) {
       playbackStageProgress.setGravity(android.view.Gravity.CENTER);
       playbackStageProgress.setTextSize(
-          TypedValue.COMPLEX_UNIT_PX, clampPx(statusTextBasisHeight * 0.70f, sp(68), sp(168)));
+          TypedValue.COMPLEX_UNIT_PX,
+          previewHeader ? clampPx(statusHeight * 0.34f, sp(28), sp(42)) : clampPx(statusHeight * 0.35f, sp(34), sp(58)));
     }
     if (playbackStageSecondary != null) {
       playbackStageSecondary.setGravity(android.view.Gravity.CENTER);
       playbackStageSecondary.setTextSize(
-          TypedValue.COMPLEX_UNIT_PX, clampPx(statusTextBasisHeight * 0.32f, sp(34), sp(64)));
+          TypedValue.COMPLEX_UNIT_PX, previewHeader ? sp(18) : clampPx(statusHeight * 0.18f, sp(18), sp(28)));
     }
     if (playbackHint != null) {
       playbackHint.setTextSize(TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.034f, sp(16), sp(28)));
