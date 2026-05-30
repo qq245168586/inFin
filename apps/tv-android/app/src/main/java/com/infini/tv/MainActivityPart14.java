@@ -541,10 +541,30 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
     return heights;
   }
 
+  protected int getTrainingCardsContentWidth() {
+    int measuredWidth = 0;
+    if (trainingCardsContainer != null && trainingCardsContainer.getWidth() > 0) {
+      measuredWidth =
+          trainingCardsContainer.getWidth()
+              - trainingCardsContainer.getPaddingLeft()
+              - trainingCardsContainer.getPaddingRight();
+    } else if (playbackScrollView != null && playbackScrollView.getWidth() > 0) {
+      measuredWidth =
+          playbackScrollView.getWidth()
+              - playbackScrollView.getPaddingLeft()
+              - playbackScrollView.getPaddingRight();
+    }
+    if (measuredWidth <= 0) {
+      measuredWidth = getResources().getDisplayMetrics().widthPixels;
+    }
+    int safeInset = isPortraitViewport() ? dp(72) : dp(96);
+    return Math.max(measuredWidth - safeInset, dp(280));
+  }
+
   protected View createTrainingWideCard(
       CourseScript.VideoCard card, int cardIndex, int previewHeight) {
     FrameLayout wrapper = new FrameLayout(this);
-    int contentWidth = Math.max(getResources().getDisplayMetrics().widthPixels - dp(36), dp(320));
+    int contentWidth = getTrainingCardsContentWidth();
     LinearLayout.LayoutParams params =
         new LinearLayout.LayoutParams(contentWidth, previewHeight);
     wrapper.setLayoutParams(params);
@@ -569,7 +589,7 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
   protected View createTrainingGridCard(
       CourseScript.VideoCard card, int cardIndex, int previewHeight) {
     FrameLayout wrapper = new FrameLayout(this);
-    int contentWidth = Math.max(getResources().getDisplayMetrics().widthPixels - dp(36), dp(320));
+    int contentWidth = getTrainingCardsContentWidth();
     int columnWidth = Math.max((contentWidth - dp(14)) / 2, dp(180));
     int itemWidth = Math.min(columnWidth, Math.max(Math.round(previewHeight * 16f / 9f), dp(160)));
     LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(itemWidth, previewHeight);
@@ -603,14 +623,22 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
         new FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
     params.gravity = android.view.Gravity.TOP | android.view.Gravity.START;
-    params.leftMargin = dp(isWide ? 14 : 10);
-    params.topMargin = dp(isWide ? 14 : 10);
+    params.leftMargin = dp(isWide ? 16 : 16);
+    params.topMargin = dp(isWide ? 14 : 12);
     badge.setLayoutParams(params);
     badge.setText(label);
     badge.setTextColor(getColor(R.color.tv_accent_gold_bright));
-    badge.setTextSize(isWide ? 26f : 21f);
+    badge.setTextSize(isWide ? 26f : 20f);
     badge.setTypeface(badge.getTypeface(), android.graphics.Typeface.BOLD);
     badge.setGravity(android.view.Gravity.CENTER);
+    badge.setSingleLine(true);
+    badge.setEllipsize(TextUtils.TruncateAt.END);
+    int contentWidth = getTrainingCardsContentWidth();
+    int maxBadgeWidth =
+        isWide
+            ? Math.max(contentWidth - dp(32), dp(180))
+            : Math.max((contentWidth - dp(14)) / 2 - dp(32), dp(120));
+    badge.setMaxWidth(maxBadgeWidth);
     badge.setPadding(dp(isWide ? 14 : 10), dp(5), dp(isWide ? 14 : 10), dp(6));
     android.graphics.drawable.GradientDrawable background =
         new android.graphics.drawable.GradientDrawable();
