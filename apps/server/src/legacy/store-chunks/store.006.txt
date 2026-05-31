@@ -345,6 +345,45 @@ function defaultHydrateSecondsFromCourse(course) {
   return Number.isFinite(value) && value >= 0 ? value : 0;
 }
 
+function pickTextField(source = {}, field) {
+  if (Object.prototype.hasOwnProperty.call(source, field)) {
+    return trimText(source[field]);
+  }
+  if (Object.prototype.hasOwnProperty.call(source?.metadata || {}, field)) {
+    return trimText(source.metadata[field]);
+  }
+  if (Object.prototype.hasOwnProperty.call(source?.script?.metadata || {}, field)) {
+    return trimText(source.script.metadata[field]);
+  }
+  return null;
+}
+
+function normalizeCourseRotationType(value) {
+  const text = trimText(value).toUpperCase();
+  return ["REGION", "LANE", "SNAKE"].includes(text) ? text : "REGION";
+}
+
+function deriveCourseTopicFromTypeIds(typeIds = []) {
+  const firstTypeId = numberList(typeIds)[0];
+  if (!firstTypeId || !Array.isArray(state.lessonTypes)) {
+    return "";
+  }
+  return trimText(state.lessonTypes.find((item) => Number(item.id) === firstTypeId)?.name);
+}
+
+function deriveCourseMetadataFields(source = {}, script = {}) {
+  const description = pickTextField(source, "description");
+  const topic = pickTextField(source, "topic");
+  const rotationType = pickTextField(source, "rotationType");
+  const typeIds = source.typeIds ?? script?.typeIds ?? [];
+
+  return {
+    description: description ?? "",
+    topic: topic ?? deriveCourseTopicFromTypeIds(typeIds),
+    rotationType: normalizeCourseRotationType(rotationType ?? script?.metadata?.rotationType)
+  };
+}
+
 function deriveTrainingPanel(source = {}, script) {
   const incoming = source?.script?.metadata?.trainingPanel || source?.metadata?.trainingPanel || {};
   const podCount = Array.isArray(script?.training?.pods) ? script.training.pods.length : 0;
@@ -367,12 +406,16 @@ function coerceCourseScript(source = {}) {
   const script = source?.script
     ? cloneCourseScript(source.script)
     : legacyCourseToScript(source, { actionLookup: state.actions });
+  const metadataFields = deriveCourseMetadataFields(source, script);
 
   script.metadata = {
     ...script.metadata,
     name: trimText(source.name) || script.metadata?.name || "新课程",
     version: trimText(source.version) || script.metadata?.version || "v1.0.0",
     creator: trimText(source.creator) || script.metadata?.creator || "",
+    description: metadataFields.description,
+    topic: metadataFields.topic,
+    rotationType: metadataFields.rotationType,
     defaultHydrateSeconds: defaultHydrateSecondsFromCourse(source),
     readyDurations: normalizeReadyDurations(source?.script?.metadata?.readyDurations || script.metadata?.readyDurations),
     trainingPanel: deriveTrainingPanel(source, script)

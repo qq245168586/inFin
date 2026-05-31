@@ -97,7 +97,7 @@
 | Method | Path | 用途 |
 | --- | --- | --- |
 | `GET` | `/api/tv/daily-bundle` | TV 拉取某天课表及课程资源；服务端会按 TV 绑定场馆当前启用课程包过滤 |
-| `GET` | `/api/tv/daily-checksum` | TV 定时检查当天课表/课程内容 checksum 是否变化；checksum 同样基于当前启用课程包 |
+| `GET` | `/api/tv/daily-checksum` | TV 定时检查当天课表/课程内容 checksum 是否变化；checksum 同样基于当前启用课程包，并包含课程简介、主题和换站模式 |
 | `GET` | `/api/tv/schedule-bundle` | TV 根据单个排课 ID 拉取该课程完整播放资源 |
 
 ### Playback Session
@@ -181,7 +181,7 @@
 | Method | Path | 用途 |
 | --- | --- | --- |
 | `GET` | `/api/schedules` | 按 scope 和 venueId 获取排课 |
-| `POST` | `/api/schedules` | 新增排课，把可复用课程排进指定场馆的课表 |
+| `POST` | `/api/schedules` | 新增排课，把可复用课程排进指定场馆的课表；新 payload 可只传 `courseId`、`coursePackageId`、`version`、`date`，服务端按当天 00:00:00 保存，`duration` 默认 `0` |
 | `POST` | `/api/schedules/copy-last-week` | 复制上周排课到本周 |
 | `DELETE` | `/api/schedules/{scheduleId}` | 删除排课 |
 

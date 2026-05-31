@@ -22,6 +22,11 @@ export function getTvDailyChecksum(dateText, timeZone = "Asia/Shanghai", account
       id: item.id,
       courseId: item.courseId,
       coursePackageId: normalizeCoursePackageId(item.coursePackageId),
+      courseName: item.courseName,
+      version: item.version,
+      description: item.description,
+      topic: item.topic,
+      rotationType: item.rotationType,
       beginTime: item.beginTime,
       duration: item.duration,
       contentChecksum: item.contentChecksum

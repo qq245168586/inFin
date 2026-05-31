@@ -346,11 +346,16 @@ export function saveSchedule(payload) {
     throw new Error("该课程不属于当前课程包，不能排课。");
   }
 
+  const beginTime = normalizeScheduleBeginTimePayload(payload);
+  if (!beginTime) {
+    throw new Error("排课日期无效。");
+  }
+
   const next = {
     id: payload.id ? Number(payload.id) : nextId(state.schedules),
     courseId,
     coursePackageId,
     courseName: course.name,
     version: trimText(payload.version) || course.version,
-    beginTime: trimText(payload.beginTime),
+    beginTime,
     duration: Number(payload.duration) || 0

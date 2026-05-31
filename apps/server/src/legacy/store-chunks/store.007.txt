@@ -46,6 +46,9 @@ function normalizeCoursePayload(payload = {}, existing = null) {
     name: trimText(payload.name) || script.metadata.name,
     creator: trimText(payload.creator) || script.metadata.creator,
     version: trimText(payload.version) || script.metadata.version,
+    description: script.metadata.description,
+    topic: script.metadata.topic,
+    rotationType: script.metadata.rotationType,
     typeIds: numberList(payload.typeIds ?? existing?.typeIds),
     logoMedia: payload.logoMedia ?? existing?.logoMedia ?? null,
     script,
@@ -61,6 +64,9 @@ function serializeCourse(course) {
     name: trimText(course.name) || script.metadata.name,
     creator: trimText(course.creator) || script.metadata.creator,
     version: trimText(course.version) || script.metadata.version,
+    description: script.metadata.description,
+    topic: script.metadata.topic,
+    rotationType: script.metadata.rotationType,
     typeIds: numberList(course.typeIds),
     logoMedia: course.logoMedia ?? null,
     script,
@@ -75,6 +81,9 @@ function serializeCourseSummary(course) {
     name: serialized.name,
     creator: serialized.creator,
     version: serialized.version,
+    description: serialized.description,
+    topic: serialized.topic,
+    rotationType: serialized.rotationType,
     typeIds: serialized.typeIds,
     logoMedia: serialized.logoMedia,
     summary: serialized.summary,
@@ -91,7 +100,10 @@ function attachCourseBasics(schedule) {
     ...rest,
     coursePackageId: normalizeCoursePackageId(rest.coursePackageId),
     courseName: rest.courseName || serialized?.name || "",
-    version: rest.version || serialized?.version || ""
+    version: rest.version || serialized?.version || "",
+    description: serialized?.description || "",
+    topic: serialized?.topic || "",
+    rotationType: serialized?.rotationType || "REGION"
   };
 }
 
@@ -110,6 +122,27 @@ function normalizeCalendarDate(dateText, timeZone = "Asia/Shanghai") {
     month: "2-digit",
     day: "2-digit"
   }).format(new Date());
+}
+
+function calendarDateStartIso(dateText) {
+  const normalized = trimText(dateText);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    return "";
+  }
+  return new Date(`${normalized}T00:00:00.000+08:00`).toISOString();
+}
+
+function normalizeScheduleBeginTimePayload(payload = {}) {
+  const dateText = trimText(payload.date);
+  if (dateText) {
+    return calendarDateStartIso(dateText);
+  }
+
+  const beginTime = trimText(payload.beginTime);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(beginTime)) {
+    return calendarDateStartIso(beginTime);
+  }
+  return beginTime;
 }
 
 function formatCalendarDate(dateValue, timeZone = "Asia/Shanghai") {
@@ -252,6 +285,9 @@ function buildTvScheduleEntry(schedule) {
     coursePackageId: normalizeCoursePackageId(schedule.coursePackageId),
     courseName: schedule.courseName,
     version: schedule.version,
+    description: schedule.description,
+    topic: schedule.topic,
+    rotationType: schedule.rotationType,
     beginTime: schedule.beginTime,
     duration: schedule.duration,
     course: {

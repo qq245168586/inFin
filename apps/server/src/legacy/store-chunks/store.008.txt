@@ -8,6 +8,9 @@
       courseId: entry.courseId,
       courseName: entry.courseName,
       version: entry.version,
+      description: entry.description,
+      topic: entry.topic,
+      rotationType: entry.rotationType,
       beginTime: entry.beginTime,
       duration: entry.duration
     },
