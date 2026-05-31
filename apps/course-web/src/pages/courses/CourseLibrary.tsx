@@ -31,6 +31,18 @@ function getWarmupCount(course: CourseRecord): number {
   return course.summary?.warmupActionCount ?? course.script?.sections?.warmup?.items?.length ?? 0;
 }
 
+function getStationRuleItems(course: CourseRecord): Array<{ label: string; value: string }> {
+  const config = course.script?.metadata?.stationRules;
+  return [
+    { label: "Set", value: config?.set || "" },
+    { label: "Work", value: config?.work || "" },
+    { label: "Rest", value: config?.rest || "" },
+    { label: "Switch", value: config?.switch || "" },
+    { label: "Port", value: config?.port || "" },
+    { label: "Leader", value: config?.leader || "" }
+  ].filter((item) => item.value.trim());
+}
+
 export default function CourseLibrary({
   lessonTypes,
   lessonTypeNameById,
@@ -136,6 +148,7 @@ export default function CourseLibrary({
               <th>课程名称</th>
               <th>课程设计者</th>
               <th>课程类型</th>
+              <th>Rule</th>
               <th>最后更新时间</th>
               <th>管理</th>
             </tr>
@@ -168,6 +181,19 @@ export default function CourseLibrary({
                       )}
                     </div>
                   </td>
+                  <td>
+                    <div className="table-tags">
+                      {getStationRuleItems(course).length ? (
+                        getStationRuleItems(course).map((item) => (
+                          <span key={item.label} className="table-tag">
+                            {item.label}: {item.value}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="table-tag is-muted">未配置</span>
+                      )}
+                    </div>
+                  </td>
                   <td className="cell-nowrap">{formatDate(course.updateTime)}</td>
                   <td>
                     <button type="button" className="table-link" onClick={() => onOpenCourseEditor(course)}>
@@ -181,7 +207,7 @@ export default function CourseLibrary({
               ))
             ) : (
               <tr>
-                <td colSpan={7}>
+                <td colSpan={8}>
                   <EmptyBlock title="没有找到匹配课程" copy="可以调整筛选条件，或者新增一个课程版本。" />
                 </td>
               </tr>

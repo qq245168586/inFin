@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import FilterChips from "../../components/FilterChips.tsx";
-import type { CourseRotationType, CourseScript } from "../../models/course/types.ts";
+import type { CourseRotationType, CourseScript, StationRuleConfig } from "../../models/course/types.ts";
 import type { ActionRecord, TypeOption } from "../../services/api/meta.ts";
 import { toggleNumberId } from "../../utils/array.ts";
 import { triggerFileInput } from "../../utils/dom.ts";
@@ -19,6 +19,34 @@ const ROTATION_TYPE_OPTIONS: Array<{ value: CourseRotationType; label: string }>
   { value: "LANE", label: "跑道换站" },
   { value: "SNAKE", label: "蛇形换站" }
 ];
+
+const SWITCH_DISPLAY_OPTIONS = [
+  { value: "", label: "请选择" },
+  { value: "pod", label: "pod" },
+  { value: "follow the leader", label: "follow the leader" }
+];
+
+function updateStationRuleConfig(
+  current: CourseScript,
+  patch: Partial<StationRuleConfig>
+): CourseScript {
+  return {
+    ...current,
+    metadata: {
+      ...current.metadata,
+      stationRules: {
+        set: "",
+        work: "",
+        rest: "",
+        switch: "",
+        port: "",
+        leader: "",
+        ...current.metadata.stationRules,
+        ...patch
+      }
+    }
+  };
+}
 
 export default function CourseEditorPane({
   tabId,
@@ -137,6 +165,62 @@ export default function CourseEditorPane({
               value={courseEditor.script.metadata.description}
               placeholder="简要说明这节课的目标、强度或训练重点"
               onChange={(e) => onUpdateCourseScript((c) => ({ ...c, metadata: { ...c.metadata, description: e.target.value } }))}
+            />
+          </label>
+        </div>
+
+        <div className="form-row six">
+          <label className="field">
+            <span>Set</span>
+            <input
+              value={courseEditor.script.metadata.stationRules?.set || ""}
+              placeholder="例如 01 / 8"
+              onChange={(e) => onUpdateCourseScript((c) => updateStationRuleConfig(c, { set: e.target.value }))}
+            />
+          </label>
+          <label className="field">
+            <span>Work</span>
+            <input
+              value={courseEditor.script.metadata.stationRules?.work || ""}
+              placeholder="例如 40s"
+              onChange={(e) => onUpdateCourseScript((c) => updateStationRuleConfig(c, { work: e.target.value }))}
+            />
+          </label>
+          <label className="field">
+            <span>Rest</span>
+            <input
+              value={courseEditor.script.metadata.stationRules?.rest || ""}
+              placeholder="例如 20s"
+              onChange={(e) => onUpdateCourseScript((c) => updateStationRuleConfig(c, { rest: e.target.value }))}
+            />
+          </label>
+          <label className="field">
+            <span>Switch</span>
+            <select
+              value={courseEditor.script.metadata.stationRules?.switch || ""}
+              onChange={(e) => onUpdateCourseScript((c) => updateStationRuleConfig(c, { switch: e.target.value }))}
+            >
+              {SWITCH_DISPLAY_OPTIONS.map((option) => (
+                <option key={option.value || "empty"} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span>Port</span>
+            <input
+              value={courseEditor.script.metadata.stationRules?.port || ""}
+              placeholder="可选"
+              onChange={(e) => onUpdateCourseScript((c) => updateStationRuleConfig(c, { port: e.target.value }))}
+            />
+          </label>
+          <label className="field">
+            <span>Leader</span>
+            <input
+              value={courseEditor.script.metadata.stationRules?.leader || ""}
+              placeholder="可选"
+              onChange={(e) => onUpdateCourseScript((c) => updateStationRuleConfig(c, { leader: e.target.value }))}
             />
           </label>
         </div>

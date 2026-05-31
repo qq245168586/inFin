@@ -1,6 +1,7 @@
 import type {
   CourseRotationType,
   CourseScript,
+  StationRuleConfig,
   PodScreen,
   PodStationFlow,
   VideoCard,
@@ -27,6 +28,18 @@ import { createPod, createPodScreensFromGroup, rebalancePodEndings } from "./pod
 
 function normalizeRotationType(value: unknown): CourseRotationType {
   return value === "LANE" || value === "SNAKE" || value === "REGION" ? value : "REGION";
+}
+
+function normalizeStationRuleConfig(value: unknown): StationRuleConfig {
+  const source = value && typeof value === "object" ? (value as Partial<StationRuleConfig>) : {};
+  return {
+    set: typeof source.set === "string" ? source.set : "",
+    work: typeof source.work === "string" ? source.work : "",
+    rest: typeof source.rest === "string" ? source.rest : "",
+    switch: typeof source.switch === "string" ? source.switch : "",
+    port: typeof source.port === "string" ? source.port : "",
+    leader: typeof source.leader === "string" ? source.leader : ""
+  };
 }
 
 function fitVideoCardsForRows(
@@ -71,6 +84,7 @@ export function createEmptyCourseScript(): CourseScript {
       description: "",
       topic: "",
       rotationType: "REGION",
+      stationRules: normalizeStationRuleConfig(null),
       tags: [],
       defaultHydrateSeconds: 0,
       readyDurations: createReadyDurations(),
@@ -163,6 +177,7 @@ export function normalizeCourseScriptLocal(script: CourseScript): CourseScript {
       description: typeof cloned.metadata?.description === "string" ? cloned.metadata.description : "",
       topic: typeof cloned.metadata?.topic === "string" ? cloned.metadata.topic : "",
       rotationType: normalizeRotationType(cloned.metadata?.rotationType),
+      stationRules: normalizeStationRuleConfig(cloned.metadata?.stationRules),
       defaultHydrateSeconds: readNonNegativeNumber(cloned.metadata?.defaultHydrateSeconds, 0),
       readyDurations: createReadyDurations(cloned.metadata?.readyDurations),
       trainingPanel: createTrainingPanel(cloned.metadata?.trainingPanel)

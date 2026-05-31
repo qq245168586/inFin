@@ -2153,6 +2153,10 @@ textarea:focus {
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
+.form-row.six {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
 .field {
   display: grid;
   gap: 8px;
@@ -3606,6 +3610,7 @@ textarea:focus {
   .form-row.three,
   .form-row.four,
   .form-row.five,
+  .form-row.six,
   .filter-grid.course-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -3683,7 +3688,8 @@ textarea:focus {
   .form-row.two,
   .form-row.three,
   .form-row.four,
-  .form-row.five {
+  .form-row.five,
+  .form-row.six {
     grid-template-columns: 1fr;
   }
 

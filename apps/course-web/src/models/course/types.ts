@@ -9,6 +9,15 @@ export type CourseRotationType = "REGION" | "LANE" | "SNAKE";
 export type VideoGroupScreenCount = 1 | 3;
 export type VideoRowLayout = 1 | 2;
 
+export interface StationRuleConfig {
+  set: string;
+  work: string;
+  rest: string;
+  switch: string;
+  port: string;
+  leader: string;
+}
+
 export interface TrainingPanel {
   setCount: number;
   breakCount: number;
@@ -108,6 +117,7 @@ export interface CourseScript {
     description: string;
     topic: string;
     rotationType: CourseRotationType;
+    stationRules: StationRuleConfig;
     tags: string[];
     defaultHydrateSeconds: number;
     trainingPanel: TrainingPanel;
