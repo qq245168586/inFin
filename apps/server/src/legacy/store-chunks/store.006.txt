@@ -394,22 +394,28 @@ function normalizeCourseRotationType(value) {
   return ["REGION", "LANE", "SNAKE"].includes(text) ? text : "REGION";
 }
 
-const COURSE_STATION_RULE_FIELDS = ["set", "work", "rest", "switch", "port", "leader"];
-const COURSE_STATION_RULE_ALIASES = {
-  set: ["set", "Set"],
-  work: ["work", "Work"],
-  rest: ["rest", "Rest"],
-  switch: ["switch", "Switch"],
-  port: ["port", "Port"],
-  leader: ["leader", "Leader"]
-};
+function courseStationRuleFields() {
+  return ["set", "work", "rest", "switch", "port", "leader"];
+}
+
+function courseStationRuleAliases(field) {
+  const aliases = {
+    set: ["set", "Set"],
+    work: ["work", "Work"],
+    rest: ["rest", "Rest"],
+    switch: ["switch", "Switch"],
+    port: ["port", "Port"],
+    leader: ["leader", "Leader"]
+  };
+  return aliases[field] || [field];
+}
 
 function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function pickCourseStationRuleValue(source = {}, field) {
-  const aliases = COURSE_STATION_RULE_ALIASES[field] || [field];
+  const aliases = courseStationRuleAliases(field);
   const containers = [
     source,
     source?.stationRules,
@@ -437,7 +443,7 @@ function pickCourseStationRuleValue(source = {}, field) {
 }
 
 function collectCourseStationRules(source = {}) {
-  return COURSE_STATION_RULE_FIELDS.reduce((rules, field) => {
+  return courseStationRuleFields().reduce((rules, field) => {
     const value = pickCourseStationRuleValue(source, field);
     if (value !== null) {
       rules[field] = value;
@@ -447,7 +453,7 @@ function collectCourseStationRules(source = {}) {
 }
 
 function normalizeCourseStationRules(...sources) {
-  const rules = COURSE_STATION_RULE_FIELDS.reduce((current, field) => {
+  const rules = courseStationRuleFields().reduce((current, field) => {
     current[field] = "";
     return current;
   }, {});
