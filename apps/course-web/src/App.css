@@ -1521,14 +1521,18 @@ textarea:focus {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16), 0 14px 28px rgba(17, 24, 39, 0.18);
 }
 
-.calendar-date-pill.is-disabled,
-.calendar-date-pill:disabled {
+.calendar-date-pill.is-past {
   color: var(--text-faint);
   border-color: var(--line);
   background: #f1f3f6;
   box-shadow: none;
-  cursor: not-allowed;
-  transform: none;
+}
+
+.calendar-date-pill.is-past.has-schedules {
+  color: #ffffff;
+  border-color: #4b5563;
+  background: #4b5563;
+  box-shadow: 0 10px 18px rgba(75, 85, 99, 0.14);
 }
 
 .calendar-board-wrap {

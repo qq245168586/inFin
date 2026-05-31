@@ -150,7 +150,6 @@ export default function HomePage({
                   <span>日期选择</span>
                   <input
                     type="date"
-                    min={today}
                     value={scheduleAnchorDate}
                     onChange={(event) => onScheduleAnchorDateChange(event.target.value)}
                   />
@@ -161,10 +160,9 @@ export default function HomePage({
                 key={day.key}
                 type="button"
                 className={`calendar-date-pill ${scheduledDateKeys.has(day.key) ? "has-schedules" : ""} ${
-                  day.key < today ? "is-disabled" : ""
+                  day.key < today ? "is-past" : ""
                 } ${selectedScheduleDate === day.key ? "is-active" : ""}`}
                 onClick={() => onSelectedScheduleDateChange(day.key)}
-                disabled={day.key < today}
               >
                 <strong>{day.title}</strong>
                 <span>{day.subtitle}</span>

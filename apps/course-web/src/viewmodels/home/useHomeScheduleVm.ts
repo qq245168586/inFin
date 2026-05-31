@@ -137,7 +137,7 @@ export default function useHomeScheduleVm({
   }, [allSchedules, enrichSchedule, homeTab, schedules.lastWeek, weekDays]);
 
   const setScheduleAnchorDate = useCallback((value: string) => {
-    const nextValue = value && value >= todayValue() ? value : todayValue();
+    const nextValue = value || todayValue();
     setScheduleAnchorDateRaw(nextValue);
     setSelectedScheduleDate(nextValue);
   }, []);
@@ -145,9 +145,8 @@ export default function useHomeScheduleVm({
   const moveScheduleWeek = useCallback((deltaWeeks: number) => {
     setScheduleAnchorDateRaw((current) => {
       const nextValue = addDaysValue(current || todayValue(), deltaWeeks * 7);
-      const safeValue = nextValue >= todayValue() ? nextValue : todayValue();
-      setSelectedScheduleDate(safeValue);
-      return safeValue;
+      setSelectedScheduleDate(nextValue);
+      return nextValue;
     });
   }, []);
 
