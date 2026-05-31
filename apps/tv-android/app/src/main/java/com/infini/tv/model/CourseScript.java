@@ -64,6 +64,9 @@ public class CourseScript {
     public final int breakCount;
     public final int workSeconds;
     public final int restSeconds;
+    public final String description;
+    public final String topic;
+    public final String rotationType;
 
     public Metadata(
         String id,
@@ -77,7 +80,10 @@ public class CourseScript {
         int setCount,
         int breakCount,
         int workSeconds,
-        int restSeconds) {
+        int restSeconds,
+        String description,
+        String topic,
+        String rotationType) {
       this.id = id;
       this.name = name;
       this.version = version;
@@ -90,6 +96,9 @@ public class CourseScript {
       this.breakCount = breakCount;
       this.workSeconds = workSeconds;
       this.restSeconds = restSeconds;
+      this.description = description == null ? "" : description;
+      this.topic = topic == null ? "" : topic;
+      this.rotationType = rotationType == null || rotationType.trim().isEmpty() ? "REGION" : rotationType;
     }
   }
 

@@ -251,13 +251,14 @@ abstract class MainActivityPart08 extends MainActivityPart07 {
   protected void bindHorizontalSchedule(List<TvScheduleItem> scheduleItems) {
     syncedTodaySchedules.clear();
     if (scheduleItems != null) {
-      syncedTodaySchedules.addAll(scheduleItems);
+      syncedTodaySchedules.addAll(limitScheduleCards(scheduleItems));
     }
     if (horizontalScheduleList != null) {
       horizontalScheduleList.removeAllViews();
     }
 
-    if (scheduleItems == null || scheduleItems.isEmpty()) {
+    List<TvScheduleItem> displayItems = limitScheduleCards(scheduleItems);
+    if (displayItems.isEmpty()) {
       activePlaybackItem = null;
       if (horizontalLoadingText != null) {
         horizontalLoadingText.setVisibility(View.VISIBLE);
@@ -295,7 +296,7 @@ abstract class MainActivityPart08 extends MainActivityPart07 {
     dispatchScreenHeartbeat(false);
 
     if (isPortraitViewport()) {
-      for (TvScheduleItem item : scheduleItems) {
+      for (TvScheduleItem item : displayItems) {
         if (horizontalScheduleList != null) {
           horizontalScheduleList.addView(createVerticalScheduleCard(item));
         }
@@ -303,7 +304,7 @@ abstract class MainActivityPart08 extends MainActivityPart07 {
       return;
     }
 
-    for (int index = 0; index < scheduleItems.size(); index += 2) {
+    for (int index = 0; index < displayItems.size(); index += 1) {
       LinearLayout row = new LinearLayout(this);
       row.setOrientation(LinearLayout.HORIZONTAL);
       LinearLayout.LayoutParams rowParams =
@@ -314,27 +315,11 @@ abstract class MainActivityPart08 extends MainActivityPart07 {
       }
       row.setLayoutParams(rowParams);
 
-      View firstCard = createHorizontalScheduleCard(scheduleItems.get(index));
+      View firstCard = createHorizontalScheduleCard(displayItems.get(index));
       LinearLayout.LayoutParams firstParams =
           new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f);
       firstCard.setLayoutParams(firstParams);
       row.addView(firstCard);
-
-      if (index + 1 < scheduleItems.size()) {
-        View secondCard = createHorizontalScheduleCard(scheduleItems.get(index + 1));
-        LinearLayout.LayoutParams secondParams =
-            new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f);
-        secondParams.leftMargin = dp(8);
-        secondCard.setLayoutParams(secondParams);
-        row.addView(secondCard);
-      } else {
-        View spacer = new View(this);
-        LinearLayout.LayoutParams spacerParams =
-            new LinearLayout.LayoutParams(0, 0, 1f);
-        spacerParams.leftMargin = dp(8);
-        spacer.setLayoutParams(spacerParams);
-        row.addView(spacer);
-      }
 
       if (horizontalScheduleList != null) {
         horizontalScheduleList.addView(row);
@@ -346,7 +331,7 @@ abstract class MainActivityPart08 extends MainActivityPart07 {
     int screenWidth = getResources().getDisplayMetrics().widthPixels;
     int screenHeight = getResources().getDisplayMetrics().heightPixels;
     int shortSide = Math.min(screenWidth, screenHeight);
-    return clamp(Math.round(shortSide * 0.145f), dp(132), dp(154));
+    return clamp(Math.round(shortSide * 0.2f), dp(178), dp(226));
   }
 
   protected TvScheduleItem selectHorizontalSchedule(List<TvScheduleItem> scheduleItems) {

@@ -191,112 +191,89 @@ abstract class MainActivityPart07 extends MainActivityPart06 {
   }
 
   protected View createScheduleCard(TvScheduleItem item) {
-    FrameLayout card = new FrameLayout(this);
-    LinearLayout.LayoutParams cardParams =
-        new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-    cardParams.topMargin = dp(22);
-    card.setLayoutParams(cardParams);
-    card.setBackgroundResource(R.drawable.bg_schedule_card);
-    card.setPadding(dp(30), dp(30), dp(30), dp(30));
-    card.setClickable(true);
-    card.setFocusable(true);
-    card.setOnClickListener(v -> startCourse(item));
-
-    LinearLayout row = new LinearLayout(this);
-    row.setOrientation(LinearLayout.HORIZONTAL);
-    card.addView(row);
-
-    TextView logo = new TextView(this);
-    LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(dp(120), dp(120));
-    logo.setLayoutParams(logoParams);
-    logo.setBackgroundResource(R.drawable.bg_logo_panel);
-    logo.setText(item.logoText);
-    logo.setTextColor(getColor(R.color.tv_accent_gold_bright));
-    logo.setTextSize(17f);
-    logo.setLineSpacing(0f, 0.92f);
-    logo.setGravity(android.view.Gravity.CENTER);
-    row.addView(logo);
-
-    LinearLayout content = new LinearLayout(this);
-    LinearLayout.LayoutParams contentParams =
-        new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-    contentParams.leftMargin = dp(24);
-    contentParams.rightMargin = dp(92);
-    content.setLayoutParams(contentParams);
-    content.setOrientation(LinearLayout.VERTICAL);
-    row.addView(content);
-
-    TextView name = new TextView(this);
-    String versionSuffix =
-        item.version == null || item.version.trim().isEmpty() ? "" : " (" + item.version + ")";
-    name.setText(item.courseName + versionSuffix);
-    name.setTextColor(getColor(R.color.tv_text_main));
-    name.setTextSize(24f);
-    name.setTypeface(name.getTypeface(), android.graphics.Typeface.BOLD);
-    name.setMaxLines(2);
-    name.setEllipsize(TextUtils.TruncateAt.END);
-    content.addView(name);
-
-    TextView time = new TextView(this);
-    LinearLayout.LayoutParams timeParams =
-        new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-    timeParams.topMargin = dp(12);
-    time.setLayoutParams(timeParams);
-    time.setText("◷  " + formatTimeRange(item));
-    time.setTextColor(getColor(R.color.tv_accent_gold_bright));
-    time.setTextSize(19f);
-    time.setTypeface(time.getTypeface(), android.graphics.Typeface.BOLD);
-    content.addView(time);
-
-    TextView footer = new TextView(this);
-    LinearLayout.LayoutParams footerParams =
-        new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-    footerParams.topMargin = dp(16);
-    footer.setLayoutParams(footerParams);
-    footer.setText("点击进入课程预览");
-    footer.setTextColor(getColor(R.color.tv_text_muted));
-    footer.setTextSize(15f);
-    footer.setTypeface(footer.getTypeface(), android.graphics.Typeface.BOLD);
-    content.addView(footer);
-
-    TextView badge = new TextView(this);
-    FrameLayout.LayoutParams badgeParams =
-        new FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
-    badgeParams.gravity = android.view.Gravity.END | android.view.Gravity.TOP;
-    badge.setLayoutParams(badgeParams);
-    applyScheduleBadgeStyle(badge, item, 16f, dp(18), dp(10), dp(112));
-    card.addView(badge);
-
-    return card;
+    return createDetailedScheduleCard(item, false);
   }
 
   protected View createVerticalScheduleCard(TvScheduleItem item) {
+    return createDetailedScheduleCard(item, false);
+  }
+
+  protected View createHorizontalScheduleCard(TvScheduleItem item) {
+    return createDetailedScheduleCard(item, true);
+  }
+
+  protected View createDetailedScheduleCard(TvScheduleItem item, boolean compact) {
     FrameLayout card = new FrameLayout(this);
     LinearLayout.LayoutParams cardParams =
         new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-    cardParams.topMargin = dp(20);
+    cardParams.topMargin = compact ? 0 : dp(24);
     card.setLayoutParams(cardParams);
     card.setBackgroundResource(R.drawable.bg_schedule_card);
-    card.setPadding(dp(20), dp(18), dp(18), dp(18));
+    card.setPadding(dp(compact ? 22 : 26), dp(compact ? 18 : 24), dp(compact ? 22 : 26), dp(compact ? 18 : 24));
+    card.setMinimumHeight(compact ? dp(178) : dp(268));
     card.setClickable(true);
     card.setFocusable(true);
     card.setOnClickListener(v -> startCourse(item));
 
-    LinearLayout row = new LinearLayout(this);
-    row.setOrientation(LinearLayout.HORIZONTAL);
-    row.setGravity(android.view.Gravity.CENTER_VERTICAL);
-    card.addView(row);
+    ScheduleCardInfo info = buildScheduleCardInfo(item);
+
+    LinearLayout root = new LinearLayout(this);
+    root.setOrientation(LinearLayout.VERTICAL);
+    root.setLayoutParams(
+        new FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT));
+    card.addView(root);
+
+    LinearLayout header = new LinearLayout(this);
+    header.setOrientation(LinearLayout.HORIZONTAL);
+    header.setGravity(android.view.Gravity.CENTER_VERTICAL);
+    root.addView(header);
+
+    TextView number = new TextView(this);
+    LinearLayout.LayoutParams numberParams = new LinearLayout.LayoutParams(dp(62), dp(42));
+    number.setLayoutParams(numberParams);
+    number.setGravity(android.view.Gravity.CENTER);
+    number.setBackgroundResource(R.drawable.bg_schedule_info_chip);
+    number.setText(info.number);
+    number.setTextColor(getColor(R.color.tv_accent_gold_bright));
+    number.setTextSize(compact ? 18f : 20f);
+    number.setTypeface(number.getTypeface(), android.graphics.Typeface.BOLD);
+    header.addView(number);
+
+    TextView topic = new TextView(this);
+    LinearLayout.LayoutParams topicParams =
+        new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(42));
+    topicParams.leftMargin = dp(16);
+    topic.setLayoutParams(topicParams);
+    topic.setGravity(android.view.Gravity.CENTER);
+    topic.setBackgroundResource(R.drawable.bg_schedule_info_chip);
+    topic.setPadding(dp(18), 0, dp(18), 0);
+    topic.setText(info.topic);
+    topic.setTextColor(getColor(R.color.tv_accent_gold_bright));
+    topic.setTextSize(compact ? 16f : 18f);
+    topic.setSingleLine(true);
+    topic.setEllipsize(TextUtils.TruncateAt.END);
+    topic.setTypeface(topic.getTypeface(), android.graphics.Typeface.BOLD);
+    topic.setAutoSizeTextTypeUniformWithConfiguration(12, compact ? 16 : 18, 1, TypedValue.COMPLEX_UNIT_SP);
+    header.addView(topic);
+
+    LinearLayout body = new LinearLayout(this);
+    LinearLayout.LayoutParams bodyParams =
+        new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+    bodyParams.topMargin = compact ? dp(18) : dp(28);
+    body.setLayoutParams(bodyParams);
+    body.setOrientation(LinearLayout.HORIZONTAL);
+    body.setGravity(android.view.Gravity.CENTER_VERTICAL);
+    root.addView(body);
 
     FrameLayout imageCircle = new FrameLayout(this);
-    LinearLayout.LayoutParams imageCircleParams = new LinearLayout.LayoutParams(dp(66), dp(66));
+    int imageSize = compact ? dp(86) : dp(132);
+    LinearLayout.LayoutParams imageCircleParams = new LinearLayout.LayoutParams(imageSize, imageSize);
     imageCircle.setLayoutParams(imageCircleParams);
     imageCircle.setBackgroundResource(R.drawable.bg_schedule_course_image_circle);
-    imageCircle.setPadding(dp(6), dp(6), dp(6), dp(6));
+    imageCircle.setPadding(dp(compact ? 7 : 10), dp(compact ? 7 : 10), dp(compact ? 7 : 10), dp(compact ? 7 : 10));
 
     ImageView courseImage = new ImageView(this);
     FrameLayout.LayoutParams courseImageParams =
@@ -314,140 +291,306 @@ abstract class MainActivityPart07 extends MainActivityPart06 {
     imageFallback.setGravity(android.view.Gravity.CENTER);
     imageFallback.setText(item.logoText);
     imageFallback.setTextColor(getColor(R.color.tv_playback_text_dark));
-    imageFallback.setTextSize(10f);
+    imageFallback.setTextSize(compact ? 12f : 17f);
     imageFallback.setTypeface(imageFallback.getTypeface(), android.graphics.Typeface.BOLD);
-    imageFallback.setMaxLines(2);
+    imageFallback.setMaxLines(3);
+    imageFallback.setAutoSizeTextTypeUniformWithConfiguration(8, compact ? 12 : 17, 1, TypedValue.COMPLEX_UNIT_SP);
     imageCircle.addView(imageFallback);
-    row.addView(imageCircle);
+    body.addView(imageCircle);
     bindScheduleCourseImage(courseImage, imageFallback, item.logoSource);
 
     LinearLayout content = new LinearLayout(this);
     LinearLayout.LayoutParams contentParams =
         new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-    contentParams.leftMargin = dp(18);
-    contentParams.rightMargin = dp(78);
+    contentParams.leftMargin = compact ? dp(22) : dp(32);
     content.setLayoutParams(contentParams);
     content.setOrientation(LinearLayout.VERTICAL);
-    row.addView(content);
+    body.addView(content);
 
     TextView name = new TextView(this);
-    name.setText(item.courseName);
+    name.setText(info.name);
     name.setTextColor(getColor(R.color.tv_text_main));
-    name.setTextSize(21f);
+    name.setTextSize(compact ? 28f : 38f);
     name.setTypeface(name.getTypeface(), android.graphics.Typeface.BOLD);
-    name.setMaxLines(1);
+    name.setMaxLines(compact ? 1 : 2);
     name.setEllipsize(TextUtils.TruncateAt.END);
+    name.setAutoSizeTextTypeUniformWithConfiguration(compact ? 18 : 24, compact ? 28 : 38, 1, TypedValue.COMPLEX_UNIT_SP);
     content.addView(name);
 
-    TextView time = new TextView(this);
-    LinearLayout.LayoutParams timeParams =
+    TextView description = new TextView(this);
+    LinearLayout.LayoutParams descriptionParams =
         new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-    timeParams.topMargin = dp(10);
-    time.setLayoutParams(timeParams);
-    time.setText("◷  " + formatTimeRange(item));
-    time.setTextColor(getColor(R.color.tv_accent_gold_bright));
-    time.setTextSize(16f);
-    time.setTypeface(time.getTypeface(), android.graphics.Typeface.BOLD);
-    content.addView(time);
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+    descriptionParams.topMargin = dp(10);
+    description.setLayoutParams(descriptionParams);
+    description.setText(info.description);
+    description.setTextColor(getColor(R.color.tv_text_subtle));
+    description.setTextSize(compact ? 17f : 22f);
+    description.setLineSpacing(dp(2), 1.0f);
+    description.setMaxLines(compact ? 2 : 3);
+    description.setEllipsize(TextUtils.TruncateAt.END);
+    description.setAutoSizeTextTypeUniformWithConfiguration(compact ? 12 : 15, compact ? 17 : 22, 1, TypedValue.COMPLEX_UNIT_SP);
+    content.addView(description);
 
-    TextView badge = new TextView(this);
-    FrameLayout.LayoutParams badgeParams =
-        new FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
-    badgeParams.gravity = android.view.Gravity.END | android.view.Gravity.TOP;
-    badge.setLayoutParams(badgeParams);
-    applyScheduleBadgeStyle(badge, item, 12f, dp(14), dp(7), dp(68));
-    card.addView(badge);
+    LinearLayout metrics = new LinearLayout(this);
+    LinearLayout.LayoutParams metricsParams =
+        new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+    metricsParams.topMargin = compact ? dp(16) : dp(22);
+    metrics.setLayoutParams(metricsParams);
+    metrics.setOrientation(LinearLayout.HORIZONTAL);
+    content.addView(metrics);
+
+    addScheduleMetricChip(metrics, "站点", info.stationText, compact);
+    addScheduleMetricChip(metrics, "WORK", info.workText, compact);
+    addScheduleMetricChip(metrics, "REST", info.restText, compact);
+    addScheduleMetricChip(metrics, "换站", info.rotationText, compact);
 
     return card;
   }
 
-  protected View createHorizontalScheduleCard(TvScheduleItem item) {
-    FrameLayout card = new FrameLayout(this);
-    card.setBackgroundResource(R.drawable.bg_schedule_card);
-    card.setPadding(dp(28), dp(22), dp(24), dp(22));
-    card.setClickable(true);
-    card.setFocusable(true);
-    card.setOnClickListener(v -> startCourse(item));
+  protected void addScheduleMetricChip(LinearLayout metrics, String label, String value, boolean compact) {
+    LinearLayout chip = new LinearLayout(this);
+    LinearLayout.LayoutParams chipParams =
+        new LinearLayout.LayoutParams(0, compact ? dp(74) : dp(88), 1f);
+    if (metrics.getChildCount() > 0) {
+      chipParams.leftMargin = compact ? dp(10) : dp(14);
+    }
+    chip.setLayoutParams(chipParams);
+    chip.setOrientation(LinearLayout.VERTICAL);
+    chip.setGravity(android.view.Gravity.CENTER_VERTICAL);
+    chip.setPadding(dp(14), dp(8), dp(10), dp(8));
+    chip.setBackgroundResource(R.drawable.bg_schedule_metric_chip);
+    metrics.addView(chip);
 
-    LinearLayout row = new LinearLayout(this);
-    FrameLayout.LayoutParams rowParams =
-        new FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
-    row.setLayoutParams(rowParams);
-    row.setOrientation(LinearLayout.HORIZONTAL);
-    row.setGravity(android.view.Gravity.CENTER_VERTICAL);
-    card.addView(row);
+    TextView labelView = new TextView(this);
+    labelView.setText(label);
+    labelView.setTextColor(getColor(R.color.tv_text_muted));
+    labelView.setTextSize(compact ? 12f : 15f);
+    labelView.setSingleLine(true);
+    labelView.setEllipsize(TextUtils.TruncateAt.END);
+    chip.addView(labelView);
 
-    FrameLayout imageCircle = new FrameLayout(this);
-    LinearLayout.LayoutParams imageCircleParams = new LinearLayout.LayoutParams(dp(96), dp(96));
-    imageCircle.setLayoutParams(imageCircleParams);
-    imageCircle.setBackgroundResource(R.drawable.bg_schedule_course_image_circle);
-    imageCircle.setPadding(dp(8), dp(8), dp(8), dp(8));
-
-    ImageView courseImage = new ImageView(this);
-    FrameLayout.LayoutParams courseImageParams =
-        new FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
-    courseImage.setLayoutParams(courseImageParams);
-    courseImage.setAdjustViewBounds(true);
-    courseImage.setScaleType(ImageView.ScaleType.FIT_CENTER);
-    imageCircle.addView(courseImage);
-
-    TextView imageFallback = new TextView(this);
-    imageFallback.setLayoutParams(
-        new FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
-    imageFallback.setGravity(android.view.Gravity.CENTER);
-    imageFallback.setText(item.logoText);
-    imageFallback.setTextColor(getColor(R.color.tv_playback_text_dark));
-    imageFallback.setTextSize(13f);
-    imageFallback.setTypeface(imageFallback.getTypeface(), android.graphics.Typeface.BOLD);
-    imageFallback.setMaxLines(2);
-    imageCircle.addView(imageFallback);
-    row.addView(imageCircle);
-    bindScheduleCourseImage(courseImage, imageFallback, item.logoSource);
-
-    LinearLayout content = new LinearLayout(this);
-    LinearLayout.LayoutParams contentParams =
-        new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-    contentParams.leftMargin = dp(28);
-    contentParams.rightMargin = dp(128);
-    content.setLayoutParams(contentParams);
-    content.setOrientation(LinearLayout.VERTICAL);
-    row.addView(content);
-
-    TextView name = new TextView(this);
-    name.setText(item.courseName);
-    name.setTextColor(getColor(R.color.tv_text_main));
-    name.setTextSize(34f);
-    name.setTypeface(name.getTypeface(), android.graphics.Typeface.BOLD);
-    name.setMaxLines(1);
-    name.setEllipsize(TextUtils.TruncateAt.END);
-    content.addView(name);
-
-    TextView time = new TextView(this);
-    LinearLayout.LayoutParams timeParams =
+    TextView valueView = new TextView(this);
+    LinearLayout.LayoutParams valueParams =
         new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-    timeParams.topMargin = dp(8);
-    time.setLayoutParams(timeParams);
-    time.setText("◷  " + formatTimeRange(item));
-    time.setTextColor(getColor(R.color.tv_accent_gold_bright));
-    time.setTextSize(26f);
-    time.setTypeface(time.getTypeface(), android.graphics.Typeface.BOLD);
-    content.addView(time);
+            LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f);
+    valueView.setLayoutParams(valueParams);
+    valueView.setGravity(android.view.Gravity.CENTER_VERTICAL);
+    valueView.setText(value);
+    valueView.setTextColor(getColor(R.color.tv_text_main));
+    valueView.setTextSize(compact ? 18f : 22f);
+    valueView.setTypeface(valueView.getTypeface(), android.graphics.Typeface.BOLD);
+    valueView.setSingleLine(true);
+    valueView.setEllipsize(TextUtils.TruncateAt.END);
+    valueView.setAutoSizeTextTypeUniformWithConfiguration(10, compact ? 18 : 22, 1, TypedValue.COMPLEX_UNIT_SP);
+    chip.addView(valueView);
+  }
 
-    TextView badge = new TextView(this);
-    FrameLayout.LayoutParams badgeParams =
-        new FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
-    badgeParams.gravity = android.view.Gravity.END | android.view.Gravity.TOP;
-    badge.setLayoutParams(badgeParams);
-    applyScheduleBadgeStyle(badge, item, 20f, dp(20), dp(10), dp(124));
-    card.addView(badge);
+  protected ScheduleCardInfo buildScheduleCardInfo(TvScheduleItem item) {
+    CourseScript course = item == null ? null : item.course;
+    CourseScript.Metadata metadata = course == null ? null : course.metadata;
+    String name =
+        firstScheduleText(
+            metadata == null ? "" : metadata.name,
+            item == null ? "" : item.courseName,
+            "未命名课程");
+    String topic = firstScheduleText(metadata == null ? "" : metadata.topic, "综合训练");
+    String description =
+        firstScheduleText(metadata == null ? "" : metadata.description, "按教练编排完成今日训练。");
+    String rotationType = metadata == null ? "REGION" : metadata.rotationType;
+    CourseScript.Pod pod = findFirstSchedulePod(course);
+    CourseScript.PodScreen screen = findFirstScheduleScreen(pod);
+    CourseScript.VideoGroup group = findScheduleVideoGroup(course, pod == null ? "" : pod.videoGroupId);
+    return new ScheduleCardInfo(
+        resolveScheduleNumber(item),
+        name,
+        topic,
+        description,
+        buildScheduleStationText(group, rotationType),
+        buildScheduleWorkText(screen, metadata),
+        buildScheduleRestText(screen, metadata),
+        buildRotationText(rotationType));
+  }
 
-    return card;
+  protected String resolveScheduleNumber(TvScheduleItem item) {
+    int index = syncedTodaySchedules == null ? -1 : syncedTodaySchedules.indexOf(item);
+    if (index < 0) {
+      return "01";
+    }
+    return String.format(Locale.US, "%02d", index + 1);
+  }
+
+  protected String firstScheduleText(String... values) {
+    if (values == null) {
+      return "";
+    }
+    for (String value : values) {
+      if (value != null && !value.trim().isEmpty()) {
+        return value.trim();
+      }
+    }
+    return "";
+  }
+
+  protected CourseScript.Pod findFirstSchedulePod(CourseScript course) {
+    if (course == null || course.pods == null) {
+      return null;
+    }
+    for (CourseScript.Pod pod : course.pods) {
+      if (pod != null && !TextUtils.isEmpty(pod.videoGroupId)) {
+        return pod;
+      }
+    }
+    return course.pods.isEmpty() ? null : course.pods.get(0);
+  }
+
+  protected CourseScript.PodScreen findFirstScheduleScreen(CourseScript.Pod pod) {
+    if (pod == null || pod.screens == null || pod.screens.isEmpty()) {
+      return null;
+    }
+    for (CourseScript.PodScreen screen : pod.screens) {
+      if (screen != null && screen.setConfigs != null && !screen.setConfigs.isEmpty()) {
+        return screen;
+      }
+    }
+    return pod.screens.get(0);
+  }
+
+  protected CourseScript.VideoGroup findScheduleVideoGroup(CourseScript course, String videoGroupId) {
+    if (course == null || course.videoGroups == null || TextUtils.isEmpty(videoGroupId)) {
+      return null;
+    }
+    for (CourseScript.VideoGroup group : course.videoGroups) {
+      if (group != null && TextUtils.equals(group.id, videoGroupId)) {
+        return group;
+      }
+    }
+    return null;
+  }
+
+  protected String buildScheduleStationText(CourseScript.VideoGroup group, String rotationType) {
+    if (group == null) {
+      return "-";
+    }
+    String normalized = rotationType == null ? "REGION" : rotationType.trim().toUpperCase(Locale.US);
+    int screenCount = group.screenCount > 0 ? group.screenCount : group.screens == null ? 0 : group.screens.size();
+    if ("REGION".equals(normalized) && screenCount > 1) {
+      return screenCount + " 区域";
+    }
+    Set<String> stationNumbers = new HashSet<>();
+    int cardCount = 0;
+    if (group.screens != null) {
+      for (CourseScript.VideoGroupScreen screen : group.screens) {
+        if (screen == null || screen.videoCards == null) {
+          continue;
+        }
+        for (CourseScript.VideoCard card : screen.videoCards) {
+          if (card == null) {
+            continue;
+          }
+          if (!TextUtils.isEmpty(card.actionId) || !TextUtils.isEmpty(card.actionName)) {
+            cardCount += 1;
+          }
+          if (!TextUtils.isEmpty(card.stationNumber)) {
+            stationNumbers.add(card.stationNumber.trim());
+          }
+        }
+        if (!stationNumbers.isEmpty() || cardCount > 0) {
+          break;
+        }
+      }
+    }
+    int stationCount = !stationNumbers.isEmpty() ? stationNumbers.size() : cardCount;
+    return stationCount > 0 ? stationCount + " 站" : "-";
+  }
+
+  protected String buildScheduleWorkText(CourseScript.PodScreen screen, CourseScript.Metadata metadata) {
+    List<Integer> seconds = new ArrayList<>();
+    if (screen != null && screen.setConfigs != null) {
+      for (CourseScript.PodSetConfig config : screen.setConfigs) {
+        if (config != null && config.workSeconds > 0 && !seconds.contains(config.workSeconds)) {
+          seconds.add(config.workSeconds);
+        }
+      }
+    }
+    if (seconds.isEmpty() && metadata != null && metadata.workSeconds > 0) {
+      seconds.add(metadata.workSeconds);
+    }
+    return formatScheduleSeconds(seconds);
+  }
+
+  protected String buildScheduleRestText(CourseScript.PodScreen screen, CourseScript.Metadata metadata) {
+    List<Integer> seconds = new ArrayList<>();
+    if (screen != null && screen.setConfigs != null) {
+      for (CourseScript.PodSetConfig config : screen.setConfigs) {
+        if (config != null && config.restSeconds > 0 && !seconds.contains(config.restSeconds)) {
+          seconds.add(config.restSeconds);
+        }
+      }
+    }
+    if (seconds.isEmpty() && screen != null && screen.stationRestSeconds > 0) {
+      seconds.add(screen.stationRestSeconds);
+    }
+    if (seconds.isEmpty() && metadata != null && metadata.restSeconds > 0) {
+      seconds.add(metadata.restSeconds);
+    }
+    return formatScheduleSeconds(seconds);
+  }
+
+  protected String formatScheduleSeconds(List<Integer> seconds) {
+    if (seconds == null || seconds.isEmpty()) {
+      return "-";
+    }
+    StringBuilder builder = new StringBuilder();
+    for (int index = 0; index < seconds.size(); index += 1) {
+      if (index > 0) {
+        builder.append("/");
+      }
+      builder.append(seconds.get(index));
+    }
+    builder.append("s");
+    return builder.toString();
+  }
+
+  protected String buildRotationText(String rotationType) {
+    String normalized = rotationType == null ? "REGION" : rotationType.trim().toUpperCase(Locale.US);
+    if ("LANE".equals(normalized)) {
+      return "跑道换站";
+    }
+    if ("SNAKE".equals(normalized)) {
+      return "蛇形换站";
+    }
+    return "区域轮转";
+  }
+
+  protected static class ScheduleCardInfo {
+    final String number;
+    final String name;
+    final String topic;
+    final String description;
+    final String stationText;
+    final String workText;
+    final String restText;
+    final String rotationText;
+
+    ScheduleCardInfo(
+        String number,
+        String name,
+        String topic,
+        String description,
+        String stationText,
+        String workText,
+        String restText,
+        String rotationText) {
+      this.number = number;
+      this.name = name;
+      this.topic = topic;
+      this.description = description;
+      this.stationText = stationText;
+      this.workText = workText;
+      this.restText = restText;
+      this.rotationText = rotationText;
+    }
   }
 }

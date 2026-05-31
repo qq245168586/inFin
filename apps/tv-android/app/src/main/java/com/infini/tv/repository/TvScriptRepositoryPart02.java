@@ -263,7 +263,9 @@ abstract class TvScriptRepositoryPart02 extends TvScriptRepositoryPart01 {
     JSONObject courseObject = scheduleObject.optJSONObject("course");
     JSONObject scriptObject = courseObject != null ? courseObject.optJSONObject("script") : null;
     CourseScript course =
-        scriptObject != null ? localizeCourseScript(parseCourseScript(scriptObject), localMediaMap) : null;
+        scriptObject != null
+            ? localizeCourseScript(withCourseListingMetadata(parseCourseScript(scriptObject), courseObject), localMediaMap)
+            : null;
 
     String beginTime = scheduleObject.optString("beginTime");
     OffsetDateTime startOffset = OffsetDateTime.parse(beginTime);
@@ -287,5 +289,81 @@ abstract class TvScriptRepositoryPart02 extends TvScriptRepositoryPart01 {
         isNowInside(startTime, durationMinutes),
         buildLogoText(courseName),
         extractCourseLogoSource(courseObject, localMediaMap));
+  }
+
+  protected CourseScript withCourseListingMetadata(CourseScript source, JSONObject courseObject) {
+    if (source == null || source.metadata == null) {
+      return source;
+    }
+
+    String description = firstNonBlank(courseObject != null ? courseObject.optString("description", "") : "", source.metadata.description);
+    String topic =
+        firstNonBlank(
+            courseObject != null ? courseObject.optString("topic", "") : "",
+            source.metadata.topic,
+            inferCourseTopic(courseObject));
+    String rotationType =
+        normalizeRotationType(
+            firstNonBlank(
+                courseObject != null ? courseObject.optString("rotationType", "") : "",
+                source.metadata.rotationType,
+                "REGION"));
+    CourseScript.Metadata metadata =
+        new CourseScript.Metadata(
+            source.metadata.id,
+            firstNonBlank(source.metadata.name, courseObject != null ? courseObject.optString("name", "") : ""),
+            source.metadata.version,
+            source.metadata.creator,
+            source.metadata.defaultHydrateSeconds,
+            source.metadata.readyWarmupSeconds,
+            source.metadata.readyWorkoutSeconds,
+            source.metadata.readyCooldownSeconds,
+            source.metadata.setCount,
+            source.metadata.breakCount,
+            source.metadata.workSeconds,
+            source.metadata.restSeconds,
+            description,
+            topic,
+            rotationType);
+    return new CourseScript(
+        metadata, source.warmup, source.cooldown, source.videoGroups, source.pods, source.plan);
+  }
+
+  protected String firstNonBlank(String... values) {
+    if (values == null) {
+      return "";
+    }
+    for (String value : values) {
+      if (value != null && !value.trim().isEmpty()) {
+        return value.trim();
+      }
+    }
+    return "";
+  }
+
+  protected String normalizeRotationType(String value) {
+    String normalized = value == null ? "" : value.trim().toUpperCase(Locale.US);
+    if ("LANE".equals(normalized) || "SNAKE".equals(normalized) || "REGION".equals(normalized)) {
+      return normalized;
+    }
+    return "REGION";
+  }
+
+  protected String inferCourseTopic(JSONObject courseObject) {
+    if (courseObject == null) {
+      return "";
+    }
+    JSONArray typesArray = courseObject.optJSONArray("types");
+    if (typesArray == null) {
+      typesArray = courseObject.optJSONArray("courseTypes");
+    }
+    if (typesArray == null || typesArray.length() == 0) {
+      return "";
+    }
+    JSONObject firstTypeObject = typesArray.optJSONObject(0);
+    if (firstTypeObject != null) {
+      return firstNonBlank(firstTypeObject.optString("name", ""), firstTypeObject.optString("title", ""));
+    }
+    return typesArray.optString(0, "");
   }
 }

@@ -342,19 +342,44 @@ abstract class MainActivityPart05 extends MainActivityPart04 {
       dispatchScreenHeartbeat(false);
       return;
     }
-    syncedTodaySchedules.addAll(scheduleItems);
+    List<TvScheduleItem> displayItems = limitScheduleCards(scheduleItems);
+    if (displayItems.isEmpty()) {
+      scheduleStateText.setVisibility(View.VISIBLE);
+      scheduleStateText.setText("今天还没有排课。");
+      launchAutoStartFirstSchedule = false;
+      dispatchScreenHeartbeat(false);
+      return;
+    }
+    syncedTodaySchedules.addAll(displayItems);
 
     if (launchAutoStartFirstSchedule) {
       launchAutoStartFirstSchedule = false;
-      startCourse(scheduleItems.get(0));
+      startCourse(displayItems.get(0));
       return;
     }
 
     scheduleStateText.setVisibility(View.GONE);
     dispatchScreenHeartbeat(false);
-    for (TvScheduleItem item : scheduleItems) {
+    for (TvScheduleItem item : displayItems) {
       scheduleList.addView(createVerticalScheduleCard(item));
     }
+  }
+
+  protected List<TvScheduleItem> limitScheduleCards(List<TvScheduleItem> scheduleItems) {
+    List<TvScheduleItem> displayItems = new ArrayList<>();
+    if (scheduleItems == null) {
+      return displayItems;
+    }
+    for (TvScheduleItem item : scheduleItems) {
+      if (item == null) {
+        continue;
+      }
+      displayItems.add(item);
+      if (displayItems.size() >= 3) {
+        break;
+      }
+    }
+    return displayItems;
   }
 
   protected void startCourse(TvScheduleItem item) {

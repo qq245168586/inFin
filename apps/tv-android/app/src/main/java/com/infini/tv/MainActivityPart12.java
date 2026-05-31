@@ -426,7 +426,7 @@ abstract class MainActivityPart12 extends MainActivityPart11 {
         LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) rawParams;
         params.width =
             isVerticalCourseScreen(activeScreenNumber)
-                ? Math.min(Math.round(screenWidth * 0.82f), dp(520))
+                ? Math.min(Math.round(screenWidth * 0.88f), dp(936))
                 : LinearLayout.LayoutParams.MATCH_PARENT;
         scheduleList.setLayoutParams(params);
       }
@@ -438,7 +438,7 @@ abstract class MainActivityPart12 extends MainActivityPart11 {
         LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) rawParams;
         params.width =
             isVerticalCourseScreen(activeScreenNumber)
-                ? Math.min(Math.round(screenWidth * 0.82f), dp(520))
+                ? Math.min(Math.round(screenWidth * 0.88f), dp(936))
                 : LinearLayout.LayoutParams.MATCH_PARENT;
         scheduleStateText.setLayoutParams(params);
       }
@@ -450,7 +450,7 @@ abstract class MainActivityPart12 extends MainActivityPart11 {
         LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) rawParams;
         params.width =
             isPortraitViewport()
-                ? Math.min(Math.round(screenWidth * 0.82f), dp(520))
+                ? Math.min(Math.round(screenWidth * 0.88f), dp(936))
                 : LinearLayout.LayoutParams.MATCH_PARENT;
         horizontalScheduleList.setLayoutParams(params);
       }
