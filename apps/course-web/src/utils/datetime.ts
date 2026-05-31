@@ -1,9 +1,44 @@
 export function todayValue(): string {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
+  return formatDateKey(now);
+}
+
+export function formatDateKey(value?: string | Date | null): string {
+  if (!value) {
+    return "";
+  }
+
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+export function addDaysValue(dateValue: string, days: number): string {
+  const base = dateValue ? new Date(`${dateValue}T12:00:00+08:00`) : new Date();
+  if (Number.isNaN(base.getTime())) {
+    return todayValue();
+  }
+
+  base.setDate(base.getDate() + days);
+  return formatDateKey(base);
+}
+
+export function weekStartValue(dateValue: string): string {
+  const base = dateValue ? new Date(`${dateValue}T12:00:00+08:00`) : new Date();
+  if (Number.isNaN(base.getTime())) {
+    return todayValue();
+  }
+
+  const day = base.getDay();
+  const delta = day === 0 ? -6 : 1 - day;
+  base.setDate(base.getDate() + delta);
+  return formatDateKey(base);
 }
 
 export function composeCnDateTime(date: string, time: string): string {

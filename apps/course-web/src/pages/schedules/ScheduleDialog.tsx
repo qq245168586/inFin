@@ -1,5 +1,6 @@
 import Dialog from "../../components/Dialog.tsx";
 import type { CourseGroups } from "../../models/course/groupCoursesByName.ts";
+import { todayValue } from "../../utils/datetime.ts";
 
 export interface ScheduleDraftValue {
   courseName: string;
@@ -103,6 +104,7 @@ export default function ScheduleDialog({
           <span>课程日期</span>
           <input
             type="date"
+            min={todayValue()}
             value={draft.date}
             onChange={(event) => onDraftChange((current) => ({ ...current, date: event.target.value }))}
           />

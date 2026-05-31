@@ -6,7 +6,7 @@ import type { HomeTabKey } from "../../app/navigation.ts";
 import type { ScheduleCollection } from "../../services/api/meta.ts";
 import type { CoursePackageRecord } from "../../pages/venues/types.ts";
 import { copyLastWeekSchedules, createSchedule, deleteSchedule } from "../../services/api/schedules.ts";
-import { composeCnDateTime, todayValue } from "../../utils/datetime.ts";
+import { addDaysValue, composeCnDateTime, formatDateKey, todayValue, weekStartValue } from "../../utils/datetime.ts";
 import { getErrorMessage } from "../../utils/errors.ts";
 
 export interface ScheduleDraftValue {
@@ -43,19 +43,18 @@ function createScheduleDraft(courses: CourseRecord[], coursePackages: CoursePack
   };
 }
 
-function getWeekDays(offsetWeeks: number): CalendarDay[] {
-  const base = new Date();
-  base.setHours(0, 0, 0, 0);
-  const day = base.getDay();
-  const delta = day === 0 ? -6 : 1 - day;
-  base.setDate(base.getDate() + delta + offsetWeeks * 7);
+function getScheduleDateKey(schedule: CalendarSchedule): string {
+  return schedule.date || formatDateKey(schedule.beginTime) || "";
+}
+
+function getWeekDays(anchorDate: string): CalendarDay[] {
+  const weekStart = weekStartValue(anchorDate);
+  const base = new Date(`${weekStart}T12:00:00+08:00`);
 
   return Array.from({ length: 7 }, (_, index) => {
     const current = new Date(base);
     current.setDate(base.getDate() + index);
-    const dateKey = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, "0")}-${String(
-      current.getDate()
-    ).padStart(2, "0")}`;
+    const dateKey = formatDateKey(current);
 
     return {
       key: dateKey,
@@ -81,32 +80,76 @@ export default function useHomeScheduleVm({
   onReloadMeta: () => Promise<void>;
 }) {
   const [homeTab, setHomeTab] = useState<HomeTabKey>("currentWeek");
-  const [selectedScheduleDate, setSelectedScheduleDate] = useState("all");
+  const [selectedScheduleDate, setSelectedScheduleDate] = useState(todayValue());
+  const [scheduleAnchorDate, setScheduleAnchorDateRaw] = useState(todayValue());
   const [scheduleDraft, setScheduleDraft] = useState<ScheduleDraftValue | null>(null);
 
-  const weekDays = useMemo(() => getWeekDays(homeTab === "lastWeek" ? -1 : 0), [homeTab]);
+  const lastWeekAnchorDate = useMemo(() => addDaysValue(todayValue(), -7), []);
+  const weekDays = useMemo(
+    () => getWeekDays(homeTab === "lastWeek" ? lastWeekAnchorDate : scheduleAnchorDate),
+    [homeTab, lastWeekAnchorDate, scheduleAnchorDate]
+  );
   const weekDayKeysSignature = useMemo(() => weekDays.map((day) => day.key).join("|"), [weekDays]);
 
   useEffect(() => {
-    if (selectedScheduleDate !== "all" && !weekDays.some((day) => day.key === selectedScheduleDate)) {
+    if (homeTab === "currentWeek" && !weekDays.some((day) => day.key === selectedScheduleDate)) {
+      setSelectedScheduleDate(scheduleAnchorDate);
+    } else if (homeTab === "lastWeek") {
       setSelectedScheduleDate("all");
     }
-  }, [selectedScheduleDate, weekDayKeysSignature, weekDays]);
+  }, [homeTab, scheduleAnchorDate, selectedScheduleDate, weekDayKeysSignature, weekDays]);
 
-  const visibleSchedules = useMemo<CalendarSchedule[]>(() => {
-    const current =
-      homeTab === "currentWeek" ? schedules.currentWeek : homeTab === "lastWeek" ? schedules.lastWeek : schedules.history;
-    return current.map((schedule) => {
+  const enrichSchedule = useCallback(
+    (schedule: CalendarSchedule): CalendarSchedule => {
       const course = courses.find((item) => Number(item.id) === Number(schedule.courseId));
       return {
         ...schedule,
-        date: schedule.date || schedule.beginTime?.slice(0, 10),
+        date: schedule.date || formatDateKey(schedule.beginTime),
         description: schedule.description ?? course?.description ?? course?.script?.metadata?.description,
         topic: schedule.topic ?? course?.topic ?? course?.script?.metadata?.topic,
         rotationType: schedule.rotationType ?? course?.rotationType ?? course?.script?.metadata?.rotationType
       };
+    },
+    [courses]
+  );
+
+  const allSchedules = useMemo<CalendarSchedule[]>(() => {
+    const seen = new Set<number>();
+    return [...schedules.currentWeek, ...schedules.lastWeek, ...schedules.history]
+      .filter((item) => {
+        const key = Number(item.id);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .map(enrichSchedule);
+  }, [enrichSchedule, schedules.currentWeek, schedules.history, schedules.lastWeek]);
+
+  const visibleSchedules = useMemo<CalendarSchedule[]>(() => {
+    if (homeTab === "lastWeek") {
+      return schedules.lastWeek.map(enrichSchedule);
+    }
+    if (homeTab === "history") {
+      return allSchedules;
+    }
+    const weekKeys = new Set(weekDays.map((day) => day.key));
+    return allSchedules.filter((item) => weekKeys.has(getScheduleDateKey(item)));
+  }, [allSchedules, enrichSchedule, homeTab, schedules.lastWeek, weekDays]);
+
+  const setScheduleAnchorDate = useCallback((value: string) => {
+    const nextValue = value && value >= todayValue() ? value : todayValue();
+    setScheduleAnchorDateRaw(nextValue);
+    setSelectedScheduleDate(nextValue);
+  }, []);
+
+  const moveScheduleWeek = useCallback((deltaWeeks: number) => {
+    setScheduleAnchorDateRaw((current) => {
+      const nextValue = addDaysValue(current || todayValue(), deltaWeeks * 7);
+      const safeValue = nextValue >= todayValue() ? nextValue : todayValue();
+      setSelectedScheduleDate(safeValue);
+      return safeValue;
     });
-  }, [courses, homeTab, schedules.currentWeek, schedules.history, schedules.lastWeek]);
+  }, []);
 
   const activeDraftPackage = useMemo(() => {
     const packageId = scheduleDraft?.coursePackageId || "";
@@ -125,7 +168,7 @@ export default function useHomeScheduleVm({
       return;
     }
 
-    setScheduleDraft(createScheduleDraft(courses, coursePackages, selectedScheduleDate !== "all" ? selectedScheduleDate : ""));
+    setScheduleDraft(createScheduleDraft(courses, coursePackages, selectedScheduleDate >= todayValue() ? selectedScheduleDate : todayValue()));
   }, [coursePackages, courses, onNotice, selectedScheduleDate]);
 
   const closeScheduleDialog = useCallback(() => setScheduleDraft(null), []);
@@ -148,6 +191,10 @@ export default function useHomeScheduleVm({
     }
     if (!scheduleDraft.date) {
       onNotice("请选择课程日期。", "error");
+      return;
+    }
+    if (scheduleDraft.date < todayValue()) {
+      onNotice("过去日期不能排课。", "error");
       return;
     }
 
@@ -219,6 +266,9 @@ export default function useHomeScheduleVm({
     setHomeTab,
     selectedScheduleDate,
     setSelectedScheduleDate,
+    scheduleAnchorDate,
+    setScheduleAnchorDate,
+    moveScheduleWeek,
     weekDays,
     visibleSchedules,
     courseGroups,

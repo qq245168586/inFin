@@ -1,4 +1,5 @@
 import type { CourseRotationType } from "../models/course/types.ts";
+import { todayValue } from "../utils/datetime.ts";
 
 export interface CalendarDay {
   key: string;
@@ -8,6 +9,7 @@ export interface CalendarDay {
 
 export interface CalendarSchedule {
   id: number;
+  courseId?: number;
   courseName: string;
   version: string;
   date?: string;
@@ -59,7 +61,7 @@ export default function CalendarBoard({
         const daySchedules = schedules.filter((item) => getScheduleDateKey(item) === day.key);
 
         return (
-          <section key={day.key} className="schedule-day-section">
+          <section key={day.key} className={`schedule-day-section ${day.key < todayValue() ? "is-past" : ""}`}>
             <div className="schedule-day-head">
               <div>
                 <strong>{day.title}</strong>
@@ -74,15 +76,16 @@ export default function CalendarBoard({
                   const description = getScheduleDescription(item);
                   const topic = getScheduleTopic(item);
                   const rotationLabel = getScheduleRotationLabel(item);
+                  const isPast = getScheduleDateKey(item) < todayValue();
 
                   return (
-                    <article key={item.id} className={`schedule-list-card tone-${itemIndex % 6}`}>
+                    <article key={item.id} className={`schedule-list-card tone-${itemIndex % 6} ${isPast ? "is-past" : ""}`}>
                       <div className="schedule-list-card-main">
                         <div>
                           <strong>{item.courseName}</strong>
                           <span>版本 {item.version || "--"}</span>
                         </div>
-                        <button type="button" className="table-link danger" onClick={() => onDelete(item.id)}>
+                        <button type="button" className="table-link danger" onClick={() => onDelete(item.id)} disabled={isPast}>
                           删除
                         </button>
                       </div>

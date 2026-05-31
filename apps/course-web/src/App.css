@@ -1422,8 +1422,47 @@ textarea:focus {
   padding: 24px 28px 28px;
 }
 
-.calendar-date-strip {
+.calendar-date-toolbar {
   margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.calendar-jump-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.calendar-date-picker-pill {
+  min-width: 196px;
+  min-height: 42px;
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-main);
+  font-size: 15px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.calendar-date-picker-pill input {
+  border: 0;
+  outline: none;
+  color: var(--text-subtle);
+  font: inherit;
+  font-weight: 700;
+  background: transparent;
+}
+
+.calendar-date-strip {
   display: flex;
   gap: 12px;
   overflow-x: auto;
@@ -1466,6 +1505,30 @@ textarea:focus {
   border-color: var(--brand);
   background: var(--brand-soft);
   box-shadow: 0 12px 24px rgba(148, 28, 255, 0.12);
+}
+
+.calendar-date-pill.has-schedules {
+  color: #ffffff;
+  border-color: #111827;
+  background: #111827;
+  box-shadow: 0 14px 28px rgba(17, 24, 39, 0.18);
+}
+
+.calendar-date-pill.has-schedules.is-active {
+  color: #ffffff;
+  border-color: var(--brand);
+  background: #111827;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16), 0 14px 28px rgba(17, 24, 39, 0.18);
+}
+
+.calendar-date-pill.is-disabled,
+.calendar-date-pill:disabled {
+  color: var(--text-faint);
+  border-color: var(--line);
+  background: #f1f3f6;
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .calendar-board-wrap {
@@ -1671,6 +1734,10 @@ textarea:focus {
   overflow: hidden;
 }
 
+.schedule-day-section.is-past {
+  opacity: 0.72;
+}
+
 .schedule-day-head {
   min-height: 68px;
   padding: 14px 16px;
@@ -1742,6 +1809,21 @@ textarea:focus {
 .schedule-list-card.tone-5 {
   background: #e1f3ff;
   border-left-color: #32a3ff;
+}
+
+.schedule-list-card.is-past {
+  color: var(--text-faint);
+  background: #f1f3f6;
+  border-left-color: #cbd2dc;
+  cursor: not-allowed;
+  filter: grayscale(1);
+}
+
+.schedule-list-card.is-past .schedule-list-card-main strong,
+.schedule-list-card.is-past .schedule-list-card-main span,
+.schedule-list-card.is-past p,
+.schedule-list-card.is-past .schedule-meta-row span {
+  color: var(--text-faint);
 }
 
 .schedule-list-card-main {
@@ -1834,6 +1916,15 @@ textarea:focus {
   background: rgba(148, 28, 255, 0.02);
 }
 
+.data-table tbody tr.is-past td {
+  color: var(--text-faint);
+  background: #f4f6f9;
+}
+
+.data-table tbody tr.is-past:hover td {
+  background: #f4f6f9;
+}
+
 .table-link {
   margin-right: 16px;
   padding: 0;
@@ -1844,6 +1935,11 @@ textarea:focus {
 
 .table-link.danger {
   color: var(--danger);
+}
+
+.table-link:disabled {
+  color: var(--text-faint);
+  cursor: not-allowed;
 }
 
 .table-tags {
