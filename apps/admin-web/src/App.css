@@ -1383,24 +1383,29 @@ textarea:focus {
   flex-wrap: wrap;
 }
 
-.calendar-jump-field {
+.calendar-date-picker-pill {
+  min-width: 196px;
   min-height: 42px;
-  padding: 6px 12px;
+  padding: 10px 16px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 16px;
   background: #ffffff;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  color: var(--text-subtle);
-  font-size: 13px;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 800;
+  flex-shrink: 0;
 }
 
-.calendar-jump-field input {
+.calendar-date-picker-pill input {
   border: 0;
   outline: none;
-  color: var(--text);
+  color: var(--text-subtle);
   font: inherit;
+  font-weight: 700;
   background: transparent;
 }
 
@@ -1447,6 +1452,20 @@ textarea:focus {
   border-color: var(--brand);
   background: var(--brand-soft);
   box-shadow: 0 12px 24px rgba(148, 28, 255, 0.12);
+}
+
+.calendar-date-pill.has-schedules {
+  color: #ffffff;
+  border-color: #111827;
+  background: #111827;
+  box-shadow: 0 14px 28px rgba(17, 24, 39, 0.18);
+}
+
+.calendar-date-pill.has-schedules.is-active {
+  color: #ffffff;
+  border-color: var(--brand);
+  background: #111827;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16), 0 14px 28px rgba(17, 24, 39, 0.18);
 }
 
 .calendar-board-wrap {

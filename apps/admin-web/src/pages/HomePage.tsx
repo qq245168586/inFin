@@ -2,7 +2,7 @@ import CalendarBoard, { type CalendarDay, type CalendarSchedule } from "../compo
 import EmptyBlock from "../components/EmptyBlock.tsx";
 import type { HomeTabKey } from "../app/navigation.ts";
 import { HOME_TABS } from "../app/navigation.ts";
-import { formatDateTime } from "../utils/datetime.ts";
+import { formatDateKey, formatDateTime } from "../utils/datetime.ts";
 
 export default function HomePage({
   weekDays,
@@ -33,6 +33,7 @@ export default function HomePage({
 }) {
   const calendarDays =
     selectedScheduleDate === "all" ? weekDays : weekDays.filter((day) => day.key === selectedScheduleDate);
+  const scheduledDateKeys = new Set(schedules.map((item) => formatDateKey(item.beginTime)).filter(Boolean));
 
   return (
     <section className="page-card">
@@ -111,14 +112,6 @@ export default function HomePage({
                 <button type="button" className="ghost-button" onClick={() => onMoveScheduleWeek(-1)}>
                   上一周
                 </button>
-                <label className="calendar-jump-field">
-                  <span>跳转日期</span>
-                  <input
-                    type="date"
-                    value={scheduleAnchorDate}
-                    onChange={(event) => onScheduleAnchorDateChange(event.target.value)}
-                  />
-                </label>
                 <button type="button" className="ghost-button" onClick={() => onMoveScheduleWeek(1)}>
                   下一周
                 </button>
@@ -126,18 +119,31 @@ export default function HomePage({
             ) : null}
 
             <div className="calendar-date-strip">
-              <button
-                type="button"
-                className={`calendar-date-pill ${selectedScheduleDate === "all" ? "is-active" : ""}`}
-                onClick={() => onSelectedScheduleDateChange("all")}
-              >
-                全部日期
-              </button>
+              {homeTab === "currentWeek" ? (
+                <label className="calendar-date-picker-pill">
+                  <span>日期选择</span>
+                  <input
+                    type="date"
+                    value={scheduleAnchorDate}
+                    onChange={(event) => onScheduleAnchorDateChange(event.target.value)}
+                  />
+                </label>
+              ) : (
+                <button
+                  type="button"
+                  className={`calendar-date-pill ${selectedScheduleDate === "all" ? "is-active" : ""}`}
+                  onClick={() => onSelectedScheduleDateChange("all")}
+                >
+                  全部日期
+                </button>
+              )}
               {weekDays.map((day) => (
                 <button
                   key={day.key}
                   type="button"
-                  className={`calendar-date-pill ${selectedScheduleDate === day.key ? "is-active" : ""}`}
+                  className={`calendar-date-pill ${scheduledDateKeys.has(day.key) ? "has-schedules" : ""} ${
+                    selectedScheduleDate === day.key ? "is-active" : ""
+                  }`}
                   onClick={() => onSelectedScheduleDateChange(day.key)}
                 >
                   <strong>{day.title}</strong>
