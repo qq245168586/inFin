@@ -31,9 +31,16 @@ function estimateCoursePlaybackDurationMs(script) {
 
 function normalizeCoursePayload(payload = {}, existing = null) {
   const timestamp = nowIso();
-  const script = coerceCourseScript({
+  const source = {
     ...(existing || {}),
     ...payload
+  };
+  const stationRules = normalizeCourseStationRules(existing || {}, payload || {});
+  const metadata = normalizeCourseTopLevelMetadata(source, stationRules);
+  const script = coerceCourseScript({
+    ...source,
+    metadata,
+    stationRules
   });
   const issues = validateCourseScript(script);
 
@@ -51,6 +58,8 @@ function normalizeCoursePayload(payload = {}, existing = null) {
     rotationType: script.metadata.rotationType,
     typeIds: numberList(payload.typeIds ?? existing?.typeIds),
     logoMedia: payload.logoMedia ?? existing?.logoMedia ?? null,
+    metadata,
+    stationRules,
     script,
     summary: courseSummaryFromScript(script),
     updateTime: timestamp
@@ -59,6 +68,12 @@ function normalizeCoursePayload(payload = {}, existing = null) {
 
 function serializeCourse(course) {
   const script = coerceCourseScript(course);
+  const stationRules = normalizeCourseStationRules(course, script);
+  const metadata = normalizeCourseTopLevelMetadata(course, stationRules);
+  script.metadata = {
+    ...script.metadata,
+    stationRules
+  };
   return {
     ...course,
     name: trimText(course.name) || script.metadata.name,
@@ -69,6 +84,8 @@ function serializeCourse(course) {
     rotationType: script.metadata.rotationType,
     typeIds: numberList(course.typeIds),
     logoMedia: course.logoMedia ?? null,
+    metadata,
+    stationRules,
     script,
     summary: course.summary || courseSummaryFromScript(script)
   };
@@ -84,6 +101,7 @@ function serializeCourseSummary(course) {
     description: serialized.description,
     topic: serialized.topic,
     rotationType: serialized.rotationType,
+    stationRules: serialized.stationRules,
     typeIds: serialized.typeIds,
     logoMedia: serialized.logoMedia,
     summary: serialized.summary,
@@ -104,7 +122,8 @@ function attachCourseBasics(schedule) {
     version: rest.version || serialized?.version || "",
     description: serialized?.description || "",
     topic: serialized?.topic || "",
-    rotationType: serialized?.rotationType || "REGION"
+    rotationType: serialized?.rotationType || "REGION",
+    stationRules: serialized?.stationRules || normalizeCourseStationRules()
   };
 }
 
@@ -310,7 +329,9 @@ function buildTvScheduleEntry(schedule) {
     description: schedule.description,
     topic: schedule.topic,
     rotationType: schedule.rotationType,
+    stationRules: schedule.stationRules || normalizeCourseStationRules(),
     beginTime: schedule.beginTime,
     duration: schedule.duration,
     course: {
       ...course,
+      stationRules: course.stationRules || normalizeCourseStationRules(),

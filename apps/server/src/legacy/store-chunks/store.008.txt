@@ -11,6 +11,7 @@
       description: entry.description,
       topic: entry.topic,
       rotationType: entry.rotationType,
+      stationRules: entry.stationRules,
       beginTime: entry.beginTime,
       duration: entry.duration
     },

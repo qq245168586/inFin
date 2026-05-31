@@ -27,6 +27,7 @@ export function getTvDailyChecksum(dateText, timeZone = "Asia/Shanghai", account
       description: item.description,
       topic: item.topic,
       rotationType: item.rotationType,
+      stationRules: item.stationRules || normalizeCourseStationRules(),
       beginTime: item.beginTime,
       duration: item.duration,
       contentChecksum: item.contentChecksum

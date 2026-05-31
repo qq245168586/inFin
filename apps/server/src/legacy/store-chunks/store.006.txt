@@ -394,6 +394,76 @@ function normalizeCourseRotationType(value) {
   return ["REGION", "LANE", "SNAKE"].includes(text) ? text : "REGION";
 }
 
+const COURSE_STATION_RULE_FIELDS = ["set", "work", "rest", "switch", "port", "leader"];
+const COURSE_STATION_RULE_ALIASES = {
+  set: ["set", "Set"],
+  work: ["work", "Work"],
+  rest: ["rest", "Rest"],
+  switch: ["switch", "Switch"],
+  port: ["port", "Port"],
+  leader: ["leader", "Leader"]
+};
+
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function pickCourseStationRuleValue(source = {}, field) {
+  const aliases = COURSE_STATION_RULE_ALIASES[field] || [field];
+  const containers = [
+    source,
+    source?.stationRules,
+    source?.siteRules,
+    source?.metadata,
+    source?.metadata?.stationRules,
+    source?.metadata?.siteRules,
+    source?.script?.metadata,
+    source?.script?.metadata?.stationRules,
+    source?.script?.metadata?.siteRules
+  ];
+
+  for (const container of containers) {
+    if (!isPlainObject(container)) {
+      continue;
+    }
+    for (const alias of aliases) {
+      if (Object.prototype.hasOwnProperty.call(container, alias)) {
+        return trimText(container[alias]);
+      }
+    }
+  }
+
+  return null;
+}
+
+function collectCourseStationRules(source = {}) {
+  return COURSE_STATION_RULE_FIELDS.reduce((rules, field) => {
+    const value = pickCourseStationRuleValue(source, field);
+    if (value !== null) {
+      rules[field] = value;
+    }
+    return rules;
+  }, {});
+}
+
+function normalizeCourseStationRules(...sources) {
+  const rules = COURSE_STATION_RULE_FIELDS.reduce((current, field) => {
+    current[field] = "";
+    return current;
+  }, {});
+  for (const source of sources) {
+    Object.assign(rules, collectCourseStationRules(source));
+  }
+  return rules;
+}
+
+function normalizeCourseTopLevelMetadata(source = {}, stationRules = normalizeCourseStationRules(source)) {
+  return {
+    ...(isPlainObject(source?.metadata) ? clone(source.metadata) : {}),
+    stationRules
+  };
+}
+
 function deriveCourseTopicFromTypeIds(typeIds = []) {
   const firstTypeId = numberList(typeIds)[0];
   if (!firstTypeId || !Array.isArray(state.lessonTypes)) {
@@ -438,6 +508,7 @@ function coerceCourseScript(source = {}) {
     ? cloneCourseScript(source.script)
     : legacyCourseToScript(source, { actionLookup: state.actions });
   const metadataFields = deriveCourseMetadataFields(source, script);
+  const stationRules = normalizeCourseStationRules(source);
 
   script.metadata = {
     ...script.metadata,
@@ -449,7 +520,8 @@ function coerceCourseScript(source = {}) {
     rotationType: metadataFields.rotationType,
     defaultHydrateSeconds: defaultHydrateSecondsFromCourse(source),
     readyDurations: normalizeReadyDurations(source?.script?.metadata?.readyDurations || script.metadata?.readyDurations),
-    trainingPanel: deriveTrainingPanel(source, script)
+    trainingPanel: deriveTrainingPanel(source, script),
+    stationRules
   };
   script.plan = normalizeCoursePlan(source?.script?.plan || source?.plan || script.plan);
 
