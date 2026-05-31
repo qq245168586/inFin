@@ -5,6 +5,7 @@ export type CourseSectionKey = "warmup" | "cooldown";
 export type CourseLayout = "WATERFALL" | "STATIONS";
 export type PodEnding = "HYDRATE" | "MOVE_ZONE" | "FINISH";
 export type PodStationFlow = "NORMAL" | "SWITCH";
+export type CourseRotationType = "REGION" | "LANE" | "SNAKE";
 export type VideoGroupScreenCount = 1 | 3;
 export type VideoRowLayout = 1 | 2;
 
@@ -104,6 +105,9 @@ export interface CourseScript {
     name: string;
     version: string;
     creator: string;
+    description: string;
+    topic: string;
+    rotationType: CourseRotationType;
     tags: string[];
     defaultHydrateSeconds: number;
     trainingPanel: TrainingPanel;
@@ -138,6 +142,9 @@ export interface CourseRecord {
   name: string;
   creator: string;
   version: string;
+  description: string;
+  topic: string;
+  rotationType: CourseRotationType;
   typeIds: number[];
   logoMedia: MediaRecord | null;
   summary: CourseSummary;

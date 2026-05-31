@@ -20,13 +20,21 @@ export function createTrainingSnapshot(script: Pick<CourseScript, "training">): 
 }
 
 export function createCourseDraft(course: CourseRecord | null = null): CourseDraft {
+  const script = course?.script || createEmptyCourseScript();
+  const metadata = {
+    ...script.metadata,
+    description: script.metadata?.description ?? course?.description ?? "",
+    topic: script.metadata?.topic || course?.topic || "",
+    rotationType: script.metadata?.rotationType || course?.rotationType || "REGION"
+  };
+
   return {
     id: course?.id ?? null,
     typeIds: [...(course?.typeIds ?? [])],
     logoMedia: course?.logoMedia ?? null,
     logoFile: null,
     logoPreview: course?.logoMedia?.url ?? "",
-    script: normalizeCourseScriptLocal(course?.script || createEmptyCourseScript())
+    script: normalizeCourseScriptLocal({ ...script, metadata })
   };
 }
 

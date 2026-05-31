@@ -7,13 +7,12 @@ export interface ScheduleDraftValue {
   coursePackageId: string;
   version: string;
   date: string;
-  time: string;
-  duration: string;
 }
 
 export default function ScheduleDialog({
   draft,
   coursePackage,
+  coursePackages,
   courseGroups,
   onDraftChange,
   onClose,
@@ -21,6 +20,7 @@ export default function ScheduleDialog({
 }: {
   draft: ScheduleDraftValue;
   coursePackage: { id: number; name: string; courseIds?: number[] } | null;
+  coursePackages: Array<{ id: number; name: string; courseIds?: number[] }>;
   courseGroups: CourseGroups;
   onDraftChange: (updater: (current: ScheduleDraftValue) => ScheduleDraftValue) => void;
   onClose: () => void;
@@ -29,10 +29,28 @@ export default function ScheduleDialog({
   return (
     <Dialog title="添加排课" onClose={onClose} onConfirm={onConfirm}>
       <div className="dialog-form">
-        <div className="field">
-          <span>当前课程包</span>
-          <div className="readonly-field">{coursePackage?.name || "未选择课程包"}</div>
-        </div>
+        <label className="field">
+          <span>请选择课程包</span>
+          <select
+            value={draft.coursePackageId}
+            onChange={(event) =>
+              onDraftChange((current) => ({
+                ...current,
+                coursePackageId: event.target.value,
+                courseName: "",
+                courseId: "",
+                version: ""
+              }))
+            }
+          >
+            <option value="">{coursePackage ? "请选择课程包" : "未选择课程包"}</option>
+            {coursePackages.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+        </label>
 
         <label className="field">
           <span>请选择课程</span>
@@ -81,33 +99,12 @@ export default function ScheduleDialog({
           </select>
         </label>
 
-        <div className="schedule-inline-row">
-          <label className="field">
-            <span>课程日期</span>
-            <input
-              type="date"
-              value={draft.date}
-              onChange={(event) => onDraftChange((current) => ({ ...current, date: event.target.value }))}
-            />
-          </label>
-
-          <label className="field">
-            <span>开始时间</span>
-            <input
-              type="time"
-              value={draft.time}
-              onChange={(event) => onDraftChange((current) => ({ ...current, time: event.target.value }))}
-            />
-          </label>
-        </div>
-
         <label className="field">
-          <span>时长（分钟）</span>
+          <span>课程日期</span>
           <input
-            type="number"
-            min="1"
-            value={draft.duration}
-            onChange={(event) => onDraftChange((current) => ({ ...current, duration: event.target.value }))}
+            type="date"
+            value={draft.date}
+            onChange={(event) => onDraftChange((current) => ({ ...current, date: event.target.value }))}
           />
         </label>
       </div>

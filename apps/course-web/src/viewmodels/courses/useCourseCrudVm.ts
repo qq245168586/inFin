@@ -71,12 +71,18 @@ export default function useCourseCrudVm({
       script.metadata.name = courseEditor.script.metadata.name.trim();
       script.metadata.creator = courseEditor.script.metadata.creator.trim();
       script.metadata.version = courseEditor.script.metadata.version.trim();
+      script.metadata.description = courseEditor.script.metadata.description.trim();
+      script.metadata.topic = courseEditor.script.metadata.topic.trim();
+      script.metadata.rotationType = courseEditor.script.metadata.rotationType || "REGION";
       script.metadata.defaultHydrateSeconds = readNonNegativeNumber(courseEditor.script.metadata.defaultHydrateSeconds, 0);
 
       const payload = {
         name: script.metadata.name,
         creator: script.metadata.creator,
         version: script.metadata.version,
+        description: script.metadata.description,
+        topic: script.metadata.topic,
+        rotationType: script.metadata.rotationType,
         typeIds: courseEditor.typeIds,
         logoMedia,
         script,

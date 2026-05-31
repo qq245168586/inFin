@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import FilterChips from "../../components/FilterChips.tsx";
-import type { CourseScript } from "../../models/course/types.ts";
+import type { CourseRotationType, CourseScript } from "../../models/course/types.ts";
 import type { ActionRecord, TypeOption } from "../../services/api/meta.ts";
 import { toggleNumberId } from "../../utils/array.ts";
 import { triggerFileInput } from "../../utils/dom.ts";
@@ -13,6 +13,12 @@ import CoursePlanEditor from "./CoursePlanEditor.tsx";
 import CourseWaterfallSections from "./CourseWaterfallSections.tsx";
 import CourseVideoGroupsEditor from "./CourseVideoGroupsEditor.tsx";
 import CoursePodsEditor from "./CoursePodsEditor.tsx";
+
+const ROTATION_TYPE_OPTIONS: Array<{ value: CourseRotationType; label: string }> = [
+  { value: "REGION", label: "区域循环" },
+  { value: "LANE", label: "跑道换站" },
+  { value: "SNAKE", label: "蛇形换站" }
+];
 
 export default function CourseEditorPane({
   tabId,
@@ -90,6 +96,47 @@ export default function CourseEditorPane({
             <input
               value={courseEditor.script.metadata.version}
               onChange={(e) => onUpdateCourseScript((c) => ({ ...c, metadata: { ...c.metadata, version: e.target.value } }))}
+            />
+          </label>
+        </div>
+
+        <div className="form-row two">
+          <label className="field">
+            <span>课程主题</span>
+            <input
+              value={courseEditor.script.metadata.topic}
+              placeholder="可选，例如力量耐力 / 核心稳定"
+              onChange={(e) => onUpdateCourseScript((c) => ({ ...c, metadata: { ...c.metadata, topic: e.target.value } }))}
+            />
+          </label>
+          <label className="field">
+            <span>换站模式</span>
+            <select
+              value={courseEditor.script.metadata.rotationType}
+              onChange={(e) =>
+                onUpdateCourseScript((c) => ({
+                  ...c,
+                  metadata: { ...c.metadata, rotationType: e.target.value as CourseRotationType }
+                }))
+              }
+            >
+              {ROTATION_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="form-row">
+          <label className="field">
+            <span>课程简介</span>
+            <textarea
+              rows={3}
+              value={courseEditor.script.metadata.description}
+              placeholder="简要说明这节课的目标、强度或训练重点"
+              onChange={(e) => onUpdateCourseScript((c) => ({ ...c, metadata: { ...c.metadata, description: e.target.value } }))}
             />
           </label>
         </div>

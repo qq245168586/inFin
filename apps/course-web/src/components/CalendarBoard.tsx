@@ -1,5 +1,4 @@
-import type { CSSProperties } from "react";
-import { formatTime } from "../utils/datetime.ts";
+import type { CourseRotationType } from "../models/course/types.ts";
 
 export interface CalendarDay {
   key: string;
@@ -11,34 +10,38 @@ export interface CalendarSchedule {
   id: number;
   courseName: string;
   version: string;
-  beginTime: string;
-  duration: number;
+  date?: string;
+  beginTime?: string;
+  duration?: number;
+  description?: string;
+  topic?: string;
+  rotationType?: CourseRotationType;
 }
 
-const CALENDAR_START_HOUR = 0;
-const CALENDAR_END_HOUR = 24;
-const CALENDAR_HOUR_HEIGHT = 70;
+const ROTATION_TYPE_LABELS: Record<CourseRotationType, string> = {
+  REGION: "区域循环",
+  LANE: "跑道换站",
+  SNAKE: "蛇形换站"
+};
 
-function getTimeSlots(): Array<{ hour: number; label: string }> {
-  return Array.from({ length: CALENDAR_END_HOUR - CALENDAR_START_HOUR }, (_, index) => {
-    const hour = CALENDAR_START_HOUR + index;
-    return {
-      hour,
-      label: `${String(hour).padStart(2, "0")}:00`
-    };
-  });
+function getScheduleDateKey(schedule: CalendarSchedule): string {
+  return schedule.date || schedule.beginTime?.slice(0, 10) || "";
 }
 
-function getSchedulePlacement(schedule: CalendarSchedule): { top: number; height: number } {
-  const date = new Date(schedule.beginTime);
-  const minutes = date.getHours() * 60 + date.getMinutes();
-  const top = ((minutes - CALENDAR_START_HOUR * 60) / 60) * CALENDAR_HOUR_HEIGHT;
-  const height = Math.max((Number(schedule.duration || 0) / 60) * CALENDAR_HOUR_HEIGHT, 54);
+function getScheduleDescription(schedule: CalendarSchedule): string {
+  return schedule.description?.trim() || "";
+}
 
-  return {
-    top: Math.max(top, 0),
-    height
-  };
+function getScheduleTopic(schedule: CalendarSchedule): string {
+  return schedule.topic?.trim() || "";
+}
+
+function getScheduleRotationLabel(schedule: CalendarSchedule): string {
+  return schedule.rotationType ? ROTATION_TYPE_LABELS[schedule.rotationType] || schedule.rotationType : "";
+}
+
+function formatDateKey(dateKey: string): string {
+  return dateKey.replace(/-/g, "/");
 }
 
 export default function CalendarBoard({
@@ -50,71 +53,58 @@ export default function CalendarBoard({
   schedules: CalendarSchedule[];
   onDelete: (scheduleId: number) => void;
 }) {
-  const timeSlots = getTimeSlots();
-
   return (
-    <div className="calendar-board-wrap" style={{ "--calendar-columns": weekDays.length } as CSSProperties}>
-      <div className="calendar-head">
-        <div className="calendar-time-corner" />
-        <div className="calendar-day-heads">
-          {weekDays.map((day) => (
-            <div key={day.key} className="calendar-day-head">
-              <strong>{day.title}</strong>
-              <span>{day.subtitle}</span>
+    <div className="schedule-day-list">
+      {weekDays.map((day) => {
+        const daySchedules = schedules.filter((item) => getScheduleDateKey(item) === day.key);
+
+        return (
+          <section key={day.key} className="schedule-day-section">
+            <div className="schedule-day-head">
+              <div>
+                <strong>{day.title}</strong>
+                <span>{day.subtitle}</span>
+              </div>
+              <small>{formatDateKey(day.key)}</small>
             </div>
-          ))}
-        </div>
-      </div>
 
-      <div className="calendar-scroll">
-        <div className="calendar-time-column">
-          {timeSlots.map((slot) => (
-            <div key={slot.hour} className="calendar-time-cell">
-              <span>{slot.label}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className="calendar-day-columns">
-          {weekDays.map((day, dayIndex) => {
-            const daySchedules = schedules.filter((item) => item.beginTime.slice(0, 10) === day.key);
-
-            return (
-              <div key={day.key} className="calendar-day-column">
-                {timeSlots.map((slot) => (
-                  <div key={`${day.key}-${slot.hour}`} className="calendar-hour-line" />
-                ))}
-
+            {daySchedules.length ? (
+              <div className="schedule-day-cards">
                 {daySchedules.map((item, itemIndex) => {
-                  const placement = getSchedulePlacement(item);
+                  const description = getScheduleDescription(item);
+                  const topic = getScheduleTopic(item);
+                  const rotationLabel = getScheduleRotationLabel(item);
 
                   return (
-                    <article
-                      key={item.id}
-                      className={`calendar-event tone-${(dayIndex + itemIndex) % 6}`}
-                      style={{
-                        top: `${placement.top}px`,
-                        height: `${placement.height}px`
-                      }}
-                    >
-                      <div className="calendar-event-top">
-                        <span className="calendar-event-time">
-                          {formatTime(item.beginTime)} - {formatTime(new Date(new Date(item.beginTime).getTime() + Number(item.duration || 0) * 60000))}
-                        </span>
-                        <button type="button" className="calendar-event-delete" onClick={() => onDelete(item.id)}>
+                    <article key={item.id} className={`schedule-list-card tone-${itemIndex % 6}`}>
+                      <div className="schedule-list-card-main">
+                        <div>
+                          <strong>{item.courseName}</strong>
+                          <span>版本 {item.version || "--"}</span>
+                        </div>
+                        <button type="button" className="table-link danger" onClick={() => onDelete(item.id)}>
                           删除
                         </button>
                       </div>
-                      <strong>{item.courseName}</strong>
-                      <p>版本 {item.version || "--"}</p>
+
+                      {description ? <p>{description}</p> : null}
+
+                      {topic || rotationLabel ? (
+                        <div className="schedule-meta-row">
+                          {topic ? <span>主题：{topic}</span> : null}
+                          {rotationLabel ? <span>换站：{rotationLabel}</span> : null}
+                        </div>
+                      ) : null}
                     </article>
                   );
                 })}
               </div>
-            );
-          })}
-        </div>
-      </div>
+            ) : (
+              <div className="schedule-day-empty">当天未安排课程</div>
+            )}
+          </section>
+        );
+      })}
 
       {!schedules.length ? <div className="calendar-empty-state">当前周还没有排课，点击右上角“添加课程”开始创建。</div> : null}
     </div>

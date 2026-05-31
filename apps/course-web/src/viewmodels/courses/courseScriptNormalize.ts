@@ -1,4 +1,5 @@
 import type {
+  CourseRotationType,
   CourseScript,
   PodScreen,
   PodStationFlow,
@@ -23,6 +24,10 @@ import { uid } from "../../utils/uid.ts";
 import { readNonNegativeNumber } from "../../utils/number.ts";
 import { getVideoRowCapacity, normalizeVideoRowLayouts } from "../../models/course/videoRows.ts";
 import { createPod, createPodScreensFromGroup, rebalancePodEndings } from "./podGraph.ts";
+
+function normalizeRotationType(value: unknown): CourseRotationType {
+  return value === "LANE" || value === "SNAKE" || value === "REGION" ? value : "REGION";
+}
 
 function fitVideoCardsForRows(
   cards: VideoCard[],
@@ -63,6 +68,9 @@ export function createEmptyCourseScript(): CourseScript {
       name: "",
       version: "",
       creator: "",
+      description: "",
+      topic: "",
+      rotationType: "REGION",
       tags: [],
       defaultHydrateSeconds: 0,
       readyDurations: createReadyDurations(),
@@ -152,6 +160,9 @@ export function normalizeCourseScriptLocal(script: CourseScript): CourseScript {
     plan: cloneCoursePlanForEditor(cloned.plan),
     metadata: {
       ...cloneDeep(cloned.metadata),
+      description: typeof cloned.metadata?.description === "string" ? cloned.metadata.description : "",
+      topic: typeof cloned.metadata?.topic === "string" ? cloned.metadata.topic : "",
+      rotationType: normalizeRotationType(cloned.metadata?.rotationType),
       defaultHydrateSeconds: readNonNegativeNumber(cloned.metadata?.defaultHydrateSeconds, 0),
       readyDurations: createReadyDurations(cloned.metadata?.readyDurations),
       trainingPanel: createTrainingPanel(cloned.metadata?.trainingPanel)

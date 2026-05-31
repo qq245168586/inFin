@@ -4,8 +4,9 @@ export interface CreateSchedulePayload {
   courseId: number;
   coursePackageId?: number;
   version: string;
-  beginTime: string;
-  duration: number;
+  date: string;
+  beginTime?: string;
+  duration?: number;
 }
 
 export async function createSchedule(payload: CreateSchedulePayload): Promise<void> {

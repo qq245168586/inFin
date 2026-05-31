@@ -1,6 +1,6 @@
 import { requestJson } from "../requestJson.ts";
 import type { MediaRecord } from "../../models/media.ts";
-import type { CourseRecord } from "../../models/course/types.ts";
+import type { CourseRecord, CourseRotationType } from "../../models/course/types.ts";
 import type { CoursePackageRecord } from "../../pages/venues/types.ts";
 import type { TemplateCollections } from "../../models/templates.ts";
 
@@ -25,8 +25,12 @@ export interface ScheduleRecord {
   coursePackageId?: number;
   courseName: string;
   version: string;
-  beginTime: string;
-  duration: number;
+  date?: string;
+  beginTime?: string;
+  duration?: number;
+  description?: string;
+  topic?: string;
+  rotationType?: CourseRotationType;
 }
 
 export interface ScheduleCollection {
