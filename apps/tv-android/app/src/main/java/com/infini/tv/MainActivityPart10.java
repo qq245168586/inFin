@@ -288,6 +288,10 @@ abstract class MainActivityPart10 extends MainActivityPart09 {
   }
 
   protected void showHorizontalTransitionState(TrainingPlaybackState state) {
+    renderHorizontalProgressBar(
+        activePlaybackItem == null ? null : activePlaybackItem.course,
+        currentTrainingElapsedSeconds,
+        currentTrainingTotalSeconds);
     showTransitionDesignState(state, true);
   }
 
