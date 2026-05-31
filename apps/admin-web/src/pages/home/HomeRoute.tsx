@@ -31,6 +31,9 @@ export default function HomeRoute() {
         onHomeTabChange={vm.setHomeTab}
         selectedScheduleDate={vm.selectedScheduleDate}
         onSelectedScheduleDateChange={vm.setSelectedScheduleDate}
+        scheduleAnchorDate={vm.scheduleAnchorDate}
+        onScheduleAnchorDateChange={vm.setScheduleAnchorDate}
+        onMoveScheduleWeek={vm.moveScheduleWeek}
         schedules={vm.visibleSchedules}
         onAddSchedule={vm.openScheduleDialog}
         onCopyLastWeek={vm.copyLastWeek}

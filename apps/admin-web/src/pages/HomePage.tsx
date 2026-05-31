@@ -10,6 +10,9 @@ export default function HomePage({
   onHomeTabChange,
   selectedScheduleDate,
   onSelectedScheduleDateChange,
+  scheduleAnchorDate,
+  onScheduleAnchorDateChange,
+  onMoveScheduleWeek,
   schedules,
   onAddSchedule,
   onCopyLastWeek,
@@ -20,6 +23,9 @@ export default function HomePage({
   onHomeTabChange: (tab: HomeTabKey) => void;
   selectedScheduleDate: string;
   onSelectedScheduleDateChange: (value: string) => void;
+  scheduleAnchorDate: string;
+  onScheduleAnchorDateChange: (value: string) => void;
+  onMoveScheduleWeek: (deltaWeeks: number) => void;
   schedules: CalendarSchedule[];
   onAddSchedule: () => void;
   onCopyLastWeek: () => void;
@@ -67,7 +73,7 @@ export default function HomePage({
               <tr>
                 <th>课程名称</th>
                 <th>课程版本</th>
-                <th>开始时间</th>
+                <th>排课时间</th>
                 <th>时长</th>
                 <th>管理</th>
               </tr>
@@ -90,7 +96,7 @@ export default function HomePage({
               ) : (
                 <tr>
                   <td colSpan={5}>
-                    <EmptyBlock title="还没有历史排课" copy="你添加过的课程排期会展示在这里。" />
+                    <EmptyBlock title="还没有排课" copy="你添加过的课程排期会展示在这里。" />
                   </td>
                 </tr>
               )}
@@ -99,25 +105,46 @@ export default function HomePage({
         </div>
       ) : (
         <div className="calendar-wrap">
-          <div className="calendar-date-strip">
-            <button
-              type="button"
-              className={`calendar-date-pill ${selectedScheduleDate === "all" ? "is-active" : ""}`}
-              onClick={() => onSelectedScheduleDateChange("all")}
-            >
-              全部日期
-            </button>
-            {weekDays.map((day) => (
+          <div className="calendar-date-toolbar">
+            {homeTab === "currentWeek" ? (
+              <div className="calendar-jump-controls">
+                <button type="button" className="ghost-button" onClick={() => onMoveScheduleWeek(-1)}>
+                  上一周
+                </button>
+                <label className="calendar-jump-field">
+                  <span>跳转日期</span>
+                  <input
+                    type="date"
+                    value={scheduleAnchorDate}
+                    onChange={(event) => onScheduleAnchorDateChange(event.target.value)}
+                  />
+                </label>
+                <button type="button" className="ghost-button" onClick={() => onMoveScheduleWeek(1)}>
+                  下一周
+                </button>
+              </div>
+            ) : null}
+
+            <div className="calendar-date-strip">
               <button
-                key={day.key}
                 type="button"
-                className={`calendar-date-pill ${selectedScheduleDate === day.key ? "is-active" : ""}`}
-                onClick={() => onSelectedScheduleDateChange(day.key)}
+                className={`calendar-date-pill ${selectedScheduleDate === "all" ? "is-active" : ""}`}
+                onClick={() => onSelectedScheduleDateChange("all")}
               >
-                <strong>{day.title}</strong>
-                <span>{day.subtitle}</span>
+                全部日期
               </button>
-            ))}
+              {weekDays.map((day) => (
+                <button
+                  key={day.key}
+                  type="button"
+                  className={`calendar-date-pill ${selectedScheduleDate === day.key ? "is-active" : ""}`}
+                  onClick={() => onSelectedScheduleDateChange(day.key)}
+                >
+                  <strong>{day.title}</strong>
+                  <span>{day.subtitle}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           <CalendarBoard weekDays={calendarDays} schedules={schedules} onDelete={onDeleteSchedule} />

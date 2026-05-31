@@ -10,7 +10,7 @@ export const NAV_ITEMS: Array<{ key: NavKey; label: string; short: string }> = [
 ];
 
 export const HOME_TABS: Array<{ key: HomeTabKey; label: string }> = [
-  { key: "currentWeek", label: "本周" },
+  { key: "currentWeek", label: "周课表" },
   { key: "lastWeek", label: "上周" },
-  { key: "history", label: "历史排课" }
+  { key: "history", label: "全部排课" }
 ];

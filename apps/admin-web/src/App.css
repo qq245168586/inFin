@@ -1369,8 +1369,42 @@ textarea:focus {
   padding: 24px 28px 28px;
 }
 
-.calendar-date-strip {
+.calendar-date-toolbar {
   margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.calendar-jump-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.calendar-jump-field {
+  min-height: 42px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-subtle);
+  font-size: 13px;
+}
+
+.calendar-jump-field input {
+  border: 0;
+  outline: none;
+  color: var(--text);
+  font: inherit;
+  background: transparent;
+}
+
+.calendar-date-strip {
   display: flex;
   gap: 12px;
   overflow-x: auto;

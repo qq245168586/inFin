@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { formatTime } from "../utils/datetime.ts";
+import { formatDateKey, formatTime } from "../utils/datetime.ts";
 
 export interface CalendarDay {
   key: string;
@@ -77,7 +77,7 @@ export default function CalendarBoard({
 
         <div className="calendar-day-columns">
           {weekDays.map((day, dayIndex) => {
-            const daySchedules = schedules.filter((item) => item.beginTime.slice(0, 10) === day.key);
+            const daySchedules = schedules.filter((item) => formatDateKey(item.beginTime) === day.key);
 
             return (
               <div key={day.key} className="calendar-day-column">
