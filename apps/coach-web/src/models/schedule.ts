@@ -5,8 +5,12 @@ export interface WeekScheduleRecord {
   courseId: number;
   courseName: string;
   version: string;
+  date?: string;
   beginTime: string;
   duration: number;
+  description?: string;
+  topic?: string;
+  rotationType?: CourseRotationType;
 }
 
 export interface ScheduleCollection {
@@ -44,15 +48,33 @@ export interface TvDailySchedule {
   courseId: number;
   courseName: string;
   version: string;
+  date?: string;
   beginTime: string;
   duration: number;
+  description?: string;
+  topic?: string;
+  rotationType?: CourseRotationType;
   contentChecksum?: string;
   course?: {
     script?: CoachCourseScript;
   };
 }
 
+export type CourseRotationType = "REGION" | "LANE" | "SNAKE";
+
 export interface CoachCourseScript {
+  metadata?: {
+    name?: string;
+    description?: string;
+    topic?: string;
+    rotationType?: CourseRotationType;
+    trainingPanel?: {
+      workSeconds?: number;
+      restSeconds?: number;
+    };
+    workSeconds?: number;
+    restSeconds?: number;
+  };
   training?: {
     videoGroups?: CoachVideoGroup[];
     pods?: CoachPod[];
@@ -94,6 +116,20 @@ export interface CoachPod {
   id: string;
   name: string;
   videoGroupId: string;
+  screens?: CoachPodScreen[];
+}
+
+export interface CoachPodScreen {
+  id: string;
+  screenIndex: number;
+  stationRestSeconds?: number;
+  setConfigs?: CoachPodSetConfig[];
+}
+
+export interface CoachPodSetConfig {
+  id: string;
+  workSeconds?: number;
+  restSeconds?: number;
 }
 
 export interface CoachPreviewItem {

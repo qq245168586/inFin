@@ -43,7 +43,7 @@ export function sessionStateLabel(value: CoachSessionState): string {
   return "IDLE";
 }
 
-export function buildScheduleBadge(value: CoachSessionState, startAt: number, durationMinutes: number) {
+export function buildScheduleBadge(value: CoachSessionState) {
   if (value !== "IDLE") {
     if (value === "SCHEDULED") {
       return { label: "SYNCING", tone: "scheduled" };
@@ -59,15 +59,5 @@ export function buildScheduleBadge(value: CoachSessionState, startAt: number, du
     }
     return { label: "已结束", tone: "ended" };
   }
-
-  const now = Date.now();
-  const endAt = startAt + Number(durationMinutes || 0) * 60000;
-  if (now >= endAt) {
-    return { label: "已结束", tone: "ended" };
-  }
-  if (now >= startAt) {
-    return { label: "进行中", tone: "live" };
-  }
-  return { label: "待开始", tone: "idle" };
+  return { label: "可开课", tone: "idle" };
 }
-
