@@ -288,7 +288,103 @@ abstract class TvScriptRepositoryPart02 extends TvScriptRepositoryPart01 {
         startTime.plusMinutes(durationMinutes),
         isNowInside(startTime, durationMinutes),
         buildLogoText(courseName),
-        extractCourseLogoSource(courseObject, localMediaMap));
+        extractCourseLogoSource(courseObject, localMediaMap),
+        readScheduleDisplayFields(scheduleObject, courseObject));
+  }
+
+  protected TvScheduleItem.ScheduleDisplayFields readScheduleDisplayFields(
+      JSONObject scheduleObject, JSONObject courseObject) {
+    return new TvScheduleItem.ScheduleDisplayFields(
+        readDisplayText("set", scheduleObject, courseObject),
+        readDisplayText("work", scheduleObject, courseObject),
+        readDisplayText("rest", scheduleObject, courseObject),
+        readDisplayText("switch", scheduleObject, courseObject),
+        readDisplayText("port", scheduleObject, courseObject),
+        readDisplayText("leader", scheduleObject, courseObject));
+  }
+
+  protected String readDisplayText(String field, JSONObject scheduleObject, JSONObject courseObject) {
+    if (field == null) {
+      return "";
+    }
+    String lower = field.trim().toLowerCase(Locale.US);
+    String title = lower.substring(0, 1).toUpperCase(Locale.US) + lower.substring(1);
+    String[] keys =
+        new String[] {
+          lower,
+          title,
+          lower + "Text",
+          title + "Text",
+          "manual" + title,
+          "schedule" + title
+        };
+    String value = firstDisplayText(scheduleObject, keys);
+    if (!value.isEmpty()) {
+      return value;
+    }
+    value = firstDisplayText(courseObject, keys);
+    if (!value.isEmpty()) {
+      return value;
+    }
+    value = firstNestedDisplayText(scheduleObject, keys);
+    if (!value.isEmpty()) {
+      return value;
+    }
+    return firstNestedDisplayText(courseObject, keys);
+  }
+
+  protected String firstNestedDisplayText(JSONObject object, String[] keys) {
+    if (object == null) {
+      return "";
+    }
+    String[] containers =
+        new String[] {
+          "scheduleDisplay",
+          "display",
+          "displayFields",
+          "stationRules",
+          "siteRules",
+          "tvDisplay",
+          "tvSchedule",
+          "trainingPanel"
+        };
+    for (String container : containers) {
+      JSONObject nested = object.optJSONObject(container);
+      String value = firstDisplayText(nested, keys);
+      if (!value.isEmpty()) {
+        return value;
+      }
+    }
+    JSONObject script = object.optJSONObject("script");
+    JSONObject metadata = script == null ? null : script.optJSONObject("metadata");
+    String value = firstDisplayText(metadata, keys);
+    if (!value.isEmpty()) {
+      return value;
+    }
+    for (String container : containers) {
+      JSONObject nested = metadata == null ? null : metadata.optJSONObject(container);
+      value = firstDisplayText(nested, keys);
+      if (!value.isEmpty()) {
+        return value;
+      }
+    }
+    return "";
+  }
+
+  protected String firstDisplayText(JSONObject object, String[] keys) {
+    if (object == null || keys == null) {
+      return "";
+    }
+    for (String key : keys) {
+      if (key == null || key.trim().isEmpty() || !object.has(key)) {
+        continue;
+      }
+      String value = object.optString(key, "").trim();
+      if (!value.isEmpty()) {
+        return value;
+      }
+    }
+    return "";
   }
 
   protected CourseScript withCourseListingMetadata(CourseScript source, JSONObject courseObject) {

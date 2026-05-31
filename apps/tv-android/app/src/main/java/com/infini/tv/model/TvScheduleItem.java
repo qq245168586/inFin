@@ -14,6 +14,7 @@ public class TvScheduleItem {
   public final boolean isLive;
   public final String logoText;
   public final String logoSource;
+  public final ScheduleDisplayFields displayFields;
 
   public TvScheduleItem(
       String id,
@@ -26,7 +27,8 @@ public class TvScheduleItem {
       LocalDateTime endTime,
       boolean isLive,
       String logoText,
-      String logoSource) {
+      String logoSource,
+      ScheduleDisplayFields displayFields) {
     this.id = id;
     this.course = course;
     this.courseId = courseId;
@@ -38,5 +40,32 @@ public class TvScheduleItem {
     this.isLive = isLive;
     this.logoText = logoText;
     this.logoSource = logoSource;
+    this.displayFields = displayFields == null ? ScheduleDisplayFields.EMPTY : displayFields;
+  }
+
+  public static class ScheduleDisplayFields {
+    public static final ScheduleDisplayFields EMPTY = new ScheduleDisplayFields("", "", "", "", "", "");
+
+    public final String setText;
+    public final String workText;
+    public final String restText;
+    public final String switchText;
+    public final String portText;
+    public final String leaderText;
+
+    public ScheduleDisplayFields(
+        String setText,
+        String workText,
+        String restText,
+        String switchText,
+        String portText,
+        String leaderText) {
+      this.setText = setText == null ? "" : setText.trim();
+      this.workText = workText == null ? "" : workText.trim();
+      this.restText = restText == null ? "" : restText.trim();
+      this.switchText = switchText == null ? "" : switchText.trim();
+      this.portText = portText == null ? "" : portText.trim();
+      this.leaderText = leaderText == null ? "" : leaderText.trim();
+    }
   }
 }
