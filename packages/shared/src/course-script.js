@@ -14,6 +14,12 @@ export const POD_STATION_FLOW = Object.freeze({
   SWITCH: "SWITCH"
 });
 
+export const COURSE_ROTATION_TYPE = Object.freeze({
+  REGION: "REGION",
+  LANE: "LANE",
+  SNAKE: "SNAKE"
+});
+
 let idSeed = 0;
 
 function uid(prefix) {
@@ -249,6 +255,9 @@ export function createEmptyCourseScript() {
       name: "新课程",
       version: "v1.0.0",
       creator: "",
+      description: "",
+      topic: "",
+      rotationType: COURSE_ROTATION_TYPE.REGION,
       tags: [],
       defaultHydrateSeconds: 30,
       readyDurations: createReadyDurations(),
@@ -499,6 +508,11 @@ export function legacyCourseToScript(legacyCourse = {}, options = {}) {
 
     cloned.metadata = {
       ...cloned.metadata,
+      description: String(cloned.metadata?.description ?? ""),
+      topic: String(cloned.metadata?.topic ?? ""),
+      rotationType: Object.values(COURSE_ROTATION_TYPE).includes(cloned.metadata?.rotationType)
+        ? cloned.metadata.rotationType
+        : COURSE_ROTATION_TYPE.REGION,
       defaultHydrateSeconds: positiveSeconds(cloned.metadata?.defaultHydrateSeconds, 30),
       readyDurations: createReadyDurations(cloned.metadata?.readyDurations),
       trainingPanel: createTrainingPanel(cloned.metadata?.trainingPanel)
@@ -570,6 +584,9 @@ export function legacyCourseToScript(legacyCourse = {}, options = {}) {
       name: legacyCourse.name || "新课程",
       version: legacyCourse.version || "v1.0.0",
       creator: legacyCourse.creator || "",
+      description: "",
+      topic: "",
+      rotationType: COURSE_ROTATION_TYPE.REGION,
       tags: [],
       defaultHydrateSeconds: 30,
       readyDurations: createReadyDurations(),
@@ -647,6 +664,9 @@ export function validateCourseScript(courseScript) {
   }
   if (seconds(metadata?.trainingPanel?.restSeconds) < 0) {
     issues.push("TV 横屏显示的 rest 时间不能小于 0。");
+  }
+  if (!Object.values(COURSE_ROTATION_TYPE).includes(metadata.rotationType || COURSE_ROTATION_TYPE.REGION)) {
+    issues.push("课程换站模式无效。");
   }
 
   for (const [sectionKey, fallbackTitle] of [
@@ -780,7 +800,8 @@ export function validateCourseScript(courseScript) {
 export const COURSE_ENUMS = {
   SECTION_LAYOUT,
   POD_ENDING,
-  POD_STATION_FLOW
+  POD_STATION_FLOW,
+  COURSE_ROTATION_TYPE
 };
 
 export const sampleActionLibrary = [
@@ -802,6 +823,9 @@ export const sampleCourseScript = {
     name: "Hybrid Boxing",
     version: "2026.04",
     creator: "Infini Lab",
+    description: "",
+    topic: "",
+    rotationType: COURSE_ROTATION_TYPE.REGION,
     tags: ["boxing", "hybrid", "interval"],
     defaultHydrateSeconds: 30,
     trainingPanel: {
