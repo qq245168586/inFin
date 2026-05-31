@@ -1608,6 +1608,20 @@ textarea:focus {
   border-left-color: #32a3ff;
 }
 
+.calendar-event.is-past {
+  color: var(--text-faint);
+  background: #f1f3f6;
+  border-left-color: #cbd2dc;
+  box-shadow: none;
+  cursor: not-allowed;
+  filter: grayscale(1);
+}
+
+.calendar-event.is-past .calendar-event-time,
+.calendar-event.is-past strong {
+  color: var(--text-faint);
+}
+
 .calendar-event-top {
   display: flex;
   align-items: center;
@@ -1645,6 +1659,11 @@ textarea:focus {
   font-size: 12px;
   font-weight: 700;
   line-height: 1;
+}
+
+.calendar-event-delete:disabled {
+  color: var(--text-faint);
+  cursor: not-allowed;
 }
 
 .calendar-empty-state {
@@ -1687,6 +1706,15 @@ textarea:focus {
   background: rgba(148, 28, 255, 0.02);
 }
 
+.data-table tbody tr.is-past td {
+  color: var(--text-faint);
+  background: #f4f6f9;
+}
+
+.data-table tbody tr.is-past:hover td {
+  background: #f4f6f9;
+}
+
 .table-link {
   margin-right: 16px;
   padding: 0;
@@ -1697,6 +1725,11 @@ textarea:focus {
 
 .table-link.danger {
   color: var(--danger);
+}
+
+.table-link:disabled {
+  color: var(--text-faint);
+  cursor: not-allowed;
 }
 
 .table-tags {

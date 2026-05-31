@@ -2,7 +2,12 @@ import CalendarBoard, { type CalendarDay, type CalendarSchedule } from "../compo
 import EmptyBlock from "../components/EmptyBlock.tsx";
 import type { HomeTabKey } from "../app/navigation.ts";
 import { HOME_TABS } from "../app/navigation.ts";
-import { formatDateKey, formatDateTime } from "../utils/datetime.ts";
+import { formatDateKey, formatDateTime, todayValue } from "../utils/datetime.ts";
+
+function isPastSchedule(item: CalendarSchedule): boolean {
+  const dateKey = formatDateKey(item.beginTime);
+  return Boolean(dateKey) && dateKey < todayValue();
+}
 
 export default function HomePage({
   weekDays,
@@ -81,19 +86,22 @@ export default function HomePage({
             </thead>
             <tbody>
               {schedules.length ? (
-                schedules.map((item) => (
-                  <tr key={item.id}>
-                    <td>{item.courseName}</td>
-                    <td>{item.version}</td>
-                    <td className="cell-nowrap">{formatDateTime(item.beginTime)}</td>
-                    <td>{item.duration} min</td>
-                    <td>
-                      <button type="button" className="table-link danger" onClick={() => onDeleteSchedule(item.id)}>
-                        删除
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                schedules.map((item) => {
+                  const past = isPastSchedule(item);
+                  return (
+                    <tr key={item.id} className={past ? "is-past" : ""}>
+                      <td>{item.courseName}</td>
+                      <td>{item.version}</td>
+                      <td className="cell-nowrap">{formatDateTime(item.beginTime)}</td>
+                      <td>{item.duration} min</td>
+                      <td>
+                        <button type="button" className="table-link danger" onClick={() => onDeleteSchedule(item.id)} disabled={past}>
+                          删除
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan={5}>

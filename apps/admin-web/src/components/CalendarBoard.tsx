@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { formatDateKey, formatTime } from "../utils/datetime.ts";
+import { formatDateKey, formatTime, todayValue } from "../utils/datetime.ts";
 
 export interface CalendarDay {
   key: string;
@@ -39,6 +39,11 @@ function getSchedulePlacement(schedule: CalendarSchedule): { top: number; height
     top: Math.max(top, 0),
     height
   };
+}
+
+function isPastSchedule(schedule: CalendarSchedule): boolean {
+  const dateKey = formatDateKey(schedule.beginTime);
+  return Boolean(dateKey) && dateKey < todayValue();
 }
 
 export default function CalendarBoard({
@@ -87,11 +92,12 @@ export default function CalendarBoard({
 
                 {daySchedules.map((item, itemIndex) => {
                   const placement = getSchedulePlacement(item);
+                  const past = isPastSchedule(item);
 
                   return (
                     <article
                       key={item.id}
-                      className={`calendar-event tone-${(dayIndex + itemIndex) % 6}`}
+                      className={`calendar-event tone-${(dayIndex + itemIndex) % 6} ${past ? "is-past" : ""}`}
                       style={{
                         top: `${placement.top}px`,
                         height: `${placement.height}px`
@@ -101,7 +107,7 @@ export default function CalendarBoard({
                         <span className="calendar-event-time">
                           {formatTime(item.beginTime)} - {formatTime(new Date(new Date(item.beginTime).getTime() + Number(item.duration || 0) * 60000))}
                         </span>
-                        <button type="button" className="calendar-event-delete" onClick={() => onDelete(item.id)}>
+                        <button type="button" className="calendar-event-delete" onClick={() => onDelete(item.id)} disabled={past}>
                           删除
                         </button>
                       </div>
