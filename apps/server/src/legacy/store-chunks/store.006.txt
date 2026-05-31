@@ -221,15 +221,34 @@ function normalizeCourseTemplateName(payload = {}, existing = null) {
 }
 
 function normalizeCourseTemplatePayload(payload = {}, existing = null, base = {}) {
+  const script = cloneCourseScript(payload.script ?? existing?.script ?? {});
+  const typeIds = numberList(payload.typeIds ?? existing?.typeIds);
+  const description = trimText(payload.description ?? script.metadata?.description ?? existing?.description);
+  const topic = trimText(payload.topic ?? script.metadata?.topic ?? existing?.topic)
+    || deriveCourseTopicFromTypeIds(typeIds);
+  const rotationType = normalizeCourseRotationType(
+    payload.rotationType ?? script.metadata?.rotationType ?? existing?.rotationType
+  );
+  const courseName = normalizeCourseTemplateName(payload, existing);
+  script.metadata = {
+    ...script.metadata,
+    name: courseName || script.metadata?.name || trimText(payload.name) || existing?.name || "新课程",
+    description,
+    topic,
+    rotationType
+  };
+
   return {
     ...(existing?.kind === "course" ? existing : {}),
     ...base,
-    description: trimText(payload.description ?? existing?.description),
-    courseName: normalizeCourseTemplateName(payload, existing),
+    description: script.metadata.description,
+    topic: script.metadata.topic,
+    rotationType: script.metadata.rotationType,
+    courseName,
     coursePackageIds: normalizeCourseTemplatePackageIds(payload, existing),
-    typeIds: numberList(payload.typeIds ?? existing?.typeIds),
+    typeIds,
     logoMedia: payload.logoMedia !== undefined ? clone(payload.logoMedia) : existing?.logoMedia ?? null,
-    script: clonePlainObject(payload.script ?? existing?.script),
+    script,
     summary: clonePlainObject(payload.summary ?? existing?.summary),
     sourceCourseId: normalizeTemplateSourceCourseId(payload.sourceCourseId, existing?.sourceCourseId)
   };
@@ -328,6 +347,18 @@ function serializeTemplate(template) {
     next.coursePackageIds = packageIds;
     next.coursePackageId = packageIds[0] || null;
     next.courseName = normalizeCourseTemplateName(next, next) || next.name || "";
+    const typeIds = numberList(next.typeIds);
+    next.description = trimText(next.script?.metadata?.description ?? next.description);
+    next.topic = trimText(next.script?.metadata?.topic ?? next.topic) || deriveCourseTopicFromTypeIds(typeIds);
+    next.rotationType = normalizeCourseRotationType(next.script?.metadata?.rotationType ?? next.rotationType);
+    next.script = cloneCourseScript(next.script || {});
+    next.script.metadata = {
+      ...next.script.metadata,
+      name: next.courseName,
+      description: next.description,
+      topic: next.topic,
+      rotationType: next.rotationType
+    };
   }
   return next;
 }
