@@ -98,6 +98,7 @@ function attachCourseBasics(schedule) {
   const { venueId: _venueId, ...rest } = schedule || {};
   return {
     ...rest,
+    date: rest.date || (rest.beginTime ? formatCalendarDate(rest.beginTime) : ""),
     coursePackageId: normalizeCoursePackageId(rest.coursePackageId),
     courseName: rest.courseName || serialized?.name || "",
     version: rest.version || serialized?.version || "",
@@ -152,6 +153,27 @@ function formatCalendarDate(dateValue, timeZone = "Asia/Shanghai") {
     month: "2-digit",
     day: "2-digit"
   }).format(new Date(dateValue));
+}
+
+function addCalendarDays(dateText, days) {
+  const base = new Date(`${dateText}T12:00:00.000+08:00`);
+  base.setUTCDate(base.getUTCDate() + days);
+  return formatCalendarDate(base, "Asia/Shanghai");
+}
+
+function getCalendarWeekRange(weekOffset = 0, timeZone = "Asia/Shanghai") {
+  const today = formatCalendarDate(new Date(), timeZone);
+  const anchor = new Date(`${today}T12:00:00.000+08:00`);
+  const day = anchor.getUTCDay();
+  const delta = day === 0 ? -6 : 1 - day;
+  anchor.setUTCDate(anchor.getUTCDate() + delta + weekOffset * 7);
+  const start = formatCalendarDate(anchor, timeZone);
+  return { start, end: addCalendarDays(start, 7) };
+}
+
+function inCalendarDateRange(dateValue, startDate, endDate, timeZone = "Asia/Shanghai") {
+  const dateKey = formatCalendarDate(dateValue, timeZone);
+  return dateKey >= startDate && dateKey < endDate;
 }
 
 function listSchedulesByDate(dateText, timeZone = "Asia/Shanghai") {

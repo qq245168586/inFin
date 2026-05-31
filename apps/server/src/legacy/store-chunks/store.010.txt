@@ -321,10 +321,8 @@ export function listCourseOptions(coursePackageId = "", user = null) {
 }
 
 export function listSchedulesByScope(scope = "CURRENTWEEK", options = {}) {
-  const monday = startOfWeek(new Date());
-  const nextMonday = endOfWeek(new Date());
-  const lastMonday = new Date(monday);
-  lastMonday.setDate(lastMonday.getDate() - 7);
+  const currentWeek = getCalendarWeekRange(0);
+  const lastWeek = getCalendarWeekRange(-1);
 
   let list = state.schedules.map(attachCourseBasics);
   const visiblePackageIds = getUserVisibleCoursePackageIdSet(options?.user || null);
@@ -337,9 +335,9 @@ export function listSchedulesByScope(scope = "CURRENTWEEK", options = {}) {
   }
 
   if (scope === "CURRENTWEEK") {
-    list = list.filter((item) => inRange(item.beginTime, monday, nextMonday));
+    list = list.filter((item) => inCalendarDateRange(item.beginTime, currentWeek.start, currentWeek.end));
   } else if (scope === "LASTWEEK") {
-    list = list.filter((item) => inRange(item.beginTime, lastMonday, monday));
+    list = list.filter((item) => inCalendarDateRange(item.beginTime, lastWeek.start, lastWeek.end));
   }
 
   return list.sort((left, right) => {
