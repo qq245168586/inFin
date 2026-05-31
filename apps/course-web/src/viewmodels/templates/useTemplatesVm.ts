@@ -75,6 +75,9 @@ export function useTemplatesVm({
 
         const script = normalizeCourseScriptLocal(cloneCourseScriptWithFreshIds(templateEditor.script));
         script.metadata.name = (templateEditor.courseName || templateEditor.name).trim();
+        script.metadata.description = script.metadata.description.trim();
+        script.metadata.topic = script.metadata.topic.trim();
+        script.metadata.rotationType = script.metadata.rotationType || "REGION";
         const issues = getCourseDraftIssues({
           id: null,
           typeIds: templateEditor.typeIds,
@@ -92,6 +95,9 @@ export function useTemplatesVm({
           kind: "course",
           name: templateEditor.name.trim(),
           courseName: (templateEditor.courseName || templateEditor.name).trim(),
+          description: script.metadata.description,
+          topic: script.metadata.topic,
+          rotationType: script.metadata.rotationType,
           logoMedia,
           typeIds: templateEditor.typeIds,
           script,

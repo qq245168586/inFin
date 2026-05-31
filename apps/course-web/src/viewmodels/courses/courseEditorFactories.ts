@@ -42,7 +42,10 @@ export function createCourseDraftFromCourseTemplate(template: CourseTemplateReco
   const script = normalizeCourseScriptLocal(
     cloneCourseScriptWithFreshIds(template.script, `template-${template.id}-${compactTimestamp()}`)
   );
-  script.metadata.name = template.name;
+  script.metadata.name = template.courseName || script.metadata.name || template.name;
+  script.metadata.description = script.metadata.description || template.description || "";
+  script.metadata.topic = script.metadata.topic || template.topic || "";
+  script.metadata.rotationType = script.metadata.rotationType || template.rotationType || "REGION";
 
   return {
     id: null,

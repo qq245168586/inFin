@@ -1,4 +1,4 @@
-import type { CourseScript, CourseSummary, VideoGroup, WaterfallSection } from "./course/types.ts";
+import type { CourseRotationType, CourseScript, CourseSummary, VideoGroup, WaterfallSection } from "./course/types.ts";
 import type { MediaRecord } from "./media.ts";
 import {
   cloneCourseScriptWithFreshIds,
@@ -33,6 +33,9 @@ export interface CourseTemplateRecord {
   kind: "course";
   name: string;
   courseName: string;
+  description: string;
+  topic: string;
+  rotationType: CourseRotationType;
   logoMedia: MediaRecord | null;
   typeIds: number[];
   script: CourseScript;
@@ -67,6 +70,18 @@ export interface TemplateDraft {
   coursePackageId: number | null;
   sourceCourseId: number | null;
   summary: CourseSummary | null;
+}
+
+function applyTemplateMetadataFallbacks(script: CourseScript, template: CourseTemplateRecord | null): CourseScript {
+  return {
+    ...script,
+    metadata: {
+      ...script.metadata,
+      description: script.metadata?.description || template?.description || "",
+      topic: script.metadata?.topic || template?.topic || "",
+      rotationType: script.metadata?.rotationType || template?.rotationType || "REGION"
+    }
+  };
 }
 
 export function createTemplateCollections(): TemplateCollections {
@@ -105,6 +120,9 @@ export function createTemplateDraft(template: TemplateRecord | null = null, kind
   if (resolvedKind === "course") {
     const courseTemplate = template as CourseTemplateRecord | null;
     const coursePackageId = courseTemplate?.coursePackageId ?? courseTemplate?.coursePackageIds?.[0] ?? null;
+    const script = courseTemplate?.script
+      ? applyTemplateMetadataFallbacks(cloneCourseScriptWithFreshIds(courseTemplate.script), courseTemplate)
+      : null;
     return {
       id: courseTemplate?.id ?? null,
       kind: "course",
@@ -116,7 +134,7 @@ export function createTemplateDraft(template: TemplateRecord | null = null, kind
       logoFile: null,
       logoPreview: courseTemplate?.logoMedia?.url ?? "",
       typeIds: [...(courseTemplate?.typeIds ?? [])],
-      script: courseTemplate?.script ? cloneCourseScriptWithFreshIds(courseTemplate.script) : null,
+      script,
       coursePackageId,
       sourceCourseId: courseTemplate?.sourceCourseId ?? null,
       summary: courseTemplate?.summary ?? null
