@@ -174,7 +174,7 @@ export default function CourseEditorPane({
             <span>Set</span>
             <input
               value={courseEditor.script.metadata.stationRules?.set || ""}
-              placeholder="例如 01 / 8"
+              placeholder="例如 10"
               onChange={(e) => onUpdateCourseScript((c) => updateStationRuleConfig(c, { set: e.target.value }))}
             />
           </label>
