@@ -37,9 +37,7 @@ function getStationRuleItems(course: CourseRecord): Array<{ label: string; value
     { label: "Set", value: config?.set || "" },
     { label: "Work", value: config?.work || "" },
     { label: "Rest", value: config?.rest || "" },
-    { label: "Switch", value: config?.switch || "" },
-    { label: "Port", value: config?.port || "" },
-    { label: "Leader", value: config?.leader || "" }
+    { label: "Switch", value: config?.switch || "" }
   ].filter((item) => item.value.trim());
 }
 

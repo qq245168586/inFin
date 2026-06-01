@@ -169,7 +169,7 @@ export default function CourseEditorPane({
           </label>
         </div>
 
-        <div className="form-row six">
+        <div className="form-row four">
           <label className="field">
             <span>Set</span>
             <input
@@ -206,22 +206,6 @@ export default function CourseEditorPane({
                 </option>
               ))}
             </select>
-          </label>
-          <label className="field">
-            <span>Port</span>
-            <input
-              value={courseEditor.script.metadata.stationRules?.port || ""}
-              placeholder="可选"
-              onChange={(e) => onUpdateCourseScript((c) => updateStationRuleConfig(c, { port: e.target.value }))}
-            />
-          </label>
-          <label className="field">
-            <span>Leader</span>
-            <input
-              value={courseEditor.script.metadata.stationRules?.leader || ""}
-              placeholder="可选"
-              onChange={(e) => onUpdateCourseScript((c) => updateStationRuleConfig(c, { leader: e.target.value }))}
-            />
           </label>
         </div>
 
