@@ -452,6 +452,77 @@ function collectCourseStationRules(source = {}) {
   }, {});
 }
 
+function hasCourseStationRuleValues(rules = {}) {
+  return courseStationRuleFields().some((field) => Boolean(trimText(rules[field])));
+}
+
+function addUniqueCourseSeconds(values, value) {
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds > 0 && !values.includes(seconds)) {
+    values.push(seconds);
+  }
+}
+
+function formatCourseSecondsList(values = []) {
+  return values.length ? values.map((seconds) => `${seconds}s`).join("/") : "";
+}
+
+function deriveCourseSwitchRule(rotationType) {
+  const normalized = normalizeCourseRotationType(rotationType);
+  if (normalized === "LANE") {
+    return "range";
+  }
+  if (normalized === "SNAKE") {
+    return "follow the leader";
+  }
+  return "pod";
+}
+
+function resolveCourseRuleScript(source) {
+  if (source?.training?.pods && source?.training?.videoGroups) {
+    return source;
+  }
+  if (source?.script?.training?.pods && source?.script?.training?.videoGroups) {
+    return source.script;
+  }
+  return null;
+}
+
+function deriveCourseStationRules(source = {}) {
+  const script = resolveCourseRuleScript(source);
+  if (!script) {
+    return normalizeCourseStationRules();
+  }
+
+  const videoGroups = Array.isArray(script.training?.videoGroups) ? script.training.videoGroups : [];
+  const groupById = new Map(videoGroups.map((group) => [group?.id, group]));
+  const pods = Array.isArray(script.training?.pods) ? script.training.pods : [];
+  const threeScreenPods = pods.filter((pod) => Number(groupById.get(pod?.videoGroupId)?.screenCount) === 3);
+  const workSeconds = [];
+  const restSeconds = [];
+  const setCount = threeScreenPods.reduce((total, pod) => {
+    const screens = Array.isArray(pod?.screens) ? pod.screens : [];
+    const firstScreen = screens.find((screen) => Number(screen?.screenIndex) === 1) || screens[0] || null;
+    for (const screen of screens) {
+      addUniqueCourseSeconds(restSeconds, screen?.stationRestSeconds);
+      for (const setConfig of Array.isArray(screen?.setConfigs) ? screen.setConfigs : []) {
+        addUniqueCourseSeconds(workSeconds, setConfig?.workSeconds);
+        addUniqueCourseSeconds(restSeconds, setConfig?.restSeconds);
+      }
+    }
+    return total + Math.max(Number(firstScreen?.loopCount) || 0, 0);
+  }, 0);
+
+  return {
+    set: setCount > 0 ? String(setCount) : "",
+    work: formatCourseSecondsList(workSeconds),
+    rest: formatCourseSecondsList(restSeconds),
+    switch: deriveCourseSwitchRule(script.metadata?.rotationType || source?.rotationType),
+    port: "",
+    leader: ""
+  };
+}
+
 function normalizeCourseStationRules(...sources) {
   const rules = courseStationRuleFields().reduce((current, field) => {
     current[field] = "";
@@ -459,6 +530,19 @@ function normalizeCourseStationRules(...sources) {
   }, {});
   for (const source of sources) {
     Object.assign(rules, collectCourseStationRules(source));
+  }
+  if (hasCourseStationRuleValues(rules)) {
+    return rules;
+  }
+
+  for (const source of sources) {
+    const derived = deriveCourseStationRules(source);
+    if (hasCourseStationRuleValues(derived)) {
+      return {
+        ...rules,
+        ...derived
+      };
+    }
   }
   return rules;
 }
@@ -514,7 +598,11 @@ function coerceCourseScript(source = {}) {
     ? cloneCourseScript(source.script)
     : legacyCourseToScript(source, { actionLookup: state.actions });
   const metadataFields = deriveCourseMetadataFields(source, script);
-  const stationRules = normalizeCourseStationRules(source);
+  script.metadata = {
+    ...script.metadata,
+    rotationType: metadataFields.rotationType
+  };
+  const stationRules = normalizeCourseStationRules(source, script);
 
   script.metadata = {
     ...script.metadata,
@@ -532,6 +620,44 @@ function coerceCourseScript(source = {}) {
   script.plan = normalizeCoursePlan(source?.script?.plan || source?.plan || script.plan);
 
   return script;
+}
+
+function syncCourseStationRules() {
+  if (!Array.isArray(state.courses) || !state.courses.length) {
+    return;
+  }
+
+  let changed = false;
+  state.courses = state.courses.map((course) => {
+    const script = coerceCourseScript(course);
+    const stationRules = normalizeCourseStationRules(course, script);
+    const metadata = normalizeCourseTopLevelMetadata(course, stationRules);
+    const nextScript = {
+      ...script,
+      metadata: {
+        ...script.metadata,
+        stationRules
+      }
+    };
+    const next = {
+      ...course,
+      metadata,
+      stationRules,
+      script: nextScript
+    };
+    if (
+      JSON.stringify(course.stationRules || null) !== JSON.stringify(stationRules)
+      || JSON.stringify(course.metadata?.stationRules || null) !== JSON.stringify(stationRules)
+      || JSON.stringify(course.script?.metadata?.stationRules || null) !== JSON.stringify(stationRules)
+    ) {
+      changed = true;
+    }
+    return next;
+  });
+
+  if (changed) {
+    persist();
+  }
 }
 
 function courseSummaryFromScript(script) {

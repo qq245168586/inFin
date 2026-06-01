@@ -68,6 +68,7 @@ migrateLegacyStorageIfNeeded();
 const defaultState = createDefaultState();
 let state = loadState();
 ensureConsoleAccountSeeds();
+syncCourseStationRules();
 syncAllActionCourseTagsFromCourses();
 
 function ensureDir(target) {
