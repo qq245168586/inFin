@@ -42,6 +42,65 @@ function normalizeStationRuleConfig(value: unknown): StationRuleConfig {
   };
 }
 
+function hasStationRuleValues(config: StationRuleConfig): boolean {
+  return Boolean(config.set || config.work || config.rest || config.switch || config.port || config.leader);
+}
+
+function formatSecondsList(values: number[]): string {
+  return values.length ? values.map((seconds) => `${seconds}s`).join("/") : "";
+}
+
+function addUniquePositiveSeconds(values: number[], value: unknown) {
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds > 0 && !values.includes(seconds)) {
+    values.push(seconds);
+  }
+}
+
+function deriveSwitchRule(rotationType: CourseRotationType): string {
+  if (rotationType === "LANE") {
+    return "range";
+  }
+  if (rotationType === "SNAKE") {
+    return "follow the leader";
+  }
+  return "pod";
+}
+
+function deriveStationRuleConfig(script: CourseScript): StationRuleConfig {
+  const videoGroupMap = new Map((script.training?.videoGroups || []).map((group) => [group.id, group]));
+  const threeScreenPods = (script.training?.pods || []).filter((pod) => videoGroupMap.get(pod.videoGroupId)?.screenCount === 3);
+  const workSeconds: number[] = [];
+  const restSeconds: number[] = [];
+
+  const setCount = threeScreenPods.reduce((total, pod) => {
+    const screens = pod.screens || [];
+    const firstScreen = screens.find((screen) => screen.screenIndex === 1) || screens[0];
+    for (const screen of screens) {
+      addUniquePositiveSeconds(restSeconds, screen.stationRestSeconds);
+      for (const setConfig of screen.setConfigs || []) {
+        addUniquePositiveSeconds(workSeconds, setConfig.workSeconds);
+        addUniquePositiveSeconds(restSeconds, setConfig.restSeconds);
+      }
+    }
+    return total + Math.max(Number(firstScreen?.loopCount) || 0, 0);
+  }, 0);
+
+  return {
+    set: setCount > 0 ? String(setCount) : "",
+    work: formatSecondsList(workSeconds),
+    rest: formatSecondsList(restSeconds),
+    switch: deriveSwitchRule(normalizeRotationType(script.metadata?.rotationType)),
+    port: "",
+    leader: ""
+  };
+}
+
+function normalizeOrDeriveStationRuleConfig(value: unknown, script: CourseScript): StationRuleConfig {
+  const config = normalizeStationRuleConfig(value);
+  return hasStationRuleValues(config) ? config : deriveStationRuleConfig(script);
+}
+
 function fitVideoCardsForRows(
   cards: VideoCard[],
   rowLayouts: VideoRowLayout[],
@@ -75,7 +134,7 @@ function syncTrainingPanelCounters(script: CourseScript): CourseScript {
 
 export function createEmptyCourseScript(): CourseScript {
   const defaultGroup = createVideoGroup(3);
-  return {
+  const script: CourseScript = {
     metadata: {
       id: uid("course"),
       name: "",
@@ -109,6 +168,8 @@ export function createEmptyCourseScript(): CourseScript {
       ]
     }
   };
+  script.metadata.stationRules = deriveStationRuleConfig(script);
+  return script;
 }
 
 export function normalizeCourseScriptLocal(script: CourseScript): CourseScript {
@@ -168,7 +229,7 @@ export function normalizeCourseScriptLocal(script: CourseScript): CourseScript {
     };
   });
 
-  return syncTrainingPanelCounters({
+  const normalizedScript = syncTrainingPanelCounters({
     ...cloned,
     sections,
     plan: cloneCoursePlanForEditor(cloned.plan),
@@ -188,4 +249,11 @@ export function normalizeCourseScriptLocal(script: CourseScript): CourseScript {
       pods: rebalancePodEndings(pods)
     }
   });
+  return {
+    ...normalizedScript,
+    metadata: {
+      ...normalizedScript.metadata,
+      stationRules: normalizeOrDeriveStationRuleConfig(cloned.metadata?.stationRules, normalizedScript)
+    }
+  };
 }

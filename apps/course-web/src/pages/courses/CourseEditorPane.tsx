@@ -23,6 +23,7 @@ const ROTATION_TYPE_OPTIONS: Array<{ value: CourseRotationType; label: string }>
 const SWITCH_DISPLAY_OPTIONS = [
   { value: "", label: "请选择" },
   { value: "pod", label: "pod" },
+  { value: "range", label: "range" },
   { value: "follow the leader", label: "follow the leader" }
 ];
 
