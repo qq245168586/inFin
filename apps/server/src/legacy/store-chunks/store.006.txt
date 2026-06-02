@@ -108,7 +108,8 @@ function normalizeTemplateVideoGroup(videoGroup = {}) {
           id: card.id || templateUid("template-video-card"),
           actionId: String(card.actionId || ""),
           actionName: resolveActionName(card.actionId, card.actionName),
-          stationNumber: screenCount === 1 ? "" : trimText(card.stationNumber)
+          stationNumber: screenCount === 1 ? "" : trimText(card.stationNumber),
+          target: trimText(card.target)
         }))
       };
     })
