@@ -479,14 +479,19 @@ abstract class MainActivityPart07 extends MainActivityPart06 {
     String rotationType = metadata == null ? "REGION" : metadata.rotationType;
     CourseScript.Pod pod = findFirstSchedulePod(course);
     CourseScript.PodScreen screen = findFirstScheduleScreen(pod);
+    CourseScript.VideoGroup group = findScheduleVideoGroup(course, pod == null ? "" : pod.videoGroupId);
     TvScheduleItem.ScheduleDisplayFields displayFields =
         item == null ? TvScheduleItem.ScheduleDisplayFields.EMPTY : item.displayFields;
+    String setText = firstScheduleText(displayFields.setText, buildScheduleSetText(screen, metadata));
+    if (isRegionCountText(setText)) {
+      setText = buildScheduleStationText(group);
+    }
     return new ScheduleCardInfo(
         resolveScheduleNumber(item),
         name,
         topic,
         description,
-        firstScheduleText(displayFields.setText, buildScheduleSetText(screen, metadata)),
+        setText,
         firstScheduleText(displayFields.workText, buildScheduleWorkText(screen, metadata)),
         firstScheduleText(displayFields.restText, buildScheduleRestText(screen, metadata)),
         buildScheduleSwitchText(displayFields, rotationType, false),
@@ -549,14 +554,17 @@ abstract class MainActivityPart07 extends MainActivityPart06 {
     return null;
   }
 
-  protected String buildScheduleStationText(CourseScript.VideoGroup group, String rotationType) {
+  protected boolean isRegionCountText(String text) {
+    if (TextUtils.isEmpty(text)) {
+      return false;
+    }
+    String normalized = text.trim().toLowerCase(Locale.US);
+    return normalized.contains("区域") || normalized.contains("region");
+  }
+
+  protected String buildScheduleStationText(CourseScript.VideoGroup group) {
     if (group == null) {
       return "-";
-    }
-    String normalized = rotationType == null ? "REGION" : rotationType.trim().toUpperCase(Locale.US);
-    int screenCount = group.screenCount > 0 ? group.screenCount : group.screens == null ? 0 : group.screens.size();
-    if ("REGION".equals(normalized) && screenCount > 1) {
-      return screenCount + " 区域";
     }
     Set<String> stationNumbers = new HashSet<>();
     int cardCount = 0;
@@ -575,9 +583,6 @@ abstract class MainActivityPart07 extends MainActivityPart06 {
           if (!TextUtils.isEmpty(card.stationNumber)) {
             stationNumbers.add(card.stationNumber.trim());
           }
-        }
-        if (!stationNumbers.isEmpty() || cardCount > 0) {
-          break;
         }
       }
     }

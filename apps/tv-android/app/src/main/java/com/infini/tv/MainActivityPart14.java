@@ -481,10 +481,8 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
     int rowCount = Math.max(rowLayouts.size(), 1);
     int visibleRowCount = Math.min(rowCount, 5);
     int rowGap = calculateTrainingRowGap(visibleRowCount);
-    int viewportHeight = playbackScrollView == null ? 0 : playbackScrollView.getHeight();
-    if (viewportHeight <= 0) {
-      viewportHeight = Math.round(getResources().getDisplayMetrics().heightPixels * 0.70f);
-    }
+    boolean waitingForViewportMeasure = playbackScrollView != null && playbackScrollView.getHeight() <= 0;
+    int viewportHeight = resolveTrainingViewportHeight();
     List<Integer> rowHeights = calculateTrainingRowHeights(rowLayouts, rowGap, viewportHeight);
     int totalRowsHeight = 0;
     for (int height : rowHeights) {
@@ -525,7 +523,37 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
       trainingCardsContainer.addView(row);
       rowStart += columns;
     }
-    playbackScrollView.post(() -> playbackScrollView.scrollTo(0, 0));
+    playbackScrollView.post(
+        () -> {
+          playbackScrollView.scrollTo(0, 0);
+          if (waitingForViewportMeasure && playbackScrollView.getHeight() > 0) {
+            renderTrainingCards(state);
+          }
+        });
+  }
+
+  protected int resolveTrainingViewportHeight() {
+    if (playbackScrollView == null) {
+      return Math.round(getResources().getDisplayMetrics().heightPixels * 0.78f);
+    }
+    int measuredHeight = playbackScrollView.getHeight();
+    if (measuredHeight > 0) {
+      return measuredHeight;
+    }
+    int screenHeight = getResources().getDisplayMetrics().heightPixels;
+    int[] location = new int[2];
+    playbackScrollView.getLocationOnScreen(location);
+    if (location[1] > 0 && location[1] < screenHeight) {
+      return Math.max(screenHeight - location[1] - dp(8), dp(240));
+    }
+    int topChrome =
+        dp(18)
+            + (playbackStatusGroup == null ? dp(210) : Math.max(playbackStatusGroup.getHeight(), dp(210)))
+            + (playbackHint != null && playbackHint.getVisibility() == View.VISIBLE
+                ? Math.max(playbackHint.getHeight(), dp(42))
+                : 0)
+            + dp(26);
+    return Math.max(screenHeight - topChrome, dp(240));
   }
 
   protected List<Integer> calculateTrainingRowHeights(List<Integer> rowLayouts, int rowGap, int viewportHeight) {
@@ -578,7 +606,7 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
               - playbackScrollView.getPaddingRight();
     }
     if (measuredWidth <= 0) {
-      measuredWidth = getResources().getDisplayMetrics().widthPixels;
+      measuredWidth = Math.max(getResources().getDisplayMetrics().widthPixels - dp(36), dp(280));
     }
     return Math.max(measuredWidth, dp(280));
   }
@@ -587,8 +615,9 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
       CourseScript.VideoCard card, int cardIndex, int previewHeight) {
     FrameLayout wrapper = new FrameLayout(this);
     int contentWidth = getTrainingCardsContentWidth();
+    int itemWidth = Math.min(contentWidth, Math.max(Math.round(previewHeight * 16f / 9f), 1));
     LinearLayout.LayoutParams params =
-        new LinearLayout.LayoutParams(contentWidth, previewHeight);
+        new LinearLayout.LayoutParams(itemWidth, previewHeight);
     wrapper.setLayoutParams(params);
     wrapper.setBackgroundResource(R.drawable.bg_training_card);
 
@@ -645,7 +674,7 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
         new FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
     params.gravity = android.view.Gravity.TOP | android.view.Gravity.START;
-    params.leftMargin = dp(isWide ? 16 : 16);
+    params.leftMargin = dp(isWide ? 28 : 24);
     params.topMargin = dp(isWide ? 14 : 12);
     badge.setLayoutParams(params);
     badge.setText(label);
