@@ -711,22 +711,26 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
 
   protected TextView createTrainingTargetDot(String target, boolean isWide) {
     TextView dot = new TextView(this);
-    int size = dp(isWide ? 76 : 66);
+    String label = target == null ? "" : target.trim();
+    int length = label.length();
+    int baseSize = isWide ? 76 : 66;
+    int size = dp(length > 8 ? baseSize + 12 : length > 5 ? baseSize + 6 : baseSize);
     FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(size, size);
     params.gravity = android.view.Gravity.TOP | android.view.Gravity.END;
     params.rightMargin = dp(isWide ? 18 : 14);
     params.topMargin = dp(isWide ? 12 : 10);
     dot.setLayoutParams(params);
-    dot.setText(target == null ? "" : target.trim());
+    dot.setText(label);
     dot.setTextColor(getColor(R.color.tv_accent_gold_bright));
-    dot.setTextSize(isWide ? 24f : 20f);
+    int maxTextSize = length > 8 ? (isWide ? 17 : 15) : length > 5 ? (isWide ? 19 : 17) : (isWide ? 22 : 19);
+    dot.setTextSize(maxTextSize);
     dot.setTypeface(dot.getTypeface(), android.graphics.Typeface.BOLD);
     dot.setGravity(android.view.Gravity.CENTER);
     dot.setMaxLines(2);
     dot.setEllipsize(TextUtils.TruncateAt.END);
     dot.setIncludeFontPadding(false);
-    dot.setPadding(dp(6), dp(5), dp(6), dp(5));
-    dot.setAutoSizeTextTypeUniformWithConfiguration(9, isWide ? 24 : 20, 1, TypedValue.COMPLEX_UNIT_SP);
+    dot.setPadding(dp(7), dp(5), dp(7), dp(5));
+    dot.setAutoSizeTextTypeUniformWithConfiguration(8, maxTextSize, 1, TypedValue.COMPLEX_UNIT_SP);
 
     android.graphics.drawable.GradientDrawable background =
         new android.graphics.drawable.GradientDrawable();
