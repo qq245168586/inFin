@@ -213,20 +213,6 @@ export function saveCourse(payload) {
     throw new Error("课程包不存在。");
   }
 
-  const nextNameKey = trimText(next.name).toLowerCase();
-  const duplicatedCourse = state.courses.find((item) => {
-    if (Number(item.id) === Number(next.id)) {
-      return false;
-    }
-
-    const itemNameKey = trimText(serializeCourse(item).name).toLowerCase();
-    return itemNameKey && itemNameKey === nextNameKey;
-  });
-
-  if (duplicatedCourse) {
-    throw new Error(`课程名称“${next.name}”已存在。`);
-  }
-
   if (index >= 0) {
     state.courses[index] = next;
   } else {
