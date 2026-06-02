@@ -225,9 +225,14 @@ body {
   justify-content: flex-start;
 }
 
+.course-package-course > span:last-child {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
 .course-package-course small {
   display: block;
-  margin-top: 3px;
   color: var(--text-subtle);
 }
 
@@ -1858,6 +1863,22 @@ textarea:focus {
   line-height: 1.5;
 }
 
+.schedule-list-card-main .schedule-version-badge,
+.schedule-version-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  color: #17111f;
+  background: #ffdf5a;
+  box-shadow: 0 8px 22px rgba(255, 207, 35, 0.26);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+}
+
 .schedule-list-card p {
   margin: 0;
 }
@@ -1979,6 +2000,13 @@ textarea:focus {
   gap: 6px;
 }
 
+.course-cell-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .course-cell strong {
   font-size: 14px;
 }
@@ -1986,6 +2014,44 @@ textarea:focus {
 .course-cell span {
   color: var(--text-subtle);
   font-size: 12px;
+}
+
+.course-version-badge,
+.course-inline-version {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  color: #17111f;
+  background: #ffdf5a;
+  box-shadow: 0 10px 24px rgba(255, 207, 35, 0.24);
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.course-inline-version {
+  min-height: 24px;
+  padding: 0 9px;
+  font-size: 11px;
+  box-shadow: none;
+}
+
+.schedule-dialog-selected-course {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #fff9df;
+  border: 1px solid rgba(255, 207, 35, 0.48);
+}
+
+.schedule-dialog-selected-course strong {
+  color: var(--text-main);
+  font-size: 15px;
 }
 
 .course-package-section-copy {

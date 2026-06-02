@@ -156,10 +156,15 @@ export default function CourseLibrary({
               filteredCourses.map((course) => (
                 <tr key={course.id}>
                   <td>{course.id}</td>
-                  <td>{course.version}</td>
+                  <td>
+                    <span className="course-version-badge">{course.version || "--"}</span>
+                  </td>
                   <td>
                     <div className="course-cell">
-                      <strong>{course.name}</strong>
+                      <div className="course-cell-title">
+                        <strong>{course.name}</strong>
+                        <span className="course-inline-version">Version {course.version || "--"}</span>
+                      </div>
                       <span>
                         {getWarmupCount(course)} 热身 / {getTrainingCardCount(course)} 训练动作 / {getPodCount(course)} Pod
                       </span>

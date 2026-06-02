@@ -102,7 +102,9 @@ export default function HomePage({
                   return (
                     <tr key={item.id} className={isPast ? "is-past" : ""}>
                       <td>{item.courseName}</td>
-                      <td>{item.version}</td>
+                      <td>
+                        <span className="course-version-badge">{item.version || "--"}</span>
+                      </td>
                       <td className="cell-nowrap">{formatScheduleDate(getScheduleDate(item))}</td>
                       <td>
                         <div className="schedule-table-meta">

@@ -256,8 +256,9 @@ export default function CoursePackagesPage({
                         <span className="course-package-checkbox">{selected ? "✓" : ""}</span>
                         <span>
                           <strong>{course.name}</strong>
+                          <span className="course-inline-version">Version {course.version || "--"}</span>
                           <small>
-                            #{course.id} · {course.version} · {course.creator}
+                            #{course.id} · {course.creator}
                           </small>
                         </span>
                       </button>

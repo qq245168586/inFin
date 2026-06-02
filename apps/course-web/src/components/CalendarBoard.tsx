@@ -84,8 +84,8 @@ export default function CalendarBoard({
                     <article key={item.id} className={`schedule-list-card tone-${itemIndex % 6} ${isPast ? "is-past" : ""}`}>
                       <div className="schedule-list-card-main">
                         <div>
+                          <span className="schedule-version-badge">Version {item.version || "--"}</span>
                           <strong>{item.courseName}</strong>
-                          <span>版本 {item.version || "--"}</span>
                         </div>
                         <button type="button" className="table-link danger" onClick={() => onDelete(item.id)} disabled={isPast}>
                           删除

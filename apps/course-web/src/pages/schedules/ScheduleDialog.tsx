@@ -94,11 +94,18 @@ export default function ScheduleDialog({
             <option value="">请选择版本</option>
             {(courseGroups[draft.courseName] || []).map((course) => (
               <option key={course.id} value={course.id}>
-                {course.version}
+                Version {course.version || "--"} · #{course.id}
               </option>
             ))}
           </select>
         </label>
+
+        {draft.courseName && draft.version ? (
+          <div className="schedule-dialog-selected-course">
+            <span className="schedule-version-badge">Version {draft.version}</span>
+            <strong>{draft.courseName}</strong>
+          </div>
+        ) : null}
 
         <label className="field">
           <span>课程日期</span>
