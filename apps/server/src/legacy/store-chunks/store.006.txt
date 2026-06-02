@@ -160,10 +160,6 @@ function validateTemplatePayload(template) {
     return issues;
   }
 
-  if (![1, 3].includes(videoGroup.screenCount)) {
-    issues.push("正式组模板只允许单屏或三屏。");
-  }
-
   videoGroup.screens.forEach((screen) => {
     const activeCards = screen.videoCards.filter(
       (card) => card.actionId || card.actionName || trimText(card.stationNumber)
@@ -528,11 +524,15 @@ function normalizeCourseStationRules(...sources) {
     current[field] = "";
     return current;
   }, {});
+  const switchRule = deriveCourseSwitchRuleFromSources(sources);
   for (const source of sources) {
     Object.assign(rules, collectCourseStationRules(source));
   }
   if (hasCourseStationRuleValues(rules)) {
-    return rules;
+    return {
+      ...rules,
+      switch: switchRule
+    };
   }
 
   for (const source of sources) {
@@ -540,11 +540,30 @@ function normalizeCourseStationRules(...sources) {
     if (hasCourseStationRuleValues(derived)) {
       return {
         ...rules,
-        ...derived
+        ...derived,
+        switch: switchRule
       };
     }
   }
-  return rules;
+  return {
+    ...rules,
+    switch: switchRule
+  };
+}
+
+function deriveCourseSwitchRuleFromSources(sources = []) {
+  for (const source of sources) {
+    const script = resolveCourseRuleScript(source);
+    const rotationType =
+      script?.metadata?.rotationType
+      ?? source?.rotationType
+      ?? source?.metadata?.rotationType
+      ?? source?.script?.metadata?.rotationType;
+    if (rotationType) {
+      return deriveCourseSwitchRule(rotationType);
+    }
+  }
+  return deriveCourseSwitchRule();
 }
 
 function normalizeCourseTopLevelMetadata(source = {}, stationRules = normalizeCourseStationRules(source)) {
