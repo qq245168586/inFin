@@ -711,13 +711,6 @@ export function validateCourseScript(courseScript) {
   }
 
   training.videoGroups.forEach((group) => {
-    if (![1, 3].includes(group.screenCount)) {
-      issues.push(`视频组 ${group.name} 只允许 1 屏或 3 屏。`);
-    }
-    if (group.screens.length !== group.screenCount) {
-      issues.push(`视频组 ${group.name} 的屏幕数量与 screenCount 不一致。`);
-    }
-
     group.screens.forEach((screen) => {
       const activeCards = filledVideoCards(screen.videoCards);
       if (!activeCards.length) {
