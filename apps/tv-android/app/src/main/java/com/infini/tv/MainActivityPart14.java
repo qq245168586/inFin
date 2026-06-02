@@ -716,9 +716,9 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
     int baseSize = isWide ? 76 : 66;
     int size = dp(length > 8 ? baseSize + 12 : length > 5 ? baseSize + 6 : baseSize);
     FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(size, size);
-    params.gravity = android.view.Gravity.TOP | android.view.Gravity.END;
-    params.rightMargin = dp(isWide ? 18 : 14);
-    params.topMargin = dp(isWide ? 12 : 10);
+    params.gravity = android.view.Gravity.BOTTOM | android.view.Gravity.START;
+    params.leftMargin = dp(isWide ? 24 : 20);
+    params.bottomMargin = dp(isWide ? 16 : 12);
     dot.setLayoutParams(params);
     dot.setText(label);
     dot.setTextColor(getColor(R.color.tv_accent_gold_bright));
