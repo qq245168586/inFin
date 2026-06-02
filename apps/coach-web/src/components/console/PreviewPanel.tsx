@@ -29,6 +29,7 @@ export function PreviewPanel(props: PreviewPanelProps) {
     <div className="coach-preview-panel">
       <div className="coach-preview-head">
         <div>
+          <span className="coach-preview-course-version">Version {selectedSchedule.version || "--"}</span>
           <h2>{selectedSchedule.courseName}</h2>
           <p>{formatDateLabel(selectedSchedule.beginTime)} · {buildScheduleRange(selectedSchedule)}</p>
         </div>

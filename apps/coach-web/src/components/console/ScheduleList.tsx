@@ -20,6 +20,7 @@ interface ScheduleListProps {
 
 interface ScheduleCardInfo {
   name: string;
+  version: string;
   topic: string;
   description: string;
   stationText: string;
@@ -50,6 +51,7 @@ export function ScheduleList(props: ScheduleListProps) {
                 <div className="coach-schedule-copy">
                   <div className="coach-schedule-title-row">
                     <span className="coach-schedule-topic">{info.topic}</span>
+                    <span className="coach-schedule-version">Version {info.version}</span>
                     <span className={`coach-schedule-badge is-${badge.tone}`}>{badge.label}</span>
                   </div>
                   <strong>{info.name}</strong>
@@ -132,6 +134,7 @@ function buildScheduleCardInfo(schedule: TvDailySchedule): ScheduleCardInfo {
 
   return {
     name: firstText(metadata.name, schedule.courseName, "未命名课程"),
+    version: firstText(metadata.version, schedule.version, "--"),
     topic: firstText(metadata.topic, schedule.topic, "综合训练"),
     description: firstText(metadata.description, schedule.description, "按教练编排完成今日训练。"),
     stationText: buildScheduleStationText(group),
