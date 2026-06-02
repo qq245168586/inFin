@@ -134,7 +134,7 @@ function buildScheduleCardInfo(schedule: TvDailySchedule): ScheduleCardInfo {
     name: firstText(metadata.name, schedule.courseName, "未命名课程"),
     topic: firstText(metadata.topic, schedule.topic, "综合训练"),
     description: firstText(metadata.description, schedule.description, "按教练编排完成今日训练。"),
-    stationText: buildScheduleStationText(group, rotationType),
+    stationText: buildScheduleStationText(group),
     workText: buildScheduleWorkText(screen, metadata),
     restText: buildScheduleRestText(screen, metadata),
     rotationText: buildRotationText(rotationType)
@@ -164,13 +164,8 @@ function findScheduleVideoGroup(course: CoachCourseScript | null, videoGroupId: 
   return (course?.training?.videoGroups || []).find((group) => group.id === videoGroupId) || null;
 }
 
-function buildScheduleStationText(group: CoachVideoGroup | null, rotationType: string): string {
+function buildScheduleStationText(group: CoachVideoGroup | null): string {
   if (!group) return "-";
-  const screenCount = Number(group.screenCount || group.screens?.length || 0);
-  if (rotationType === "REGION" && screenCount > 1) {
-    return `${screenCount} 区域`;
-  }
-
   const stationNumbers = new Set<string>();
   let cardCount = 0;
   for (const screen of group.screens || []) {
@@ -182,9 +177,6 @@ function buildScheduleStationText(group: CoachVideoGroup | null, rotationType: s
       if (stationNumber) {
         stationNumbers.add(stationNumber);
       }
-    }
-    if (stationNumbers.size || cardCount) {
-      break;
     }
   }
 
