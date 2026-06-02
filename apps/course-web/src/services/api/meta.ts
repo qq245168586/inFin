@@ -31,6 +31,7 @@ export interface ScheduleRecord {
   description?: string;
   topic?: string;
   rotationType?: CourseRotationType;
+  stationText?: string;
 }
 
 export interface ScheduleCollection {

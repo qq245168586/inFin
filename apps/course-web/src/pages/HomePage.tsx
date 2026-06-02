@@ -108,8 +108,9 @@ export default function HomePage({
                         <div className="schedule-table-meta">
                           {item.description ? <span>{item.description}</span> : null}
                           {item.topic ? <span>主题：{item.topic}</span> : null}
+                          {item.stationText ? <span>站点：{item.stationText}</span> : null}
                           {item.rotationType ? <span>换站：{getRotationLabel(item.rotationType)}</span> : null}
-                          {!item.description && !item.topic && !item.rotationType ? <span>--</span> : null}
+                          {!item.description && !item.topic && !item.stationText && !item.rotationType ? <span>--</span> : null}
                         </div>
                       </td>
                       <td>

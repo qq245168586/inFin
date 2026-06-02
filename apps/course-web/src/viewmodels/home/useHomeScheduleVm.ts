@@ -47,6 +47,32 @@ function getScheduleDateKey(schedule: CalendarSchedule): string {
   return schedule.date || formatDateKey(schedule.beginTime) || "";
 }
 
+function buildScheduleStationText(course?: CourseRecord | null): string {
+  const script = course?.script;
+  const videoGroups = script?.training?.videoGroups || [];
+  const pods = script?.training?.pods || [];
+  const pod = pods.find((item) => Boolean(item?.videoGroupId)) || pods[0] || null;
+  const group = videoGroups.find((item) => item.id === pod?.videoGroupId) || videoGroups[0] || null;
+  if (!group) return "";
+
+  const stationNumbers = new Set<string>();
+  let cardCount = 0;
+  for (const screen of group.screens || []) {
+    for (const card of screen.videoCards || []) {
+      const stationNumber = String(card?.stationNumber || "").trim();
+      if (stationNumber) {
+        stationNumbers.add(stationNumber);
+      }
+      if (String(card?.actionId || "").trim() || String(card?.actionName || "").trim()) {
+        cardCount += 1;
+      }
+    }
+  }
+
+  const stationCount = stationNumbers.size || cardCount;
+  return stationCount > 0 ? `${stationCount} 站` : "";
+}
+
 function getWeekDays(anchorDate: string): CalendarDay[] {
   const weekStart = weekStartValue(anchorDate);
   const base = new Date(`${weekStart}T12:00:00+08:00`);
@@ -107,7 +133,8 @@ export default function useHomeScheduleVm({
         date: schedule.date || formatDateKey(schedule.beginTime),
         description: schedule.description ?? course?.description ?? course?.script?.metadata?.description,
         topic: schedule.topic ?? course?.topic ?? course?.script?.metadata?.topic,
-        rotationType: schedule.rotationType ?? course?.rotationType ?? course?.script?.metadata?.rotationType
+        rotationType: schedule.rotationType ?? course?.rotationType ?? course?.script?.metadata?.rotationType,
+        stationText: schedule.stationText ?? buildScheduleStationText(course)
       };
     },
     [courses]

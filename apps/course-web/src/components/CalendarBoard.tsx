@@ -18,6 +18,7 @@ export interface CalendarSchedule {
   description?: string;
   topic?: string;
   rotationType?: CourseRotationType;
+  stationText?: string;
 }
 
 const ROTATION_TYPE_LABELS: Record<CourseRotationType, string> = {
@@ -76,6 +77,7 @@ export default function CalendarBoard({
                   const description = getScheduleDescription(item);
                   const topic = getScheduleTopic(item);
                   const rotationLabel = getScheduleRotationLabel(item);
+                  const stationText = item.stationText?.trim() || "";
                   const isPast = getScheduleDateKey(item) < todayValue();
 
                   return (
@@ -92,9 +94,10 @@ export default function CalendarBoard({
 
                       {description ? <p>{description}</p> : null}
 
-                      {topic || rotationLabel ? (
+                      {topic || stationText || rotationLabel ? (
                         <div className="schedule-meta-row">
                           {topic ? <span>主题：{topic}</span> : null}
+                          {stationText ? <span>站点：{stationText}</span> : null}
                           {rotationLabel ? <span>换站：{rotationLabel}</span> : null}
                         </div>
                       ) : null}
