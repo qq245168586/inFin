@@ -227,6 +227,7 @@ abstract class MainActivityPart07 extends MainActivityPart06 {
     content.setOrientation(LinearLayout.VERTICAL);
     body.addView(content);
 
+    content.addView(createScheduleVersionChip(info.version, false));
     content.addView(createScheduleNameText(info.name, 38f, 24, 38, 2));
     content.addView(createScheduleDescriptionText(info.description, 22f, 15, 22, 3, dp(10)));
 
@@ -282,6 +283,7 @@ abstract class MainActivityPart07 extends MainActivityPart06 {
     titleColumn.setOrientation(LinearLayout.VERTICAL);
     titleColumn.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
     titleRow.addView(titleColumn);
+    titleColumn.addView(createScheduleVersionChip(info.version, true));
     titleColumn.addView(createScheduleNameText(info.name, 26f, 16, 26, 1));
     titleColumn.addView(createScheduleDescriptionText(info.description, 15f, 10, 15, 1, dp(4)));
 
@@ -395,6 +397,25 @@ abstract class MainActivityPart07 extends MainActivityPart06 {
     return name;
   }
 
+  protected TextView createScheduleVersionChip(String version, boolean compact) {
+    TextView chip = new TextView(this);
+    LinearLayout.LayoutParams params =
+        new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, compact ? dp(26) : dp(34));
+    params.bottomMargin = compact ? dp(4) : dp(8);
+    chip.setLayoutParams(params);
+    chip.setGravity(android.view.Gravity.CENTER);
+    chip.setPadding(dp(compact ? 10 : 14), 0, dp(compact ? 10 : 14), 0);
+    chip.setBackgroundResource(R.drawable.bg_schedule_version_chip);
+    chip.setText("Version " + firstScheduleText(version, "--"));
+    chip.setTextColor(Color.rgb(24, 18, 32));
+    chip.setTextSize(compact ? 12f : 16f);
+    chip.setTypeface(chip.getTypeface(), android.graphics.Typeface.BOLD);
+    chip.setSingleLine(true);
+    chip.setEllipsize(TextUtils.TruncateAt.END);
+    chip.setAutoSizeTextTypeUniformWithConfiguration(9, compact ? 12 : 16, 1, TypedValue.COMPLEX_UNIT_SP);
+    return chip;
+  }
+
   protected TextView createScheduleDescriptionText(
       String text, float textSize, int minTextSize, int maxTextSize, int maxLines, int topMargin) {
     TextView description = new TextView(this);
@@ -489,6 +510,7 @@ abstract class MainActivityPart07 extends MainActivityPart06 {
     return new ScheduleCardInfo(
         resolveScheduleNumber(item),
         name,
+        firstScheduleText(metadata == null ? "" : metadata.version, item == null ? "" : item.version, "--"),
         topic,
         description,
         setText,
@@ -665,6 +687,7 @@ abstract class MainActivityPart07 extends MainActivityPart06 {
   protected static class ScheduleCardInfo {
     final String number;
     final String name;
+    final String version;
     final String topic;
     final String description;
     final String setText;
@@ -676,6 +699,7 @@ abstract class MainActivityPart07 extends MainActivityPart06 {
     ScheduleCardInfo(
         String number,
         String name,
+        String version,
         String topic,
         String description,
         String setText,
@@ -685,6 +709,7 @@ abstract class MainActivityPart07 extends MainActivityPart06 {
         String compactSwitchText) {
       this.number = number;
       this.name = name;
+      this.version = version;
       this.topic = topic;
       this.description = description;
       this.setText = setText;

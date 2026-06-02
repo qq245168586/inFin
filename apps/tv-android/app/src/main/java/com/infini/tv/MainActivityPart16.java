@@ -220,7 +220,14 @@ abstract class MainActivityPart16 extends MainActivityPart15 {
     if (resolvedName == null || resolvedName.trim().isEmpty()) {
       resolvedName = "课程计划";
     }
-    renderCoursePlanPanel(resolvedName, plan);
+    String resolvedVersion = "";
+    if (schedule != null) {
+      resolvedVersion =
+          firstScheduleText(
+              schedule.course != null && schedule.course.metadata != null ? schedule.course.metadata.version : "",
+              schedule.version);
+    }
+    renderCoursePlanPanel(resolvedName, resolvedVersion, plan);
   }
 
   protected TvScheduleItem findScheduleForCoursePlan(String scheduleId, int courseId) {
@@ -301,7 +308,7 @@ abstract class MainActivityPart16 extends MainActivityPart15 {
     return false;
   }
 
-  protected void renderCoursePlanPanel(String courseName, CourseScript.Plan plan) {
+  protected void renderCoursePlanPanel(String courseName, String courseVersion, CourseScript.Plan plan) {
     if (coursePlanPanel == null) {
       return;
     }
@@ -344,6 +351,25 @@ abstract class MainActivityPart16 extends MainActivityPart15 {
         new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
     titleParams.topMargin = landscape ? dp(4) : dp(8);
     root.addView(title, titleParams);
+
+    if (!TextUtils.isEmpty(courseVersion)) {
+      TextView version = createCoursePlanText("Version " + courseVersion, Color.rgb(24, 18, 32), true);
+      version.setGravity(android.view.Gravity.CENTER);
+      version.setBackgroundResource(R.drawable.bg_schedule_version_chip);
+      version.setPadding(dp(landscape ? 16 : 14), 0, dp(landscape ? 16 : 14), 0);
+      version.setTextSize(
+          TypedValue.COMPLEX_UNIT_PX,
+          landscape ? clampPx(shortSide * 0.026f, sp(16), sp(24)) : clampPx(shortSide * 0.03f, sp(15), sp(22)));
+      version.setSingleLine(true);
+      version.setEllipsize(TextUtils.TruncateAt.END);
+      LinearLayout.LayoutParams versionParams =
+          new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, landscape ? dp(34) : dp(32));
+      versionParams.topMargin = landscape ? dp(8) : dp(10);
+      if (!landscape) {
+        versionParams.gravity = android.view.Gravity.CENTER_HORIZONTAL;
+      }
+      root.addView(version, versionParams);
+    }
 
     ScrollView scrollView = new ScrollView(this);
     scrollView.setFillViewport(landscape);
