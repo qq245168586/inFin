@@ -83,10 +83,42 @@ abstract class TvScriptRepositoryPart06 extends TvScriptRepositoryPart05 {
               cardObject.optString("actionId"),
               cardObject.optString("actionName"),
               cardObject.optString("mediaUrl"),
-              cardObject.optString("stationNumber")));
+              cardObject.optString("stationNumber"),
+              readVideoCardTarget(cardObject)));
     }
 
     return cards;
+  }
+
+  protected String readVideoCardTarget(JSONObject cardObject) {
+    if (cardObject == null || !cardObject.has("target")) {
+      return "";
+    }
+    Object value = cardObject.opt("target");
+    if (value == null || value == JSONObject.NULL) {
+      return "";
+    }
+    if (value instanceof JSONObject) {
+      JSONObject targetObject = (JSONObject) value;
+      String text =
+          firstNonBlank(
+              targetObject.optString("text", ""),
+              targetObject.optString("label", ""),
+              targetObject.optString("display", ""),
+              targetObject.optString("displayText", ""),
+              targetObject.optString("name", ""));
+      if (!text.isEmpty()) {
+        return text;
+      }
+      String amount = targetObject.optString("value", "").trim();
+      String unit = targetObject.optString("unit", "").trim();
+      if (!amount.isEmpty() && !unit.isEmpty()) {
+        return amount + unit;
+      }
+      return amount;
+    }
+    String text = String.valueOf(value).trim();
+    return "null".equalsIgnoreCase(text) ? "" : text;
   }
 
   protected List<CourseScript.Pod> parsePods(JSONArray podsArray) {

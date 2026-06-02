@@ -234,7 +234,8 @@ abstract class TvScriptRepositoryPart05 extends TvScriptRepositoryPart04 {
                   card.actionId,
                   card.actionName,
                   localMediaMap.getOrDefault(card.mediaUrl, card.mediaUrl),
-                  card.stationNumber));
+                  card.stationNumber,
+                  card.target));
         }
         screens.add(
             new CourseScript.VideoGroupScreen(

@@ -162,12 +162,15 @@ public class CourseScript {
     public final String actionName;
     public final String mediaUrl;
     public final String stationNumber;
+    public final String target;
 
-    public VideoCard(String actionId, String actionName, String mediaUrl, String stationNumber) {
+    public VideoCard(
+        String actionId, String actionName, String mediaUrl, String stationNumber, String target) {
       this.actionId = actionId;
       this.actionName = actionName;
       this.mediaUrl = mediaUrl;
       this.stationNumber = stationNumber;
+      this.target = target == null ? "" : target.trim();
     }
   }
 

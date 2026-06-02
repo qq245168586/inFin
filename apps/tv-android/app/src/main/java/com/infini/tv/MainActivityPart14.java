@@ -633,6 +633,7 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
     wrapper.addView(
         createTrainingStationBadge(
             safeStationLabel(card == null ? null : card.stationNumber, cardIndex + 1), true));
+    addTrainingTargetDot(wrapper, card, true);
 
     return wrapper;
   }
@@ -664,8 +665,16 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
     wrapper.addView(
         createTrainingStationBadge(
             safeStationLabel(card == null ? null : card.stationNumber, cardIndex + 1), false));
+    addTrainingTargetDot(wrapper, card, false);
 
     return wrapper;
+  }
+
+  protected void addTrainingTargetDot(FrameLayout wrapper, CourseScript.VideoCard card, boolean isWide) {
+    if (wrapper == null || card == null || TextUtils.isEmpty(card.target)) {
+      return;
+    }
+    wrapper.addView(createTrainingTargetDot(card.target, isWide));
   }
 
   protected TextView createTrainingStationBadge(String label, boolean isWide) {
@@ -698,6 +707,35 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
     background.setStroke(dp(1), getColor(R.color.tv_accent_gold_bright));
     badge.setBackground(background);
     return badge;
+  }
+
+  protected TextView createTrainingTargetDot(String target, boolean isWide) {
+    TextView dot = new TextView(this);
+    int size = dp(isWide ? 76 : 66);
+    FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(size, size);
+    params.gravity = android.view.Gravity.TOP | android.view.Gravity.END;
+    params.rightMargin = dp(isWide ? 18 : 14);
+    params.topMargin = dp(isWide ? 12 : 10);
+    dot.setLayoutParams(params);
+    dot.setText(target == null ? "" : target.trim());
+    dot.setTextColor(getColor(R.color.tv_accent_gold_bright));
+    dot.setTextSize(isWide ? 24f : 20f);
+    dot.setTypeface(dot.getTypeface(), android.graphics.Typeface.BOLD);
+    dot.setGravity(android.view.Gravity.CENTER);
+    dot.setMaxLines(2);
+    dot.setEllipsize(TextUtils.TruncateAt.END);
+    dot.setIncludeFontPadding(false);
+    dot.setPadding(dp(6), dp(5), dp(6), dp(5));
+    dot.setAutoSizeTextTypeUniformWithConfiguration(9, isWide ? 24 : 20, 1, TypedValue.COMPLEX_UNIT_SP);
+
+    android.graphics.drawable.GradientDrawable background =
+        new android.graphics.drawable.GradientDrawable();
+    background.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+    background.setColor(Color.argb(238, 0, 0, 0));
+    background.setStroke(dp(2), getColor(R.color.tv_accent_gold_bright));
+    dot.setBackground(background);
+    dot.setElevation(dp(4));
+    return dot;
   }
 
   protected void bindTrainingPreview(FrameLayout preview, CourseScript.VideoCard card) {
