@@ -20,13 +20,6 @@ const ROTATION_TYPE_OPTIONS: Array<{ value: CourseRotationType; label: string }>
   { value: "SNAKE", label: "蛇形换站" }
 ];
 
-const SWITCH_DISPLAY_OPTIONS = [
-  { value: "", label: "请选择" },
-  { value: "pod", label: "pod" },
-  { value: "range", label: "range" },
-  { value: "follow the leader", label: "follow the leader" }
-];
-
 function updateStationRuleConfig(
   current: CourseScript,
   patch: Partial<StationRuleConfig>
@@ -49,6 +42,25 @@ function updateStationRuleConfig(
   };
 }
 
+function switchDisplayValue(rotationType: CourseRotationType): string {
+  if (rotationType === "LANE") return "range";
+  if (rotationType === "SNAKE") return "follow the leader";
+  return "pod";
+}
+
+function updateRotationType(current: CourseScript, rotationType: CourseRotationType): CourseScript {
+  return updateStationRuleConfig(
+    {
+      ...current,
+      metadata: {
+        ...current.metadata,
+        rotationType
+      }
+    },
+    { switch: switchDisplayValue(rotationType) }
+  );
+}
+
 export default function CourseEditorPane({
   tabId,
   tabTitle,
@@ -67,7 +79,8 @@ export default function CourseEditorPane({
   onNotice,
   onOpenPodRuleDialog,
   onOpenPodCopyDialog,
-  onOpenPodConfigCopyDialog
+  onOpenPodConfigCopyDialog,
+  showSaveAction = true
 }: {
   tabId: string;
   tabTitle: CourseEditorTabState["title"];
@@ -87,6 +100,7 @@ export default function CourseEditorPane({
   onOpenPodRuleDialog: Parameters<typeof CoursePodsEditor>[0]["onOpenPodRuleDialog"];
   onOpenPodCopyDialog: Parameters<typeof CoursePodsEditor>[0]["onOpenPodCopyDialog"];
   onOpenPodConfigCopyDialog: Parameters<typeof CoursePodsEditor>[0]["onOpenPodConfigCopyDialog"];
+  showSaveAction?: boolean;
 }) {
   const videoGroupMap = useMemo(() => {
     return new Map(courseEditor.script.training.videoGroups.map((group) => [group.id, group]) || []);
@@ -129,7 +143,7 @@ export default function CourseEditorPane({
           </label>
         </div>
 
-        <div className="form-row two">
+        <div className="form-row single">
           <label className="field">
             <span>课程主题</span>
             <input
@@ -137,24 +151,6 @@ export default function CourseEditorPane({
               placeholder="可选，例如力量耐力 / 核心稳定"
               onChange={(e) => onUpdateCourseScript((c) => ({ ...c, metadata: { ...c.metadata, topic: e.target.value } }))}
             />
-          </label>
-          <label className="field">
-            <span>换站模式</span>
-            <select
-              value={courseEditor.script.metadata.rotationType}
-              onChange={(e) =>
-                onUpdateCourseScript((c) => ({
-                  ...c,
-                  metadata: { ...c.metadata, rotationType: e.target.value as CourseRotationType }
-                }))
-              }
-            >
-              {ROTATION_TYPE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
           </label>
         </div>
 
@@ -198,11 +194,11 @@ export default function CourseEditorPane({
           <label className="field">
             <span>Switch</span>
             <select
-              value={courseEditor.script.metadata.stationRules?.switch || ""}
-              onChange={(e) => onUpdateCourseScript((c) => updateStationRuleConfig(c, { switch: e.target.value }))}
+              value={courseEditor.script.metadata.rotationType}
+              onChange={(e) => onUpdateCourseScript((c) => updateRotationType(c, e.target.value as CourseRotationType))}
             >
-              {SWITCH_DISPLAY_OPTIONS.map((option) => (
-                <option key={option.value || "empty"} value={option.value}>
+              {ROTATION_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
               ))}
@@ -298,11 +294,13 @@ export default function CourseEditorPane({
           onOpenPodConfigCopyDialog={onOpenPodConfigCopyDialog}
         />
 
-        <div className="editor-actions">
-          <button type="button" className="primary-button" onClick={() => onSaveCourse()}>
-            保存
-          </button>
-        </div>
+        {showSaveAction ? (
+          <div className="editor-actions">
+            <button type="button" className="primary-button" onClick={() => onSaveCourse()}>
+              保存
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );

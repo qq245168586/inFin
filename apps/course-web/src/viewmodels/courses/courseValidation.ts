@@ -58,10 +58,6 @@ export function getCourseDraftIssues(draft: CourseDraft): string[] {
   }
 
   script.training.videoGroups.forEach((group) => {
-    if (![1, 3].includes(group.screenCount)) {
-      issues.push(`视频组 ${group.name || "未命名"} 只允许单屏或三屏。`);
-    }
-
     group.screens.forEach((screen) => {
       const activeCards = getFilledVideoCards(screen.videoCards);
       if (group.screenCount !== 1) {

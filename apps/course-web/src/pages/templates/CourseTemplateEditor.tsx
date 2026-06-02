@@ -428,6 +428,7 @@ export default function CourseTemplateEditor({
         onOpenPodRuleDialog={openPodRuleDialog}
         onOpenPodCopyDialog={openPodCopyDialog}
         onOpenPodConfigCopyDialog={openPodConfigCopyDialog}
+        showSaveAction={false}
       />
 
       <CoursesOverlays

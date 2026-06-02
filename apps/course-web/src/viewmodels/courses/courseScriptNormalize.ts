@@ -98,7 +98,10 @@ function deriveStationRuleConfig(script: CourseScript): StationRuleConfig {
 
 function normalizeOrDeriveStationRuleConfig(value: unknown, script: CourseScript): StationRuleConfig {
   const config = normalizeStationRuleConfig(value);
-  return hasStationRuleValues(config) ? config : deriveStationRuleConfig(script);
+  return {
+    ...(hasStationRuleValues(config) ? config : deriveStationRuleConfig(script)),
+    switch: deriveSwitchRule(normalizeRotationType(script.metadata?.rotationType))
+  };
 }
 
 function fitVideoCardsForRows(
