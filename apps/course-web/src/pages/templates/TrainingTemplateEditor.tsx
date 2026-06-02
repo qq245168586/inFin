@@ -17,6 +17,7 @@ interface VideoSlotDialogState {
   slotIndex: number;
   actionId: string;
   stationNumber: string;
+  target: string;
 }
 
 function normalizeSearch(value: string): string {
@@ -29,6 +30,10 @@ function findAction(actions: ActionMediaPreviewAction[], actionId: string): Acti
 
 function findActionName(actions: ActionMediaPreviewAction[], actionId: string): string {
   return findAction(actions, actionId)?.name || "";
+}
+
+function normalizeTarget(value: string): string {
+  return String(value || "").trim();
 }
 
 function fitVideoCardsForRows(
@@ -153,11 +158,12 @@ export default function TrainingTemplateEditor({
       screenId: screen.id,
       slotIndex,
       actionId: card?.actionId || "",
-      stationNumber: card?.stationNumber || ""
+      stationNumber: card?.stationNumber || "",
+      target: card?.target || ""
     });
   }
 
-  function confirmSlotDialog(actionId: string, stationNumber: string) {
+  function confirmSlotDialog(actionId: string, stationNumber: string, target: string) {
     if (!slotDialog) return;
     const nextAction = findAction(actions, actionId);
     updateScreen(slotDialog.screenId, (screen, group) => {
@@ -168,7 +174,8 @@ export default function TrainingTemplateEditor({
         ...currentCard,
         actionId,
         actionName: nextAction?.name || "",
-        stationNumber: stationInputValue(stationNumber)
+        stationNumber: stationInputValue(stationNumber),
+        target: normalizeTarget(target)
       };
       return { ...screen, rowLayouts, videoCards: nextCards };
     });
@@ -269,7 +276,9 @@ export default function TrainingTemplateEditor({
                           <button
                             key={`${screen.id}-slot-${slotIndex}`}
                             type="button"
-                            className={`screen-video-slot-card ${card?.actionId || card?.stationNumber ? "has-action" : "is-empty"}`}
+                            className={`screen-video-slot-card ${
+                              card?.actionId || card?.stationNumber || card?.target ? "has-action" : "is-empty"
+                            }`}
                             onClick={() => openSlotDialog(screen, slotIndex, card)}
                           >
                             {actionName ? (
@@ -288,12 +297,14 @@ export default function TrainingTemplateEditor({
                                     <span className="screen-video-slot-station">站点 {card.stationNumber}</span>
                                   ) : null}
                                   <strong>{actionName}</strong>
+                                  {card?.target ? <span className="screen-video-slot-target">目标 {card.target}</span> : null}
                                   <span className="screen-video-slot-hint">点击这里修改</span>
                                 </div>
                               </>
                             ) : (
                               <div className="screen-video-slot-empty-copy">
                                 {card?.stationNumber ? <span className="screen-video-slot-station">站点 {card.stationNumber}</span> : null}
+                                {card?.target ? <span className="screen-video-slot-target">目标 {card.target}</span> : null}
                                 <strong>点击这里选动作</strong>
                               </div>
                             )}
@@ -331,7 +342,8 @@ export default function TrainingTemplateEditor({
                                     ? {
                                         ...videoCard,
                                         actionId,
-                                        actionName
+                                        actionName,
+                                        target: videoCard.target || ""
                                       }
                                     : videoCard
                                 )
@@ -353,6 +365,22 @@ export default function TrainingTemplateEditor({
                           删除
                         </button>
                       </div>
+
+                      <label className="field video-card-target-field">
+                        <span>目标</span>
+                        <input
+                          value={card.target || ""}
+                          onChange={(event) =>
+                            updateScreen(screen.id, (entry) => ({
+                              ...entry,
+                              videoCards: entry.videoCards.map((videoCard) =>
+                                videoCard.id === card.id ? { ...videoCard, target: normalizeTarget(event.target.value) } : videoCard
+                              )
+                            }))
+                          }
+                          placeholder="12 次 / 300m / 20 cal"
+                        />
+                      </label>
 
                       <ActionMediaPreview
                         actionId={card.actionId}
@@ -387,6 +415,7 @@ export default function TrainingTemplateEditor({
           actionTypes={actionTypes}
           initialActionId={slotDialog.actionId}
           initialStationNumber={slotDialog.stationNumber}
+          initialTarget={slotDialog.target}
           onClose={() => setSlotDialog(null)}
           onConfirm={confirmSlotDialog}
         />
@@ -400,6 +429,7 @@ function VideoSlotDialog({
   actionTypes,
   initialActionId,
   initialStationNumber,
+  initialTarget,
   onClose,
   onConfirm
 }: {
@@ -407,14 +437,16 @@ function VideoSlotDialog({
   actionTypes: TypeOption[];
   initialActionId: string;
   initialStationNumber: string;
+  initialTarget: string;
   onClose: () => void;
-  onConfirm: (actionId: string, stationNumber: string) => void;
+  onConfirm: (actionId: string, stationNumber: string, target: string) => void;
 }) {
   const [search, setSearch] = useState("");
   const [typeId, setTypeId] = useState("");
   const [courseTag, setCourseTag] = useState("");
   const [draftActionId, setDraftActionId] = useState(initialActionId || "");
   const [draftStationNumber, setDraftStationNumber] = useState(initialStationNumber || "");
+  const [draftTarget, setDraftTarget] = useState(initialTarget || "");
 
   const draftAction = findAction(actions, draftActionId);
   const typeNameById = useMemo(() => new Map(actionTypes.map((item) => [Number(item.id), displayTypeName(item.name)])), [actionTypes]);
@@ -442,7 +474,7 @@ function VideoSlotDialog({
       title="编辑动作位"
       width={1120}
       onClose={onClose}
-      onConfirm={() => onConfirm(draftActionId, draftStationNumber)}
+      onConfirm={() => onConfirm(draftActionId, draftStationNumber, draftTarget)}
       confirmText="确认"
     >
       <div className="action-picker-modal video-slot-modal">
@@ -455,6 +487,14 @@ function VideoSlotDialog({
                 onChange={(event) => setDraftStationNumber(event.target.value)}
                 placeholder="1 / A / 1A"
                 autoFocus
+              />
+            </label>
+            <label className="action-picker-filter video-slot-target-field">
+              <span>目标</span>
+              <input
+                value={draftTarget}
+                onChange={(event) => setDraftTarget(event.target.value)}
+                placeholder="12 次 / 300m / 20 cal"
               />
             </label>
             <label className="action-picker-filter">
@@ -523,7 +563,7 @@ function VideoSlotDialog({
           <div>
             <span className="eyebrow">VIDEO SLOT</span>
             <h3>{draftAction?.name || "未选择动作"}</h3>
-            <p>{draftStationNumber ? `站点 ${draftStationNumber}` : "未填写站点"}</p>
+            <p>{[draftStationNumber ? `站点 ${draftStationNumber}` : "未填写站点", draftTarget ? `目标 ${draftTarget}` : ""].filter(Boolean).join(" · ")}</p>
           </div>
           <ActionMediaPreview
             actionId={draftActionId}

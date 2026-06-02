@@ -66,6 +66,7 @@ export interface VideoCard {
   actionId: string;
   actionName: string;
   stationNumber: string;
+  target: string;
 }
 
 export interface VideoGroupScreen {

@@ -83,7 +83,8 @@ export function createVideoCard(stationNumber = ""): VideoCard {
     id: uid("video-card"),
     actionId: "",
     actionName: "",
-    stationNumber: stationInputValue(stationNumber)
+    stationNumber: stationInputValue(stationNumber),
+    target: ""
   };
 }
 
@@ -163,7 +164,8 @@ export function cloneVideoCardForEditor(card?: Partial<VideoCard>, screenCount: 
     id: uid("video-card"),
     actionId: String(card?.actionId || ""),
     actionName: String(card?.actionName || ""),
-    stationNumber: screenCount === 1 ? "" : stationInputValue(card?.stationNumber)
+    stationNumber: screenCount === 1 ? "" : stationInputValue(card?.stationNumber),
+    target: String(card?.target || "")
   };
 }
 
@@ -241,7 +243,8 @@ export function cloneCourseScriptWithFreshIds(script: CourseScript, metadataId =
           (screen.videoCards || []).map((card) => ({
             ...card,
             id: uid("video-card"),
-            stationNumber: screenCount === 1 ? "" : stationInputValue(card.stationNumber)
+            stationNumber: screenCount === 1 ? "" : stationInputValue(card.stationNumber),
+            target: String(card.target || "")
           })),
           rowLayouts,
           screenCount

@@ -2690,6 +2690,19 @@ textarea:focus {
   white-space: nowrap;
 }
 
+.screen-video-slot-target {
+  max-width: 100%;
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: #0f5132;
+  background: #dff7ea;
+  font-size: 11px;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .screen-video-slot-card strong {
   width: 100%;
   min-height: 1.4em;
@@ -2748,6 +2761,11 @@ textarea:focus {
   text-shadow: 0 1px 8px rgba(0, 0, 0, 0.42);
 }
 
+.screen-video-slot-overlay .screen-video-slot-target {
+  color: #dcfce7;
+  background: rgba(22, 163, 74, 0.74);
+}
+
 .screen-video-slot-overlay .screen-video-slot-hint {
   color: rgba(255, 255, 255, 0.88);
 }
@@ -2791,6 +2809,10 @@ textarea:focus {
   grid-template-columns: minmax(0, 1fr) 78px auto;
   gap: 8px;
   align-items: end;
+}
+
+.video-card-target-field {
+  max-width: 420px;
 }
 
 .screen-video-action-title {

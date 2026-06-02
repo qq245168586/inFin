@@ -195,7 +195,8 @@ export function normalizeCourseScriptLocal(script: CourseScript): CourseScript {
           (screen.videoCards || []).map((card) => ({
             ...card,
             id: card.id || uid("video-card"),
-            stationNumber: resolvedScreenCount === 1 ? "" : stationInputValue(card.stationNumber)
+            stationNumber: resolvedScreenCount === 1 ? "" : stationInputValue(card.stationNumber),
+            target: String(card.target || "")
           })),
           rowLayouts,
           resolvedScreenCount
