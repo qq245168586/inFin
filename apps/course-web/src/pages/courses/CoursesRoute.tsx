@@ -69,6 +69,7 @@ export default function CoursesRoute({
   const [podRuleDialog, setPodRuleDialog] = useState<PodRuleDialogState | null>(null);
   const [podCopyDialog, setPodCopyDialog] = useState<PodCopyDialogState | null>(null);
   const [podConfigCopyDialog, setPodConfigCopyDialog] = useState<PodConfigCopyDialogState | null>(null);
+  const [courseVersionError, setCourseVersionError] = useState("");
 
   const activeCourseEditorTab = tabsVm.activeCourseEditorTab;
   const courseEditor = tabsVm.courseEditor;
@@ -98,7 +99,34 @@ export default function CoursesRoute({
       pushNotice("请先选择课程包。", "error");
       return;
     }
+    setCourseVersionError("");
     tabsVm.openCourseEditor(course ?? null, selectedCoursePackage.id);
+  }
+
+  function normalizeCourseIdentity(value: string) {
+    return value.trim().toLocaleLowerCase();
+  }
+
+  function saveActiveCourse() {
+    if (!courseEditor) return;
+    const courseName = normalizeCourseIdentity(courseEditor.script.metadata.name);
+    const courseVersion = normalizeCourseIdentity(courseEditor.script.metadata.version);
+    const hasSameNameAndVersion = (appData?.courses || []).some((course) => {
+      if (Number(course.id) === Number(courseEditor.id)) return false;
+      return (
+        normalizeCourseIdentity(course.name) === courseName &&
+        normalizeCourseIdentity(course.version) === courseVersion
+      );
+    });
+
+    if (hasSameNameAndVersion) {
+      setCourseVersionError("课程已有相同版本");
+      pushNotice("课程已有相同版本。", "error");
+      return;
+    }
+
+    setCourseVersionError("");
+    void courseCrudVm.saveCourse();
   }
 
   function openTemplateUseDialog(target: SegmentTemplateKind, targetVideoGroup?: VideoGroup | null) {
@@ -390,9 +418,16 @@ export default function CoursesRoute({
               const targetGroup = courseEditor.script.training.videoGroups.find((group) => group.id === groupId) || null;
               openTemplateUseDialog("training", targetGroup);
             }}
-            onUpdateCourseDraft={(updater) => tabsVm.setCourseEditor((current) => updater(current))}
-            onUpdateCourseScript={tabsVm.updateCourseScript}
-            onSaveCourse={() => void courseCrudVm.saveCourse()}
+            onUpdateCourseDraft={(updater) => {
+              setCourseVersionError("");
+              tabsVm.setCourseEditor((current) => updater(current));
+            }}
+            onUpdateCourseScript={(updater) => {
+              setCourseVersionError("");
+              tabsVm.updateCourseScript(updater);
+            }}
+            onSaveCourse={saveActiveCourse}
+            courseVersionError={courseVersionError}
             onNotice={pushNotice}
             onOpenPodRuleDialog={openPodRuleDialog}
             onOpenPodCopyDialog={openPodCopyDialog}

@@ -785,6 +785,16 @@ textarea:focus {
   box-shadow: 0 0 0 3px rgba(29, 111, 255, 0.12);
 }
 
+input.is-invalid,
+select.is-invalid,
+textarea.is-invalid,
+input.is-invalid:focus,
+select.is-invalid:focus,
+textarea.is-invalid:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.14);
+}
+
 .action-picker {
   position: relative;
   display: grid;
@@ -2231,6 +2241,12 @@ textarea:focus {
 .field span {
   color: var(--text-main);
   font-size: 13px;
+  font-weight: 700;
+}
+
+.field-error {
+  color: #ef4444;
+  font-size: 12px;
   font-weight: 700;
 }
 

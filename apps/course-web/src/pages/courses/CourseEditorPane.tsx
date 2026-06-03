@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import FilterChips from "../../components/FilterChips.tsx";
 import type { CourseRotationType, CourseScript, StationRuleConfig } from "../../models/course/types.ts";
 import type { ActionRecord, TypeOption } from "../../services/api/meta.ts";
@@ -80,6 +80,7 @@ export default function CourseEditorPane({
   onOpenPodRuleDialog,
   onOpenPodCopyDialog,
   onOpenPodConfigCopyDialog,
+  courseVersionError = "",
   showSaveAction = true
 }: {
   tabId: string;
@@ -100,6 +101,7 @@ export default function CourseEditorPane({
   onOpenPodRuleDialog: Parameters<typeof CoursePodsEditor>[0]["onOpenPodRuleDialog"];
   onOpenPodCopyDialog: Parameters<typeof CoursePodsEditor>[0]["onOpenPodCopyDialog"];
   onOpenPodConfigCopyDialog: Parameters<typeof CoursePodsEditor>[0]["onOpenPodConfigCopyDialog"];
+  courseVersionError?: string;
   showSaveAction?: boolean;
 }) {
   const videoGroupMap = useMemo(() => {
@@ -107,6 +109,15 @@ export default function CourseEditorPane({
   }, [courseEditor.script.training.videoGroups]);
 
   const logoInputId = `course-logo-upload-${tabId}`;
+  const versionInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (!courseVersionError) return;
+    window.requestAnimationFrame(() => {
+      versionInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      versionInputRef.current?.focus();
+    });
+  }, [courseVersionError]);
 
   return (
     <div className="editor-layout">
@@ -137,9 +148,13 @@ export default function CourseEditorPane({
           <label className="field">
             <span>课程版本</span>
             <input
+              ref={versionInputRef}
+              className={courseVersionError ? "is-invalid" : undefined}
+              aria-invalid={courseVersionError ? "true" : undefined}
               value={courseEditor.script.metadata.version}
               onChange={(e) => onUpdateCourseScript((c) => ({ ...c, metadata: { ...c.metadata, version: e.target.value } }))}
             />
+            {courseVersionError ? <small className="field-error">{courseVersionError}</small> : null}
           </label>
         </div>
 

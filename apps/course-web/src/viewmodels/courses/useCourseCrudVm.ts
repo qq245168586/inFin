@@ -19,6 +19,7 @@ export default function useCourseCrudVm({
   authHeader,
   courseEditor,
   coursePackageId,
+  existingCourses = [],
   onBusyText,
   onNotice,
   onReloadMeta,
@@ -41,6 +42,20 @@ export default function useCourseCrudVm({
     const issues = getCourseDraftIssues(courseEditor);
     if (issues.length) {
       onNotice(issues[0], "error");
+      return;
+    }
+
+    const courseName = courseEditor.script.metadata.name.trim().toLocaleLowerCase();
+    const courseVersion = courseEditor.script.metadata.version.trim().toLocaleLowerCase();
+    const hasSameNameAndVersion = existingCourses.some((course) => {
+      if (Number(course.id) === Number(courseEditor.id)) return false;
+      return (
+        course.name.trim().toLocaleLowerCase() === courseName &&
+        course.version.trim().toLocaleLowerCase() === courseVersion
+      );
+    });
+    if (hasSameNameAndVersion) {
+      onNotice("课程已有相同版本。", "error");
       return;
     }
 
