@@ -199,6 +199,10 @@ export function getCourseById(courseId) {
   return course ? serializeCourse(course) : null;
 }
 
+function normalizeCourseIdentityText(value) {
+  return trimText(value).toLocaleLowerCase();
+}
+
 export function saveCourse(payload) {
   const existing = payload.id ? getCourseById(payload.id) : null;
   const next = normalizeCoursePayload(payload, existing);
@@ -211,6 +215,20 @@ export function saveCourse(payload) {
 
   if (targetCoursePackageId > 0 && !targetCoursePackage) {
     throw new Error("课程包不存在。");
+  }
+
+  const nextName = normalizeCourseIdentityText(next.name);
+  const nextVersion = normalizeCourseIdentityText(next.version);
+  const hasSameNameAndVersion = state.courses.some((course) => {
+    if (Number(course.id) === Number(next.id)) return false;
+    return (
+      normalizeCourseIdentityText(course.name) === nextName &&
+      normalizeCourseIdentityText(course.version) === nextVersion
+    );
+  });
+
+  if (hasSameNameAndVersion) {
+    throw new Error("课程已有相同版本。");
   }
 
   if (index >= 0) {
