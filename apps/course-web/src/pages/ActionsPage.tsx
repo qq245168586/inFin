@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import Dialog from "../components/Dialog.tsx";
 import EmptyBlock from "../components/EmptyBlock.tsx";
 import FilterChips, { type ChipOption } from "../components/FilterChips.tsx";
@@ -86,8 +87,20 @@ export default function ActionsPage({
   onCloseBatchDialog: () => void;
   onSaveBatchActions: () => void;
 }) {
+  const [typeFilterDialogOpen, setTypeFilterDialogOpen] = useState(false);
   const batchReadyCount = actionBatchDialog?.items.filter((item) => item.status === "ready").length || 0;
   const batchInvalidCount = actionBatchDialog?.items.filter((item) => item.status === "invalid").length || 0;
+  const selectedFilterTypes = useMemo(
+    () => actionTypes.filter((item) => actionFiltersDraft.typeIds.includes(item.id)),
+    [actionFiltersDraft.typeIds, actionTypes]
+  );
+
+  function clearFilterTypes() {
+    onActionFiltersDraftChange({
+      ...actionFiltersDraft,
+      typeIds: []
+    });
+  }
 
   return (
     <section className="page-card is-no-padding">
@@ -214,7 +227,23 @@ export default function ActionsPage({
 
             <div className="filter-line">
               <span className="filter-label">动作类型</span>
-              <FilterChips options={actionTypes} selectedIds={actionFiltersDraft.typeIds} onToggle={onToggleFilterType} />
+              <div className="type-filter-summary">
+                <button type="button" className="ghost-button type-filter-trigger" onClick={() => setTypeFilterDialogOpen(true)}>
+                  选择类型
+                  {selectedFilterTypes.length ? <span>{selectedFilterTypes.length}</span> : null}
+                </button>
+                <div className="type-filter-selected">
+                  {selectedFilterTypes.length ? (
+                    selectedFilterTypes.map((type) => (
+                      <button key={type.id} type="button" className="filter-chip is-active" onClick={() => onToggleFilterType(type.id)}>
+                        {type.name}
+                      </button>
+                    ))
+                  ) : (
+                    <span className="type-filter-empty">全部类型</span>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -273,6 +302,20 @@ export default function ActionsPage({
           </div>
         </div>
       )}
+
+      {typeFilterDialogOpen ? (
+        <Dialog title="选择动作类型" width={820} onClose={() => setTypeFilterDialogOpen(false)} onConfirm={() => setTypeFilterDialogOpen(false)} confirmText="完成">
+          <div className="type-filter-dialog">
+            <div className="type-filter-dialog-head">
+              <p>已选择 {selectedFilterTypes.length} 个类型</p>
+              <button type="button" className="ghost-button small" onClick={clearFilterTypes} disabled={!selectedFilterTypes.length}>
+                清除所有类型
+              </button>
+            </div>
+            <FilterChips options={actionTypes} selectedIds={actionFiltersDraft.typeIds} onToggle={onToggleFilterType} />
+          </div>
+        </Dialog>
+      ) : null}
 
       {actionBatchGuideOpen ? (
         <Dialog title="批量上传动作" width={640} onClose={onCloseBatchGuide} onConfirm={onConfirmBatchGuide} confirmText="选择视频">
