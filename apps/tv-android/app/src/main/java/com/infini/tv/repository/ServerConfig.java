@@ -6,12 +6,7 @@ public final class ServerConfig {
   public static final String LEGACY_BASE_URL = BASE_URL;
   public static final String LEGACY_API_BASE_URL = LEGACY_BASE_URL + "/api";
   public static final String COURSE_TIME_ZONE = "Asia/Shanghai";
-  public static final String MQTT_HOST = "8.130.65.113";
-  public static final int MQTT_PORT = 1883;
-  public static final String MQTT_TCP_URL = "tcp://" + MQTT_HOST + ":" + MQTT_PORT;
   public static final String MQTT_WSS_URL = "wss://api.infintraining.work/mqtt";
-  public static final boolean MQTT_USE_WSS = true;
-  public static final boolean MQTT_FALLBACK_TCP = true;
   public static final String MQTT_USERNAME = "";
   public static final String MQTT_PASSWORD = "REDACTED_CONFIGURE_LOCALLY";
   public static final String MQTT_TOPIC_CONTROL = "infini/tv/control";
@@ -20,18 +15,12 @@ public final class ServerConfig {
   private ServerConfig() {}
 
   public static String[] mqttBrokerUris() {
-    if (!MQTT_USE_WSS) {
-      return new String[] { MQTT_TCP_URL };
-    }
-    if (!MQTT_FALLBACK_TCP) {
-      return new String[] { MQTT_WSS_URL };
-    }
-    return new String[] { MQTT_WSS_URL, MQTT_TCP_URL };
+    return new String[] { MQTT_WSS_URL };
   }
 
   public static String primaryMqttBrokerUri() {
     String[] uris = mqttBrokerUris();
-    return uris.length > 0 ? uris[0] : MQTT_TCP_URL;
+    return uris.length > 0 ? uris[0] : MQTT_WSS_URL;
   }
 
   public static String normalizeAccountNamespace(String namespace) {
