@@ -1,11 +1,10 @@
 import mqtt from "mqtt";
 import { recordOutboundMqtt } from "./mqtt-ops-log.js";
 
-const MQTT_HOST = process.env.MQTT_HOST || "8.130.65.113";
-const MQTT_PORT = Number(process.env.MQTT_PORT || 1883);
 const MQTT_USERNAME = process.env.MQTT_USERNAME || "tv1";
 const MQTT_PASSWORD = process.env.MQTT_PASSWORD || "REDACTED_CONFIGURE_LOCALLY";
-const MQTT_URL = process.env.MQTT_URL || `mqtt://${MQTT_HOST}:${MQTT_PORT}`;
+const MQTT_WSS_URL = process.env.MQTT_WSS_URL || "wss://api.infintraining.work/mqtt";
+const MQTT_URL = process.env.MQTT_URL || MQTT_WSS_URL;
 const MQTT_CONTROL_TOPIC = process.env.MQTT_TOPIC_CONTROL || "infini/tv/control";
 const MQTT_SESSION_TOPIC = process.env.MQTT_TOPIC_SESSION || "infini/tv/session";
 const MQTT_CLIENT_HTTP_URL = String(process.env.MQTT_CLIENT_HTTP_URL || process.env.MQTT_GATEWAY_URL || "").trim();
@@ -228,8 +227,7 @@ export async function publishTvSessionEvent(session, accountNamespace = "") {
 
 export function getTvControlConfig(accountNamespace = "") {
   return {
-    host: MQTT_HOST,
-    port: MQTT_PORT,
+    url: MQTT_URL,
     accountNamespace: String(accountNamespace || "").trim().toLowerCase(),
     topic: buildTopic(accountNamespace),
     sessionTopic: buildSessionTopic(accountNamespace),

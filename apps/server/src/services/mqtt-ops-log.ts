@@ -14,11 +14,10 @@ const LOG_RETENTION_DAYS = Math.max(
   Number(process.env.MQTT_LOG_RETENTION_DAYS || DEFAULT_RETENTION_DAYS) || DEFAULT_RETENTION_DAYS
 );
 
-const MQTT_HOST = process.env.MQTT_HOST || "8.130.65.113";
-const MQTT_PORT = Number(process.env.MQTT_PORT || 1883);
 const MQTT_USERNAME = process.env.MQTT_USERNAME || "tv1";
 const MQTT_PASSWORD = process.env.MQTT_PASSWORD || "REDACTED_CONFIGURE_LOCALLY";
-const MQTT_URL = process.env.MQTT_URL || `mqtt://${MQTT_HOST}:${MQTT_PORT}`;
+const MQTT_WSS_URL = process.env.MQTT_WSS_URL || "wss://api.infintraining.work/mqtt";
+const MQTT_URL = process.env.MQTT_URL || MQTT_WSS_URL;
 
 const DEFAULT_TOPICS = [
   "infini/tv/control/#",
