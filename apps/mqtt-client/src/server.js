@@ -19,11 +19,10 @@ const HOST = process.env.HOST || "127.0.0.1";
 const PORT = Number(process.env.PORT || process.env.MQTT_CLIENT_PORT || 3205);
 const HTTP_TOKEN = String(process.env.MQTT_CLIENT_HTTP_TOKEN || "").trim();
 
-const MQTT_HOST = process.env.MQTT_HOST || "8.130.65.113";
-const MQTT_PORT = Number(process.env.MQTT_PORT || 1883);
 const MQTT_USERNAME = process.env.MQTT_USERNAME || "tv1";
 const MQTT_PASSWORD = process.env.MQTT_PASSWORD || "REDACTED_CONFIGURE_LOCALLY";
-const MQTT_URL = process.env.MQTT_URL || `mqtt://${MQTT_HOST}:${MQTT_PORT}`;
+const MQTT_WSS_URL = process.env.MQTT_WSS_URL || "wss://api.infintraining.work/mqtt";
+const MQTT_URL = process.env.MQTT_URL || MQTT_WSS_URL;
 const MQTT_CONTROL_TOPIC = process.env.MQTT_TOPIC_CONTROL || "infini/tv/control";
 const MQTT_SESSION_TOPIC = process.env.MQTT_TOPIC_SESSION || "infini/tv/session";
 
