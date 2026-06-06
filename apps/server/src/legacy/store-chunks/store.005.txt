@@ -33,6 +33,33 @@ function getActivePlaybackSessionEntry(accountNamespace = "") {
   return sessions[0] || null;
 }
 
+function getRecentTerminalPlaybackSessionEntry(accountNamespace = "") {
+  const ns = normalizeAccountNamespace(accountNamespace);
+  const nowMs = Date.now();
+  const sessions = (state.playbackSessions || [])
+    .filter((item) => normalizeAccountNamespace(item.accountNamespace) === ns)
+    .map(materializePlaybackSession)
+    .filter((item) => {
+      if (!item || !PLAYBACK_TERMINAL_STATES.has(item.state)) {
+        return false;
+      }
+      const updatedAtMs =
+        safeNumber(item.updatedAtMs)
+        || new Date(item.updateTime || item.endTime || item.createTime || 0).getTime();
+      return updatedAtMs > 0 && nowMs - updatedAtMs <= PLAYBACK_TERMINAL_CURRENT_TTL_MS;
+    })
+    .sort((left, right) => {
+      const leftUpdatedAtMs = safeNumber(left.updatedAtMs) || new Date(left.updateTime || left.endTime || left.createTime || 0).getTime();
+      const rightUpdatedAtMs = safeNumber(right.updatedAtMs) || new Date(right.updateTime || right.endTime || right.createTime || 0).getTime();
+      return rightUpdatedAtMs - leftUpdatedAtMs;
+    });
+  return sessions[0] || null;
+}
+
+function getCurrentPlaybackSessionEntry(accountNamespace = "") {
+  return getActivePlaybackSessionEntry(accountNamespace) || getRecentTerminalPlaybackSessionEntry(accountNamespace);
+}
+
 function recordPlaybackCommand(session, action, commandId) {
   const id = trimText(commandId);
   if (!id) {
