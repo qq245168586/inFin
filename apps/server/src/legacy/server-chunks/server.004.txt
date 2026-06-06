@@ -152,7 +152,7 @@
       };
       const hasTvScope = Boolean(tvScope.deviceId || tvScope.screenNumber);
       const session = user && !hasTvScope
-        ? getCurrentPlaybackSession(accountNamespace)
+        ? getActivePlaybackSession(accountNamespace)
         : getCurrentPlaybackSessionForTv(tvScope);
       const serverNowMs = Date.now();
       sendJson(response, 200, {
@@ -266,4 +266,3 @@
       });
       return;
     }
-

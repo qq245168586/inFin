@@ -50,6 +50,7 @@ import {
   getMediaRoot,
   getMetaPayload,
   getTemplateById,
+  getActivePlaybackSession,
   getCurrentPlaybackSession,
   getCurrentPlaybackSessionForTv,
   getPlaybackSession,

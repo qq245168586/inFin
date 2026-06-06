@@ -75,6 +75,10 @@ export function getCurrentPlaybackSession(accountNamespace = "") {
   return serializePlaybackSession(getCurrentPlaybackSessionEntry(accountNamespace));
 }
 
+export function getActivePlaybackSession(accountNamespace = "") {
+  return serializePlaybackSession(getActivePlaybackSessionEntry(accountNamespace));
+}
+
 export function getCurrentPlaybackSessionForTv(payload = {}) {
   const requestedAccountNamespace = normalizeScreenAccountNamespace(payload.accountNamespace);
   const requestedDeviceId = trimText(payload.deviceId).toUpperCase();

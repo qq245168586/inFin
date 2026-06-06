@@ -12,7 +12,7 @@
 
       const accountNamespace = resolvePlaybackRequestAccountNamespace(user, url, payload);
       const targetScheduleId = String(payload?.scheduleId || "").trim();
-      let session = getCurrentPlaybackSession(accountNamespace);
+      let session = getActivePlaybackSession(accountNamespace);
 
       if (session && targetScheduleId && String(session.scheduleId || "") !== targetScheduleId) {
         sendJson(response, 409, { message: "当前已有未结束课程，请先终止当前课程。" });

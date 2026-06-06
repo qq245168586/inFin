@@ -66,6 +66,7 @@ export const listSchedulesByScope = legacyStore.listSchedulesByScope as (...args
 export const getTvDailyBundle = legacyStore.getTvDailyBundle as (...args: any[]) => any;
 export const getTvDailyChecksum = legacyStore.getTvDailyChecksum as (...args: any[]) => any;
 export const getTvScheduleBundle = legacyStore.getTvScheduleBundle as (...args: any[]) => any;
+export const getActivePlaybackSession = legacyStore.getActivePlaybackSession as (...args: any[]) => any;
 export const getCurrentPlaybackSession = legacyStore.getCurrentPlaybackSession as (...args: any[]) => any;
 export const getCurrentPlaybackSessionForTv = legacyStore.getCurrentPlaybackSessionForTv as (...args: any[]) => any;
 export const getPlaybackSession = legacyStore.getPlaybackSession as (...args: any[]) => any;
