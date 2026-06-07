@@ -252,13 +252,31 @@ export function saveCourse(payload) {
 
 export function deleteCourse(courseId) {
   const numericId = Number(courseId);
-  const usedBySchedule = state.schedules.some((item) => item.courseId === numericId);
+  const existing = state.courses.find((item) => Number(item.id) === numericId) ?? null;
 
-  if (usedBySchedule) {
-    return { ok: false, message: "课程已有排课，暂时不能删除。" };
+  if (!existing) {
+    return { ok: false, message: "课程不存在。" };
+  }
+
+  const today = formatCalendarDate(new Date(), "Asia/Shanghai");
+  const activeOrFutureSchedules = state.schedules.filter((item) => {
+    if (Number(item.courseId) !== numericId) {
+      return false;
+    }
+    const scheduleDate = item.beginTime ? formatCalendarDate(item.beginTime, "Asia/Shanghai") : "";
+    return !scheduleDate || scheduleDate >= today;
+  });
+
+  if (activeOrFutureSchedules.length) {
+    return { ok: false, message: "课程已排在今天或未来日期，暂时不能删除。" };
   }
 
   state.courses = state.courses.filter((item) => item.id !== numericId);
+  state.coursePackages = (state.coursePackages || []).map((coursePackage) => ({
+    ...coursePackage,
+    courseIds: (coursePackage.courseIds || []).filter((id) => Number(id) !== numericId),
+    updateTime: (coursePackage.courseIds || []).some((id) => Number(id) === numericId) ? nowIso() : coursePackage.updateTime
+  }));
   persist();
   return { ok: true };
 }

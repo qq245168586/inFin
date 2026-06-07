@@ -114,11 +114,13 @@ function attachCourseBasics(schedule) {
   const course = state.courses.find((item) => item.id === schedule.courseId);
   const serialized = course ? serializeCourse(course) : null;
   const { venueId: _venueId, ...rest } = schedule || {};
+  const courseDeleted = Boolean(rest.courseId) && !serialized;
   return {
     ...rest,
     date: rest.date || (rest.beginTime ? formatCalendarDate(rest.beginTime) : ""),
+    courseDeleted,
     coursePackageId: normalizeCoursePackageId(rest.coursePackageId),
-    courseName: rest.courseName || serialized?.name || "",
+    courseName: serialized?.name || (courseDeleted ? "课程已删除" : trimText(rest.courseName)),
     version: rest.version || serialized?.version || "",
     description: serialized?.description || "",
     topic: serialized?.topic || "",
