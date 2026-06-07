@@ -145,7 +145,7 @@ function normalizePlaybackCommand(command = {}) {
 
 function normalizePlaybackSessionEntry(entry = {}) {
   const serverStartAtMs = safeNumber(entry.serverStartAtMs);
-  const state = normalizePlaybackState(entry.state, serverStartAtMs > 0 ? "RUNNING" : "PREVIEW");
+  const state = normalizePlaybackState(entry.state, serverStartAtMs > 0 ? "RUNNING" : "TERMINATED");
   const createdAtMs = safeTimeMs(entry.createdAtMs || entry.createTime);
   const updatedAtMs = safeTimeMs(entry.updatedAtMs || entry.updateTime, createdAtMs);
   const endedAtMs = safeNumber(entry.endedAtMs, entry.endTime ? safeTimeMs(entry.endTime, 0) : 0);

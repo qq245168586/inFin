@@ -139,6 +139,9 @@ function normalizeTvScreenPayload(payload = {}, existing = null, fallbackAccount
     payload.previousScreenNumber,
     safeNumber(existing?.previousScreenNumber, !nextAccountNamespace ? Number(existing?.screenNumber) || 0 : 0)
   );
+  const hasActiveScheduleId = Object.prototype.hasOwnProperty.call(payload, "activeScheduleId");
+  const hasPlaybackSessionId = Object.prototype.hasOwnProperty.call(payload, "playbackSessionId");
+  const hasBundleChecksum = Object.prototype.hasOwnProperty.call(payload, "bundleChecksum");
   return {
     accountNamespace: nextAccountNamespace,
     screenNumber: nextScreenNumber,
@@ -152,11 +155,17 @@ function normalizeTvScreenPayload(payload = {}, existing = null, fallbackAccount
     unboundAt: nextAccountNamespace ? "" : trimText(payload.unboundAt) || trimText(existing?.unboundAt),
     lastSeenAt: now,
     playbackState: normalizeTvPlaybackState(payload.playbackState || existing?.playbackState),
-    activeScheduleId: trimText(payload.activeScheduleId) || trimText(existing?.activeScheduleId),
+    activeScheduleId: hasActiveScheduleId
+      ? trimText(payload.activeScheduleId)
+      : trimText(existing?.activeScheduleId),
     previewMode:
       typeof payload.previewMode === "boolean" ? payload.previewMode : Boolean(existing?.previewMode),
-    playbackSessionId: trimText(payload.playbackSessionId) || trimText(existing?.playbackSessionId),
-    bundleChecksum: trimText(payload.bundleChecksum) || trimText(existing?.bundleChecksum),
+    playbackSessionId: hasPlaybackSessionId
+      ? trimText(payload.playbackSessionId)
+      : trimText(existing?.playbackSessionId),
+    bundleChecksum: hasBundleChecksum
+      ? trimText(payload.bundleChecksum)
+      : trimText(existing?.bundleChecksum),
     playbackElapsedMs: safeNumber(payload.playbackElapsedMs, safeNumber(existing?.playbackElapsedMs)),
     updateState: normalizeTvUpdateState(payload.updateState || existing?.updateState),
     updateTargetVersion: trimText(payload.updateTargetVersion) || trimText(existing?.updateTargetVersion),

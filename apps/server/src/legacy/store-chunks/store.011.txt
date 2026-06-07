@@ -97,12 +97,29 @@ export function getCurrentPlaybackSessionForTv(payload = {}) {
     || requestedAccountNamespace
     || DEFAULT_ACCOUNT_NAMESPACE;
   const active = getActivePlaybackSessionEntry(accountNamespace);
+  const screenSessionId = trimText(matchedScreen?.playbackSessionId);
   if (active) {
-    return serializePlaybackSession(active);
+    const activeState = normalizePlaybackState(active.state);
+    if (
+      activeState !== "PREVIEW"
+      || (
+        screenSessionId
+        && trimText(active.id) === screenSessionId
+        && Boolean(matchedScreen?.previewMode)
+      )
+    ) {
+      return serializePlaybackSession(active);
+    }
   }
 
-  const screenSessionId = trimText(matchedScreen?.playbackSessionId);
   const screenSession = screenSessionId ? findPlaybackSessionById(screenSessionId, accountNamespace) : null;
+  if (screenSession && PLAYBACK_ACTIVE_STATES.has(screenSession.state)) {
+    const screenSessionState = normalizePlaybackState(screenSession.state);
+    if (screenSessionState !== "PREVIEW" || Boolean(matchedScreen?.previewMode)) {
+      return serializePlaybackSession(screenSession);
+    }
+  }
+
   if (screenSession && PLAYBACK_TERMINAL_STATES.has(screenSession.state)) {
     return serializePlaybackSession(screenSession);
   }
