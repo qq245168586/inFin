@@ -107,8 +107,8 @@ export default function useCourseCrudVm({
       }
 
       onSavedCourse(savedCourse);
-      await onReloadMeta();
       onNotice("课程已保存。");
+      void onReloadMeta();
     } catch (error) {
       onNotice(getErrorMessage(error), "error");
     } finally {
