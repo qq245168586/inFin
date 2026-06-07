@@ -317,11 +317,7 @@ abstract class MainActivityPart09 extends MainActivityPart08 {
           && row.videoView != null
           && row.videoView.getVisibility() == View.VISIBLE
           && !row.videoView.isPlaying()) {
-        try {
-          row.videoView.start();
-        } catch (Exception ignored) {
-          // Ignore transient player state while the row surface is being recreated.
-        }
+        startLoopingVideoIfNeeded(row.videoView);
       }
     }
   }
@@ -357,8 +353,10 @@ abstract class MainActivityPart09 extends MainActivityPart08 {
           mediaPlayer.setVolume(0f, 0f);
           row.videoView.start();
         });
+    row.videoView.setOnCompletionListener(mediaPlayer -> restartLoopingVideoFromStart(row.videoView));
     row.videoView.setOnErrorListener(
         (mediaPlayer, what, extra) -> {
+          Log.w(TAG, "Waterfall video playback failed url=" + mediaUrl + " what=" + what + " extra=" + extra);
           stopWaterfallVideo(row);
           return true;
         });

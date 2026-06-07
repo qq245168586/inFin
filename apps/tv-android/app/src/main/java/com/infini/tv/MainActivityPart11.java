@@ -491,14 +491,44 @@ abstract class MainActivityPart11 extends MainActivityPart10 {
       return addHorizontalSwitchWorkTimings(timings, effectiveScreen, realPodOffsetSeconds, workOffsetSeconds);
     }
 
-    List<CourseScript.VideoCard> actionSequence = new ArrayList<>();
     int safeLoops = Math.max(effectiveScreen.rule.loopCount, 1);
-    for (int loopIndex = 0; loopIndex < safeLoops; loopIndex += 1) {
-      actionSequence.addAll(effectiveScreen.videoCards);
+    int screenOffsetSeconds = 0;
+
+    if (effectiveScreen.waterfallLayout) {
+      List<CourseScript.VideoCard> actionSequence = new ArrayList<>();
+      for (int loopIndex = 0; loopIndex < safeLoops; loopIndex += 1) {
+        actionSequence.addAll(effectiveScreen.videoCards);
+      }
+
+      for (int actionIndex = 0; actionIndex < actionSequence.size(); actionIndex += 1) {
+        for (int setIndex = 0; setIndex < effectiveScreen.rule.setConfigs.size(); setIndex += 1) {
+          CourseScript.PodSetConfig setConfig = effectiveScreen.rule.setConfigs.get(setIndex);
+          int workSeconds = Math.max(setConfig == null ? 0 : setConfig.workSeconds, 0);
+          if (workSeconds > 0) {
+            timings.add(
+                new HorizontalWorkTiming(
+                    realPodOffsetSeconds + screenOffsetSeconds,
+                    workOffsetSeconds,
+                    workSeconds));
+            workOffsetSeconds += workSeconds;
+          }
+          screenOffsetSeconds += workSeconds;
+
+          boolean hasNextSet = setIndex < effectiveScreen.rule.setConfigs.size() - 1;
+          if (hasNextSet && setConfig != null && setConfig.restSeconds > 0) {
+            screenOffsetSeconds += setConfig.restSeconds;
+          }
+        }
+
+        boolean hasNextAction = actionIndex < actionSequence.size() - 1;
+        if (hasNextAction && effectiveScreen.rule.stationRestSeconds > 0) {
+          screenOffsetSeconds += effectiveScreen.rule.stationRestSeconds;
+        }
+      }
+      return workOffsetSeconds;
     }
 
-    int screenOffsetSeconds = 0;
-    for (int actionIndex = 0; actionIndex < actionSequence.size(); actionIndex += 1) {
+    for (int loopIndex = 0; loopIndex < safeLoops; loopIndex += 1) {
       for (int setIndex = 0; setIndex < effectiveScreen.rule.setConfigs.size(); setIndex += 1) {
         CourseScript.PodSetConfig setConfig = effectiveScreen.rule.setConfigs.get(setIndex);
         int workSeconds = Math.max(setConfig == null ? 0 : setConfig.workSeconds, 0);
@@ -518,8 +548,8 @@ abstract class MainActivityPart11 extends MainActivityPart10 {
         }
       }
 
-      boolean hasNextAction = actionIndex < actionSequence.size() - 1;
-      if (hasNextAction && effectiveScreen.rule.stationRestSeconds > 0) {
+      boolean hasNextLoop = loopIndex < safeLoops - 1;
+      if (hasNextLoop && effectiveScreen.rule.stationRestSeconds > 0) {
         screenOffsetSeconds += effectiveScreen.rule.stationRestSeconds;
       }
     }
@@ -652,7 +682,10 @@ abstract class MainActivityPart11 extends MainActivityPart10 {
       int pairCount = effectiveScreen.videoCards.size() / 2;
       return pairCount * safeLoops * positiveWorkSetCount * 2;
     }
-    return effectiveScreen.videoCards.size() * safeLoops * positiveWorkSetCount;
+    if (effectiveScreen.waterfallLayout) {
+      return effectiveScreen.videoCards.size() * safeLoops * positiveWorkSetCount;
+    }
+    return safeLoops * positiveWorkSetCount;
   }
 
   protected boolean isProgressMarkerPod(CourseScript.Pod pod) {

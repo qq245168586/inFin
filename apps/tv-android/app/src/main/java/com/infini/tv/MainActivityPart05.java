@@ -477,6 +477,46 @@ abstract class MainActivityPart05 extends MainActivityPart04 {
     dispatchScreenHeartbeat(false);
   }
 
+  protected void restartLoopingVideoFromStart(VideoView videoView) {
+    if (videoView == null || videoView.getVisibility() != View.VISIBLE) {
+      return;
+    }
+    try {
+      videoView.seekTo(0);
+    } catch (Exception ignored) {
+      // Some box decoders throw while the surface is being recreated.
+    }
+    videoView.postDelayed(
+        () -> {
+          if (videoView.getVisibility() != View.VISIBLE || videoView.isPlaying()) {
+            return;
+          }
+          try {
+            videoView.start();
+          } catch (Exception ignored) {
+            // Ignore transient player state while Android prepares/recreates the video surface.
+          }
+        },
+        80L);
+  }
+
+  protected void startLoopingVideoIfNeeded(VideoView videoView) {
+    if (videoView == null || videoView.getVisibility() != View.VISIBLE || videoView.isPlaying()) {
+      return;
+    }
+    try {
+      int durationMs = videoView.getDuration();
+      int positionMs = videoView.getCurrentPosition();
+      if (durationMs > 0 && positionMs >= Math.max(durationMs - 500, 0)) {
+        restartLoopingVideoFromStart(videoView);
+        return;
+      }
+      videoView.start();
+    } catch (Exception ignored) {
+      // Ignore transient player state while Android prepares/recreates the video surface.
+    }
+  }
+
   protected void previewCourseFromRemote(
       String scheduleId,
       int courseId,
@@ -497,6 +537,21 @@ abstract class MainActivityPart05 extends MainActivityPart04 {
             + syncInProgress);
     bringPlaybackUiToFront();
     hideCoursePlanPanel();
+    String currentState = activePlaybackSessionState == null ? "" : activePlaybackSessionState.toUpperCase(Locale.US);
+    if (!previewMode
+        && activePlaybackItem != null
+        && ("RUNNING".equals(currentState) || "PAUSED".equals(currentState))) {
+      Log.d(
+          TAG,
+          "Ignoring preview command while active playback is "
+              + currentState
+              + " activeSession="
+              + activePlaybackSessionId
+              + " incomingSession="
+              + playbackSessionId);
+      requestCurrentPlaybackSession("ignore_preview_during_active_playback");
+      return;
+    }
     if (syncInProgress) {
       requestCurrentPlaybackSession("preview_while_syncing");
       return;

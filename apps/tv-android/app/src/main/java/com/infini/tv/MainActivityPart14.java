@@ -745,6 +745,7 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
   protected void bindTrainingPreview(FrameLayout preview, CourseScript.VideoCard card) {
     boolean hasMedia = card != null && card.mediaUrl != null && !card.mediaUrl.trim().isEmpty();
     if (hasMedia) {
+      String mediaUrl = card.mediaUrl;
       VideoView videoView = new VideoView(this);
       videoView.setLayoutParams(
           new FrameLayout.LayoutParams(
@@ -758,8 +759,27 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
                 videoView, preview, mediaPlayer.getVideoWidth(), mediaPlayer.getVideoHeight());
             videoView.start();
           });
-      videoView.setOnErrorListener((mediaPlayer, what, extra) -> true);
-      videoView.setVideoPath(card.mediaUrl);
+      videoView.setOnCompletionListener(mediaPlayer -> restartLoopingVideoFromStart(videoView));
+      videoView.setOnErrorListener(
+          (mediaPlayer, what, extra) -> {
+            Log.w(TAG, "Training video playback failed url=" + mediaUrl + " what=" + what + " extra=" + extra);
+            videoView.postDelayed(
+                () -> {
+                  if (videoView.getVisibility() != View.VISIBLE) {
+                    return;
+                  }
+                  try {
+                    videoView.stopPlayback();
+                    videoView.setVideoPath(mediaUrl);
+                    videoView.start();
+                  } catch (Exception ignored) {
+                    // Ignore transient player state while rebinding a failed video.
+                  }
+                },
+                300L);
+            return true;
+          });
+      videoView.setVideoPath(mediaUrl);
       videoView.start();
       preview.post(() -> startVideoViewIfNeeded(videoView));
     } else {
@@ -837,13 +857,6 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
   }
 
   protected void startVideoViewIfNeeded(VideoView videoView) {
-    if (videoView == null || videoView.getVisibility() != View.VISIBLE || videoView.isPlaying()) {
-      return;
-    }
-    try {
-      videoView.start();
-    } catch (Exception ignored) {
-      // Ignore transient player state while Android prepares/recreates the video surface.
-    }
+    startLoopingVideoIfNeeded(videoView);
   }
 }

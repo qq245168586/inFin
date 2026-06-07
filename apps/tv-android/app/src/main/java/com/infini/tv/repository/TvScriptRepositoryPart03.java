@@ -64,7 +64,7 @@ abstract class TvScriptRepositoryPart03 extends TvScriptRepositoryPart02 {
     for (int index = 0; index < resources.size(); index += 1) {
       CachedResource resource = resources.get(index);
       File targetFile = resolveCacheFile(resource);
-      if (targetFile.exists() && targetFile.length() > 0) {
+      if (targetFile.exists() && isCachedResourceValid(resource, targetFile)) {
         localMediaMap.put(resource.url, targetFile.getAbsolutePath());
         if (listener != null) {
           listener.onStatus(
@@ -73,6 +73,9 @@ abstract class TvScriptRepositoryPart03 extends TvScriptRepositoryPart02 {
               total);
         }
         continue;
+      }
+      if (targetFile.exists()) {
+        targetFile.delete();
       }
 
       if (listener != null) {
@@ -83,6 +86,10 @@ abstract class TvScriptRepositoryPart03 extends TvScriptRepositoryPart02 {
       }
 
       downloadToFile(resource.url, targetFile);
+      if (!isCachedResourceValid(resource, targetFile)) {
+        targetFile.delete();
+        throw new IOException("课程资源校验失败，请重新同步课程资源。");
+      }
       localMediaMap.put(resource.url, targetFile.getAbsolutePath());
 
       if (listener != null) {
@@ -94,6 +101,24 @@ abstract class TvScriptRepositoryPart03 extends TvScriptRepositoryPart02 {
     }
 
     return localMediaMap;
+  }
+
+  protected boolean isCachedResourceValid(CachedResource resource, File targetFile) {
+    if (resource == null || targetFile == null || !targetFile.exists() || targetFile.length() <= 0L) {
+      return false;
+    }
+    if (resource.sizeBytes > 0L && targetFile.length() != resource.sizeBytes) {
+      return false;
+    }
+    if (resource.checksum != null && !resource.checksum.trim().isEmpty()) {
+      try {
+        return resource.checksum.equalsIgnoreCase(calculateSha256(targetFile));
+      } catch (IOException error) {
+        Log.w(TAG, "Unable to verify cached media checksum " + resource.displayName(), error);
+        return false;
+      }
+    }
+    return true;
   }
 
   protected void cleanupTemporaryDownloads() {
