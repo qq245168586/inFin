@@ -55,6 +55,35 @@ abstract class TvScriptRepositoryTypes {
   public interface AppPackageProgressListener {
     void onProgress(String message, int progressPercent);
   }
+  public static class AppPackageInfo {
+    public final String id;
+    public final String version;
+    public final String label;
+    public final String filename;
+    public final String downloadPath;
+    public final String checksum;
+    public final long sizeBytes;
+    public final String updateTime;
+
+    public AppPackageInfo(
+        String id,
+        String version,
+        String label,
+        String filename,
+        String downloadPath,
+        String checksum,
+        long sizeBytes,
+        String updateTime) {
+      this.id = id == null ? "" : id;
+      this.version = version == null ? "" : version;
+      this.label = label == null ? "" : label;
+      this.filename = filename == null ? "" : filename;
+      this.downloadPath = downloadPath == null ? "" : downloadPath;
+      this.checksum = checksum == null ? "" : checksum;
+      this.sizeBytes = Math.max(sizeBytes, 0L);
+      this.updateTime = updateTime == null ? "" : updateTime;
+    }
+  }
   public static class SyncResult {
     public final String date;
     public final String checksum;

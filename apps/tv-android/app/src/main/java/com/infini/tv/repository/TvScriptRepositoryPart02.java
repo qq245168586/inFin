@@ -52,6 +52,34 @@ abstract class TvScriptRepositoryPart02 extends TvScriptRepositoryPart01 {
     super(context);
   }
 
+  public List<AppPackageInfo> listAppPackages() throws IOException {
+    JSONObject response = requestJson("/app-packages?platform=tv");
+    JSONObject data = response.optJSONObject("data");
+    JSONArray packagesArray = data == null ? null : data.optJSONArray("packages");
+    List<AppPackageInfo> packages = new ArrayList<>();
+    if (packagesArray == null) {
+      return packages;
+    }
+
+    for (int index = 0; index < packagesArray.length(); index += 1) {
+      JSONObject item = packagesArray.optJSONObject(index);
+      if (item == null) {
+        continue;
+      }
+      packages.add(
+          new AppPackageInfo(
+              item.optString("id", ""),
+              item.optString("version", ""),
+              item.optString("label", ""),
+              item.optString("filename", ""),
+              item.optString("downloadPath", ""),
+              item.optString("checksum", ""),
+              item.optLong("sizeBytes", 0L),
+              item.optString("updateTime", "")));
+    }
+    return packages;
+  }
+
   public File downloadAppPackage(
       String packageId,
       String version,

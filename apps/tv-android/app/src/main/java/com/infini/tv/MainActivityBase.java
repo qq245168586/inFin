@@ -157,6 +157,7 @@ abstract class MainActivityBase extends MainActivityContracts {
   protected View finishPanel;
   protected View updatePanel;
   protected FrameLayout coursePlanPanel;
+  protected FrameLayout settingsPanel;
   protected View updateCard;
   protected View playbackTimerCard;
   protected View playbackStageCard;
@@ -223,12 +224,16 @@ abstract class MainActivityBase extends MainActivityContracts {
   protected TextView updateStatusText;
   protected TextView updateProgressText;
   protected TextView scheduleStateText;
+  protected TextView settingsButton;
+  protected TextView settingsTitle;
   protected ImageView finishLogoImage;
   protected ProgressBar updateProgressBar;
   protected View updateActionRow;
   protected View updateActionSpacer;
   protected Button updatePermissionButton;
   protected Button updateManualInstallButton;
+  protected Button settingsBackButton;
+  protected LinearLayout settingsContent;
   protected LinearLayout scheduleList;
   protected LinearLayout warmupRowsContainer;
   protected LinearLayout trainingCardsContainer;
@@ -341,5 +346,13 @@ abstract class MainActivityBase extends MainActivityContracts {
       delayMs += 1000L;
     }
     return Math.max(90L, Math.min(delayMs, 1024L));
+  }
+
+  protected String formatCountdownSeconds(int seconds) {
+    int safeSeconds = Math.max(seconds, 0);
+    if (safeSeconds <= 60) {
+      return String.valueOf(safeSeconds);
+    }
+    return String.format(Locale.US, "%d:%02d", safeSeconds / 60, safeSeconds % 60);
   }
 }

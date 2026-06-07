@@ -192,7 +192,7 @@ abstract class MainActivityPart10 extends MainActivityPart09 {
     }
     hideTransitionDesign();
     if (horizontalCountdownText != null) {
-      horizontalCountdownText.setText(String.valueOf(Math.max(remainingSeconds, 0)));
+      horizontalCountdownText.setText(formatCountdownSeconds(remainingSeconds));
     }
     String safePrimary = primaryText == null || primaryText.trim().isEmpty() ? "WAITING" : primaryText;
     if (horizontalRingProgress != null) {
@@ -377,7 +377,7 @@ abstract class MainActivityPart10 extends MainActivityPart09 {
               : remainingSeconds / (float) Math.max(transitionDesignTotalSeconds, 1);
       transitionDesignRing.setProgress(progress);
     }
-    transitionDesignCountdown.setText(String.valueOf(Math.max(remainingSeconds, 0)));
+    transitionDesignCountdown.setText(formatCountdownSeconds(remainingSeconds));
     transitionDesignCountdown.setTextSize(
         TypedValue.COMPLEX_UNIT_PX,
         horizontal

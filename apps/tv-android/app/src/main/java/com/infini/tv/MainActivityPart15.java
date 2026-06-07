@@ -390,7 +390,7 @@ abstract class MainActivityPart15 extends MainActivityPart14 {
     showPlaybackChrome(true, true);
     hideFinishPanel();
     showPlaybackScroller();
-    playbackCountdownText.setText(countdown);
+    playbackCountdownText.setText(formatCountdownSeconds(parseSafeInt(countdown)));
     playbackStageLabel.setText(stageLabel);
     playbackStageProgress.setText("");
     renderStageMeta("", 0, 0);

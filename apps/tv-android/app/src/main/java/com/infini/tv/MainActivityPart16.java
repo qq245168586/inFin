@@ -544,6 +544,197 @@ abstract class MainActivityPart16 extends MainActivityPart15 {
     return total;
   }
 
+  protected void showSettingsHome() {
+    if (settingsPanel == null || settingsContent == null || settingsTitle == null) {
+      return;
+    }
+    settingsPanel.setTag("home");
+    settingsPanel.setVisibility(View.VISIBLE);
+    settingsPanel.bringToFront();
+    if (settingsButton != null) {
+      settingsButton.setVisibility(View.GONE);
+    }
+    settingsTitle.setText("设置");
+    settingsContent.removeAllViews();
+    settingsContent.addView(
+        createSettingsItem(
+            "App 版本信息",
+            "查看当前 TV App 版本和设备信息",
+            v -> showAppVersionInfo()));
+    settingsContent.addView(
+        createSettingsItem(
+            "App 版本列表",
+            "从服务器选择一个版本下载并安装",
+            v -> showAppPackageList()));
+  }
+
+  protected void handleSettingsBack() {
+    if (settingsPanel == null || settingsPanel.getVisibility() != View.VISIBLE) {
+      return;
+    }
+    Object tag = settingsPanel.getTag();
+    if ("home".equals(tag)) {
+      hideSettingsPanel();
+      return;
+    }
+    showSettingsHome();
+  }
+
+  protected void hideSettingsPanel() {
+    if (settingsPanel != null) {
+      settingsPanel.setVisibility(View.GONE);
+    }
+    if (settingsButton != null) {
+      settingsButton.setVisibility(View.VISIBLE);
+      settingsButton.bringToFront();
+    }
+  }
+
+  protected void showAppVersionInfo() {
+    if (settingsPanel == null || settingsContent == null || settingsTitle == null) {
+      return;
+    }
+    settingsPanel.setTag("version");
+    settingsTitle.setText("App 版本信息");
+    settingsContent.removeAllViews();
+    settingsContent.addView(createSettingsInfoBlock("当前版本", resolveAppVersion()));
+    settingsContent.addView(createSettingsInfoBlock("设备 ID", TextUtils.isEmpty(deviceId) ? "未生成" : deviceId));
+    settingsContent.addView(
+        createSettingsInfoBlock("屏幕", activeScreenNumber > 0 ? "屏幕 " + activeScreenNumber : "未绑定屏幕"));
+    settingsContent.addView(
+        createSettingsInfoBlock(
+            "场馆",
+            TextUtils.isEmpty(activeAccountNamespace) ? "未绑定场馆" : activeAccountNamespace));
+  }
+
+  protected void showAppPackageList() {
+    if (settingsPanel == null || settingsContent == null || settingsTitle == null) {
+      return;
+    }
+    settingsPanel.setTag("packages");
+    settingsTitle.setText("App 版本列表");
+    settingsContent.removeAllViews();
+    settingsContent.addView(createSettingsInfoBlock("正在拉取版本列表", "请稍候..."));
+    new Thread(
+            () -> {
+              try {
+                List<TvScriptRepository.AppPackageInfo> packages = repository.listAppPackages();
+                runOnUiThread(() -> renderAppPackageList(packages, null));
+              } catch (Exception error) {
+                runOnUiThread(() -> renderAppPackageList(new ArrayList<>(), error));
+              }
+            })
+        .start();
+  }
+
+  protected void renderAppPackageList(List<TvScriptRepository.AppPackageInfo> packages, Exception error) {
+    if (settingsContent == null) {
+      return;
+    }
+    settingsContent.removeAllViews();
+    if (error != null) {
+      settingsContent.addView(createSettingsInfoBlock("版本列表加载失败", error.getMessage()));
+      settingsContent.addView(createSettingsItem("重试", "重新从服务器拉取版本列表", v -> showAppPackageList()));
+      return;
+    }
+    if (packages == null || packages.isEmpty()) {
+      settingsContent.addView(createSettingsInfoBlock("暂无可安装版本", "服务器没有返回 TV App 安装包。"));
+      return;
+    }
+
+    String currentVersion = resolveAppVersion();
+    for (TvScriptRepository.AppPackageInfo appPackage : packages) {
+      if (appPackage == null) {
+        continue;
+      }
+      String title =
+          (TextUtils.isEmpty(appPackage.label) ? "TV " + appPackage.version : appPackage.label)
+              + (TextUtils.equals(currentVersion, appPackage.version) ? "  · 当前版本" : "");
+      String subtitle =
+          "版本 "
+              + appPackage.version
+              + "  ·  "
+              + formatPackageSize(appPackage.sizeBytes)
+              + (TextUtils.isEmpty(appPackage.updateTime) ? "" : "  ·  " + appPackage.updateTime);
+      settingsContent.addView(createSettingsItem(title, subtitle, v -> installAppPackageFromSettings(appPackage)));
+    }
+  }
+
+  protected void installAppPackageFromSettings(TvScriptRepository.AppPackageInfo appPackage) {
+    if (appPackage == null || TextUtils.isEmpty(appPackage.downloadPath)) {
+      if (settingsContent != null) {
+        settingsContent.addView(createSettingsInfoBlock("无法安装", "这个版本没有下载地址。"));
+      }
+      return;
+    }
+    hideSettingsPanel();
+    installAppUpdateFromRemote(
+        deviceId,
+        activeScreenNumber,
+        appPackage.id,
+        appPackage.version,
+        appPackage.downloadPath,
+        appPackage.checksum);
+  }
+
+  protected View createSettingsItem(String title, String subtitle, View.OnClickListener listener) {
+    LinearLayout row = new LinearLayout(this);
+    row.setOrientation(LinearLayout.VERTICAL);
+    row.setClickable(true);
+    row.setFocusable(true);
+    row.setBackground(createCoursePlanCardBackground(0xCC120A24, 0x33F6D77A));
+    row.setPadding(dp(22), dp(18), dp(22), dp(18));
+    row.setOnClickListener(listener);
+    LinearLayout.LayoutParams params =
+        new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+    params.bottomMargin = dp(14);
+    row.setLayoutParams(params);
+
+    TextView titleView = new TextView(this);
+    titleView.setText(title == null ? "" : title);
+    titleView.setTextColor(getColor(R.color.tv_text_main));
+    titleView.setTextSize(22f);
+    titleView.setTypeface(titleView.getTypeface(), android.graphics.Typeface.BOLD);
+    titleView.setSingleLine(true);
+    titleView.setEllipsize(TextUtils.TruncateAt.END);
+    row.addView(titleView);
+
+    TextView subtitleView = new TextView(this);
+    subtitleView.setText(subtitle == null ? "" : subtitle);
+    subtitleView.setTextColor(getColor(R.color.tv_text_subtle));
+    subtitleView.setTextSize(15f);
+    subtitleView.setSingleLine(true);
+    subtitleView.setEllipsize(TextUtils.TruncateAt.END);
+    LinearLayout.LayoutParams subtitleParams =
+        new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+    subtitleParams.topMargin = dp(8);
+    row.addView(subtitleView, subtitleParams);
+    return row;
+  }
+
+  protected View createSettingsInfoBlock(String title, String value) {
+    return createSettingsItem(title, value, v -> {});
+  }
+
+  protected String formatPackageSize(long sizeBytes) {
+    if (sizeBytes <= 0L) {
+      return "未知大小";
+    }
+    double megabytes = sizeBytes / 1024d / 1024d;
+    return String.format(Locale.US, "%.1f MB", megabytes);
+  }
+
+  @Override
+  public void onBackPressed() {
+    if (settingsPanel != null && settingsPanel.getVisibility() == View.VISIBLE) {
+      handleSettingsBack();
+      return;
+    }
+    super.onBackPressed();
+  }
+
   @Override
 
   protected void onDestroy() {

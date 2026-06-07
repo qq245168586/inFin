@@ -850,6 +850,58 @@
     android:visibility="gone" />
 
   <FrameLayout
+    android:id="@+id/settingsPanel"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_tv_root_gradient"
+    android:padding="28dp"
+    android:visibility="gone">
+
+    <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="match_parent"
+      android:orientation="vertical">
+
+      <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <Button
+          android:id="@+id/settingsBackButton"
+          style="@style/Widget.InfiniTv.GhostButton"
+          android:text="返回" />
+
+        <TextView
+          android:id="@+id/settingsTitle"
+          android:layout_width="0dp"
+          android:layout_height="wrap_content"
+          android:layout_marginLeft="18dp"
+          android:layout_weight="1"
+          android:text="设置"
+          android:textColor="@color/tv_text_main"
+          android:textSize="30sp"
+          android:textStyle="bold" />
+      </LinearLayout>
+
+      <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="24dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+          android:id="@+id/settingsContent"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:orientation="vertical" />
+      </ScrollView>
+    </LinearLayout>
+  </FrameLayout>
+
+  <FrameLayout
     android:id="@+id/updatePanel"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -948,4 +1000,17 @@
       </LinearLayout>
     </LinearLayout>
   </FrameLayout>
+
+  <TextView
+    android:id="@+id/settingsButton"
+    android:layout_width="32dp"
+    android:layout_height="32dp"
+    android:layout_gravity="top|right"
+    android:layout_marginTop="8dp"
+    android:layout_marginRight="8dp"
+    android:alpha="0.18"
+    android:gravity="center"
+    android:text="⚙"
+    android:textColor="@color/tv_text_main"
+    android:textSize="16sp" />
 </FrameLayout>

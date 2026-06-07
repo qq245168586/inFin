@@ -281,6 +281,7 @@ abstract class MainActivityPart01 extends MainActivityBase {
     finishPanel = findViewById(R.id.finishPanel);
     updatePanel = findViewById(R.id.updatePanel);
     coursePlanPanel = findViewById(R.id.coursePlanPanel);
+    settingsPanel = findViewById(R.id.settingsPanel);
     updateCard = findViewById(R.id.updateCard);
     playbackTimerCard = findViewById(R.id.playbackTimerCard);
     playbackStageCard = findViewById(R.id.playbackStageCard);
@@ -343,11 +344,15 @@ abstract class MainActivityPart01 extends MainActivityBase {
     updateVersionText = findViewById(R.id.updateVersionText);
     updateStatusText = findViewById(R.id.updateStatusText);
     updateProgressText = findViewById(R.id.updateProgressText);
+    settingsButton = findViewById(R.id.settingsButton);
+    settingsTitle = findViewById(R.id.settingsTitle);
     updateProgressBar = findViewById(R.id.updateProgressBar);
     updateActionRow = findViewById(R.id.updateActionRow);
     updateActionSpacer = findViewById(R.id.updateActionSpacer);
     updatePermissionButton = findViewById(R.id.updatePermissionButton);
     updateManualInstallButton = findViewById(R.id.updateManualInstallButton);
+    settingsBackButton = findViewById(R.id.settingsBackButton);
+    settingsContent = findViewById(R.id.settingsContent);
     scheduleStateText = findViewById(R.id.scheduleStateText);
     finishLogoImage = findViewById(R.id.finishLogoImage);
     scheduleList = findViewById(R.id.scheduleList);
@@ -371,6 +376,13 @@ abstract class MainActivityPart01 extends MainActivityBase {
     }
     if (updateManualInstallButton != null) {
       updateManualInstallButton.setOnClickListener(v -> tryManualInstallFromUpdateUi("button"));
+    }
+    if (settingsButton != null) {
+      settingsButton.setOnClickListener(v -> showSettingsHome());
+      settingsButton.bringToFront();
+    }
+    if (settingsBackButton != null) {
+      settingsBackButton.setOnClickListener(v -> handleSettingsBack());
     }
     bindPreviewStartTapTargets();
     applyResponsiveLayout();

@@ -89,7 +89,7 @@ abstract class MainActivityPart12 extends MainActivityPart11 {
         "WARMUP_READY",
         "热身即将开始");
     applyPlaybackTheme(PlaybackTheme.READY);
-    playbackCountdownText.setText(String.valueOf(Math.max(remainingSeconds, 0)));
+    playbackCountdownText.setText(formatCountdownSeconds(remainingSeconds));
     playbackStageLabel.setText("");
     playbackStageProgress.setText("READY FOR\nWARM UP");
     renderStageMeta("", 0, 0);
@@ -117,7 +117,7 @@ abstract class MainActivityPart12 extends MainActivityPart11 {
     }
     rememberTrainingCuePhase("workout-ready", "READY");
     applyPlaybackTheme(PlaybackTheme.READY);
-    playbackCountdownText.setText(String.valueOf(Math.max(remainingSeconds, 0)));
+    playbackCountdownText.setText(formatCountdownSeconds(remainingSeconds));
     playbackStageLabel.setText("");
     playbackStageProgress.setText("READY FOR\nWORKOUT");
     renderStageMeta("", 0, 0);
@@ -143,7 +143,7 @@ abstract class MainActivityPart12 extends MainActivityPart11 {
         "COOLDOWN_READY",
         "冷身即将开始");
     applyPlaybackTheme(PlaybackTheme.READY);
-    playbackCountdownText.setText(String.valueOf(Math.max(remainingSeconds, 0)));
+    playbackCountdownText.setText(formatCountdownSeconds(remainingSeconds));
     playbackStageLabel.setText("");
     playbackStageProgress.setText("READY FOR\nCOOL DOWN");
     renderStageMeta("", 0, 0);

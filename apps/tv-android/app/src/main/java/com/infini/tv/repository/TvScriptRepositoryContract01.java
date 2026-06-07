@@ -114,6 +114,8 @@ abstract class TvScriptRepositoryContract01 extends TvScriptRepositoryTypes {
       AppPackageProgressListener listener)
       throws IOException;
 
+  public abstract List<AppPackageInfo> listAppPackages() throws IOException;
+
   protected abstract List<TvScheduleItem> parseBundleSchedules(
       JSONArray schedulesArray, Map<String, String> localMediaMap);
 

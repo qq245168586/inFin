@@ -200,7 +200,7 @@ abstract class MainActivityPart13 extends MainActivityPart12 {
     }
 
     applyPlaybackTheme(getThemeForState(state));
-    playbackCountdownText.setText(String.valueOf(Math.max(state.remainingSeconds, 0)));
+    playbackCountdownText.setText(formatCountdownSeconds(state.remainingSeconds));
     playbackStageLabel.setText(state.stageLabel);
     playbackStageLabel.setGravity(android.view.Gravity.CENTER);
     playbackStageProgress.setText(state.stageProgress);

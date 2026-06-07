@@ -125,7 +125,7 @@ abstract class MainActivityPart09 extends MainActivityPart08 {
       return;
     }
 
-    playbackCountdownText.setText(String.valueOf(remainingSeconds));
+    playbackCountdownText.setText(formatCountdownSeconds(remainingSeconds));
     playbackStageLabel.setText(stageLabel);
     playbackStageProgress.setText((currentIndex + 1) + " / " + items.size());
     playbackHint.setText("");

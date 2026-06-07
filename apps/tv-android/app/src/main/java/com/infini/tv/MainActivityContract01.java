@@ -77,6 +77,10 @@ abstract class MainActivityContract01 extends AppCompatActivity {
 
   protected abstract void showSelector();
 
+  protected abstract void showSettingsHome();
+
+  protected abstract void handleSettingsBack();
+
   protected abstract void hideCoursePlanPanel();
 
   protected abstract void showCoursePlanFromRemote(
