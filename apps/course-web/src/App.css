@@ -2148,6 +2148,14 @@ textarea.is-invalid:focus {
   flex-wrap: wrap;
 }
 
+.section-subtitle {
+  display: inline-flex;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
 .filter-grid {
   display: grid;
   grid-template-columns: minmax(0, 340px) auto;

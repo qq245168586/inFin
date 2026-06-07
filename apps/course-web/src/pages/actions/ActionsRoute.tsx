@@ -10,6 +10,9 @@ import { displayTypeName, stripMediaSuffix } from "../../utils/typeNames.ts";
 import { useMeta } from "../../providers/MetaProvider.tsx";
 import { useBusy } from "../../providers/BusyProvider.tsx";
 import { useNotice } from "../../providers/NoticeProvider.tsx";
+import type { CoursePackageRecord } from "../venues/types.ts";
+import { filterCoursesByCoursePackage } from "../../utils/coursePackageScope.ts";
+import type { CourseRecord, CourseScript } from "../../models/course/types.ts";
 
 interface FilterState {
   search: string;
@@ -137,9 +140,45 @@ function matchesTypeFilter(sourceIds: number[], selectedIds: number[]): boolean 
   return selectedIds.length === 0 || selectedIds.some((id) => sourceIds.includes(id));
 }
 
+function collectActionIdsFromCourseScript(script?: CourseScript | null): Set<string> {
+  const actionIds = new Set<string>();
+  const add = (value: unknown) => {
+    const actionId = String(value ?? "").trim();
+    if (actionId) {
+      actionIds.add(actionId);
+    }
+  };
+
+  for (const item of script?.sections?.warmup?.items || []) {
+    add(item.actionId);
+  }
+  for (const item of script?.sections?.cooldown?.items || []) {
+    add(item.actionId);
+  }
+  for (const group of script?.training?.videoGroups || []) {
+    for (const screen of group.screens || []) {
+      for (const card of screen.videoCards || []) {
+        add(card.actionId);
+      }
+    }
+  }
+
+  return actionIds;
+}
+
+function collectActionIdsFromCourses(courses: CourseRecord[]): Set<string> {
+  const actionIds = new Set<string>();
+  for (const course of courses) {
+    collectActionIdsFromCourseScript(course.script).forEach((id) => actionIds.add(id));
+  }
+  return actionIds;
+}
+
 export default function ActionsRoute({
+  selectedCoursePackage,
   onAddActionType
 }: {
+  selectedCoursePackage: CoursePackageRecord | null;
   onAddActionType: () => void;
 }) {
   const { appData, reloadMeta } = useMeta();
@@ -147,6 +186,15 @@ export default function ActionsRoute({
   const { pushNotice } = useNotice();
   const actions = (appData?.actions || []) as ActionRecord[];
   const actionTypes = (appData?.actionTypes || []) as TypeOption[];
+  const packageCourses = useMemo(
+    () => filterCoursesByCoursePackage((appData?.courses || []) as CourseRecord[], selectedCoursePackage),
+    [appData?.courses, selectedCoursePackage]
+  );
+  const packageActionIds = useMemo(() => collectActionIdsFromCourses(packageCourses), [packageCourses]);
+  const scopedActions = useMemo(
+    () => (selectedCoursePackage ? actions.filter((action) => packageActionIds.has(String(action.id))) : actions),
+    [actions, packageActionIds, selectedCoursePackage]
+  );
 
   const [actionFiltersDraft, setActionFiltersDraft] = useState<FilterState>({ search: "", typeIds: [] });
   const [actionFilters, setActionFilters] = useState<FilterState>({ search: "", typeIds: [] });
@@ -160,11 +208,11 @@ export default function ActionsRoute({
   );
 
   const filteredActions = useMemo(() => {
-    return actions.filter((action) => {
+    return scopedActions.filter((action) => {
       const nameMatches = !actionFilters.search || action.name.toLowerCase().includes(actionFilters.search.toLowerCase());
       return nameMatches && matchesTypeFilter(action.typeIds || [], actionFilters.typeIds);
     });
-  }, [actionFilters.search, actionFilters.typeIds, actions]);
+  }, [actionFilters.search, actionFilters.typeIds, scopedActions]);
 
   function openActionEditor(action: ActionRecord | null = null) {
     setActionEditor(createActionDraft(action));
@@ -341,6 +389,7 @@ export default function ActionsRoute({
       actionEditor={actionEditor}
       actionTypes={actionTypes}
       filteredActions={filteredActions}
+      actionScopeName={selectedCoursePackage?.name || ""}
       actionTypeNameById={actionTypeNameById}
       actionFiltersDraft={actionFiltersDraft}
       onActionFiltersDraftChange={setActionFiltersDraft}

@@ -38,6 +38,7 @@ export default function ActionsPage({
   actionEditor,
   actionTypes,
   filteredActions,
+  actionScopeName,
   actionTypeNameById,
   actionFiltersDraft,
   onActionFiltersDraftChange,
@@ -64,6 +65,7 @@ export default function ActionsPage({
   actionEditor: ActionDraft | null;
   actionTypes: ChipOption[];
   filteredActions: ActionRecord[];
+  actionScopeName: string;
   actionTypeNameById: Map<number, string>;
   actionFiltersDraft: FilterState;
   onActionFiltersDraftChange: (next: FilterState) => void;
@@ -181,7 +183,8 @@ export default function ActionsPage({
             <div className="section-head">
               <div>
                 <p className="page-eyebrow">Action Library</p>
-                <h2>全部动作</h2>
+                <h2>{actionScopeName ? "当前课程包动作" : "全部动作"}</h2>
+                {actionScopeName ? <span className="section-subtitle">{actionScopeName}</span> : null}
               </div>
               <div className="section-head-actions">
                 <button type="button" className="ghost-button" onClick={onOpenBatchGuide}>
@@ -293,7 +296,10 @@ export default function ActionsPage({
                 ) : (
                   <tr>
                     <td colSpan={5}>
-                      <EmptyBlock title="没有找到匹配动作" copy="可以调整筛选条件，或者直接新建一个动作。" />
+                      <EmptyBlock
+                        title="没有找到匹配动作"
+                        copy={actionScopeName ? "当前课程包里的课程暂时还没有引用动作，可以调整筛选条件或先到课程中配置动作。" : "可以调整筛选条件，或者直接新建一个动作。"}
+                      />
                     </td>
                   </tr>
                 )}

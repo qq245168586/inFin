@@ -135,7 +135,9 @@ export default function AppRoot() {
         {activePage === "courses" ? (
           <CoursesRoute selectedCoursePackage={selectedCoursePackage} onAddLessonType={() => setTypeDialog({ kind: "lesson", value: "" })} />
         ) : null}
-        {activePage === "actions" ? <ActionsRoute onAddActionType={() => setTypeDialog({ kind: "action", value: "" })} /> : null}
+        {activePage === "actions" ? (
+          <ActionsRoute selectedCoursePackage={selectedCoursePackage} onAddActionType={() => setTypeDialog({ kind: "action", value: "" })} />
+        ) : null}
         {activePage === "templates" ? (
           <TemplatesPage
             templateCollections={templateCollections || { warmup: [], cooldown: [], training: [], course: [] }}
