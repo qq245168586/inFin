@@ -10,6 +10,7 @@ export interface CalendarDay {
 export interface CalendarSchedule {
   id: number;
   courseId?: number;
+  courseDeleted?: boolean;
   courseName: string;
   version: string;
   date?: string;
@@ -84,8 +85,8 @@ export default function CalendarBoard({
                     <article key={item.id} className={`schedule-list-card tone-${itemIndex % 6} ${isPast ? "is-past" : ""}`}>
                       <div className="schedule-list-card-main">
                         <div>
-                          <span className="schedule-version-badge">Version {item.version || "--"}</span>
-                          <strong>{item.courseName}</strong>
+                          {!item.courseDeleted ? <span className="schedule-version-badge">Version {item.version || "--"}</span> : null}
+                          <strong>{item.courseDeleted ? "课程已删除" : item.courseName}</strong>
                         </div>
                         <button type="button" className="table-link danger" onClick={() => onDelete(item.id)} disabled={isPast}>
                           删除

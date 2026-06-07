@@ -22,6 +22,7 @@ export interface ActionRecord {
 export interface ScheduleRecord {
   id: number;
   courseId: number;
+  courseDeleted?: boolean;
   coursePackageId?: number;
   courseName: string;
   version: string;

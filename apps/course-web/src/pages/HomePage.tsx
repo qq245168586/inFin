@@ -101,9 +101,9 @@ export default function HomePage({
                   const isPast = getScheduleDate(item) < today;
                   return (
                     <tr key={item.id} className={isPast ? "is-past" : ""}>
-                      <td>{item.courseName}</td>
+                      <td>{item.courseDeleted ? "课程已删除" : item.courseName}</td>
                       <td>
-                        <span className="course-version-badge">{item.version || "--"}</span>
+                        {item.courseDeleted ? <span className="table-tag is-muted">--</span> : <span className="course-version-badge">{item.version || "--"}</span>}
                       </td>
                       <td className="cell-nowrap">{formatScheduleDate(getScheduleDate(item))}</td>
                       <td>

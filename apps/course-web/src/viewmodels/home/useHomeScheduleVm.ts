@@ -128,13 +128,16 @@ export default function useHomeScheduleVm({
   const enrichSchedule = useCallback(
     (schedule: CalendarSchedule): CalendarSchedule => {
       const course = courses.find((item) => Number(item.id) === Number(schedule.courseId));
+      const courseDeleted = Boolean(schedule.courseDeleted || (schedule.courseId && !course));
       return {
         ...schedule,
+        courseDeleted,
+        courseName: courseDeleted ? "课程已删除" : schedule.courseName,
         date: schedule.date || formatDateKey(schedule.beginTime),
-        description: schedule.description ?? course?.description ?? course?.script?.metadata?.description,
-        topic: schedule.topic ?? course?.topic ?? course?.script?.metadata?.topic,
-        rotationType: schedule.rotationType ?? course?.rotationType ?? course?.script?.metadata?.rotationType,
-        stationText: schedule.stationText ?? buildScheduleStationText(course)
+        description: courseDeleted ? "" : schedule.description ?? course?.description ?? course?.script?.metadata?.description,
+        topic: courseDeleted ? "" : schedule.topic ?? course?.topic ?? course?.script?.metadata?.topic,
+        rotationType: courseDeleted ? undefined : schedule.rotationType ?? course?.rotationType ?? course?.script?.metadata?.rotationType,
+        stationText: courseDeleted ? "" : schedule.stationText ?? buildScheduleStationText(course)
       };
     },
     [courses]
