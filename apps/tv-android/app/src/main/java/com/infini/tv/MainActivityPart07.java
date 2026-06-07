@@ -476,11 +476,21 @@ abstract class MainActivityPart07 extends MainActivityPart06 {
     valueView.setGravity(android.view.Gravity.CENTER_VERTICAL);
     valueView.setText(value == null ? "" : value);
     valueView.setTextColor(getColor(R.color.tv_text_main));
-    valueView.setTextSize(compact ? 15f : 22f);
+    boolean allowTwoLineValue =
+        "Switch".equalsIgnoreCase(label)
+            && value != null
+            && (value.trim().contains(" ") || value.trim().length() > (compact ? 8 : 12));
+    valueView.setTextSize(allowTwoLineValue ? (compact ? 12f : 17f) : (compact ? 15f : 22f));
     valueView.setTypeface(valueView.getTypeface(), android.graphics.Typeface.BOLD);
-    valueView.setSingleLine(true);
+    valueView.setSingleLine(!allowTwoLineValue);
+    valueView.setMaxLines(allowTwoLineValue ? 2 : 1);
     valueView.setEllipsize(TextUtils.TruncateAt.END);
-    valueView.setAutoSizeTextTypeUniformWithConfiguration(9, compact ? 15 : 22, 1, TypedValue.COMPLEX_UNIT_SP);
+    valueView.setIncludeFontPadding(false);
+    valueView.setAutoSizeTextTypeUniformWithConfiguration(
+        allowTwoLineValue ? 7 : 9,
+        allowTwoLineValue ? (compact ? 12 : 17) : (compact ? 15 : 22),
+        1,
+        TypedValue.COMPLEX_UNIT_SP);
     chip.addView(valueView);
   }
 
