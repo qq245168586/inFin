@@ -220,14 +220,7 @@ abstract class MainActivityPart16 extends MainActivityPart15 {
     if (resolvedName == null || resolvedName.trim().isEmpty()) {
       resolvedName = "课程计划";
     }
-    String resolvedVersion = "";
-    if (schedule != null) {
-      resolvedVersion =
-          firstScheduleText(
-              schedule.course != null && schedule.course.metadata != null ? schedule.course.metadata.version : "",
-              schedule.version);
-    }
-    renderCoursePlanPanel(resolvedName, resolvedVersion, plan);
+    renderCoursePlanPanel(resolvedName, plan);
   }
 
   protected TvScheduleItem findScheduleForCoursePlan(String scheduleId, int courseId) {
@@ -308,7 +301,7 @@ abstract class MainActivityPart16 extends MainActivityPart15 {
     return false;
   }
 
-  protected void renderCoursePlanPanel(String courseName, String courseVersion, CourseScript.Plan plan) {
+  protected void renderCoursePlanPanel(String courseName, CourseScript.Plan plan) {
     if (coursePlanPanel == null) {
       return;
     }
@@ -341,7 +334,7 @@ abstract class MainActivityPart16 extends MainActivityPart15 {
         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
     TextView title = createCoursePlanText("", getColor(R.color.tv_text_main), true);
-    title.setText(createCourseTitleWithVersion(courseName, courseVersion, landscape ? 0.46f : 0.5f));
+    title.setText(firstScheduleText(courseName, "课程计划"));
     title.setGravity(landscape ? android.view.Gravity.LEFT : android.view.Gravity.CENTER);
     title.setTextSize(
         TypedValue.COMPLEX_UNIT_PX,

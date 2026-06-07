@@ -24,11 +24,7 @@ import android.os.Looper;
 import android.os.SystemClock;
 import android.provider.Settings;
 import android.security.NetworkSecurityPolicy;
-import android.text.SpannableString;
-import android.text.Spanned;
 import android.text.TextUtils;
-import android.text.style.ForegroundColorSpan;
-import android.text.style.RelativeSizeSpan;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.View;
@@ -231,7 +227,7 @@ abstract class MainActivityPart07 extends MainActivityPart06 {
     content.setOrientation(LinearLayout.VERTICAL);
     body.addView(content);
 
-    content.addView(createScheduleNameText(createCourseTitleWithVersion(info.name, info.version, 0.56f), 38f, 24, 38, 2));
+    content.addView(createScheduleNameText(firstScheduleText(info.name, "未命名课程"), 38f, 24, 38, 2));
     content.addView(createScheduleDescriptionText(info.description, 22f, 15, 22, 3, dp(10)));
 
     LinearLayout metrics = createScheduleMetricRow(dp(22));
@@ -286,7 +282,7 @@ abstract class MainActivityPart07 extends MainActivityPart06 {
     titleColumn.setOrientation(LinearLayout.VERTICAL);
     titleColumn.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
     titleRow.addView(titleColumn);
-    titleColumn.addView(createScheduleNameText(createCourseTitleWithVersion(info.name, info.version, 0.58f), 26f, 16, 26, 1));
+    titleColumn.addView(createScheduleNameText(firstScheduleText(info.name, "未命名课程"), 26f, 16, 26, 1));
     titleColumn.addView(createScheduleDescriptionText(info.description, 15f, 10, 15, 1, dp(4)));
 
     LinearLayout metrics = createScheduleMetricRow(0);
@@ -397,21 +393,6 @@ abstract class MainActivityPart07 extends MainActivityPart06 {
     name.setEllipsize(TextUtils.TruncateAt.END);
     name.setAutoSizeTextTypeUniformWithConfiguration(minTextSize, maxTextSize, 1, TypedValue.COMPLEX_UNIT_SP);
     return name;
-  }
-
-  protected CharSequence createCourseTitleWithVersion(String courseName, String version, float versionScale) {
-    String name = firstScheduleText(courseName, "未命名课程");
-    String rawVersion = firstScheduleText(version, "").trim();
-    if (rawVersion.isEmpty()) {
-      return name;
-    }
-    String normalizedVersion = rawVersion.toLowerCase(Locale.ROOT).startsWith("v") ? rawVersion : "v" + rawVersion;
-    String suffix = "  " + normalizedVersion;
-    SpannableString title = new SpannableString(name + suffix);
-    int start = name.length() + 2;
-    title.setSpan(new RelativeSizeSpan(versionScale), start, title.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-    title.setSpan(new ForegroundColorSpan(0x99f5d56e), start, title.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-    return title;
   }
 
   protected TextView createScheduleDescriptionText(
