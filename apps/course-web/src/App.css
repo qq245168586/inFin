@@ -2049,6 +2049,61 @@ textarea.is-invalid:focus {
   box-shadow: none;
 }
 
+.course-list-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 14px;
+  padding: 14px 16px;
+  border: 1px solid rgba(148, 28, 255, 0.16);
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(148, 28, 255, 0.08), rgba(255, 223, 90, 0.12));
+}
+
+.course-list-nav > div {
+  display: grid;
+  gap: 4px;
+}
+
+.course-list-nav strong {
+  color: var(--text-main);
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.course-list-nav span {
+  color: var(--text-subtle);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.course-list-back-button {
+  white-space: nowrap;
+}
+
+.course-series-row td {
+  background: rgba(255, 253, 245, 0.86);
+}
+
+.course-series-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  min-height: 38px;
+  border-radius: 999px;
+  color: #17111f;
+  background: #ffdf5a;
+  box-shadow: 0 10px 24px rgba(255, 207, 35, 0.28);
+  font-weight: 900;
+}
+
+.course-series-expand-button {
+  min-width: 132px;
+  white-space: nowrap;
+}
+
 .schedule-dialog-selected-course {
   display: flex;
   align-items: center;
