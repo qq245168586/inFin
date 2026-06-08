@@ -54,8 +54,6 @@ export default function HomeRoute({
       {vm.scheduleDraft ? (
         <ScheduleDialog
           draft={vm.scheduleDraft}
-          coursePackage={selectedCoursePackage}
-          coursePackages={coursePackages}
           courseGroups={vm.courseGroups}
           onDraftChange={vm.updateScheduleDraft}
           onClose={vm.closeScheduleDialog}

@@ -14,16 +14,12 @@ export interface ScheduleDraftValue {
 
 export default function ScheduleDialog({
   draft,
-  coursePackage,
-  coursePackages,
   courseGroups,
   onDraftChange,
   onClose,
   onConfirm
 }: {
   draft: ScheduleDraftValue;
-  coursePackage: { id: number; name: string; courseIds?: number[] } | null;
-  coursePackages: Array<{ id: number; name: string; courseIds?: number[] }>;
   courseGroups: CourseGroups;
   onDraftChange: (updater: (current: ScheduleDraftValue) => ScheduleDraftValue) => void;
   onClose: () => void;
@@ -39,34 +35,12 @@ export default function ScheduleDialog({
       courseId: String(course.id),
       version: course.version || ""
     }));
+    setActiveSeriesName("");
   }
 
   return (
-    <Dialog title="添加排课" onClose={onClose} onConfirm={onConfirm}>
+    <Dialog title="添加排课" width={900} onClose={onClose} onConfirm={onConfirm}>
       <div className="dialog-form">
-        <label className="field">
-          <span>请选择课程包</span>
-          <select
-            value={draft.coursePackageId}
-            onChange={(event) =>
-              onDraftChange((current) => ({
-                ...current,
-                coursePackageId: event.target.value,
-                courseName: "",
-                courseId: "",
-                version: ""
-              }))
-            }
-          >
-            <option value="">{coursePackage ? "请选择课程包" : "未选择课程包"}</option>
-            {coursePackages.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-        </label>
-
         <div className="field">
           <span>请选择课程</span>
           <div className="schedule-course-picker">
