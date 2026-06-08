@@ -440,6 +440,7 @@ export default function CoursesRoute({
             courseFiltersDraft={courseFiltersVm.draft}
             onCourseFiltersDraftChange={(updater) => courseFiltersVm.setDraft((current) => updater(current))}
             onSearch={courseFiltersVm.search}
+            courses={courses}
             filteredCourses={courseFiltersVm.filteredCourses}
             courseTemplates={courseTemplates}
             coursePackageName={selectedCoursePackage?.name || ""}

@@ -57,6 +57,7 @@ export default function CourseLibrary({
   courseFiltersDraft,
   onCourseFiltersDraftChange,
   onSearch,
+  courses,
   filteredCourses,
   courseTemplates,
   coursePackageName,
@@ -69,6 +70,7 @@ export default function CourseLibrary({
   courseFiltersDraft: CourseFilterState;
   onCourseFiltersDraftChange: (updater: (current: CourseFilterState) => CourseFilterState) => void;
   onSearch: () => void;
+  courses: CourseRecord[];
   filteredCourses: CourseRecord[];
   courseTemplates: CourseTemplateRecord[];
   coursePackageName: string;
@@ -77,6 +79,13 @@ export default function CourseLibrary({
   onRemoveCourse: (courseId: number) => void;
 }) {
   const [activeCourseSeriesName, setActiveCourseSeriesName] = useState("");
+  const availableLessonTypes = useMemo(() => {
+    const availableTypeIds = new Set<number>();
+    courses.forEach((course) => {
+      (course.typeIds || []).forEach((typeId) => availableTypeIds.add(Number(typeId)));
+    });
+    return lessonTypes.filter((type) => availableTypeIds.has(Number(type.id)));
+  }, [courses, lessonTypes]);
   const courseGroups = useMemo(() => groupCoursesByName(filteredCourses), [filteredCourses]);
   const activeCourseSeries = activeCourseSeriesName ? courseGroups[activeCourseSeriesName] || [] : [];
   const isSeriesView = Boolean(activeCourseSeriesName && activeCourseSeries.length);
@@ -272,7 +281,7 @@ export default function CourseLibrary({
         <div className="filter-line">
           <span className="filter-label">课程类型</span>
           <FilterChips
-            options={lessonTypes}
+            options={availableLessonTypes}
             selectedIds={courseFiltersDraft.typeIds}
             onToggle={(typeId) =>
               onCourseFiltersDraftChange((current) => ({ ...current, typeIds: toggleNumberId(current.typeIds, typeId) }))

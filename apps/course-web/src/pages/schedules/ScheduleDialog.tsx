@@ -1,5 +1,6 @@
 import Dialog from "../../components/Dialog.tsx";
 import type { CourseGroups } from "../../models/course/groupCoursesByName.ts";
+import type { CourseRecord } from "../../models/course/types.ts";
 import { todayValue } from "../../utils/datetime.ts";
 
 export interface ScheduleDraftValue {
@@ -27,6 +28,17 @@ export default function ScheduleDialog({
   onClose: () => void;
   onConfirm: () => void;
 }) {
+  const courseGroupEntries = Object.entries(courseGroups).sort(([leftName], [rightName]) => leftName.localeCompare(rightName));
+
+  function selectCourse(course: CourseRecord) {
+    onDraftChange((current) => ({
+      ...current,
+      courseName: course.name,
+      courseId: String(course.id),
+      version: course.version || ""
+    }));
+  }
+
   return (
     <Dialog title="添加排课" onClose={onClose} onConfirm={onConfirm}>
       <div className="dialog-form">
@@ -53,52 +65,58 @@ export default function ScheduleDialog({
           </select>
         </label>
 
-        <label className="field">
+        <div className="field">
           <span>请选择课程</span>
-          <select
-            value={draft.courseName}
-            onChange={(event) => {
-              const nextName = event.target.value;
-              const group = courseGroups[nextName] || [];
-              const first = group[0];
-              onDraftChange((current) => ({
-                ...current,
-                courseName: nextName,
-                courseId: first ? String(first.id) : "",
-                version: first?.version || ""
-              }));
-            }}
-          >
-            <option value="">请选择课程</option>
-            {Object.keys(courseGroups).map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
-        </label>
+          <div className="schedule-course-picker">
+            {courseGroupEntries.length ? (
+              courseGroupEntries.map(([name, courses]) => {
+                const isSeries = courses.length > 1;
+                const representative = courses[0];
+                const isActiveGroup = draft.courseName === name;
+                if (!isSeries) {
+                  return (
+                    <button
+                      key={name}
+                      type="button"
+                      className={`schedule-course-option ${String(draft.courseId) === String(representative.id) ? "is-active" : ""}`}
+                      onClick={() => selectCourse(representative)}
+                    >
+                      <span className="schedule-course-option-main">
+                        <strong>{name}</strong>
+                        <span className="course-inline-version">Version {representative.version || "--"}</span>
+                      </span>
+                    </button>
+                  );
+                }
 
-        <label className="field">
-          <span>请选择版本</span>
-          <select
-            value={draft.courseId}
-            onChange={(event) => {
-              const selected = (courseGroups[draft.courseName] || []).find((course) => String(course.id) === event.target.value);
-              onDraftChange((current) => ({
-                ...current,
-                courseId: event.target.value,
-                version: selected?.version || ""
-              }));
-            }}
-          >
-            <option value="">请选择版本</option>
-            {(courseGroups[draft.courseName] || []).map((course) => (
-              <option key={course.id} value={course.id}>
-                Version {course.version || "--"} · #{course.id}
-              </option>
-            ))}
-          </select>
-        </label>
+                return (
+                  <div key={name} className={`schedule-course-option is-series ${isActiveGroup ? "is-active" : ""}`} tabIndex={0}>
+                    <span className="schedule-course-option-main">
+                      <strong>{name}</strong>
+                      <span className="schedule-course-count">共 {courses.length} 版</span>
+                    </span>
+                    <span className="schedule-course-arrow">›</span>
+                    <div className="schedule-course-flyout">
+                      {courses.map((course) => (
+                        <button
+                          key={course.id}
+                          type="button"
+                          className={`schedule-course-version-option ${String(draft.courseId) === String(course.id) ? "is-active" : ""}`}
+                          onClick={() => selectCourse(course)}
+                        >
+                          <strong>{course.name}</strong>
+                          <span className="course-inline-version">Version {course.version || "--"}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="schedule-course-empty">当前课程包没有可排课程</div>
+            )}
+          </div>
+        </div>
 
         {draft.courseName && draft.version ? (
           <div className="schedule-dialog-selected-course">

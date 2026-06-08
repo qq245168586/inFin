@@ -76,6 +76,38 @@ export default function PodsSection({
   onOpenPodCopyDialog: (pod: Pod, screen: PodScreen, screenLabel: string) => void;
   onOpenPodConfigCopyDialog: (pod: Pod, podLabel: string) => void;
 }) {
+  const addPodButton = (
+    <button
+      type="button"
+      className="ghost-button"
+      onClick={() =>
+        onUpdateScript((current) => {
+          const previousPod = current.training.pods[current.training.pods.length - 1] || null;
+          const targetGroup = previousPod
+            ? current.training.videoGroups.find((group) => group.id === previousPod.videoGroupId) ||
+              current.training.videoGroups[0] ||
+              createVideoGroup(3)
+            : current.training.videoGroups[0] || createVideoGroup(3);
+          const basePod = {
+            ...createPod(targetGroup),
+            name: createPodName(current.training.pods.length)
+          };
+          const nextPod = previousPod ? createCopiedPodFromPrevious(previousPod, basePod, targetGroup) : basePod;
+
+          return {
+            ...current,
+            training: {
+              ...current.training,
+              pods: rebalancePodEndings([...current.training.pods, nextPod])
+            }
+          };
+        })
+      }
+    >
+      + 添加 Pod
+    </button>
+  );
+
   return (
     <div className="section-card">
       <div className="section-card-head">
@@ -86,35 +118,6 @@ export default function PodsSection({
             rest 和换站休息生成。同动作组间休息不提示，换动作时 TV 提示 move station。
           </p>
         </div>
-        <button
-          type="button"
-          className="ghost-button"
-          onClick={() =>
-            onUpdateScript((current) => {
-              const previousPod = current.training.pods[current.training.pods.length - 1] || null;
-              const targetGroup = previousPod
-                ? current.training.videoGroups.find((group) => group.id === previousPod.videoGroupId) ||
-                  current.training.videoGroups[0] ||
-                  createVideoGroup(3)
-                : current.training.videoGroups[0] || createVideoGroup(3);
-              const basePod = {
-                ...createPod(targetGroup),
-                name: createPodName(current.training.pods.length)
-              };
-              const nextPod = previousPod ? createCopiedPodFromPrevious(previousPod, basePod, targetGroup) : basePod;
-
-              return {
-                ...current,
-                training: {
-                  ...current.training,
-                  pods: rebalancePodEndings([...current.training.pods, nextPod])
-                }
-              };
-            })
-          }
-        >
-          + 添加 Pod
-        </button>
       </div>
 
       <div className="module-list">
@@ -144,6 +147,8 @@ export default function PodsSection({
           );
         })}
       </div>
+
+      <div className="pod-add-footer">{addPodButton}</div>
     </div>
   );
 }

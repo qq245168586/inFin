@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { CourseRecord } from "../../models/course/types.ts";
 import { matchesTypeFilter } from "./courseEditorGuards.ts";
 
@@ -31,6 +31,25 @@ export default function useCourseFiltersVm(courses: CourseRecord[]) {
       return nameMatches && creatorMatches && versionMatches && matchesTypeFilter(course.typeIds || [], filters.typeIds);
     });
   }, [courses, filters.creator, filters.name, filters.typeIds, filters.version]);
+
+  const availableTypeIdsSignature = useMemo(() => {
+    const ids = new Set<number>();
+    courses.forEach((course) => {
+      (course.typeIds || []).forEach((typeId) => ids.add(Number(typeId)));
+    });
+    return [...ids].sort((left, right) => left - right).join("|");
+  }, [courses]);
+
+  useEffect(() => {
+    const allowed = new Set(availableTypeIdsSignature.split("|").filter(Boolean).map(Number));
+    const keepAvailable = (state: CourseFilterState): CourseFilterState => {
+      const typeIds = state.typeIds.filter((typeId) => allowed.has(Number(typeId)));
+      return typeIds.length === state.typeIds.length ? state : { ...state, typeIds };
+    };
+
+    setDraft(keepAvailable);
+    setFilters(keepAvailable);
+  }, [availableTypeIdsSignature]);
 
   function search() {
     setFilters(draft);
