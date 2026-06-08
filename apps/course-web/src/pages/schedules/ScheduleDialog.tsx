@@ -126,7 +126,7 @@ export default function ScheduleDialog({
   }
 
   return (
-    <Dialog title="添加排课" width={640} onClose={onClose} onConfirm={onConfirm}>
+    <Dialog title="添加排课" width={560} onClose={onClose} onConfirm={onConfirm}>
       <div className="dialog-form">
         <div className="field">
           <span>请选择课程</span>

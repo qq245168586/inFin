@@ -2121,10 +2121,12 @@ textarea.is-invalid:focus {
 
 .schedule-course-picker {
   display: grid;
-  gap: 8px;
-  max-height: min(46vh, 460px);
+  gap: 0;
+  max-height: min(40vh, 360px);
   overflow-y: auto;
-  padding: 0 4px 0 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
   background: transparent;
 }
 
@@ -2135,20 +2137,25 @@ textarea.is-invalid:focus {
   justify-content: space-between;
   gap: 12px;
   width: 100%;
-  min-height: 50px;
-  padding: 12px 14px;
-  border: 1px solid rgba(207, 221, 242, 0.92);
-  border-radius: 12px;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
   color: var(--text-main);
-  background: rgba(255, 255, 255, 0.96);
+  background: #ffffff;
   text-align: left;
+}
+
+.schedule-course-option:last-child {
+  border-bottom: 0;
 }
 
 .schedule-course-option:hover,
 .schedule-course-option:focus-within,
 .schedule-course-option.is-active {
-  border-color: var(--brand-line);
-  box-shadow: 0 8px 18px rgba(31, 111, 255, 0.1);
+  background: #f5f9ff;
+  box-shadow: none;
 }
 
 .schedule-course-option-main {
@@ -2162,40 +2169,40 @@ textarea.is-invalid:focus {
 .schedule-course-option-main strong,
 .schedule-course-version-option strong {
   color: var(--text-main);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 900;
 }
 
 .schedule-course-count {
   display: inline-flex;
   align-items: center;
-  min-height: 24px;
-  padding: 0 9px;
+  min-height: 20px;
+  padding: 0 7px;
   border-radius: 999px;
   color: var(--brand);
   background: rgba(31, 111, 255, 0.1);
   border: 1px solid rgba(31, 111, 255, 0.16);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 900;
 }
 
 .schedule-course-arrow {
   color: var(--brand);
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 900;
   line-height: 1;
 }
 
 .schedule-course-flyout {
   z-index: 10050;
-  width: min(360px, calc(100vw - 32px));
-  max-height: min(360px, calc(100vh - 48px));
+  width: min(300px, calc(100vw - 32px));
+  max-height: min(320px, calc(100vh - 48px));
   overflow-y: auto;
-  padding: 4px 0;
+  padding: 3px 0;
   border: 1px solid rgba(207, 221, 242, 0.92);
-  border-radius: 14px;
+  border-radius: 10px;
   background: #ffffff;
-  box-shadow: 0 22px 54px rgba(15, 23, 42, 0.18);
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.16);
 }
 
 .schedule-course-option.is-series {
@@ -2207,14 +2214,23 @@ textarea.is-invalid:focus {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
-  min-height: 44px;
-  padding: 11px 14px;
+  min-height: 38px;
+  padding: 8px 10px;
   border: 0;
   border-radius: 0;
   background: transparent;
   text-align: left;
+}
+
+.schedule-course-version-option .course-inline-version {
+  min-height: 20px;
+  padding: 0 7px;
+  color: var(--brand);
+  background: rgba(31, 111, 255, 0.08);
+  box-shadow: none;
+  font-size: 10px;
 }
 
 .schedule-course-version-option + .schedule-course-version-option {
