@@ -2127,7 +2127,7 @@ textarea.is-invalid:focus {
   padding: 4px;
   border: 1px solid var(--line);
   border-radius: 14px;
-  background: #f8fbff;
+  background: #ffffff;
 }
 
 .schedule-course-option {
@@ -2174,8 +2174,9 @@ textarea.is-invalid:focus {
   min-height: 24px;
   padding: 0 9px;
   border-radius: 999px;
-  color: #17111f;
-  background: #ffdf5a;
+  color: var(--brand);
+  background: rgba(31, 111, 255, 0.1);
+  border: 1px solid rgba(31, 111, 255, 0.16);
   font-size: 11px;
   font-weight: 900;
 }
@@ -2192,9 +2193,11 @@ textarea.is-invalid:focus {
   grid-column: 1 / -1;
   width: 100%;
   margin-top: 10px;
-  padding: 10px;
-  border-radius: 12px;
-  background: rgba(230, 239, 255, 0.72);
+  padding: 8px;
+  border: 1px solid rgba(207, 221, 242, 0.92);
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 14px 32px rgba(31, 111, 255, 0.12);
   gap: 8px;
 }
 
@@ -2204,7 +2207,8 @@ textarea.is-invalid:focus {
 }
 
 .schedule-course-option.is-series:hover .schedule-course-flyout,
-.schedule-course-option.is-series:focus-within .schedule-course-flyout {
+.schedule-course-option.is-series:focus-within .schedule-course-flyout,
+.schedule-course-option.is-series.is-flyout-open .schedule-course-flyout {
   display: grid;
 }
 
@@ -2215,10 +2219,10 @@ textarea.is-invalid:focus {
   gap: 12px;
   width: 100%;
   min-height: 44px;
-  padding: 9px 10px;
+  padding: 10px 12px;
   border: 1px solid transparent;
-  border-radius: 10px;
-  background: #ffffff;
+  border-radius: 12px;
+  background: #f8fbff;
   text-align: left;
 }
 

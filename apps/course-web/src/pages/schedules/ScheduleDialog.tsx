@@ -1,3 +1,4 @@
+import { useState } from "react";
 import Dialog from "../../components/Dialog.tsx";
 import type { CourseGroups } from "../../models/course/groupCoursesByName.ts";
 import type { CourseRecord } from "../../models/course/types.ts";
@@ -29,6 +30,7 @@ export default function ScheduleDialog({
   onConfirm: () => void;
 }) {
   const courseGroupEntries = Object.entries(courseGroups).sort(([leftName], [rightName]) => leftName.localeCompare(rightName));
+  const [activeSeriesName, setActiveSeriesName] = useState("");
 
   function selectCourse(course: CourseRecord) {
     onDraftChange((current) => ({
@@ -90,7 +92,16 @@ export default function ScheduleDialog({
                 }
 
                 return (
-                  <div key={name} className={`schedule-course-option is-series ${isActiveGroup ? "is-active" : ""}`} tabIndex={0}>
+                  <div
+                    key={name}
+                    className={`schedule-course-option is-series ${isActiveGroup ? "is-active" : ""} ${
+                      activeSeriesName === name ? "is-flyout-open" : ""
+                    }`}
+                    tabIndex={0}
+                    onMouseEnter={() => setActiveSeriesName(name)}
+                    onMouseLeave={() => setActiveSeriesName((current) => (current === name ? "" : current))}
+                    onFocus={() => setActiveSeriesName(name)}
+                  >
                     <span className="schedule-course-option-main">
                       <strong>{name}</strong>
                       <span className="schedule-course-count">共 {courses.length} 版</span>
