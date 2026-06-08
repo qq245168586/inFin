@@ -19,6 +19,79 @@ function isTvAppUpdateInProgress(updateState) {
   );
 }
 
+function summarizeOpsEvents(items = []) {
+  const directionCounts = { in: 0, out: 0 };
+  const typeCounts = {};
+  const topicCounts = {};
+  const devices = new Set();
+  const namespaces = new Set();
+
+  for (const item of items) {
+    const direction = String(item?.direction || "").toLowerCase() === "out" ? "out" : "in";
+    directionCounts[direction] += 1;
+
+    const type = String(item?.type || "unknown").trim() || "unknown";
+    typeCounts[type] = (typeCounts[type] || 0) + 1;
+
+    const topic = String(item?.topic || "unknown").trim() || "unknown";
+    topicCounts[topic] = (topicCounts[topic] || 0) + 1;
+
+    if (String(item?.deviceId || "").trim()) {
+      devices.add(String(item.deviceId).trim());
+    }
+    if (String(item?.namespace || "").trim()) {
+      namespaces.add(String(item.namespace).trim());
+    }
+  }
+
+  const toTopList = (source) =>
+    Object.entries(source)
+      .sort((left, right) => right[1] - left[1])
+      .slice(0, 10)
+      .map(([name, count]) => ({ name, count }));
+
+  return {
+    total: items.length,
+    inbound: directionCounts.in,
+    outbound: directionCounts.out,
+    uniqueDevices: devices.size,
+    namespaces: Array.from(namespaces).sort(),
+    latestAt: items[0]?.receivedAt || "",
+    topTypes: toTopList(typeCounts),
+    topTopics: toTopList(topicCounts)
+  };
+}
+
+function summarizeOpsScreens(items = []) {
+  const boundScreens = items.filter((item) => String(item?.deviceId || "").trim());
+  const stateCounts = {};
+  const updateCounts = {};
+  const versionCounts = {};
+
+  for (const item of boundScreens) {
+    const playbackState = String(item?.playbackState || "IDLE").toUpperCase();
+    stateCounts[playbackState] = (stateCounts[playbackState] || 0) + 1;
+
+    const updateState = String(item?.updateState || "IDLE").toUpperCase();
+    updateCounts[updateState] = (updateCounts[updateState] || 0) + 1;
+
+    const version = String(item?.appVersion || "unknown").trim() || "unknown";
+    versionCounts[version] = (versionCounts[version] || 0) + 1;
+  }
+
+  return {
+    slots: items.length,
+    bound: boundScreens.length,
+    online: boundScreens.filter((item) => item.online).length,
+    preview: boundScreens.filter((item) => String(item?.playbackState || "").toUpperCase() === "PREVIEW").length,
+    running: boundScreens.filter((item) => String(item?.playbackState || "").toUpperCase() === "RUNNING").length,
+    updating: boundScreens.filter((item) => isTvAppUpdateInProgress(item?.updateState)).length,
+    states: stateCounts,
+    updates: updateCounts,
+    versions: versionCounts
+  };
+}
+
 const server = http.createServer(async (request, response) => {
   const url = new URL(request.url, `http://${request.headers.host || `${host}:${port}`}`);
 
@@ -36,6 +109,52 @@ const server = http.createServer(async (request, response) => {
         mediaStorage: getMediaStorageMode(),
         tvControl: getTvControlConfig(),
         now: new Date().toISOString()
+      });
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/ops/overview") {
+      const user = requireSuperAdmin(request, response);
+      if (!user) return;
+
+      const namespace = String(url.searchParams.get("namespace") || "").trim();
+      const deviceId = String(url.searchParams.get("deviceId") || "").trim();
+      const topic = String(url.searchParams.get("topic") || "").trim();
+      const type = String(url.searchParams.get("type") || "").trim();
+      const date = String(url.searchParams.get("date") || "").trim();
+      const recentEvents = readOpsEvents({
+        namespace,
+        deviceId,
+        topic,
+        type,
+        date,
+        limit: "500"
+      });
+      const screenPayload = namespace
+        ? listTvScreens(namespace)
+        : { generatedAt: new Date().toISOString(), screens: [] };
+      const tvPackages = listAppPackages("tv").slice(0, 8);
+
+      sendJson(response, 200, {
+        data: {
+          generatedAt: new Date().toISOString(),
+          filters: { namespace, deviceId, topic, type, date },
+          server: {
+            dbSafety: getDatabaseStatus(),
+            mediaStorage: getMediaStorageMode(),
+            tvControl: getTvControlConfig()
+          },
+          mqtt: summarizeOpsEvents(recentEvents),
+          screens: {
+            generatedAt: screenPayload.generatedAt,
+            requiresNamespace: !namespace,
+            summary: summarizeOpsScreens(screenPayload.screens || []),
+            items: (screenPayload.screens || []).filter((item) => String(item?.deviceId || "").trim())
+          },
+          appPackages: {
+            tv: tvPackages
+          }
+        }
       });
       return;
     }
