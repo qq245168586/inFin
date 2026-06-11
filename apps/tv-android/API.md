@@ -6,7 +6,7 @@
 
 TV 端 Base URL：
 
-- `ServerConfig.BASE_URL`（当前实现：`http://8.130.65.113`）
+- `ServerConfig.BASE_URL`（当前实现：`https://api.infintraining.work`）
 - API 前缀：`/api`
 
 TV 端不携带登录 token；屏幕状态与绑定信息通过 body 字段上报（见下文）。
@@ -109,15 +109,15 @@ TV 端不携带登录 token；屏幕状态与绑定信息通过 body 字段上�
 
 ## MQTT（EMQX / Mosquitto）
 
-TV 端使用 Paho MQTT client（TCP 1883）。
+TV 端使用 Paho MQTT client 通过 WebSocket Secure 连接 MQTT，不再使用 TCP 1883 兜底。
 
 ### 连接参数（当前实现）
 
 见 `apps/tv-android/app/src/main/java/com/infini/tv/repository/ServerConfig.java`：
 
-- Host: `8.130.65.113`
-- Port: `1883`
-- Username/Password: `tv1 / e10adc...`
+- URL: `wss://api.infintraining.work/mqtt`
+- Username: 空
+- Password: `e10adc...`
 
 ### Topic
 
