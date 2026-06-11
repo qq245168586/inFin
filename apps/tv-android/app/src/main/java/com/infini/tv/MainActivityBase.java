@@ -73,7 +73,7 @@ abstract class MainActivityBase extends MainActivityContracts {
   protected static final long CHECKSUM_POLL_INTERVAL_MS = 5 * 60 * 1000L;
   protected static final long SCREEN_HEARTBEAT_INTERVAL_MS = 15 * 1000L;
   protected static final long PAIRING_PRESENCE_INTERVAL_MS = 10 * 1000L;
-  protected static final long FINISH_RETURN_DELAY_MS = 60 * 1000L;
+  protected static final long FINISH_RETURN_DELAY_MS = 30 * 1000L;
   protected static final int WARMUP_READY_SECONDS = 15;
   protected static final int TRAINING_READY_SECONDS = 15;
   protected static final int COOLDOWN_READY_SECONDS = 10;

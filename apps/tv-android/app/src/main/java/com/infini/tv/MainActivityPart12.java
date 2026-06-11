@@ -124,29 +124,20 @@ abstract class MainActivityPart12 extends MainActivityPart11 {
   }
 
   protected void showCooldownReadyState(CourseScript course, int remainingSeconds) {
-    if (isHorizontalInfoScreen(activeScreenNumber)) {
-      showHorizontalMainState(
-          course,
-          Math.max(remainingSeconds, 0),
-          "READY FOR\nCOOL DOWN",
-          "",
-          0,
-          0);
-      return;
-    }
-
-    applyResponsiveLayout();
-    updateWaterfallPlayback(
-        course == null ? null : course.cooldown,
-        0,
-        "COOL DOWN",
-        "COOLDOWN_READY",
-        "冷身即将开始");
-    applyPlaybackTheme(PlaybackTheme.READY);
-    playbackCountdownText.setText(formatCountdownSeconds(remainingSeconds));
-    playbackStageLabel.setText("");
-    playbackStageProgress.setText("READY FOR\nCOOL DOWN");
-    renderStageMeta("", 0, 0);
+    showFullScreenTransitionState(
+        new TrainingPlaybackState(
+            "cooldown-ready-finish",
+            "",
+            "FINISH",
+            "",
+            Math.max(remainingSeconds, 0),
+            new ArrayList<>(),
+            -1,
+            false,
+            false,
+            true,
+            true,
+            "FINISH"));
   }
 
   protected void showFullScreenTransitionState(TrainingPlaybackState state) {

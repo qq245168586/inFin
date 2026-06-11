@@ -48,6 +48,8 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 abstract class TvScriptRepositoryPart04 extends TvScriptRepositoryPart03 {
+  private static int secureApiFailureCount = 0;
+
   protected TvScriptRepositoryPart04(Context context) {
     super(context);
   }
@@ -164,12 +166,24 @@ abstract class TvScriptRepositoryPart04 extends TvScriptRepositoryPart03 {
 
   protected JSONObject requestJson(String relativePath, String method, JSONObject body) throws IOException {
     IOException lastError = null;
-    for (String apiBaseUrl : apiBaseUrlCandidates()) {
+    List<String> candidates = apiBaseUrlCandidates();
+    for (int index = 0; index < candidates.size(); index += 1) {
+      String apiBaseUrl = candidates.get(index);
       try {
-        return requestJsonWithBase(apiBaseUrl, relativePath, method, body);
+        JSONObject result = requestJsonWithBase(apiBaseUrl, relativePath, method, body);
+        if (ServerConfig.API_BASE_URL.equals(apiBaseUrl)) {
+          resetSecureApiFailures();
+        }
+        return result;
       } catch (IOException error) {
         lastError = error;
         Log.w(TAG, "API request failed via " + apiBaseUrl + relativePath, error);
+        if (ServerConfig.API_BASE_URL.equals(apiBaseUrl)) {
+          recordSecureApiFailure();
+          if (shouldUseHttpBackup() && !candidates.contains(ServerConfig.BACKUP_API_BASE_URL)) {
+            candidates.add(ServerConfig.BACKUP_API_BASE_URL);
+          }
+        }
       }
     }
     throw lastError == null ? new IOException("TV 端未拿到课程数据。") : lastError;
@@ -237,8 +251,8 @@ abstract class TvScriptRepositoryPart04 extends TvScriptRepositoryPart03 {
   protected List<String> apiBaseUrlCandidates() {
     List<String> candidates = new ArrayList<>();
     candidates.add(ServerConfig.API_BASE_URL);
-    if (!ServerConfig.LEGACY_API_BASE_URL.equals(ServerConfig.API_BASE_URL)) {
-      candidates.add(ServerConfig.LEGACY_API_BASE_URL);
+    if (shouldUseHttpBackup() && !ServerConfig.BACKUP_API_BASE_URL.equals(ServerConfig.API_BASE_URL)) {
+      candidates.add(ServerConfig.BACKUP_API_BASE_URL);
     }
     return candidates;
   }
@@ -246,8 +260,8 @@ abstract class TvScriptRepositoryPart04 extends TvScriptRepositoryPart03 {
   protected List<String> baseUrlCandidates() {
     List<String> candidates = new ArrayList<>();
     candidates.add(ServerConfig.BASE_URL);
-    if (!ServerConfig.LEGACY_BASE_URL.equals(ServerConfig.BASE_URL)) {
-      candidates.add(ServerConfig.LEGACY_BASE_URL);
+    if (shouldUseHttpBackup() && !ServerConfig.BACKUP_BASE_URL.equals(ServerConfig.BASE_URL)) {
+      candidates.add(ServerConfig.BACKUP_BASE_URL);
     }
     return candidates;
   }
@@ -259,10 +273,10 @@ abstract class TvScriptRepositoryPart04 extends TvScriptRepositoryPart03 {
     }
     if (url.startsWith("http://") || url.startsWith("https://")) {
       candidates.add(url);
-      if (url.startsWith(ServerConfig.BASE_URL + "/")) {
-        candidates.add(ServerConfig.LEGACY_BASE_URL + url.substring(ServerConfig.BASE_URL.length()));
-      } else if (url.startsWith(ServerConfig.API_BASE_URL + "/")) {
-        candidates.add(ServerConfig.LEGACY_API_BASE_URL + url.substring(ServerConfig.API_BASE_URL.length()));
+      if (shouldUseHttpBackup() && url.startsWith(ServerConfig.BASE_URL + "/")) {
+        candidates.add(ServerConfig.BACKUP_BASE_URL + url.substring(ServerConfig.BASE_URL.length()));
+      } else if (shouldUseHttpBackup() && url.startsWith(ServerConfig.API_BASE_URL + "/")) {
+        candidates.add(ServerConfig.BACKUP_API_BASE_URL + url.substring(ServerConfig.API_BASE_URL.length()));
       }
       return candidates;
     }
@@ -278,5 +292,17 @@ abstract class TvScriptRepositoryPart04 extends TvScriptRepositoryPart03 {
       candidates.add(apiBaseUrl + "/" + url);
     }
     return candidates;
+  }
+
+  private static synchronized void recordSecureApiFailure() {
+    secureApiFailureCount += 1;
+  }
+
+  private static synchronized void resetSecureApiFailures() {
+    secureApiFailureCount = 0;
+  }
+
+  private static synchronized boolean shouldUseHttpBackup() {
+    return secureApiFailureCount >= ServerConfig.SECURE_FALLBACK_FAILURE_THRESHOLD;
   }
 }

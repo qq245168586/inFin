@@ -82,6 +82,9 @@ abstract class MainActivityPart13 extends MainActivityPart12 {
     if ("HYDRATE".equals(transitionType)) {
       return PlaybackTheme.HYDRATE;
     }
+    if ("FINISH".equals(transitionType)) {
+      return PlaybackTheme.HYDRATE;
+    }
     if ("REST".equals(transitionType)) {
       return PlaybackTheme.READY;
     }
@@ -104,6 +107,9 @@ abstract class MainActivityPart13 extends MainActivityPart12 {
       return getColor(R.color.tv_playback_ready);
     }
     if ("HYDRATE".equals(transitionType)) {
+      return getColor(R.color.tv_playback_hydrate);
+    }
+    if ("FINISH".equals(transitionType)) {
       return getColor(R.color.tv_playback_hydrate);
     }
     if ("MOVE_STATION".equals(transitionType) || "MOVE_ZONE".equals(transitionType) || "SWITCH".equals(transitionType)) {

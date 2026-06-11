@@ -37,6 +37,8 @@ abstract class TvMqttManagerBase extends TvMqttManagerContracts {
 
   protected boolean disconnectRequested;
 
+  private int secureMqttFailureCount;
+
   protected TvMqttManagerBase(
       String clientId,
       String username,
@@ -58,5 +60,17 @@ abstract class TvMqttManagerBase extends TvMqttManagerContracts {
 
   protected static String sanitizeCredential(String value) {
     return value == null ? "" : value.trim();
+  }
+
+  protected synchronized boolean shouldUseMqttTcpBackup() {
+    return secureMqttFailureCount >= ServerConfig.SECURE_FALLBACK_FAILURE_THRESHOLD;
+  }
+
+  protected synchronized void recordSecureMqttFailure() {
+    secureMqttFailureCount += 1;
+  }
+
+  protected synchronized void resetSecureMqttFailures() {
+    secureMqttFailureCount = 0;
   }
 }

@@ -267,8 +267,10 @@ abstract class TvScriptRepositoryPart02 extends TvScriptRepositoryPart01 {
     if (url.startsWith("http://") || url.startsWith("https://")) {
       List<String> candidates = new ArrayList<>();
       candidates.add(url);
-      if (url.startsWith(ServerConfig.BASE_URL + "/")) {
-        candidates.add(ServerConfig.LEGACY_BASE_URL + url.substring(ServerConfig.BASE_URL.length()));
+      for (String baseUrl : baseUrlCandidates()) {
+        if (!url.startsWith(baseUrl + "/") && url.startsWith(ServerConfig.BASE_URL + "/")) {
+          candidates.add(baseUrl + url.substring(ServerConfig.BASE_URL.length()));
+        }
       }
       return candidates;
     }

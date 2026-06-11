@@ -77,11 +77,16 @@ abstract class MainActivityPart11 extends MainActivityPart10 {
             ? "HYDRATE"
             : ("REST".equals(transitionType)
                 ? "REST"
-                : ("SWITCH".equals(transitionType) ? "SWITCH" : ("MOVE_ZONE".equals(transitionType) ? "MOVE\nZONE" : "MOVE\nSTATION")));
+                : ("FINISH".equals(transitionType)
+                    ? "FINISH"
+                    : ("SWITCH".equals(transitionType)
+                        ? "SWITCH"
+                        : ("MOVE_ZONE".equals(transitionType) ? "MOVE\nZONE" : "MOVE\nSTATION"))));
     transitionDesignTitle.setText(title);
     boolean hydrate = "HYDRATE".equals(transitionType);
     boolean rest = "REST".equals(transitionType);
-    boolean moveStation = !"HYDRATE".equals(transitionType) && !"REST".equals(transitionType);
+    boolean finish = "FINISH".equals(transitionType);
+    boolean moveStation = !"HYDRATE".equals(transitionType) && !"REST".equals(transitionType) && !finish;
     transitionDesignTitle.setTextSize(
         TypedValue.COMPLEX_UNIT_PX,
         horizontal
@@ -99,13 +104,13 @@ abstract class MainActivityPart11 extends MainActivityPart10 {
       params.topMargin =
           Math.round(
               screenHeight
-                  * (hydrate ? 0.52f : (rest ? 0.56f : 0.48f)));
+                  * (hydrate || finish ? 0.52f : (rest ? 0.56f : 0.48f)));
       transitionDesignTitle.setGravity(android.view.Gravity.CENTER);
     } else {
       params.leftMargin = 0;
       params.rightMargin = 0;
       params.topMargin =
-          Math.round(screenHeight * (hydrate ? 0.74f : (rest ? 0.69f : 0.72f)));
+          Math.round(screenHeight * (hydrate || finish ? 0.74f : (rest ? 0.69f : 0.72f)));
       transitionDesignTitle.setGravity(android.view.Gravity.CENTER);
     }
     transitionDesignTitle.setLayoutParams(params);
@@ -155,6 +160,7 @@ abstract class MainActivityPart11 extends MainActivityPart10 {
   protected boolean isSupportedTransitionDesign(String transitionType) {
     return "HYDRATE".equals(transitionType)
         || "REST".equals(transitionType)
+        || "FINISH".equals(transitionType)
         || "MOVE_STATION".equals(transitionType)
         || "SWITCH".equals(transitionType)
         || "MOVE_ZONE".equals(transitionType);

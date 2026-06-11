@@ -135,6 +135,9 @@ abstract class TvMqttManagerPart01 extends TvMqttManagerBase {
                               return;
                             }
                           }
+                          if (serverURI != null && serverURI.startsWith("wss://")) {
+                            resetSecureMqttFailures();
+                          }
                           Log.d(
                               TAG,
                               "MQTT connected"
@@ -184,7 +187,7 @@ abstract class TvMqttManagerPart01 extends TvMqttManagerBase {
                 MqttConnectOptions options = new MqttConnectOptions();
                 options.setAutomaticReconnect(true);
                 options.setCleanSession(true);
-                options.setServerURIs(ServerConfig.mqttBrokerUris());
+                options.setServerURIs(ServerConfig.mqttBrokerUris(shouldUseMqttTcpBackup()));
                 options.setConnectionTimeout(8);
                 options.setKeepAliveInterval(60);
                 if (connectUsername != null && !connectUsername.trim().isEmpty()) {
@@ -195,8 +198,11 @@ abstract class TvMqttManagerPart01 extends TvMqttManagerBase {
                 }
                 targetClient.connect(options);
                 subscribeToControlTopics();
-              } catch (Exception ignored) {
-                Log.w(TAG, "MQTT connect failed", ignored);
+              } catch (Exception error) {
+                if (!isConnectAlreadyInProgress(error)) {
+                  recordSecureMqttFailure();
+                }
+                Log.w(TAG, "MQTT connect failed", error);
               } finally {
                 synchronized (this) {
                   connectInFlight = false;
@@ -204,6 +210,10 @@ abstract class TvMqttManagerPart01 extends TvMqttManagerBase {
               }
             })
         .start();
+  }
+
+  private boolean isConnectAlreadyInProgress(Exception error) {
+    return error instanceof MqttException && ((MqttException) error).getReasonCode() == 32110;
   }
 
   public void disconnect() {
