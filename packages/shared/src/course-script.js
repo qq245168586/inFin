@@ -711,9 +711,11 @@ export function validateCourseScript(courseScript) {
   }
 
   training.videoGroups.forEach((group) => {
+    let groupActiveCardCount = 0;
     group.screens.forEach((screen) => {
       const activeCards = filledVideoCards(screen.videoCards);
-      if (!activeCards.length) {
+      groupActiveCardCount += activeCards.length;
+      if (group.screenCount === 1 && !activeCards.length) {
         issues.push(`视频组 ${group.name} 的屏幕 ${screen.screenIndex} 没有动作卡片。`);
       }
       if (group.screenCount !== 1) {
@@ -734,6 +736,9 @@ export function validateCourseScript(courseScript) {
         }
       });
     });
+    if (group.screenCount !== 1 && groupActiveCardCount <= 0) {
+      issues.push(`视频组 ${group.name} 至少需要一个屏幕有动作卡片。`);
+    }
   });
 
   if (!training.pods.length) {
