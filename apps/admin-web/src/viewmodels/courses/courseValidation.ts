@@ -1,8 +1,17 @@
 import type { CourseDraft } from "./types.ts";
 import type { CourseSectionKey } from "../../models/course/types.ts";
 import { normalizePodSetConfigsForLayout } from "../../models/course/podSetConfigs.ts";
+import type { VideoCard } from "../../models/course/types.ts";
 import { stationCode } from "../../utils/station.ts";
 import { getPodScreenTotalForFlow } from "./podTiming.ts";
+
+function isFilledVideoCard(card: Partial<VideoCard> | null | undefined): boolean {
+  return Boolean(card?.actionId || card?.actionName || stationCode(card?.stationNumber));
+}
+
+function getFilledVideoCards(cards: VideoCard[] = []): VideoCard[] {
+  return cards.filter((card) => isFilledVideoCard(card));
+}
 
 export function getCourseDraftIssues(draft: CourseDraft): string[] {
   const issues: string[] = [];
@@ -54,9 +63,12 @@ export function getCourseDraftIssues(draft: CourseDraft): string[] {
       issues.push(`视频组 ${group.name || "未命名"} 只允许单屏或三屏。`);
     }
 
+    let groupActiveCardCount = 0;
     group.screens.forEach((screen) => {
+      const activeCards = getFilledVideoCards(screen.videoCards);
+      groupActiveCardCount += activeCards.length;
       if (group.screenCount !== 1) {
-        const stationCodes = screen.videoCards.map((card) => stationCode(card.stationNumber));
+        const stationCodes = activeCards.map((card) => stationCode(card.stationNumber));
         if (stationCodes.some((code) => !code)) {
           issues.push(`视频组 ${group.name || "未命名"} 的屏幕 ${screen.screenIndex} 站点标签不能为空。`);
         }
@@ -64,15 +76,18 @@ export function getCourseDraftIssues(draft: CourseDraft): string[] {
           issues.push(`视频组 ${group.name || "未命名"} 的屏幕 ${screen.screenIndex} 站点标签不能重复。`);
         }
       }
-      if (!screen.videoCards.length) {
+      if (group.screenCount === 1 && !activeCards.length) {
         issues.push(`视频组 ${group.name || "未命名"} 的屏幕 ${screen.screenIndex} 至少需要一个动作。`);
       }
-      screen.videoCards.forEach((card, index) => {
+      activeCards.forEach((card, index) => {
         if (!card.actionId) {
           issues.push(`视频组 ${group.name || "未命名"} 的屏幕 ${screen.screenIndex} 第 ${index + 1} 个卡片未选择动作。`);
         }
       });
     });
+    if (group.screenCount !== 1 && groupActiveCardCount <= 0) {
+      issues.push(`视频组 ${group.name || "未命名"} 至少需要一个屏幕有动作。`);
+    }
   });
 
   if (!script.training.pods.length) {
@@ -95,7 +110,8 @@ export function getCourseDraftIssues(draft: CourseDraft): string[] {
         issues.push(`Pod ${pod.name || podIndex + 1} 使用 SWITCH 时必须绑定三屏视频组。`);
       }
       linkedGroup.screens.forEach((screen) => {
-        if ((screen.videoCards.length || 0) % 2 !== 0) {
+        const activeCards = getFilledVideoCards(screen.videoCards);
+        if (activeCards.length > 0 && activeCards.length % 2 !== 0) {
           issues.push(
             `Pod ${pod.name || podIndex + 1} 使用 SWITCH 时，视频组 ${linkedGroup.name || "未命名"} 的屏幕 ${screen.screenIndex} 需要偶数个视频。`
           );
@@ -103,11 +119,11 @@ export function getCourseDraftIssues(draft: CourseDraft): string[] {
       });
     }
 
-    const totals = pod.screens.map((screen) => {
+    const totals = pod.screens.flatMap((screen) => {
       const linkedScreen = linkedGroup.screens.find((item) => item.screenIndex === screen.screenIndex) || null;
-      return getPodScreenTotalForFlow(pod, screen, linkedScreen);
+      return getFilledVideoCards(linkedScreen?.videoCards).length ? [getPodScreenTotalForFlow(pod, screen, linkedScreen)] : [];
     });
-    if (totals.some((total) => total !== totals[0])) {
+    if (totals.length > 1 && totals.some((total) => total !== totals[0])) {
       issues.push(`Pod ${pod.name || podIndex + 1} 的各屏总时长必须一致。`);
     }
 
@@ -132,7 +148,7 @@ export function getCourseDraftIssues(draft: CourseDraft): string[] {
           issues.push(`Pod ${pod.name || podIndex + 1} 的屏幕 ${screen.screenIndex} 第 ${setIndex + 1} 组间休息不能小于 0。`);
         }
       });
-      if (!linkedScreen?.videoCards.length) {
+      if (linkedGroup.screenCount === 1 && !linkedScreen?.videoCards.length) {
         issues.push(`Pod ${pod.name || podIndex + 1} 的屏幕 ${screen.screenIndex} 绑定的视频组还没有动作。`);
       }
     });
