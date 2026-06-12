@@ -159,7 +159,7 @@ export default function CourseVideoGroupsEditor({
     onUpdateScript(
       updateScreen(group, screenIndex, (screen) => {
         const currentRows = normalizeVideoRowLayouts(screen.rowLayouts, group.screenCount);
-        if (currentRows.length <= 1) return screen;
+        if (!currentRows.length) return screen;
         const rowStart = currentRows.slice(0, rowIndex).reduce((total, rowColumns) => total + rowColumns, 0);
         const rowColumns = currentRows[rowIndex] || 1;
         const nextCards = screen.videoCards.filter((_, index) => index < rowStart || index >= rowStart + rowColumns);
@@ -368,7 +368,6 @@ export default function CourseVideoGroupsEditor({
                               <button
                                 type="button"
                                 className="row-delete-button"
-                                disabled={normalizeVideoRowLayouts(screen.rowLayouts, group.screenCount).length <= 1}
                                 onClick={() => deleteRowLayout(group, screen.screenIndex, row.index)}
                               >
                                 删除

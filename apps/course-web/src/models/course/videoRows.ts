@@ -17,6 +17,8 @@ export function normalizeVideoRowLayouts(
 ): VideoRowLayout[] {
   if (screenCount === 1) return [];
 
+  if (Array.isArray(rowLayouts) && rowLayouts.length === 0) return [];
+
   const source = Array.isArray(rowLayouts) ? rowLayouts : [];
   if (!source.length) return getDefaultVideoRowLayouts(screenCount);
 

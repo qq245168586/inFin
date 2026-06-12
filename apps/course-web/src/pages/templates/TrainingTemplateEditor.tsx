@@ -145,7 +145,7 @@ export default function TrainingTemplateEditor({
     setSlotDialog(null);
     updateScreen(screenId, (screen, group) => {
       const currentRows = normalizeVideoRowLayouts(screen.rowLayouts, group.screenCount);
-      if (currentRows.length <= 1) return screen;
+      if (!currentRows.length) return screen;
       const rowStart = currentRows.slice(0, rowIndex).reduce((total, rowColumns) => total + rowColumns, 0);
       const rowColumns = currentRows[rowIndex] || 1;
       const nextCards = screen.videoCards.filter((_, index) => index < rowStart || index >= rowStart + rowColumns);
@@ -261,7 +261,6 @@ export default function TrainingTemplateEditor({
                         <button
                           type="button"
                           className="row-delete-button"
-                          disabled={normalizeVideoRowLayouts(screen.rowLayouts, draft.videoGroup?.screenCount || 3).length <= 1}
                           onClick={() => deleteRowLayout(screen.id, row.index)}
                         >
                           删除
