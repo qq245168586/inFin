@@ -338,18 +338,19 @@ abstract class MainActivityPart10 extends MainActivityPart09 {
     boolean hydrate = "HYDRATE".equals(transitionType);
     boolean rest = "REST".equals(transitionType);
     boolean finish = "FINISH".equals(transitionType);
+    boolean work = "WORK".equals(transitionType);
     int ringSize =
         horizontal
             ? clamp(Math.round(shortSide * 0.62f), dp(500), dp(760))
             : clamp(
-                Math.round(shortSide * (hydrate || finish ? 0.66f : 0.68f)),
+                Math.round(shortSide * (hydrate || finish || work ? 0.66f : 0.68f)),
                 Math.round(shortSide * 0.54f),
                 Math.round(shortSide * 0.76f));
     float centerX = horizontal ? 0.30f : 0.5f;
     float centerY =
         horizontal
             ? 0.50f
-            : (hydrate || finish ? 0.48f : (rest ? 0.47f : 0.46f));
+            : (hydrate || finish || work ? 0.48f : (rest ? 0.47f : 0.46f));
     FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(ringSize, ringSize);
     params.leftMargin = Math.round(screenWidth * centerX - ringSize / 2f);
     params.topMargin = Math.round(screenHeight * centerY - ringSize / 2f);
@@ -415,7 +416,7 @@ abstract class MainActivityPart10 extends MainActivityPart09 {
     if (transitionDesignIcon == null) {
       return;
     }
-    if ("FINISH".equals(transitionType)) {
+    if ("FINISH".equals(transitionType) || "WORK".equals(transitionType)) {
       transitionDesignIcon.setVisibility(View.GONE);
       transitionDesignIcon.setImageDrawable(null);
       return;

@@ -288,7 +288,12 @@ abstract class MainActivityPart13 extends MainActivityPart12 {
     for (int podIndex = 0; podIndex < course.pods.size(); podIndex += 1) {
       CourseScript.Pod pod = course.pods.get(podIndex);
       CourseScript.VideoGroup group = findVideoGroup(course, pod.videoGroupId);
-      EffectivePodScreen effectiveScreen = materializePodScreen(pod, group, displayScreenIndex);
+      EffectivePodScreen displayScreen = materializePodScreen(pod, group, displayScreenIndex);
+      boolean displayScreenHasActions = hasPlayableCards(displayScreen);
+      EffectivePodScreen effectiveScreen =
+          !displayScreenHasActions && group != null && group.screenCount > 1
+              ? materializeProgressPodScreen(course, pod)
+              : displayScreen;
       int podDurationSeconds = getPodDurationSeconds(pod, effectiveScreen);
       EffectivePodScreen nextEffectiveScreen = null;
       if (podIndex + 1 < course.pods.size()) {
@@ -301,7 +306,11 @@ abstract class MainActivityPart13 extends MainActivityPart12 {
       }
 
       if (elapsedSeconds < cursor + podDurationSeconds) {
-        return buildPodRunningState(pod, effectiveScreen, elapsedSeconds - cursor);
+        TrainingPlaybackState runningState = buildPodRunningState(pod, effectiveScreen, elapsedSeconds - cursor);
+        if (!displayScreenHasActions && hasPlayableCards(effectiveScreen)) {
+          return buildEmptyScreenTransitionState(pod, runningState);
+        }
+        return runningState;
       }
       cursor += podDurationSeconds;
 
@@ -329,6 +338,70 @@ abstract class MainActivityPart13 extends MainActivityPart12 {
       return buildStationPodRunningState(pod, effectiveScreen, podElapsedSeconds);
     }
     return buildWaterfallPodRunningState(pod, effectiveScreen, podElapsedSeconds);
+  }
+
+  protected boolean hasPlayableCards(EffectivePodScreen effectiveScreen) {
+    return effectiveScreen != null
+        && effectiveScreen.videoCards != null
+        && !effectiveScreen.videoCards.isEmpty();
+  }
+
+  protected TrainingPlaybackState buildEmptyScreenTransitionState(
+      CourseScript.Pod pod, TrainingPlaybackState sourceState) {
+    if (sourceState == null) {
+      return null;
+    }
+
+    String transitionType = resolveEmptyScreenTransitionType(sourceState);
+    String stageProgress =
+        sourceState.stageProgress == null || sourceState.stageProgress.trim().isEmpty()
+            ? transitionType
+            : sourceState.stageProgress;
+    return new TrainingPlaybackState(
+        (pod == null ? "pod" : pod.name) + "|empty-screen|" + sourceState.renderKey,
+        sourceState.stageLabel,
+        stageProgress,
+        "",
+        Math.max(sourceState.remainingSeconds, 0),
+        new ArrayList<>(),
+        -1,
+        false,
+        false,
+        true,
+        true,
+        transitionType,
+        sourceState.stageSecondaryText,
+        sourceState.completedDots,
+        sourceState.totalDots,
+        new ArrayList<>());
+  }
+
+  protected String resolveEmptyScreenTransitionType(TrainingPlaybackState sourceState) {
+    String transitionType = sourceState.transitionType == null ? "" : sourceState.transitionType.trim().toUpperCase(Locale.US);
+    if (!transitionType.isEmpty()) {
+      return transitionType;
+    }
+
+    String stage = sourceState.stageProgress == null ? "" : sourceState.stageProgress.trim().toUpperCase(Locale.US);
+    if ("REST".equals(stage)) {
+      return "REST";
+    }
+    if ("SWITCH".equals(stage)) {
+      return "SWITCH";
+    }
+    if ("MOVE STATION".equals(stage)) {
+      return "MOVE_STATION";
+    }
+    if ("MOVE ZONE".equals(stage)) {
+      return "MOVE_ZONE";
+    }
+    if ("HYDRATE".equals(stage)) {
+      return "HYDRATE";
+    }
+    if ("FINISH".equals(stage)) {
+      return "FINISH";
+    }
+    return "WORK";
   }
 
   protected TrainingPlaybackState buildWaterfallPodRunningState(

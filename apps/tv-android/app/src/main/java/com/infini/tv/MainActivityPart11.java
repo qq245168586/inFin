@@ -77,16 +77,19 @@ abstract class MainActivityPart11 extends MainActivityPart10 {
             ? "HYDRATE"
             : ("REST".equals(transitionType)
                 ? "REST"
-                : ("FINISH".equals(transitionType)
-                    ? "FINISH"
-                    : ("SWITCH".equals(transitionType)
-                        ? "SWITCH"
-                        : ("MOVE_ZONE".equals(transitionType) ? "MOVE\nZONE" : "MOVE\nSTATION"))));
+                : ("WORK".equals(transitionType)
+                    ? "WORK"
+                    : ("FINISH".equals(transitionType)
+                        ? "FINISH"
+                        : ("SWITCH".equals(transitionType)
+                            ? "SWITCH"
+                            : ("MOVE_ZONE".equals(transitionType) ? "MOVE\nZONE" : "MOVE\nSTATION")))));
     transitionDesignTitle.setText(title);
     boolean hydrate = "HYDRATE".equals(transitionType);
     boolean rest = "REST".equals(transitionType);
+    boolean work = "WORK".equals(transitionType);
     boolean finish = "FINISH".equals(transitionType);
-    boolean moveStation = !"HYDRATE".equals(transitionType) && !"REST".equals(transitionType) && !finish;
+    boolean moveStation = !"HYDRATE".equals(transitionType) && !"REST".equals(transitionType) && !work && !finish;
     transitionDesignTitle.setTextSize(
         TypedValue.COMPLEX_UNIT_PX,
         horizontal
@@ -160,6 +163,7 @@ abstract class MainActivityPart11 extends MainActivityPart10 {
   protected boolean isSupportedTransitionDesign(String transitionType) {
     return "HYDRATE".equals(transitionType)
         || "REST".equals(transitionType)
+        || "WORK".equals(transitionType)
         || "FINISH".equals(transitionType)
         || "MOVE_STATION".equals(transitionType)
         || "SWITCH".equals(transitionType)

@@ -82,9 +82,27 @@ class EffectivePodScreen {
     this.rule = rule;
     this.sourceScreen = sourceScreen;
     this.waterfallLayout = waterfallLayout;
-    this.videoCards =
-        sourceScreen == null || sourceScreen.videoCards == null
-            ? new ArrayList<>()
-            : sourceScreen.videoCards;
+    this.videoCards = filterPlayableCards(sourceScreen == null ? null : sourceScreen.videoCards);
+  }
+
+  private List<CourseScript.VideoCard> filterPlayableCards(List<CourseScript.VideoCard> sourceCards) {
+    List<CourseScript.VideoCard> cards = new ArrayList<>();
+    if (sourceCards == null) {
+      return cards;
+    }
+
+    for (CourseScript.VideoCard card : sourceCards) {
+      if (card == null) {
+        continue;
+      }
+      if (hasText(card.actionId) || hasText(card.actionName) || hasText(card.mediaUrl)) {
+        cards.add(card);
+      }
+    }
+    return cards;
+  }
+
+  private boolean hasText(String value) {
+    return value != null && !value.trim().isEmpty();
   }
 }
