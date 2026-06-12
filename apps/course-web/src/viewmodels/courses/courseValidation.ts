@@ -58,8 +58,10 @@ export function getCourseDraftIssues(draft: CourseDraft): string[] {
   }
 
   script.training.videoGroups.forEach((group) => {
+    let groupActiveCardCount = 0;
     group.screens.forEach((screen) => {
       const activeCards = getFilledVideoCards(screen.videoCards);
+      groupActiveCardCount += activeCards.length;
       if (group.screenCount !== 1) {
         const stationCodes = activeCards.map((card) => stationCode(card.stationNumber));
         if (stationCodes.some((code) => !code)) {
@@ -69,7 +71,7 @@ export function getCourseDraftIssues(draft: CourseDraft): string[] {
           issues.push(`视频组 ${group.name || "未命名"} 的屏幕 ${screen.screenIndex} 站点标签不能重复。`);
         }
       }
-      if (!activeCards.length) {
+      if (group.screenCount === 1 && !activeCards.length) {
         issues.push(`视频组 ${group.name || "未命名"} 的屏幕 ${screen.screenIndex} 至少需要一个动作。`);
       }
       activeCards.forEach((card, index) => {
@@ -78,6 +80,9 @@ export function getCourseDraftIssues(draft: CourseDraft): string[] {
         }
       });
     });
+    if (group.screenCount !== 1 && groupActiveCardCount <= 0) {
+      issues.push(`视频组 ${group.name || "未命名"} 至少需要一个屏幕有动作。`);
+    }
   });
 
   if (!script.training.pods.length) {
