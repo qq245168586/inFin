@@ -4,8 +4,10 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "build:production": "INFINI_ENV=production tsc -p tsconfig.json",
     "start": "node dist/main.js",
     "dev": "tsx src/main.ts",
+    "dev:local": "HOST=0.0.0.0 PORT=3100 MQTT_URL=tcp://127.0.0.1:1883 MQTT_WSS_URL=tcp://127.0.0.1:1883 tsx src/main.ts",
     "deploy:remote": "bash scripts/deploy-remote.sh",
     "monitor": "bash scripts/monitor-server.sh",
     "install:monitor": "bash scripts/install-monitor-cron.sh"

@@ -37,11 +37,16 @@ cd "$APP_DIR"
 load_systemd_env_file "/home/REDACTED_CONFIGURE_LOCALLY/oss.conf"
 load_systemd_env_file "/home/REDACTED_CONFIGURE_LOCALLY/infini-platform-mqtt-client.conf"
 export PORT="${PORT:-3100}"
+export INFINI_ENV="${INFINI_ENV:-production}"
+if [ "$INFINI_ENV" != "production" ]; then
+  echo "SERVER_DEPLOY_REFUSED: INFINI_ENV=$INFINI_ENV is not production" >&2
+  exit 1
+fi
 export INFINI_DATA_ROOT="${INFINI_DATA_ROOT:-/home/REDACTED_CONFIGURE_LOCALLY/infini-data}"
 export MQTT_CLIENT_HTTP_URL="${MQTT_CLIENT_HTTP_URL:-http://127.0.0.1:3205}"
 export MQTT_CLIENT_FALLBACK_DIRECT="${MQTT_CLIENT_FALLBACK_DIRECT:-1}"
 
-nohup env PORT="$PORT" INFINI_DATA_ROOT="$INFINI_DATA_ROOT" node dist/main.js > "$LOG_FILE" 2>&1 &
+nohup env PORT="$PORT" INFINI_ENV="$INFINI_ENV" INFINI_DATA_ROOT="$INFINI_DATA_ROOT" node dist/main.js > "$LOG_FILE" 2>&1 &
 sleep 2
 
 NEW_PID="$(pgrep -f "$SERVER_ENTRY" | head -1 || true)"
