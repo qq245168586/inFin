@@ -6,12 +6,27 @@ android {
   namespace "com.infini.tv"
   compileSdk 34
 
+  buildFeatures {
+    buildConfig true
+  }
+
+  def infiniEnv = (project.findProperty("infiniEnv") ?: "production").toString()
+  def infiniBaseUrl = (project.findProperty("infiniBaseUrl") ?: "https://api.infintraining.work").toString()
+  def infiniBackupBaseUrl = (project.findProperty("infiniBackupBaseUrl") ?: "http://8.130.65.113").toString()
+  def infiniMqttPrimaryUrl = (project.findProperty("infiniMqttPrimaryUrl") ?: "wss://api.infintraining.work/mqtt").toString()
+  def infiniMqttBackupUrl = (project.findProperty("infiniMqttBackupUrl") ?: "tcp://8.130.65.113:1883").toString()
+
   defaultConfig {
     applicationId "com.infini.tv"
     minSdk 26
     targetSdk 34
         versionCode 62
         versionName "1.0.62"
+    buildConfigField "String", "INFINI_ENV", "\"${infiniEnv}\""
+    buildConfigField "String", "INFINI_BASE_URL", "\"${infiniBaseUrl}\""
+    buildConfigField "String", "INFINI_BACKUP_BASE_URL", "\"${infiniBackupBaseUrl}\""
+    buildConfigField "String", "INFINI_MQTT_PRIMARY_URL", "\"${infiniMqttPrimaryUrl}\""
+    buildConfigField "String", "INFINI_MQTT_BACKUP_URL", "\"${infiniMqttBackupUrl}\""
   }
 
   buildTypes {
