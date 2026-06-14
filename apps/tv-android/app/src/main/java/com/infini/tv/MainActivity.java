@@ -67,5 +67,5 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
 
-public class MainActivity extends MainActivityPart16 {
+public class MainActivity extends MainActivitySettingsPlanController {
 }

@@ -16,5 +16,5 @@ import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.json.JSONObject;
 
-abstract class TvMqttManagerContracts extends TvMqttManagerContract01 {
+abstract class TvMqttManagerContracts extends TvMqttManagerContract {
 }

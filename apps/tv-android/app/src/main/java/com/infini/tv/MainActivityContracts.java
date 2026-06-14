@@ -66,5 +66,5 @@ import java.util.concurrent.TimeUnit;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
-abstract class MainActivityContracts extends MainActivityContract05 {
+abstract class MainActivityContracts extends MainActivitySettingsContract {
 }

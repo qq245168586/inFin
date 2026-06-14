@@ -47,5 +47,5 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-abstract class TvScriptRepositoryContracts extends TvScriptRepositoryContract02 {
+abstract class TvScriptRepositoryContracts extends TvScriptRepositoryTrainingContract {
 }

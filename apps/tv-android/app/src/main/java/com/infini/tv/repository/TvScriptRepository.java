@@ -47,7 +47,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class TvScriptRepository extends TvScriptRepositoryPart06 {
+public class TvScriptRepository extends TvScriptRepositoryTrainingParser {
   public TvScriptRepository(Context context) {
     super(context);
   }

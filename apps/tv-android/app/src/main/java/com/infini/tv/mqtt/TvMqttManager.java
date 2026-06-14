@@ -18,7 +18,7 @@ import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.json.JSONObject;
 
-public class TvMqttManager extends TvMqttManagerPart02 {
+public class TvMqttManager extends TvMqttMessageManager {
   private static TvMqttManager sharedInstance;
 
   public static synchronized TvMqttManager getInstance(
