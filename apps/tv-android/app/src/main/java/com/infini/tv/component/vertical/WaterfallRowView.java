@@ -1,4 +1,4 @@
-package com.infini.tv;
+package com.infini.tv.component.vertical;
 
 import android.content.ComponentName;
 import android.content.ClipData;
@@ -39,7 +39,7 @@ import android.widget.TextView;
 import android.widget.VideoView;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
-import com.infini.tv.component.HorizontalProgressBarComponent;
+import com.infini.tv.component.horizontal.HorizontalProgressBarComponent;
 import com.infini.tv.model.CourseScript;
 import com.infini.tv.model.TvScheduleItem;
 import com.infini.tv.mqtt.TvMqttManager;
@@ -66,16 +66,16 @@ import java.util.concurrent.TimeUnit;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
-class WaterfallRowView {
-  final FrameLayout container;
-  final VideoView videoView;
-  final TextView placeholderText;
-  final View dimOverlay;
-  String boundUrl = "";
-  CourseScript.WaterfallItem item;
-  int itemIndex = -1;
+public class WaterfallRowView {
+  public final FrameLayout container;
+  public final VideoView videoView;
+  public final TextView placeholderText;
+  public final View dimOverlay;
+  public String boundUrl = "";
+  public CourseScript.WaterfallItem item;
+  public int itemIndex = -1;
 
-  WaterfallRowView(
+  public WaterfallRowView(
       FrameLayout container, VideoView videoView, TextView placeholderText, View dimOverlay) {
     this.container = container;
     this.videoView = videoView;

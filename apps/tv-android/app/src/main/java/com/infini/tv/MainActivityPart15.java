@@ -39,13 +39,15 @@ import android.widget.TextView;
 import android.widget.VideoView;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
-import com.infini.tv.component.HorizontalProgressBarComponent;
+import com.infini.tv.component.horizontal.HorizontalProgressBarComponent;
 import com.infini.tv.model.CourseScript;
 import com.infini.tv.model.TvScheduleItem;
 import com.infini.tv.mqtt.TvMqttManager;
 import com.infini.tv.repository.ServerConfig;
 import com.infini.tv.repository.TvScriptRepository;
 import com.infini.tv.service.ImageLoader;
+import com.infini.tv.util.DisplayUtil;
+import com.infini.tv.util.TrainingLayoutCalculator;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.EncodeHintType;
 import com.google.zxing.WriterException;
@@ -99,15 +101,13 @@ abstract class MainActivityPart15 extends MainActivityPart14 {
   }
 
   protected int calculateWideTrainingRowHeight() {
-    int previewWidth = Math.max(getTrainingCardsContentWidth(), dp(260));
-    return Math.max(Math.round(previewWidth * 9f / 16f), dp(146));
+    return TrainingLayoutCalculator.calculateWideRowHeight(
+        getTrainingCardsContentWidth(), dp(260), dp(146));
   }
 
   protected int calculateGridTrainingRowHeight() {
-    int contentWidth = getTrainingCardsContentWidth();
-    int columnWidth = Math.max((contentWidth - dp(14)) / 2, dp(180));
-    int previewWidth = Math.max(columnWidth, dp(160));
-    return Math.max(Math.round(previewWidth * 9f / 16f), dp(90));
+    return TrainingLayoutCalculator.calculateGridRowHeight(
+        getTrainingCardsContentWidth(), dp(14), dp(180), dp(160), dp(90));
   }
 
   protected int calculateTrainingRowHeight(int cardCount, int columns, int rowCount, int rowGap) {
@@ -116,33 +116,26 @@ abstract class MainActivityPart15 extends MainActivityPart14 {
       viewportHeight = Math.round(getResources().getDisplayMetrics().heightPixels * 0.70f);
     }
 
-    int verticalChrome =
-        dp(20)
-            + Math.max(rowCount - 1, 0) * rowGap
-            + (trainingCardsContainer == null ? 0 : dp(16));
-    int availableHeight = Math.max(viewportHeight - verticalChrome, dp(80));
-    int fitHeight = Math.max(availableHeight / Math.max(rowCount, 1), dp(80));
     int aspectHeight = columns == 1 ? calculateWideTrainingRowHeight() : calculateGridTrainingRowHeight();
-
-    if (cardCount <= 10) {
-      return Math.max(Math.min(aspectHeight, fitHeight), dp(72));
-    }
-    return Math.max(Math.min(aspectHeight, fitHeight), dp(72));
+    return TrainingLayoutCalculator.calculateFitRowHeight(
+        cardCount,
+        columns,
+        rowCount,
+        rowGap,
+        viewportHeight,
+        dp(20) + (trainingCardsContainer == null ? 0 : dp(16)),
+        dp(80),
+        dp(80),
+        aspectHeight,
+        dp(72));
   }
 
   protected boolean isPortraitViewport() {
-    android.util.DisplayMetrics metrics = getResources().getDisplayMetrics();
-    return metrics.heightPixels > metrics.widthPixels;
+    return DisplayUtil.isPortrait(getResources());
   }
 
   protected int calculateTrainingRowGap(int rowCount) {
-    if (rowCount >= 5) {
-      return dp(6);
-    }
-    if (rowCount >= 3) {
-      return dp(8);
-    }
-    return dp(12);
+    return TrainingLayoutCalculator.calculateRowGap(rowCount, dp(6), dp(8), dp(12));
   }
 
   protected String safeStationLabel(String stationNumber, int fallbackIndex) {
@@ -332,31 +325,7 @@ abstract class MainActivityPart15 extends MainActivityPart14 {
 
   protected List<Integer> normalizeTrainingRowLayouts(
       List<Integer> rowLayouts, List<CourseScript.VideoCard> cards) {
-    List<Integer> rows = new ArrayList<>();
-    if (cards == null || cards.isEmpty()) {
-      return rows;
-    }
-
-    if (rowLayouts == null || rowLayouts.isEmpty()) {
-      int cardCount = cards.size();
-      int legacyColumns = cardCount == 1 || cardCount == 3 ? 1 : 2;
-      int consumed = 0;
-      while (consumed < cardCount) {
-        rows.add(legacyColumns);
-        consumed += legacyColumns;
-      }
-      return rows;
-    }
-
-    int consumed = 0;
-    int rowIndex = 0;
-    while (consumed < cards.size()) {
-      int columns = rowIndex < rowLayouts.size() && rowLayouts.get(rowIndex) == 2 ? 2 : 1;
-      rows.add(columns);
-      consumed += columns;
-      rowIndex += 1;
-    }
-    return rows;
+    return TrainingLayoutCalculator.normalizeRowLayouts(rowLayouts, cards == null ? 0 : cards.size());
   }
 
   protected List<Integer> getRowLayoutsForScreen(EffectivePodScreen effectiveScreen) {

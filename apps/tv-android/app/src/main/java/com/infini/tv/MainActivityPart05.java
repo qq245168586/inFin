@@ -39,9 +39,10 @@ import android.widget.TextView;
 import android.widget.VideoView;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
-import com.infini.tv.component.HorizontalProgressBarComponent;
+import com.infini.tv.component.horizontal.HorizontalProgressBarComponent;
 import com.infini.tv.model.CourseScript;
 import com.infini.tv.model.TvScheduleItem;
+import com.infini.tv.mvi.TvIntent;
 import com.infini.tv.mqtt.TvMqttManager;
 import com.infini.tv.repository.ServerConfig;
 import com.infini.tv.repository.TvScriptRepository;
@@ -400,6 +401,11 @@ abstract class MainActivityPart05 extends MainActivityPart04 {
 
     stopPlayback();
     activePlaybackItem = item;
+    dispatchIntent(
+        new TvIntent.StartPlayback(
+            item == null ? "" : item.id,
+            item == null ? 0 : item.courseId,
+            true));
     previewMode = true;
     playbackPaused = false;
     playbackStartElapsedRealtimeMs = 0L;

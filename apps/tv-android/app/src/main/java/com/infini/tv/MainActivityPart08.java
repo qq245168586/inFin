@@ -39,7 +39,7 @@ import android.widget.TextView;
 import android.widget.VideoView;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
-import com.infini.tv.component.HorizontalProgressBarComponent;
+import com.infini.tv.component.horizontal.HorizontalProgressBarComponent;
 import com.infini.tv.model.CourseScript;
 import com.infini.tv.model.TvScheduleItem;
 import com.infini.tv.mqtt.TvMqttManager;
@@ -157,7 +157,7 @@ abstract class MainActivityPart08 extends MainActivityPart07 {
       return;
     }
 
-    syncInProgress = true;
+    setScheduleSyncState(true, false);
     boolean cacheResources = shouldCacheHorizontalResources(screenNumber);
     if (horizontalLoadingText != null) {
       horizontalLoadingText.setVisibility(View.VISIBLE);
@@ -196,15 +196,14 @@ abstract class MainActivityPart08 extends MainActivityPart07 {
                 runOnUiThread(
                     () -> {
                       if (!shouldApplyHorizontalScreenUpdate(screenNumber)) {
-                        syncInProgress = false;
+                        setScheduleSyncState(false, lastScheduleSyncFailed);
                         return;
                       }
 
-                      syncInProgress = false;
+                      setScheduleSyncState(false, false);
                       currentBundleChecksum = result.checksum;
                       currentBundleScheduleCount = result.schedules == null ? 0 : result.schedules.size();
                       resourceCacheDirty = !result.resourcesCached;
-                      lastScheduleSyncFailed = false;
                       Log.i(
                           TAG,
                           "Horizontal schedule sync applied screen="
@@ -227,11 +226,10 @@ abstract class MainActivityPart08 extends MainActivityPart07 {
                 runOnUiThread(
                     () -> {
                       if (!shouldApplyHorizontalScreenUpdate(screenNumber)) {
-                        syncInProgress = false;
+                        setScheduleSyncState(false, lastScheduleSyncFailed);
                         return;
                       }
-                      syncInProgress = false;
-                      lastScheduleSyncFailed = true;
+                      setScheduleSyncState(false, true);
                       if (horizontalLoadingText != null) {
                         horizontalLoadingText.setVisibility(View.VISIBLE);
                         horizontalLoadingText.setText("同步横屏课程资源失败，请检查网络后重试。");

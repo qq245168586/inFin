@@ -39,9 +39,10 @@ import android.widget.TextView;
 import android.widget.VideoView;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
-import com.infini.tv.component.HorizontalProgressBarComponent;
+import com.infini.tv.component.horizontal.HorizontalProgressBarComponent;
 import com.infini.tv.model.CourseScript;
 import com.infini.tv.model.TvScheduleItem;
+import com.infini.tv.mvi.TvIntent;
 import com.infini.tv.mqtt.TvMqttManager;
 import com.infini.tv.repository.ServerConfig;
 import com.infini.tv.repository.TvScriptRepository;
@@ -198,6 +199,7 @@ abstract class MainActivityPart06 extends MainActivityPart05 {
 
   protected void pauseCourseFromRemote(
       String scheduleId, int courseId, long pausedAtMs, String playbackSessionId) {
+    dispatchIntent(new TvIntent.PausePlayback());
     bringPlaybackUiToFront();
     hideCoursePlanPanel();
     requestCurrentPlaybackSession("pause_course");
@@ -205,6 +207,7 @@ abstract class MainActivityPart06 extends MainActivityPart05 {
 
   protected void resumeCourseFromRemote(
       String scheduleId, int courseId, long resumedAtMs, String playbackSessionId) {
+    dispatchIntent(new TvIntent.ResumePlayback());
     bringPlaybackUiToFront();
     hideCoursePlanPanel();
     requestCurrentPlaybackSession("resume_course");
@@ -212,6 +215,7 @@ abstract class MainActivityPart06 extends MainActivityPart05 {
 
   protected void terminateCourseFromRemote(
       String scheduleId, int courseId, String playbackSessionId) {
+    dispatchIntent(new TvIntent.FinishPlayback());
     bringPlaybackUiToFront();
     hideCoursePlanPanel();
     if (TextUtils.isEmpty(playbackSessionId) || TextUtils.equals(playbackSessionId, activePlaybackSessionId)) {
@@ -417,7 +421,7 @@ abstract class MainActivityPart06 extends MainActivityPart05 {
       return;
     }
 
-    syncInProgress = true;
+    setScheduleSyncState(true, false);
     scheduleList.removeAllViews();
     scheduleStateText.setVisibility(View.VISIBLE);
     scheduleStateText.setText(immediate ? "正在同步今日课程资源..." : "检测到课程更新，正在重新同步资源...");
@@ -441,15 +445,14 @@ abstract class MainActivityPart06 extends MainActivityPart05 {
                 runOnUiThread(
                     () -> {
                       if (!shouldApplyVerticalScreenUpdate(screenNumber)) {
-                        syncInProgress = false;
+                        setScheduleSyncState(false, lastScheduleSyncFailed);
                         return;
                       }
 
-                      syncInProgress = false;
+                      setScheduleSyncState(false, false);
                       currentBundleChecksum = result.checksum;
                       currentBundleScheduleCount = result.schedules == null ? 0 : result.schedules.size();
                       resourceCacheDirty = !result.resourcesCached;
-                      lastScheduleSyncFailed = false;
                       Log.i(
                           TAG,
                           "Vertical schedule sync applied screen="
@@ -470,12 +473,11 @@ abstract class MainActivityPart06 extends MainActivityPart05 {
                 runOnUiThread(
                     () -> {
                       if (!shouldApplyVerticalScreenUpdate(screenNumber)) {
-                        syncInProgress = false;
+                        setScheduleSyncState(false, lastScheduleSyncFailed);
                         return;
                       }
 
-                      syncInProgress = false;
-                      lastScheduleSyncFailed = true;
+                      setScheduleSyncState(false, true);
                       scheduleList.removeAllViews();
                       scheduleStateText.setVisibility(View.VISIBLE);
                       scheduleStateText.setText("同步课程资源失败，请检查网络后重试。");

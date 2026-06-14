@@ -39,9 +39,13 @@ import android.widget.TextView;
 import android.widget.VideoView;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
-import com.infini.tv.component.HorizontalProgressBarComponent;
+import com.infini.tv.component.horizontal.HorizontalProgressBarComponent;
+import com.infini.tv.component.vertical.WaterfallRowView;
 import com.infini.tv.model.CourseScript;
 import com.infini.tv.model.TvScheduleItem;
+import com.infini.tv.mvi.TvIntent;
+import com.infini.tv.mvi.TvReducer;
+import com.infini.tv.mvi.TvViewState;
 import com.infini.tv.mqtt.TvMqttManager;
 import com.infini.tv.repository.ServerConfig;
 import com.infini.tv.repository.TvScriptRepository;
@@ -252,6 +256,7 @@ abstract class MainActivityBase extends MainActivityContracts {
   protected String currentPairToken = "";
   protected boolean syncInProgress = false;
   protected boolean lastScheduleSyncFailed = false;
+  protected TvViewState viewState = TvViewState.initial();
   protected boolean resourceCacheDirty = false;
   protected int currentBundleScheduleCount = -1;
   protected long lastNetworkRecoverySyncAtMs = 0L;
@@ -307,6 +312,16 @@ abstract class MainActivityBase extends MainActivityContracts {
   protected final List<WaterfallRowView> waterfallRows = new ArrayList<>();
   protected final List<TvScheduleItem> syncedTodaySchedules = new ArrayList<>();
   protected final Set<Integer> loadedCueSoundIds = new HashSet<>();
+
+  protected void dispatchIntent(TvIntent intent) {
+    viewState = TvReducer.reduce(viewState, intent);
+  }
+
+  protected void setScheduleSyncState(boolean inProgress, boolean failed) {
+    syncInProgress = inProgress;
+    lastScheduleSyncFailed = failed;
+    dispatchIntent(new TvIntent.UpdateSyncState(inProgress, failed));
+  }
 
   protected long nextPlaybackTickDelayMs() {
     long nowElapsedRealtime = SystemClock.elapsedRealtime();

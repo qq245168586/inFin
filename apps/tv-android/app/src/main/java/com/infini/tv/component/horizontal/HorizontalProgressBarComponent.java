@@ -1,4 +1,4 @@
-package com.infini.tv.component;
+package com.infini.tv.component.horizontal;
 
 import android.content.Context;
 import android.graphics.Canvas;

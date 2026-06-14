@@ -39,9 +39,11 @@ import android.widget.TextView;
 import android.widget.VideoView;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
-import com.infini.tv.component.HorizontalProgressBarComponent;
+import com.infini.tv.component.horizontal.HorizontalProgressBarComponent;
 import com.infini.tv.model.CourseScript;
 import com.infini.tv.model.TvScheduleItem;
+import com.infini.tv.mvi.TvIntent;
+import com.infini.tv.mvi.TvSurface;
 import com.infini.tv.mqtt.TvMqttManager;
 import com.infini.tv.repository.ServerConfig;
 import com.infini.tv.repository.TvScriptRepository;
@@ -478,6 +480,7 @@ abstract class MainActivityPart01 extends MainActivityBase {
 
   protected void openScreen(int screenNumber, boolean persistSelection) {
     hideCoursePlanPanel();
+    dispatchIntent(new TvIntent.SelectScreen(screenNumber));
     activeScreenNumber = screenNumber;
     if (persistSelection) {
       saveScreenNumber(screenNumber);
@@ -496,8 +499,10 @@ abstract class MainActivityPart01 extends MainActivityBase {
     scheduleScreenHeartbeat();
 
     if (isVerticalCourseScreen(screenNumber)) {
+      dispatchIntent(new TvIntent.ShowSurface(TvSurface.VERTICAL_SCHEDULE));
       renderVerticalSchedule(screenNumber);
     } else {
+      dispatchIntent(new TvIntent.ShowSurface(TvSurface.HORIZONTAL_SCHEDULE));
       renderHorizontalScreen(screenNumber);
     }
     requestCurrentPlaybackSession("open_screen");

@@ -39,9 +39,12 @@ import android.widget.TextView;
 import android.widget.VideoView;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
-import com.infini.tv.component.HorizontalProgressBarComponent;
+import com.infini.tv.component.horizontal.HorizontalProgressBarComponent;
+import com.infini.tv.component.vertical.WaterfallRowView;
 import com.infini.tv.model.CourseScript;
 import com.infini.tv.model.TvScheduleItem;
+import com.infini.tv.mvi.TvIntent;
+import com.infini.tv.mvi.TvSurface;
 import com.infini.tv.mqtt.TvMqttManager;
 import com.infini.tv.repository.ServerConfig;
 import com.infini.tv.repository.TvScriptRepository;
@@ -137,6 +140,11 @@ abstract class MainActivityPart16 extends MainActivityPart15 {
 
   protected void stopPlayback() {
     hideCoursePlanPanel();
+    dispatchIntent(
+        new TvIntent.ShowSurface(
+            isHorizontalInfoScreen(activeScreenNumber)
+                ? TvSurface.HORIZONTAL_SCHEDULE
+                : TvSurface.VERTICAL_SCHEDULE));
     cancelFinishReturn();
     stopPlaybackLoop();
     resetAudioCueTracking();
@@ -541,6 +549,7 @@ abstract class MainActivityPart16 extends MainActivityPart15 {
     if (settingsPanel == null || settingsContent == null || settingsTitle == null) {
       return;
     }
+    dispatchIntent(new TvIntent.ShowSurface(TvSurface.SETTINGS));
     settingsPanel.setTag("home");
     settingsPanel.setVisibility(View.VISIBLE);
     settingsPanel.bringToFront();

@@ -39,13 +39,14 @@ import android.widget.TextView;
 import android.widget.VideoView;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
-import com.infini.tv.component.HorizontalProgressBarComponent;
+import com.infini.tv.component.horizontal.HorizontalProgressBarComponent;
 import com.infini.tv.model.CourseScript;
 import com.infini.tv.model.TvScheduleItem;
 import com.infini.tv.mqtt.TvMqttManager;
 import com.infini.tv.repository.ServerConfig;
 import com.infini.tv.repository.TvScriptRepository;
 import com.infini.tv.service.ImageLoader;
+import com.infini.tv.util.TrainingLayoutCalculator;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.EncodeHintType;
 import com.google.zxing.WriterException;
@@ -557,39 +558,16 @@ abstract class MainActivityPart14 extends MainActivityPart13 {
   }
 
   protected List<Integer> calculateTrainingRowHeights(List<Integer> rowLayouts, int rowGap, int viewportHeight) {
-    List<Integer> heights = new ArrayList<>();
-    if (rowLayouts == null || rowLayouts.isEmpty()) {
-      return heights;
-    }
-
-    int desiredRowsHeight = 0;
-    for (int index = 0; index < rowLayouts.size(); index += 1) {
-      int height = rowLayouts.get(index) == 1 ? calculateWideTrainingRowHeight() : calculateGridTrainingRowHeight();
-      heights.add(height);
-      desiredRowsHeight += height;
-    }
-
-    int availableRowsHeight =
-        Math.max(viewportHeight - dp(4) - Math.max(rowLayouts.size() - 1, 0) * rowGap, dp(64));
-    if (desiredRowsHeight <= availableRowsHeight || desiredRowsHeight <= 0) {
-      return heights;
-    }
-
-    float scale = availableRowsHeight / (float) desiredRowsHeight;
-    int usedHeight = 0;
-    for (int index = 0; index < heights.size(); index += 1) {
-      int scaled = Math.max(Math.round(heights.get(index) * scale), dp(48));
-      heights.set(index, scaled);
-      usedHeight += scaled;
-    }
-
-    int overflow = usedHeight - availableRowsHeight;
-    for (int index = heights.size() - 1; overflow > 0 && index >= 0; index -= 1) {
-      int next = Math.max(heights.get(index) - overflow, dp(42));
-      overflow -= heights.get(index) - next;
-      heights.set(index, next);
-    }
-    return heights;
+    return TrainingLayoutCalculator.calculateRowHeights(
+        rowLayouts,
+        rowGap,
+        viewportHeight,
+        calculateWideTrainingRowHeight(),
+        calculateGridTrainingRowHeight(),
+        dp(4),
+        dp(64),
+        dp(48),
+        dp(42));
   }
 
   protected int getTrainingCardsContentWidth() {
