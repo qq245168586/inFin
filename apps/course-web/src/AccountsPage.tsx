@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { apiUrl } from "./services/apiBase.ts";
 
 type NoticeFn = (message: string, tone?: "success" | "error") => void;
 
@@ -28,7 +29,7 @@ interface CoursePackageRecord {
 }
 
 async function requestJson<T>(url: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(url, { cache: "no-store", ...options });
+  const response = await fetch(apiUrl(url), { cache: "no-store", ...options });
   if (!response.ok) {
     const text = await response.text().catch(() => "");
     let message = "";
