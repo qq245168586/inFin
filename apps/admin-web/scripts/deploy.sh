@@ -11,7 +11,11 @@ REMOTE_NGINX_CONF="/etc/nginx/sites-enabled/infini-platform"
 
 echo "[admin-web] building..."
 cd "$APP_DIR"
-npm run build
+if [ "${INFINI_ENV:-production}" != "production" ]; then
+  echo "[admin-web] refusing deploy because INFINI_ENV=${INFINI_ENV:-} is not production" >&2
+  exit 1
+fi
+npm run build:production
 
 echo "[admin-web] packaging..."
 COPYFILE_DISABLE=1 tar -C "$APP_DIR/dist" -czf "$ARCHIVE_PATH" .

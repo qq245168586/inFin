@@ -1,8 +1,9 @@
 import type { MediaRecord } from "../models/media.ts";
+import { apiUrl } from "./apiBase.ts";
 
 export async function uploadBinary(kind: "image" | "video", file: File): Promise<MediaRecord> {
   const endpoint = kind === "image" ? "/api/upload/image" : "/api/upload/video";
-  const response = await fetch(`${endpoint}?filename=${encodeURIComponent(file.name)}`, {
+  const response = await fetch(apiUrl(`${endpoint}?filename=${encodeURIComponent(file.name)}`), {
     method: "POST",
     headers: {
       "Content-Type": file.type || "application/octet-stream"

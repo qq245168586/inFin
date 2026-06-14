@@ -4,7 +4,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:local": "vite --host 0.0.0.0",
     "build": "vite build",
+    "build:local": "VITE_INFINI_ENV=local vite build",
+    "build:production": "VITE_INFINI_ENV=production VITE_API_BASE_URL= vite build",
     "deploy": "bash scripts/deploy.sh",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview"

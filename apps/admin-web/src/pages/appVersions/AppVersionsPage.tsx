@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { apiUrl } from "../../services/apiBase.ts";
 import { requestJson } from "../../services/requestJson.ts";
 import { getErrorMessage } from "../../utils/errors.ts";
 import { formatDateTime } from "../../utils/datetime.ts";
@@ -137,7 +138,7 @@ export default function AppVersionsPage({ tokenType, accessToken, onBusyTextChan
     });
 
     try {
-      const response = await fetch(`/api/app-packages/upload?${params.toString()}`, {
+      const response = await fetch(apiUrl(`/api/app-packages/upload?${params.toString()}`), {
         method: "POST",
         headers: {
           "Content-Type": form.file.type || "application/vnd.android.package-archive"
