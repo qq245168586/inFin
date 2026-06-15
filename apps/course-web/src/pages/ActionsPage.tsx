@@ -50,6 +50,7 @@ export default function ActionsPage({
   onToggleActionEditorType,
   onAddActionType,
   onSaveAction,
+  actionSaving,
   onRemoveAction,
   onTriggerVideoUpload,
   onVideoPicked,
@@ -60,7 +61,8 @@ export default function ActionsPage({
   onBatchFilesPicked,
   actionBatchDialog,
   onCloseBatchDialog,
-  onSaveBatchActions
+  onSaveBatchActions,
+  batchUploading
 }: {
   actionEditor: ActionDraft | null;
   actionTypes: ChipOption[];
@@ -77,6 +79,7 @@ export default function ActionsPage({
   onToggleActionEditorType: (typeId: number) => void;
   onAddActionType: () => void;
   onSaveAction: () => void;
+  actionSaving: boolean;
   onRemoveAction: (actionId: number) => void;
   onTriggerVideoUpload: () => void;
   onVideoPicked: (file: File) => void;
@@ -88,6 +91,7 @@ export default function ActionsPage({
   actionBatchDialog: BatchUploadDialogState | null;
   onCloseBatchDialog: () => void;
   onSaveBatchActions: () => void;
+  batchUploading: boolean;
 }) {
   const [typeFilterDialogOpen, setTypeFilterDialogOpen] = useState(false);
   const batchReadyCount = actionBatchDialog?.items.filter((item) => item.status === "ready").length || 0;
@@ -171,8 +175,8 @@ export default function ActionsPage({
             </div>
 
             <div className="editor-actions">
-              <button type="button" className="primary-button" onClick={onSaveAction}>
-                保存
+              <button type="button" className="primary-button" onClick={onSaveAction} disabled={actionSaving}>
+                {actionSaving ? "保存中..." : "保存"}
               </button>
             </div>
           </div>
@@ -337,7 +341,14 @@ export default function ActionsPage({
       ) : null}
 
       {actionBatchDialog ? (
-        <Dialog title="批量上传动作" width={920} onClose={onCloseBatchDialog} onConfirm={onSaveBatchActions} confirmText="开始上传">
+        <Dialog
+          title="批量上传动作"
+          width={920}
+          onClose={onCloseBatchDialog}
+          onConfirm={onSaveBatchActions}
+          confirmText={batchUploading ? "上传中..." : "开始上传"}
+          confirmDisabled={batchUploading}
+        >
           <div className="dialog-form">
             <div className="batch-upload-note">
               <strong>命名规则：动作-类型</strong>

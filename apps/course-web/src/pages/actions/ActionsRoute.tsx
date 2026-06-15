@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import ActionsPage from "../ActionsPage.tsx";
 import type { ActionRecord, TypeOption } from "../../services/api/meta.ts";
 import { requestJson } from "../../services/requestJson.ts";
@@ -23,6 +23,7 @@ interface ActionDraft {
   id: number | null;
   name: string;
   typeIds: number[];
+  courseTags: string[];
   media: ActionRecord["media"] | null;
   uploadFile: File | null;
   previewUrl: string;
@@ -48,7 +49,13 @@ interface BatchUploadDialogState {
 function normalizeBatchKey(value: string): string {
   return stripMediaSuffix(value)
     .toLowerCase()
-    .replace(/\\s+/g, "");
+    .replace(/\s+/g, "");
+}
+
+function normalizeCoursePackageTag(value: string): string {
+  return stripMediaSuffix(value)
+    .toLowerCase()
+    .replace(/\s+/g, "-");
 }
 
 function buildActionTypeLookup(actionTypes: TypeOption[]): Map<string, TypeOption> {
@@ -66,7 +73,7 @@ function formatGeneratedTypeName(rawTypeName: string): string {
 }
 
 function createBatchUploadItem(file: File, actionTypes: TypeOption[]): BatchUploadItem {
-  const rawName = file.name.replace(/\\.[^.]+$/, "");
+  const rawName = file.name.replace(/\.[^.]+$/, "");
   const separatorIndex = rawName.indexOf("-");
 
   if (separatorIndex <= 0) {
@@ -120,9 +127,9 @@ function createBatchUploadItem(file: File, actionTypes: TypeOption[]): BatchUplo
   };
 }
 
-function findExistingActionForBatch(actions: ActionRecord[], actionName: string, typeId: number): ActionRecord | null {
+function findExistingActionByName(actions: ActionRecord[], actionName: string, excludeId?: number | null): ActionRecord | null {
   const normalizedName = normalizeBatchKey(actionName);
-  return actions.find((item) => normalizeBatchKey(item.name) === normalizedName && item.typeIds.includes(typeId)) ?? null;
+  return actions.find((item) => normalizeBatchKey(item.name) === normalizedName && Number(item.id) !== Number(excludeId || 0)) ?? null;
 }
 
 function createActionDraft(action: ActionRecord | null = null): ActionDraft {
@@ -130,6 +137,7 @@ function createActionDraft(action: ActionRecord | null = null): ActionDraft {
     id: action?.id ?? null,
     name: action?.name ?? "",
     typeIds: [...(action?.typeIds ?? [])],
+    courseTags: [...(action?.courseTags ?? [])],
     media: action?.media ?? null,
     uploadFile: null,
     previewUrl: action?.media?.url ?? ""
@@ -186,14 +194,20 @@ export default function ActionsRoute({
   const { pushNotice } = useNotice();
   const actions = (appData?.actions || []) as ActionRecord[];
   const actionTypes = (appData?.actionTypes || []) as TypeOption[];
+  const selectedCoursePackageTag = selectedCoursePackage ? normalizeCoursePackageTag(selectedCoursePackage.name) : "";
   const packageCourses = useMemo(
     () => filterCoursesByCoursePackage((appData?.courses || []) as CourseRecord[], selectedCoursePackage),
     [appData?.courses, selectedCoursePackage]
   );
   const packageActionIds = useMemo(() => collectActionIdsFromCourses(packageCourses), [packageCourses]);
   const scopedActions = useMemo(
-    () => (selectedCoursePackage ? actions.filter((action) => packageActionIds.has(String(action.id))) : actions),
-    [actions, packageActionIds, selectedCoursePackage]
+    () =>
+      selectedCoursePackage
+        ? actions.filter(
+            (action) => packageActionIds.has(String(action.id)) || (action.courseTags || []).includes(selectedCoursePackageTag)
+          )
+        : actions,
+    [actions, packageActionIds, selectedCoursePackage, selectedCoursePackageTag]
   );
 
   const [actionFiltersDraft, setActionFiltersDraft] = useState<FilterState>({ search: "", typeIds: [] });
@@ -201,6 +215,10 @@ export default function ActionsRoute({
   const [actionEditor, setActionEditor] = useState<ActionDraft | null>(null);
   const [actionBatchGuideOpen, setActionBatchGuideOpen] = useState(false);
   const [actionBatchDialog, setActionBatchDialog] = useState<BatchUploadDialogState | null>(null);
+  const [actionSaving, setActionSaving] = useState(false);
+  const [batchUploading, setBatchUploading] = useState(false);
+  const actionSavingRef = useRef(false);
+  const batchUploadingRef = useRef(false);
 
   const actionTypeNameById = useMemo(
     () => new Map(actionTypes.map((item) => [item.id, displayTypeName(item.name)])),
@@ -238,11 +256,23 @@ export default function ActionsRoute({
   }
 
   async function saveAction() {
+    if (actionSavingRef.current) {
+      return;
+    }
+
     if (!actionEditor?.name.trim()) {
       pushNotice("动作名称不能为空。", "error");
       return;
     }
 
+    const duplicate = findExistingActionByName(scopedActions, actionEditor.name, actionEditor.id);
+    if (duplicate) {
+      pushNotice(`当前工作空间已存在同名动作：${duplicate.name}。`, "error");
+      return;
+    }
+
+    actionSavingRef.current = true;
+    setActionSaving(true);
     setBusyText("正在保存动作...");
 
     try {
@@ -254,6 +284,7 @@ export default function ActionsRoute({
       const payload = {
         name: actionEditor.name.trim(),
         typeIds: actionEditor.typeIds,
+        courseTags: [...new Set([...actionEditor.courseTags, selectedCoursePackageTag].filter(Boolean))],
         media
       };
 
@@ -275,6 +306,8 @@ export default function ActionsRoute({
     } catch (error) {
       pushNotice(getErrorMessage(error), "error");
     } finally {
+      actionSavingRef.current = false;
+      setActionSaving(false);
       setBusyText("");
     }
   }
@@ -298,6 +331,10 @@ export default function ActionsRoute({
   }
 
   async function saveBatchActions() {
+    if (batchUploadingRef.current) {
+      return;
+    }
+
     const batchItems = actionBatchDialog?.items || [];
     const validItems = batchItems.filter((item) => item.status === "ready");
 
@@ -306,6 +343,30 @@ export default function ActionsRoute({
       return;
     }
 
+    const existingNameConflicts = validItems
+      .map((item) => ({ item, existing: findExistingActionByName(scopedActions, item.actionName) }))
+      .filter((entry) => entry.existing);
+    if (existingNameConflicts.length) {
+      pushNotice(`当前工作空间已存在同名动作：${existingNameConflicts[0].item.actionName}。`, "error");
+      return;
+    }
+
+    const seenNames = new Set<string>();
+    const duplicateInBatch = validItems.find((item) => {
+      const key = normalizeBatchKey(item.actionName);
+      if (seenNames.has(key)) {
+        return true;
+      }
+      seenNames.add(key);
+      return false;
+    });
+    if (duplicateInBatch) {
+      pushNotice(`本次选择里有重复动作名：${duplicateInBatch.actionName}。`, "error");
+      return;
+    }
+
+    batchUploadingRef.current = true;
+    setBatchUploading(true);
     const workingTypes = [...actionTypes];
     const workingActions = [...actions];
     const typeLookup = buildActionTypeLookup(workingTypes);
@@ -341,38 +402,34 @@ export default function ActionsRoute({
           createdTypeCount += 1;
         }
 
+        const existing = findExistingActionByName(workingActions, item.actionName);
+        if (existing) {
+          failures.push(`${item.fileName}：当前工作空间已存在同名动作。`);
+          continue;
+        }
+
         const media = await uploadBinary("video", item.file);
-        const existing = findExistingActionForBatch(workingActions, item.actionName, typeOption.id);
         const payload = {
           name: item.actionName,
-          typeIds: existing ? [...new Set([...existing.typeIds, typeOption.id])] : [typeOption.id],
+          typeIds: [typeOption.id],
+          courseTags: selectedCoursePackageTag ? [selectedCoursePackageTag] : [],
           media
         };
 
-        if (existing) {
-          const response = await requestJson<{ data: ActionRecord }>(`/api/actions/${existing.id}`, {
-            method: "PUT",
-            body: JSON.stringify(payload)
-          });
-          const existingIndex = workingActions.findIndex((action) => action.id === existing.id);
-          if (existingIndex >= 0) {
-            workingActions[existingIndex] = response.data;
-          }
-          updatedCount += 1;
-        } else {
-          const response = await requestJson<{ data: ActionRecord }>("/api/actions", {
-            method: "POST",
-            body: JSON.stringify(payload)
-          });
-          workingActions.push(response.data);
-          createdCount += 1;
-        }
+        const response = await requestJson<{ data: ActionRecord }>("/api/actions", {
+          method: "POST",
+          body: JSON.stringify(payload)
+        });
+        workingActions.push(response.data);
+        createdCount += 1;
       } catch (error) {
         failures.push(`${item.fileName}：${getErrorMessage(error)}`);
       }
     }
 
     setBusyText("");
+    batchUploadingRef.current = false;
+    setBatchUploading(false);
 
     if (failures.length) {
       pushNotice(failures[0], "error");
@@ -418,6 +475,7 @@ export default function ActionsRoute({
       }
       onAddActionType={onAddActionType}
       onSaveAction={() => void saveAction()}
+      actionSaving={actionSaving}
       onRemoveAction={(actionId) => void removeAction(actionId)}
       onTriggerVideoUpload={() => triggerFileInput("action-video-upload")}
       onVideoPicked={(file) =>
@@ -431,6 +489,7 @@ export default function ActionsRoute({
       actionBatchDialog={actionBatchDialog}
       onCloseBatchDialog={() => setActionBatchDialog(null)}
       onSaveBatchActions={() => void saveBatchActions()}
+      batchUploading={batchUploading}
     />
   );
 }
