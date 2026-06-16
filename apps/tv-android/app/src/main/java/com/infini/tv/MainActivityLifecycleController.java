@@ -29,6 +29,10 @@ import android.util.Log;
 import android.util.TypedValue;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
+import android.view.WindowInsets;
+import android.view.WindowInsetsController;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -72,7 +76,9 @@ abstract class MainActivityLifecycleController extends MainActivityBase {
   @Override
 
   protected void onCreate(Bundle savedInstanceState) {
+    applyImmersiveFullscreen();
     super.onCreate(savedInstanceState);
+    applyImmersiveFullscreen();
     KeepAliveService.start(this);
     KeepAliveService.markActivityVisible();
     deviceId = ensureDeviceId();
@@ -270,6 +276,7 @@ abstract class MainActivityLifecycleController extends MainActivityBase {
     mqttManager.connect();
     registerNetworkMonitoring();
     setContentView(R.layout.activity_main);
+    applyImmersiveFullscreen();
 
     selectorPanel = findViewById(R.id.selectorPanel);
     contentPanel = findViewById(R.id.contentPanel);
@@ -405,6 +412,7 @@ abstract class MainActivityLifecycleController extends MainActivityBase {
 
   protected void onNewIntent(Intent intent) {
     super.onNewIntent(intent);
+    applyImmersiveFullscreen();
     setIntent(intent);
     handleLaunchIntent();
   }
@@ -413,8 +421,23 @@ abstract class MainActivityLifecycleController extends MainActivityBase {
 
   protected void onResume() {
     super.onResume();
+    applyImmersiveFullscreen();
     KeepAliveService.start(this);
     KeepAliveService.markActivityVisible();
+  }
+
+  @Override
+  public void onWindowFocusChanged(boolean hasFocus) {
+    super.onWindowFocusChanged(hasFocus);
+    if (hasFocus) {
+      applyImmersiveFullscreen();
+    }
+  }
+
+  @Override
+  public void onUserInteraction() {
+    super.onUserInteraction();
+    applyImmersiveFullscreen();
   }
 
   @Override
@@ -428,12 +451,47 @@ abstract class MainActivityLifecycleController extends MainActivityBase {
 
   public void onConfigurationChanged(Configuration newConfig) {
     super.onConfigurationChanged(newConfig);
+    applyImmersiveFullscreen();
     applyResponsiveLayout();
     if (activePlaybackItem != null) {
       if (previewMode) {
         renderPreviewState();
       } else {
         refreshPlayback();
+      }
+    }
+  }
+
+  protected void applyImmersiveFullscreen() {
+    Window window = getWindow();
+    if (window == null) {
+      return;
+    }
+
+    window.setFlags(
+        WindowManager.LayoutParams.FLAG_FULLSCREEN,
+        WindowManager.LayoutParams.FLAG_FULLSCREEN);
+    window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+    View decorView = window.getDecorView();
+    if (decorView == null) {
+      return;
+    }
+
+    decorView.setSystemUiVisibility(
+        View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+            | View.SYSTEM_UI_FLAG_FULLSCREEN
+            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+            | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      WindowInsetsController controller = decorView.getWindowInsetsController();
+      if (controller != null) {
+        controller.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
+        controller.setSystemBarsBehavior(
+            WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
       }
     }
   }
