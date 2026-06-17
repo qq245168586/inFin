@@ -152,7 +152,9 @@ function normalizeLoadedState(parsed) {
     media: Array.isArray(parsed.media) ? parsed.media : [],
     appPackages: Array.isArray(parsed.appPackages) ? parsed.appPackages : clone(defaultState.appPackages),
     coursePackages,
-    actionTypes: Array.isArray(parsed.actionTypes) ? parsed.actionTypes : clone(defaultState.actionTypes),
+    actionTypes: Array.isArray(parsed.actionTypes)
+      ? parsed.actionTypes.map(normalizeActionTypeRecord)
+      : clone(defaultState.actionTypes).map(normalizeActionTypeRecord),
     lessonTypes: Array.isArray(parsed.lessonTypes) ? parsed.lessonTypes : clone(defaultState.lessonTypes),
     actions: (Array.isArray(parsed.actions) ? parsed.actions : clone(defaultState.actions)).map(normalizeActionRecord),
     courses: parsedCourses,

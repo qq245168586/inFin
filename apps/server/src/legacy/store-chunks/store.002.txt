@@ -77,6 +77,16 @@ function normalizeActionRecord(action = {}) {
   };
 }
 
+function normalizeActionTypeRecord(type = {}) {
+  const raw = type && typeof type === "object" ? type : {};
+  return {
+    ...raw,
+    id: Number(raw.id) || 0,
+    name: stripMediaSuffix(raw.name),
+    coursePackageIds: numberList(raw.coursePackageIds)
+  };
+}
+
 function normalizeClientName(value, fallback = "editor-web") {
   const text = trimText(value).toLowerCase();
   if (text === "coach-web") {

@@ -141,7 +141,7 @@ export function getMetaPayload(user = null, options = {}) {
   const includeFullCourses = options?.includeFullCourses === true;
 
   return {
-    actionTypes: clone(state.actionTypes),
+    actionTypes: listActionTypes(user),
     lessonTypes: clone(state.lessonTypes),
     coursePackages: listCoursePackagesForUser(user),
     actions: listActions(user),
@@ -156,8 +156,8 @@ export function getMetaPayload(user = null, options = {}) {
   };
 }
 
-export function listActionTypes() {
-  return clone(state.actionTypes);
+export function listActionTypes(user = null) {
+  return clone(state.actionTypes.map(normalizeActionTypeRecord).filter((type) => actionTypeAllowsUser(type, user)));
 }
 
 export function listUsers() {

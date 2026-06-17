@@ -48,8 +48,38 @@ export function getUserByAccessToken(accessToken) {
   return user ? publicUserInfo(user) : null;
 }
 
-export function addActionType(name) {
-  const next = { id: nextId(state.actionTypes), name: stripMediaSuffix(name) };
+function actionTypeAllowsUser(type = {}, user = null) {
+  const visiblePackageIds = getUserVisibleCoursePackageIdSet(user);
+  if (!visiblePackageIds) {
+    return true;
+  }
+
+  const packageIds = numberList(type.coursePackageIds);
+  if (!packageIds.length) {
+    return visiblePackageIds.has(getDefaultCoursePackageId());
+  }
+  return packageIds.some((id) => visiblePackageIds.has(id));
+}
+
+export function addActionType(payload, user = null) {
+  const source = typeof payload === "string" ? { name: payload } : payload || {};
+  const name = stripMediaSuffix(source.name);
+  const requestedPackageIds = numberList(source.coursePackageIds);
+  const packageIds = resolveWriteCoursePackageIds(user, requestedPackageIds, []);
+  const existing = state.actionTypes
+    .map(normalizeActionTypeRecord)
+    .find((type) => {
+      const typePackageIds = numberList(type.coursePackageIds);
+      return (
+        stripMediaSuffix(type.name).toLowerCase() === name.toLowerCase()
+        && typePackageIds.some((id) => packageIds.includes(id))
+      );
+    });
+  if (existing) {
+    return existing;
+  }
+
+  const next = { id: nextId(state.actionTypes), name, coursePackageIds: packageIds };
   state.actionTypes.push(next);
   persist();
   return next;
