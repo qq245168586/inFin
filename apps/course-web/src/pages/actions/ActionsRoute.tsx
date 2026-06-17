@@ -133,6 +133,43 @@ function findExistingActionByName(actions: ActionRecord[], actionName: string, e
   return actions.find((item) => normalizeBatchKey(item.name) === normalizedName && Number(item.id) !== Number(excludeId || 0)) ?? null;
 }
 
+function annotateBatchUploadDuplicates(items: BatchUploadItem[], existingActions: ActionRecord[]): BatchUploadItem[] {
+  const nameCounts = new Map<string, number>();
+  for (const item of items) {
+    if (!item.actionName) {
+      continue;
+    }
+    const key = normalizeBatchKey(item.actionName);
+    nameCounts.set(key, (nameCounts.get(key) || 0) + 1);
+  }
+
+  return items.map((item) => {
+    if (item.status === "invalid" || !item.actionName) {
+      return item;
+    }
+
+    const key = normalizeBatchKey(item.actionName);
+    if ((nameCounts.get(key) || 0) > 1) {
+      return {
+        ...item,
+        status: "invalid",
+        message: `动作名重复：${item.actionName}（本次选择里重复）`
+      };
+    }
+
+    const existing = findExistingActionByName(existingActions, item.actionName);
+    if (existing) {
+      return {
+        ...item,
+        status: "invalid",
+        message: `动作名重复：${item.actionName}（当前课程包已有动作 #${existing.id}）`
+      };
+    }
+
+    return item;
+  });
+}
+
 function createActionDraft(action: ActionRecord | null = null): ActionDraft {
   return {
     id: action?.id ?? null,
@@ -222,6 +259,20 @@ export default function ActionsRoute({
         : actions,
     [actions, packageActionIds, selectedCoursePackage, selectedCoursePackageId, selectedCoursePackageIsDefault, selectedCoursePackageTag]
   );
+  const ownedPackageActions = useMemo(
+    () =>
+      selectedCoursePackage
+        ? actions.filter((action) => {
+            const actionPackageIds = (action.coursePackageIds || []).map(Number).filter(Boolean);
+            return (
+              packageActionIds.has(String(action.id)) ||
+              actionPackageIds.includes(selectedCoursePackageId) ||
+              (action.courseTags || []).includes(selectedCoursePackageTag)
+            );
+          })
+        : actions,
+    [actions, packageActionIds, selectedCoursePackage, selectedCoursePackageId, selectedCoursePackageTag]
+  );
 
   const [actionFiltersDraft, setActionFiltersDraft] = useState<FilterState>({ search: "", typeIds: [] });
   const [actionFilters, setActionFilters] = useState<FilterState>({ search: "", typeIds: [] });
@@ -255,7 +306,10 @@ export default function ActionsRoute({
       return;
     }
 
-    const items = pickedFiles.map((file) => createBatchUploadItem(file, actionTypes));
+    const items = annotateBatchUploadDuplicates(
+      pickedFiles.map((file) => createBatchUploadItem(file, actionTypes)),
+      ownedPackageActions
+    );
     setActionBatchDialog({ items });
   }
 
@@ -362,28 +416,21 @@ export default function ActionsRoute({
       return;
     }
 
-    const seenNames = new Set<string>();
-    const duplicateInBatch = validItems.find((item) => {
-      const key = normalizeBatchKey(item.actionName);
-      if (seenNames.has(key)) {
-        return true;
-      }
-      seenNames.add(key);
-      return false;
-    });
-    if (duplicateInBatch) {
-      pushNotice(`本次选择里有重复动作名：${duplicateInBatch.actionName}。`, "error");
+    const checkedItems = annotateBatchUploadDuplicates(batchItems, ownedPackageActions);
+    const duplicateItem = checkedItems.find((item) => item.status === "invalid" && item.message.includes("动作名重复"));
+    if (duplicateItem) {
+      setActionBatchDialog({ items: checkedItems });
+      pushNotice(duplicateItem.message, "error");
       return;
     }
 
     batchUploadingRef.current = true;
     setBatchUploading(true);
     const workingTypes = [...actionTypes];
-    const workingScopedActions = [...scopedActions];
+    const workingPackageActions = [...ownedPackageActions];
     const typeLookup = buildActionTypeLookup(workingTypes);
     const createdTypeCache = new Map<string, TypeOption>();
     let createdCount = 0;
-    let updatedCount = 0;
     let createdTypeCount = 0;
     const failures: string[] = [];
 
@@ -413,32 +460,21 @@ export default function ActionsRoute({
           createdTypeCount += 1;
         }
 
-        const existing = findExistingActionByName(workingScopedActions, item.actionName);
         const media = await uploadBinary("video", item.file);
         const payload = {
           name: item.actionName,
-          typeIds: [...new Set([...(existing?.typeIds || []), typeOption.id].map(Number).filter(Boolean))],
-          courseTags: [...new Set([...(existing?.courseTags || []), selectedCoursePackageTag].filter(Boolean))],
-          coursePackageIds: [
-            ...new Set([...(existing?.coursePackageIds || []), selectedCoursePackageId].map(Number).filter(Boolean))
-          ],
+          typeIds: [typeOption.id],
+          courseTags: selectedCoursePackageTag ? [selectedCoursePackageTag] : [],
+          coursePackageIds: selectedCoursePackageId ? [selectedCoursePackageId] : [],
           media
         };
 
-        const response = await requestJson<{ data: ActionRecord }>(existing ? `/api/actions/${existing.id}` : "/api/actions", {
-          method: existing ? "PUT" : "POST",
+        const response = await requestJson<{ data: ActionRecord }>("/api/actions", {
+          method: "POST",
           body: JSON.stringify(payload)
         });
-        if (existing) {
-          const existingIndex = workingScopedActions.findIndex((action) => Number(action.id) === Number(existing.id));
-          if (existingIndex >= 0) {
-            workingScopedActions[existingIndex] = response.data;
-          }
-          updatedCount += 1;
-        } else {
-          workingScopedActions.push(response.data);
-          createdCount += 1;
-        }
+        workingPackageActions.push(response.data);
+        createdCount += 1;
       } catch (error) {
         failures.push(`${item.fileName}：${getErrorMessage(error)}`);
       }
@@ -455,7 +491,7 @@ export default function ActionsRoute({
 
     await reloadMeta();
     setActionBatchDialog(null);
-    pushNotice(`批量上传完成：新增动作 ${createdCount}，更新动作 ${updatedCount}，新增分类 ${createdTypeCount}。`);
+    pushNotice(`批量上传完成：新增动作 ${createdCount}，新增分类 ${createdTypeCount}。`);
   }
 
   return (
