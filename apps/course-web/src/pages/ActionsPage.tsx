@@ -5,6 +5,7 @@ import FilterChips, { type ChipOption } from "../components/FilterChips.tsx";
 import InnerTabs from "../components/InnerTabs.tsx";
 import { FirstFrameVideo } from "../components/ActionMediaPreview.tsx";
 import { formatDate } from "../utils/datetime.ts";
+import { withCacheToken } from "../utils/url.ts";
 import type { ActionRecord } from "../services/api/meta.ts";
 import { displayTypeName, stripMediaSuffix } from "../utils/typeNames.ts";
 
@@ -100,6 +101,7 @@ export default function ActionsPage({
   const [typeFilterDialogOpen, setTypeFilterDialogOpen] = useState(false);
   const [editorTypeDialogOpen, setEditorTypeDialogOpen] = useState(false);
   const [editorTypeName, setEditorTypeName] = useState("");
+  const [previewAction, setPreviewAction] = useState<ActionRecord | null>(null);
   const batchReadyCount = actionBatchDialog?.items.filter((item) => item.status === "ready").length || 0;
   const batchInvalidCount = actionBatchDialog?.items.filter((item) => item.status === "invalid").length || 0;
   const selectedFilterTypes = useMemo(
@@ -299,6 +301,7 @@ export default function ActionsPage({
               <thead>
                 <tr>
                   <th>动作序号</th>
+                  <th>视频</th>
                   <th>动作名称</th>
                   <th>动作类型</th>
                   <th>添加时间</th>
@@ -310,7 +313,33 @@ export default function ActionsPage({
                   filteredActions.map((action) => (
                     <tr key={action.id}>
                       <td>{action.id}</td>
-                      <td>{action.name}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className={`action-thumb-button${action.media?.url ? "" : " is-empty"}`}
+                          onClick={() => action.media?.url ? setPreviewAction(action) : undefined}
+                          disabled={!action.media?.url}
+                          aria-label={action.media?.url ? `播放 ${action.name}` : `${action.name} 暂无视频`}
+                        >
+                          {action.media?.url ? (
+                            <video
+                              src={withCacheToken(action.media.url, action.updateTime)}
+                              muted
+                              playsInline
+                              preload="metadata"
+                              tabIndex={-1}
+                            />
+                          ) : (
+                            <span>无视频</span>
+                          )}
+                        </button>
+                      </td>
+                      <td>
+                        <div className="action-name-cell">
+                          <strong>{action.name}</strong>
+                          {action.description ? <span>{action.description}</span> : null}
+                        </div>
+                      </td>
                       <td>
                         <div className="table-tags">
                           {action.typeIds.length ? (
@@ -337,7 +366,7 @@ export default function ActionsPage({
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5}>
+                    <td colSpan={6}>
                       <EmptyBlock
                         title="没有找到匹配动作"
                         copy={actionScopeName ? "当前课程包里的课程暂时还没有引用动作，可以调整筛选条件或先到课程中配置动作。" : "可以调整筛选条件，或者直接新建一个动作。"}
@@ -407,6 +436,27 @@ export default function ActionsPage({
                 新增并选择
               </button>
             </div>
+          </div>
+        </Dialog>
+      ) : null}
+
+      {previewAction?.media?.url ? (
+        <Dialog
+          title={previewAction.name}
+          width={860}
+          onClose={() => setPreviewAction(null)}
+          onConfirm={() => setPreviewAction(null)}
+          confirmText="关闭"
+        >
+          <div className="action-video-dialog">
+            <video
+              key={`${previewAction.id}-${previewAction.updateTime}`}
+              src={withCacheToken(previewAction.media.url, previewAction.updateTime)}
+              controls
+              autoPlay
+              playsInline
+            />
+            {previewAction.description ? <p>{previewAction.description}</p> : null}
           </div>
         </Dialog>
       ) : null}
