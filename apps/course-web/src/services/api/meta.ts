@@ -7,6 +7,7 @@ import type { TemplateCollections } from "../../models/templates.ts";
 export interface TypeOption {
   id: number;
   name: string;
+  coursePackageIds?: number[];
 }
 
 export interface ActionRecord {

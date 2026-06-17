@@ -6,6 +6,7 @@ import InnerTabs from "../components/InnerTabs.tsx";
 import { FirstFrameVideo } from "../components/ActionMediaPreview.tsx";
 import { formatDate } from "../utils/datetime.ts";
 import type { ActionRecord } from "../services/api/meta.ts";
+import { displayTypeName, stripMediaSuffix } from "../utils/typeNames.ts";
 
 interface ActionDraft {
   id: number | null;
@@ -48,7 +49,7 @@ export default function ActionsPage({
   onCloseActionEditor,
   onActionEditorNameChange,
   onToggleActionEditorType,
-  onAddActionType,
+  onCreateAndSelectActionType,
   onSaveAction,
   actionSaving,
   onRemoveAction,
@@ -77,7 +78,7 @@ export default function ActionsPage({
   onCloseActionEditor: () => void;
   onActionEditorNameChange: (name: string) => void;
   onToggleActionEditorType: (typeId: number) => void;
-  onAddActionType: () => void;
+  onCreateAndSelectActionType: (name: string) => void;
   onSaveAction: () => void;
   actionSaving: boolean;
   onRemoveAction: (actionId: number) => void;
@@ -94,11 +95,17 @@ export default function ActionsPage({
   batchUploading: boolean;
 }) {
   const [typeFilterDialogOpen, setTypeFilterDialogOpen] = useState(false);
+  const [editorTypeDialogOpen, setEditorTypeDialogOpen] = useState(false);
+  const [editorTypeName, setEditorTypeName] = useState("");
   const batchReadyCount = actionBatchDialog?.items.filter((item) => item.status === "ready").length || 0;
   const batchInvalidCount = actionBatchDialog?.items.filter((item) => item.status === "invalid").length || 0;
   const selectedFilterTypes = useMemo(
     () => actionTypes.filter((item) => actionFiltersDraft.typeIds.includes(item.id)),
     [actionFiltersDraft.typeIds, actionTypes]
+  );
+  const selectedEditorTypes = useMemo(
+    () => actionEditor ? actionTypes.filter((item) => actionEditor.typeIds.includes(item.id)) : [],
+    [actionEditor, actionTypes]
   );
 
   function clearFilterTypes() {
@@ -106,6 +113,21 @@ export default function ActionsPage({
       ...actionFiltersDraft,
       typeIds: []
     });
+  }
+
+  function openEditorTypeDialog() {
+    setEditorTypeName("");
+    setEditorTypeDialogOpen(true);
+  }
+
+  function createEditorType() {
+    const cleanedName = stripMediaSuffix(editorTypeName);
+    if (!cleanedName) {
+      return;
+    }
+    onCreateAndSelectActionType(cleanedName);
+    setEditorTypeName("");
+    setEditorTypeDialogOpen(false);
   }
 
   return (
@@ -139,10 +161,11 @@ export default function ActionsPage({
               <div className="field grow">
                 <span>动作类型</span>
                 <FilterChips
-                  options={actionTypes}
+                  options={selectedEditorTypes}
                   selectedIds={actionEditor.typeIds}
                   onToggle={onToggleActionEditorType}
-                  onAdd={onAddActionType}
+                  onAdd={openEditorTypeDialog}
+                  addLabel="添加"
                 />
               </div>
             </div>
@@ -323,6 +346,48 @@ export default function ActionsPage({
               </button>
             </div>
             <FilterChips options={actionTypes} selectedIds={actionFiltersDraft.typeIds} onToggle={onToggleFilterType} />
+          </div>
+        </Dialog>
+      ) : null}
+
+      {editorTypeDialogOpen ? (
+        <Dialog
+          title="添加动作类型"
+          width={620}
+          onClose={() => setEditorTypeDialogOpen(false)}
+          onConfirm={createEditorType}
+          confirmText="保存并选择"
+          confirmDisabled={!stripMediaSuffix(editorTypeName)}
+        >
+          <div className="action-type-select-dialog">
+            <label className="field">
+              <span>输入新类型</span>
+              <input
+                value={editorTypeName}
+                onChange={(event) => setEditorTypeName(stripMediaSuffix(event.target.value))}
+                placeholder="输入新类型名称"
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && stripMediaSuffix(editorTypeName)) {
+                    createEditorType();
+                  }
+                }}
+              />
+            </label>
+            <div className="type-filter-dialog-head">
+              <p>选择已有类型</p>
+            </div>
+            <div className="chip-row action-type-select-list">
+              {actionTypes.map((type) => (
+                <button
+                  key={type.id}
+                  type="button"
+                  className={`filter-chip ${actionEditor?.typeIds.includes(type.id) ? "is-active" : ""}`}
+                  onClick={() => onToggleActionEditorType(type.id)}
+                >
+                  {displayTypeName(type.name)}
+                </button>
+              ))}
+            </div>
           </div>
         </Dialog>
       ) : null}

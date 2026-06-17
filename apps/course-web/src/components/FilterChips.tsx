@@ -10,9 +10,10 @@ export interface FilterChipsProps {
   selectedIds: number[];
   onToggle: (id: number) => void;
   onAdd?: () => void;
+  addLabel?: string;
 }
 
-export default function FilterChips({ options, selectedIds, onToggle, onAdd }: FilterChipsProps) {
+export default function FilterChips({ options, selectedIds, onToggle, onAdd, addLabel = "+ 添加" }: FilterChipsProps) {
   return (
     <div className="chip-row">
       {options.map((item) => (
@@ -27,7 +28,7 @@ export default function FilterChips({ options, selectedIds, onToggle, onAdd }: F
       ))}
       {onAdd ? (
         <button type="button" className="filter-chip is-add" onClick={onAdd}>
-          + 添加
+          {addLabel}
         </button>
       ) : null}
     </div>

@@ -223,11 +223,9 @@ function collectActionIdsFromCourses(courses: CourseRecord[]): Set<string> {
 }
 
 export default function ActionsRoute({
-  selectedCoursePackage,
-  onAddActionType
+  selectedCoursePackage
 }: {
   selectedCoursePackage: CoursePackageRecord | null;
-  onAddActionType: () => void;
 }) {
   const { authHeader } = useAuth();
   const { appData, reloadMeta } = useMeta();
@@ -238,6 +236,16 @@ export default function ActionsRoute({
   const selectedCoursePackageId = Number(selectedCoursePackage?.id) || 0;
   const selectedCoursePackageIsDefault = Boolean(selectedCoursePackage?.isDefault);
   const selectedCoursePackageTag = selectedCoursePackage ? normalizeCoursePackageTag(selectedCoursePackage.name) : "";
+  const packageActionTypes = useMemo(
+    () =>
+      selectedCoursePackage
+        ? actionTypes.filter((type) => {
+            const packageIds = (type.coursePackageIds || []).map(Number).filter(Boolean);
+            return packageIds.length ? packageIds.includes(selectedCoursePackageId) : selectedCoursePackageIsDefault;
+          })
+        : actionTypes,
+    [actionTypes, selectedCoursePackage, selectedCoursePackageId, selectedCoursePackageIsDefault]
+  );
   const packageCourses = useMemo(
     () => filterCoursesByCoursePackage((appData?.courses || []) as CourseRecord[], selectedCoursePackage),
     [appData?.courses, selectedCoursePackage]
@@ -309,7 +317,7 @@ export default function ActionsRoute({
     }
 
     const items = annotateBatchUploadDuplicates(
-      pickedFiles.map((file) => createBatchUploadItem(file, actionTypes)),
+      pickedFiles.map((file) => createBatchUploadItem(file, packageActionTypes)),
       ownedPackageActions
     );
     setActionBatchDialog({ items });
@@ -389,6 +397,34 @@ export default function ActionsRoute({
     }
   }
 
+  async function createAndSelectActionType(name: string) {
+    const cleanedName = stripMediaSuffix(name);
+    if (!cleanedName) {
+      pushNotice("动作类型不能为空。", "error");
+      return;
+    }
+
+    try {
+      const response = await requestJson<{ data: TypeOption }>("/api/action-types", {
+        method: "POST",
+        headers: authHeader ? { Authorization: authHeader } : {},
+        body: JSON.stringify({
+          name: cleanedName,
+          coursePackageIds: selectedCoursePackageId ? [selectedCoursePackageId] : []
+        })
+      });
+      const nextTypeId = Number(response.data.id);
+      setActionEditor((current) =>
+        current && nextTypeId && !current.typeIds.includes(nextTypeId)
+          ? { ...current, typeIds: [...current.typeIds, nextTypeId] }
+          : current
+      );
+      await reloadMeta();
+    } catch (error) {
+      pushNotice(getErrorMessage(error), "error");
+    }
+  }
+
   async function removeAction(actionId: number) {
     if (!window.confirm("确认删除这个动作吗？")) {
       return;
@@ -433,7 +469,7 @@ export default function ActionsRoute({
 
     batchUploadingRef.current = true;
     setBatchUploading(true);
-    const workingTypes = [...actionTypes];
+    const workingTypes = [...packageActionTypes];
     const workingPackageActions = [...ownedPackageActions];
     const typeLookup = buildActionTypeLookup(workingTypes);
     const createdTypeCache = new Map<string, TypeOption>();
@@ -453,7 +489,11 @@ export default function ActionsRoute({
         if (!typeOption) {
           const created = await requestJson<{ data: TypeOption }>("/api/action-types", {
             method: "POST",
-            body: JSON.stringify({ name: item.resolvedTypeName })
+            headers: authHeader ? { Authorization: authHeader } : {},
+            body: JSON.stringify({
+              name: item.resolvedTypeName,
+              coursePackageIds: selectedCoursePackageId ? [selectedCoursePackageId] : []
+            })
           });
 
           typeOption = created.data;
@@ -505,7 +545,7 @@ export default function ActionsRoute({
   return (
     <ActionsPage
       actionEditor={actionEditor}
-      actionTypes={actionTypes}
+      actionTypes={packageActionTypes}
       filteredActions={filteredActions}
       actionScopeName={selectedCoursePackage?.name || ""}
       actionTypeNameById={actionTypeNameById}
@@ -534,7 +574,7 @@ export default function ActionsRoute({
             : current
         )
       }
-      onAddActionType={onAddActionType}
+      onCreateAndSelectActionType={(name) => void createAndSelectActionType(name)}
       onSaveAction={() => void saveAction()}
       actionSaving={actionSaving}
       onRemoveAction={(actionId) => void removeAction(actionId)}
