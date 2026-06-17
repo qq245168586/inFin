@@ -90,6 +90,7 @@ function normalizeActionPayload(payload = {}, existing = null) {
     typeIds: numberList(payload.typeIds),
     media: payload.media ?? existing?.media ?? null,
     courseTags: normalizeCourseTags(payload.courseTags ?? existing?.courseTags),
+    coursePackageIds: numberList(payload.coursePackageIds ?? existing?.coursePackageIds),
     createTime: existing?.createTime ?? timestamp,
     updateTime: timestamp
   };
