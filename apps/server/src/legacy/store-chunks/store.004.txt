@@ -88,6 +88,7 @@ function normalizeActionPayload(payload = {}, existing = null) {
   return {
     id: existing?.id ?? nextId(state.actions),
     name: trimText(payload.name),
+    description: trimText(payload.description ?? existing?.description),
     typeIds: numberList(payload.typeIds),
     media: payload.media ?? existing?.media ?? null,
     courseTags: normalizeCourseTags(payload.courseTags ?? existing?.courseTags),

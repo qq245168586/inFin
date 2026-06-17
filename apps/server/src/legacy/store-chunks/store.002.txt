@@ -66,6 +66,7 @@ function normalizeActionRecord(action = {}) {
     ...raw,
     id: Number(raw.id) || 0,
     name: trimText(raw.name),
+    description: trimText(raw.description),
     typeIds: numberList(raw.typeIds),
     media: raw.media ?? null,
     courseTags: normalizeCourseTags(raw.courseTags),
