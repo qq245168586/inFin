@@ -362,14 +362,6 @@ export default function ActionsRoute({
       return;
     }
 
-    const existingNameConflicts = validItems
-      .map((item) => ({ item, existing: findExistingActionByName(scopedActions, item.actionName) }))
-      .filter((entry) => entry.existing);
-    if (existingNameConflicts.length) {
-      pushNotice(`当前工作空间已存在同名动作：${existingNameConflicts[0].item.actionName}。`, "error");
-      return;
-    }
-
     const seenNames = new Set<string>();
     const duplicateInBatch = validItems.find((item) => {
       const key = normalizeBatchKey(item.actionName);
@@ -422,26 +414,31 @@ export default function ActionsRoute({
         }
 
         const existing = findExistingActionByName(workingScopedActions, item.actionName);
-        if (existing) {
-          failures.push(`${item.fileName}：当前课程包已存在同名动作。`);
-          continue;
-        }
-
         const media = await uploadBinary("video", item.file);
         const payload = {
           name: item.actionName,
-          typeIds: [typeOption.id],
-          courseTags: selectedCoursePackageTag ? [selectedCoursePackageTag] : [],
-          coursePackageIds: selectedCoursePackageId ? [selectedCoursePackageId] : [],
+          typeIds: [...new Set([...(existing?.typeIds || []), typeOption.id].map(Number).filter(Boolean))],
+          courseTags: [...new Set([...(existing?.courseTags || []), selectedCoursePackageTag].filter(Boolean))],
+          coursePackageIds: [
+            ...new Set([...(existing?.coursePackageIds || []), selectedCoursePackageId].map(Number).filter(Boolean))
+          ],
           media
         };
 
-        const response = await requestJson<{ data: ActionRecord }>("/api/actions", {
-          method: "POST",
+        const response = await requestJson<{ data: ActionRecord }>(existing ? `/api/actions/${existing.id}` : "/api/actions", {
+          method: existing ? "PUT" : "POST",
           body: JSON.stringify(payload)
         });
-        workingScopedActions.push(response.data);
-        createdCount += 1;
+        if (existing) {
+          const existingIndex = workingScopedActions.findIndex((action) => Number(action.id) === Number(existing.id));
+          if (existingIndex >= 0) {
+            workingScopedActions[existingIndex] = response.data;
+          }
+          updatedCount += 1;
+        } else {
+          workingScopedActions.push(response.data);
+          createdCount += 1;
+        }
       } catch (error) {
         failures.push(`${item.fileName}：${getErrorMessage(error)}`);
       }
