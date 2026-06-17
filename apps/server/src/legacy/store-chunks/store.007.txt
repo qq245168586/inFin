@@ -47,16 +47,20 @@ function normalizeCoursePayload(payload = {}, existing = null) {
   if (issues.length) {
     throw new Error(issues.join("\n"));
   }
+  const ownerUsername = trimText(payload.ownerUsername ?? payload.author ?? existing?.ownerUsername ?? existing?.author);
 
   return {
     id: existing?.id ?? nextId(state.courses),
     name: trimText(payload.name) || script.metadata.name,
     creator: trimText(payload.creator) || script.metadata.creator,
+    author: trimText(payload.author ?? existing?.author) || ownerUsername,
+    ownerUsername,
     version: trimText(payload.version) || script.metadata.version,
     description: script.metadata.description,
     topic: script.metadata.topic,
     rotationType: script.metadata.rotationType,
     typeIds: numberList(payload.typeIds ?? existing?.typeIds),
+    coursePackageId: normalizeCoursePackageId(payload.coursePackageId ?? existing?.coursePackageId, 0),
     logoMedia: payload.logoMedia ?? existing?.logoMedia ?? null,
     metadata,
     stationRules,
@@ -78,6 +82,8 @@ function serializeCourse(course) {
     ...course,
     name: trimText(course.name) || script.metadata.name,
     creator: trimText(course.creator) || script.metadata.creator,
+    author: trimText(course.author || course.ownerUsername),
+    ownerUsername: trimText(course.ownerUsername || course.author),
     version: trimText(course.version) || script.metadata.version,
     description: script.metadata.description,
     topic: script.metadata.topic,
@@ -97,6 +103,8 @@ function serializeCourseSummary(course) {
     id: serialized.id,
     name: serialized.name,
     creator: serialized.creator,
+    author: serialized.author,
+    ownerUsername: serialized.ownerUsername,
     version: serialized.version,
     description: serialized.description,
     topic: serialized.topic,

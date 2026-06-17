@@ -330,7 +330,7 @@ export function bindTvScreenByPairing(payload = {}, accountNamespace = "") {
   });
 }
 
-export function saveSchedule(payload) {
+export function saveSchedule(payload, user = null) {
   const courseId = Number(payload.courseId);
   const course = getCourseById(courseId);
 
@@ -340,7 +340,7 @@ export function saveSchedule(payload) {
 
   const existing = payload.id ? state.schedules.find((item) => item.id === Number(payload.id)) ?? null : null;
   const requestedCoursePackageId = normalizeCoursePackageId(payload.coursePackageId || existing?.coursePackageId, 0);
-  const coursePackageId = requestedCoursePackageId || inferCoursePackageIdForCourse(courseId);
+  const coursePackageId = resolveWriteCoursePackageId(user, requestedCoursePackageId || inferCoursePackageIdForCourse(courseId), existing?.coursePackageId);
 
   if (!coursePackageAllowsCourse(coursePackageId, courseId)) {
     throw new Error("该课程不属于当前课程包，不能排课。");

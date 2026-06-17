@@ -144,7 +144,7 @@ export function getMetaPayload(user = null, options = {}) {
     actionTypes: clone(state.actionTypes),
     lessonTypes: clone(state.lessonTypes),
     coursePackages: listCoursePackagesForUser(user),
-    actions: sortByNewest(state.actions.map(normalizeActionRecord), "updateTime"),
+    actions: listActions(user),
     courses: includeFullCourses ? listCourses(user) : listCourseSummaries(user),
     coursesMode: includeFullCourses ? "full" : "summary",
     templates: listTemplates(user),

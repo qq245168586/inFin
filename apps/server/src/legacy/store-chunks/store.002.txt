@@ -61,6 +61,7 @@ function normalizeCourseTags(value) {
 
 function normalizeActionRecord(action = {}) {
   const raw = action && typeof action === "object" ? action : {};
+  const ownerUsername = trimText(raw.ownerUsername || raw.author);
   return {
     ...raw,
     id: Number(raw.id) || 0,
@@ -69,6 +70,8 @@ function normalizeActionRecord(action = {}) {
     media: raw.media ?? null,
     courseTags: normalizeCourseTags(raw.courseTags),
     coursePackageIds: numberList(raw.coursePackageIds),
+    author: trimText(raw.author) || ownerUsername,
+    ownerUsername,
     createTime: trimText(raw.createTime),
     updateTime: trimText(raw.updateTime)
   };

@@ -205,11 +205,19 @@
     }
 
     if (request.method === "GET" && url.pathname === "/api/actions") {
-      sendJson(response, 200, { data: listActions() });
+      const user = requireAuthorizedConsoleUser(request, response);
+      if (!user) {
+        return;
+      }
+      sendJson(response, 200, { data: listActions(user) });
       return;
     }
 
     if (request.method === "POST" && url.pathname === "/api/actions") {
+      const user = requireAuthorizedConsoleUser(request, response);
+      if (!user) {
+        return;
+      }
       const payload = await readJsonBody(request);
 
       if (!payload?.name?.trim?.()) {
@@ -217,15 +225,23 @@
         return;
       }
 
-      sendJson(response, 201, { data: saveAction(payload) });
+      try {
+        sendJson(response, 201, { data: saveAction(payload, user) });
+      } catch (error) {
+        badRequest(response, error instanceof Error ? error.message : "动作保存失败。");
+      }
       return;
     }
 
     if (request.method === "GET" && url.pathname.startsWith("/api/actions/")) {
+      const user = requireAuthorizedConsoleUser(request, response);
+      if (!user) {
+        return;
+      }
       const actionId = url.pathname.replace("/api/actions/", "");
       const action = getActionById(actionId);
 
-      if (!action) {
+      if (!action || !listActions(user).some((item) => Number(item.id) === Number(action.id))) {
         sendJson(response, 404, { message: "动作不存在。" });
         return;
       }
@@ -235,5 +251,9 @@
     }
 
     if (request.method === "PUT" && url.pathname.startsWith("/api/actions/")) {
+      const user = requireAuthorizedConsoleUser(request, response);
+      if (!user) {
+        return;
+      }
       const actionId = url.pathname.replace("/api/actions/", "");
       const existing = getActionById(actionId);

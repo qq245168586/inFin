@@ -19,13 +19,13 @@ export function deleteSchedule(scheduleId) {
   return { ok: true };
 }
 
-export function copyLastWeekSchedules(coursePackageId = "") {
+export function copyLastWeekSchedules(coursePackageId = "", user = null) {
   const monday = startOfWeek(new Date());
   const nextMonday = endOfWeek(new Date());
-  const targetCoursePackageId = normalizeCoursePackageId(coursePackageId, 0);
+  const targetCoursePackageId = resolveWriteCoursePackageId(user, coursePackageId, 0);
   const lastWeek = listSchedulesByScope(
     "LASTWEEK",
-    targetCoursePackageId > 0 ? { coursePackageId: targetCoursePackageId } : {}
+    targetCoursePackageId > 0 ? { coursePackageId: targetCoursePackageId, user } : { user }
   );
 
   state.schedules = state.schedules.filter((item) => {

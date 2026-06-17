@@ -28,7 +28,13 @@ function getCoursePackageCourseIdSet(coursePackageId = "") {
   if (!record) {
     return new Set();
   }
-  return new Set(numberList(record.courseIds));
+  const courseIds = new Set(numberList(record.courseIds));
+  for (const course of state.courses || []) {
+    if (normalizeCoursePackageId(course.coursePackageId, 0) === id) {
+      courseIds.add(Number(course.id));
+    }
+  }
+  return courseIds;
 }
 
 function coursePackageAllowsCourse(coursePackageId, courseId) {
@@ -59,6 +65,100 @@ function getUserVisibleCourseIdSet(user = null) {
     }
   }
   return courseIds;
+}
+
+function userIdentityText(user = null) {
+  return trimText(user?.username || user?.nickname || user?.accountNamespace);
+}
+
+function validCoursePackageIdSet() {
+  return new Set((state.coursePackages || []).map((item) => normalizeCoursePackageId(item.id, 0)).filter(Boolean));
+}
+
+function sanitizeCoursePackageIds(value) {
+  const validIds = validCoursePackageIdSet();
+  return [...new Set(numberList(value).filter((id) => validIds.has(id)))];
+}
+
+function resolveWriteCoursePackageIds(user = null, requestedIds = [], existingIds = []) {
+  const visiblePackageIds = getUserVisibleCoursePackageIdSet(user);
+  const requested = sanitizeCoursePackageIds(requestedIds);
+  const existing = sanitizeCoursePackageIds(existingIds);
+
+  if (!visiblePackageIds) {
+    if (requested.length) return requested;
+    if (existing.length) return existing;
+    return [getDefaultCoursePackageId()];
+  }
+
+  const visible = [...visiblePackageIds].filter(Boolean);
+  if (!visible.length) {
+    throw new Error("当前账号没有绑定课程包。");
+  }
+
+  if (visible.length === 1) {
+    return [visible[0]];
+  }
+
+  const candidates = requested.length ? requested : existing;
+  if (!candidates.length) {
+    throw new Error("请选择课程包。");
+  }
+  if (candidates.some((id) => !visiblePackageIds.has(id))) {
+    throw new Error("当前账号不能保存其它课程包的数据。");
+  }
+  return candidates;
+}
+
+function resolveWriteCoursePackageId(user = null, requestedId = 0, existingId = 0) {
+  return resolveWriteCoursePackageIds(user, [requestedId].filter(Boolean), [existingId].filter(Boolean))[0] || 0;
+}
+
+function prepareActionOwnerPayload(payload = {}, existing = null, user = null) {
+  const ownerUsername = userIdentityText(user) || trimText(existing?.ownerUsername || existing?.author);
+  const coursePackageIds = resolveWriteCoursePackageIds(user, payload.coursePackageIds, existing?.coursePackageIds);
+  return {
+    ...payload,
+    coursePackageIds,
+    ownerUsername,
+    author: ownerUsername || trimText(payload.author || existing?.author)
+  };
+}
+
+function prepareCourseOwnerPayload(payload = {}, existing = null, user = null) {
+  const ownerUsername = userIdentityText(user) || trimText(existing?.ownerUsername || existing?.author);
+  const creator = trimText(payload.creator) || trimText(existing?.creator) || ownerUsername;
+  return {
+    ...payload,
+    creator,
+    ownerUsername,
+    author: ownerUsername || trimText(payload.author || existing?.author)
+  };
+}
+
+function actionAllowsUser(action = {}, user = null) {
+  const visiblePackageIds = getUserVisibleCoursePackageIdSet(user);
+  if (!visiblePackageIds) {
+    return true;
+  }
+
+  const actionPackageIds = numberList(action.coursePackageIds);
+  if (!actionPackageIds.length) {
+    return visiblePackageIds.has(getDefaultCoursePackageId());
+  }
+  return actionPackageIds.some((id) => visiblePackageIds.has(id));
+}
+
+function courseAllowsUser(course = {}, user = null) {
+  const visiblePackageIds = getUserVisibleCoursePackageIdSet(user);
+  if (!visiblePackageIds) {
+    return true;
+  }
+  const coursePackageId = normalizeCoursePackageId(course.coursePackageId, 0);
+  if (coursePackageId > 0) {
+    return visiblePackageIds.has(coursePackageId);
+  }
+  return [...visiblePackageIds].some((packageId) => Boolean(getCoursePackageCourseIdSet(packageId)?.has(Number(course.id))));
 }
 
 function normalizeVenuePackageIds(value) {

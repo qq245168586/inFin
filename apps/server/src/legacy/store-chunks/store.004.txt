@@ -84,6 +84,7 @@ function createAuthPayload(userId, clientName = "editor-web") {
 
 function normalizeActionPayload(payload = {}, existing = null) {
   const timestamp = nowIso();
+  const ownerUsername = trimText(payload.ownerUsername ?? payload.author ?? existing?.ownerUsername ?? existing?.author);
   return {
     id: existing?.id ?? nextId(state.actions),
     name: trimText(payload.name),
@@ -91,6 +92,8 @@ function normalizeActionPayload(payload = {}, existing = null) {
     media: payload.media ?? existing?.media ?? null,
     courseTags: normalizeCourseTags(payload.courseTags ?? existing?.courseTags),
     coursePackageIds: numberList(payload.coursePackageIds ?? existing?.coursePackageIds),
+    author: trimText(payload.author ?? existing?.author) || ownerUsername,
+    ownerUsername,
     createTime: existing?.createTime ?? timestamp,
     updateTime: timestamp
   };

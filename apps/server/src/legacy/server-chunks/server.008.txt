@@ -4,14 +4,22 @@
       }
 
       const payload = await readJsonBody(request);
-      const next = saveAction({ ...payload, id: existing.id });
-      sendJson(response, 200, { data: next });
+      try {
+        const next = saveAction({ ...payload, id: existing.id }, user);
+        sendJson(response, 200, { data: next });
+      } catch (error) {
+        badRequest(response, error instanceof Error ? error.message : "动作保存失败。");
+      }
       return;
     }
 
     if (request.method === "DELETE" && url.pathname.startsWith("/api/actions/")) {
+      const user = requireAuthorizedConsoleUser(request, response);
+      if (!user) {
+        return;
+      }
       const actionId = url.pathname.replace("/api/actions/", "");
-      const result = deleteAction(actionId);
+      const result = deleteAction(actionId, user);
 
       if (!result.ok) {
         sendJson(response, 409, result);
@@ -42,6 +50,10 @@
     }
 
     if (request.method === "POST" && url.pathname === "/api/courses") {
+      const user = requireAuthorizedConsoleUser(request, response);
+      if (!user) {
+        return;
+      }
       const payload = await readJsonBody(request);
 
       if (!payload?.name?.trim?.()) {
@@ -50,7 +62,7 @@
       }
 
       try {
-        sendJson(response, 201, { data: saveCourse(payload) });
+        sendJson(response, 201, { data: saveCourse(payload, user) });
       } catch (error) {
         badRequest(response, error instanceof Error ? error.message : "课程保存失败。");
       }
@@ -58,10 +70,14 @@
     }
 
     if (request.method === "GET" && url.pathname.startsWith("/api/courses/")) {
+      const user = requireAuthorizedConsoleUser(request, response);
+      if (!user) {
+        return;
+      }
       const courseId = url.pathname.replace("/api/courses/", "");
       const course = getCourseById(courseId);
 
-      if (!course) {
+      if (!course || !listCourses(user).some((item) => Number(item.id) === Number(course.id))) {
         sendJson(response, 404, { message: "课程不存在。" });
         return;
       }
@@ -71,6 +87,10 @@
     }
 
     if (request.method === "PUT" && url.pathname.startsWith("/api/courses/")) {
+      const user = requireAuthorizedConsoleUser(request, response);
+      if (!user) {
+        return;
+      }
       const courseId = url.pathname.replace("/api/courses/", "");
       const existing = getCourseById(courseId);
 
@@ -82,7 +102,7 @@
       const payload = await readJsonBody(request);
 
       try {
-        const next = saveCourse({ ...payload, id: existing.id });
+        const next = saveCourse({ ...payload, id: existing.id }, user);
         sendJson(response, 200, { data: next });
       } catch (error) {
         badRequest(response, error instanceof Error ? error.message : "课程保存失败。");
@@ -91,8 +111,12 @@
     }
 
     if (request.method === "DELETE" && url.pathname.startsWith("/api/courses/")) {
+      const user = requireAuthorizedConsoleUser(request, response);
+      if (!user) {
+        return;
+      }
       const courseId = url.pathname.replace("/api/courses/", "");
-      const result = deleteCourse(courseId);
+      const result = deleteCourse(courseId, user);
 
       if (!result.ok) {
         sendJson(response, 409, result);
@@ -182,6 +206,10 @@
     }
 
     if (request.method === "POST" && url.pathname === "/api/schedules") {
+      const user = requireAuthorizedConsoleUser(request, response);
+      if (!user) {
+        return;
+      }
       const payload = await readJsonBody(request);
 
       if (!payload?.courseId || (!payload?.date && !payload?.beginTime)) {
@@ -191,7 +219,7 @@
 
       let schedule = null;
       try {
-        schedule = saveSchedule(payload);
+        schedule = saveSchedule(payload, user);
       } catch (error) {
         badRequest(response, error instanceof Error ? error.message : "排课保存失败。");
         return;
@@ -207,8 +235,16 @@
     }
 
     if (request.method === "POST" && url.pathname === "/api/schedules/copy-last-week") {
+      const user = requireAuthorizedConsoleUser(request, response);
+      if (!user) {
+        return;
+      }
       const payload = await readJsonBody(request);
-      sendJson(response, 200, { data: copyLastWeekSchedules(payload?.coursePackageId || "") });
+      try {
+        sendJson(response, 200, { data: copyLastWeekSchedules(payload?.coursePackageId || "", user) });
+      } catch (error) {
+        badRequest(response, error instanceof Error ? error.message : "复制上周排课失败。");
+      }
       return;
     }
 

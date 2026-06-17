@@ -141,8 +141,11 @@ function syncAllActionCourseTagsFromCourses() {
   }
 }
 
-export function listActions() {
-  return sortByNewest(state.actions.map(normalizeActionRecord), "updateTime");
+export function listActions(user = null) {
+  return sortByNewest(
+    state.actions.map(normalizeActionRecord).filter((action) => actionAllowsUser(action, user)),
+    "updateTime"
+  );
 }
 
 export function getActionById(actionId) {
@@ -150,9 +153,12 @@ export function getActionById(actionId) {
   return action ? normalizeActionRecord(action) : null;
 }
 
-export function saveAction(payload) {
+export function saveAction(payload, user = null) {
   const existing = payload.id ? getActionById(payload.id) : null;
-  const next = normalizeActionPayload(payload, existing);
+  if (existing && !actionAllowsUser(existing, user)) {
+    throw new Error("当前账号不能修改其它课程包下的动作。");
+  }
+  const next = normalizeActionPayload(prepareActionOwnerPayload(payload, existing, user), existing);
   const index = state.actions.findIndex((item) => item.id === next.id);
 
   if (index >= 0) {
@@ -165,8 +171,12 @@ export function saveAction(payload) {
   return next;
 }
 
-export function deleteAction(actionId) {
+export function deleteAction(actionId, user = null) {
   const numericId = Number(actionId);
+  const existing = getActionById(numericId);
+  if (!existing || !actionAllowsUser(existing, user)) {
+    return { ok: false, message: "动作不存在。" };
+  }
   const usedByCourse = state.courses.some(
     (course) => courseScriptUsesAction(coerceCourseScript(course), numericId)
   );
@@ -203,11 +213,14 @@ function normalizeCourseIdentityText(value) {
   return trimText(value).toLocaleLowerCase();
 }
 
-export function saveCourse(payload) {
+export function saveCourse(payload, user = null) {
   const existing = payload.id ? getCourseById(payload.id) : null;
-  const next = normalizeCoursePayload(payload, existing);
+  if (existing && !courseAllowsUser(existing, user)) {
+    throw new Error("当前账号不能修改其它课程包下的课程。");
+  }
+  const targetCoursePackageId = resolveWriteCoursePackageId(user, payload?.coursePackageId, existing?.coursePackageId);
+  const next = normalizeCoursePayload(prepareCourseOwnerPayload({ ...payload, coursePackageId: targetCoursePackageId }, existing, user), existing);
   const index = state.courses.findIndex((item) => item.id === next.id);
-  const targetCoursePackageId = normalizeCoursePackageId(payload?.coursePackageId, 0);
   const targetCoursePackage =
     targetCoursePackageId > 0
       ? state.coursePackages.find((item) => normalizeCoursePackageId(item.id, 0) === targetCoursePackageId)
@@ -237,11 +250,35 @@ export function saveCourse(payload) {
     state.courses.push(next);
   }
 
+  state.coursePackages = (state.coursePackages || []).map((coursePackage) => {
+    const containsCourse = (coursePackage.courseIds || []).some((id) => Number(id) === Number(next.id));
+    if (normalizeCoursePackageId(coursePackage.id, 0) === targetCoursePackageId) {
+      return containsCourse
+        ? coursePackage
+        : {
+            ...coursePackage,
+            courseIds: [...(coursePackage.courseIds || []), Number(next.id)],
+            updateTime: nowIso()
+          };
+    }
+    if (!containsCourse) {
+      return coursePackage;
+    }
+    return {
+      ...coursePackage,
+      courseIds: (coursePackage.courseIds || []).filter((id) => Number(id) !== Number(next.id)),
+      updateTime: nowIso()
+    };
+  });
+
   if (targetCoursePackage) {
-    const nextCourseIds = new Set((targetCoursePackage.courseIds || []).map(Number));
+    const updatedTargetCoursePackage = state.coursePackages.find(
+      (item) => normalizeCoursePackageId(item.id, 0) === targetCoursePackageId
+    );
+    const nextCourseIds = new Set((updatedTargetCoursePackage?.courseIds || []).map(Number));
     if (!nextCourseIds.has(Number(next.id))) {
-      targetCoursePackage.courseIds = [...(targetCoursePackage.courseIds || []), Number(next.id)];
-      targetCoursePackage.updateTime = nowIso();
+      updatedTargetCoursePackage.courseIds = [...(updatedTargetCoursePackage.courseIds || []), Number(next.id)];
+      updatedTargetCoursePackage.updateTime = nowIso();
     }
   }
 
@@ -250,11 +287,11 @@ export function saveCourse(payload) {
   return next;
 }
 
-export function deleteCourse(courseId) {
+export function deleteCourse(courseId, user = null) {
   const numericId = Number(courseId);
   const existing = state.courses.find((item) => Number(item.id) === numericId) ?? null;
 
-  if (!existing) {
+  if (!existing || !courseAllowsUser(existing, user)) {
     return { ok: false, message: "课程不存在。" };
   }
 
@@ -301,6 +338,9 @@ export function getTemplateById(templateId, user = null) {
 export function saveTemplate(payload, user = null) {
   const existing = payload.id ? getTemplateById(payload.id, user) : null;
   const next = normalizeTemplatePayload(payload, existing);
+  if (next.kind === "course") {
+    next.coursePackageIds = resolveWriteCoursePackageIds(user, next.coursePackageIds, existing?.coursePackageIds);
+  }
   assertCanSaveTemplate(next, user);
   const index = state.templates.findIndex((item) => item.id === next.id);
 
