@@ -1961,6 +1961,7 @@ textarea.is-invalid:focus {
 }
 
 .action-thumb-button {
+  position: relative;
   width: 112px;
   aspect-ratio: 16 / 9;
   display: grid;
@@ -1979,6 +1980,28 @@ textarea.is-invalid:focus {
   display: block;
   object-fit: cover;
   pointer-events: none;
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.action-thumb-button.has-frame video {
+  opacity: 1;
+}
+
+.action-thumb-play {
+  position: absolute;
+  inset: auto 8px 8px auto;
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: #111827;
+  background: rgba(255, 232, 132, 0.9);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.action-thumb-button.has-frame .action-thumb-play {
+  color: #ffe884;
+  background: rgba(5, 7, 13, 0.72);
 }
 
 .action-thumb-button.is-empty {
