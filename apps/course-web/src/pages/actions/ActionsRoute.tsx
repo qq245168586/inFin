@@ -23,6 +23,7 @@ interface FilterState {
 interface ActionDraft {
   id: number | null;
   name: string;
+  description: string;
   typeIds: number[];
   courseTags: string[];
   coursePackageIds: number[];
@@ -175,6 +176,7 @@ function createActionDraft(action: ActionRecord | null = null): ActionDraft {
   return {
     id: action?.id ?? null,
     name: action?.name ?? "",
+    description: action?.description ?? "",
     typeIds: [...(action?.typeIds ?? [])],
     courseTags: [...(action?.courseTags ?? [])],
     coursePackageIds: [...(action?.coursePackageIds ?? [])],
@@ -360,6 +362,7 @@ export default function ActionsRoute({
 
       const payload = {
         name: actionEditor.name.trim(),
+        description: actionEditor.description.trim(),
         typeIds: actionEditor.typeIds,
         courseTags: [...new Set([...actionEditor.courseTags, selectedCoursePackageTag].filter(Boolean))],
         coursePackageIds: [
@@ -562,6 +565,7 @@ export default function ActionsRoute({
       onOpenActionEditor={(action) => openActionEditor(action ?? null)}
       onCloseActionEditor={() => setActionEditor(null)}
       onActionEditorNameChange={(name) => setActionEditor((current) => (current ? { ...current, name } : current))}
+      onActionEditorDescriptionChange={(description) => setActionEditor((current) => (current ? { ...current, description } : current))}
       onToggleActionEditorType={(typeId) =>
         setActionEditor((current) =>
           current

@@ -2422,6 +2422,22 @@ textarea.is-invalid:focus {
   padding: 2px 4px 8px 0;
 }
 
+.action-type-create-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.action-type-create-row .primary-button {
+  min-height: 42px;
+  white-space: nowrap;
+}
+
+.action-description-input {
+  min-height: 128px;
+}
+
 .inner-tabs {
   min-height: 62px;
   padding: 0 20px;

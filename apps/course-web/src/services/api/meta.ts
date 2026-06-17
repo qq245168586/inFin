@@ -13,6 +13,7 @@ export interface TypeOption {
 export interface ActionRecord {
   id: number;
   name: string;
+  description?: string;
   author?: string;
   ownerUsername?: string;
   typeIds: number[];

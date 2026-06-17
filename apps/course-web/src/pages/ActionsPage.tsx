@@ -11,6 +11,7 @@ import { displayTypeName, stripMediaSuffix } from "../utils/typeNames.ts";
 interface ActionDraft {
   id: number | null;
   name: string;
+  description: string;
   typeIds: number[];
   previewUrl: string;
   uploadFile: File | null;
@@ -48,6 +49,7 @@ export default function ActionsPage({
   onOpenActionEditor,
   onCloseActionEditor,
   onActionEditorNameChange,
+  onActionEditorDescriptionChange,
   onToggleActionEditorType,
   onCreateAndSelectActionType,
   onSaveAction,
@@ -77,6 +79,7 @@ export default function ActionsPage({
   onOpenActionEditor: (action?: ActionRecord | null) => void;
   onCloseActionEditor: () => void;
   onActionEditorNameChange: (name: string) => void;
+  onActionEditorDescriptionChange: (description: string) => void;
   onToggleActionEditorType: (typeId: number) => void;
   onCreateAndSelectActionType: (name: string) => void;
   onSaveAction: () => void;
@@ -153,6 +156,18 @@ export default function ActionsPage({
                   value={actionEditor.name}
                   onChange={(event) => onActionEditorNameChange(event.target.value)}
                   placeholder="请输入动作名称"
+                />
+              </label>
+            </div>
+
+            <div className="form-row single">
+              <label className="field">
+                <span>动作描述</span>
+                <textarea
+                  className="action-description-input"
+                  value={actionEditor.description}
+                  onChange={(event) => onActionEditorDescriptionChange(event.target.value)}
+                  placeholder="输入动作要点、目标肌群、注意事项等"
                 />
               </label>
             </div>
@@ -355,24 +370,10 @@ export default function ActionsPage({
           title="添加动作类型"
           width={620}
           onClose={() => setEditorTypeDialogOpen(false)}
-          onConfirm={createEditorType}
-          confirmText="保存并选择"
-          confirmDisabled={!stripMediaSuffix(editorTypeName)}
+          onConfirm={() => setEditorTypeDialogOpen(false)}
+          confirmText="完成"
         >
           <div className="action-type-select-dialog">
-            <label className="field">
-              <span>输入新类型</span>
-              <input
-                value={editorTypeName}
-                onChange={(event) => setEditorTypeName(stripMediaSuffix(event.target.value))}
-                placeholder="输入新类型名称"
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && stripMediaSuffix(editorTypeName)) {
-                    createEditorType();
-                  }
-                }}
-              />
-            </label>
             <div className="type-filter-dialog-head">
               <p>选择已有类型</p>
             </div>
@@ -387,6 +388,24 @@ export default function ActionsPage({
                   {displayTypeName(type.name)}
                 </button>
               ))}
+            </div>
+            <div className="action-type-create-row">
+              <label className="field">
+                <span>输入新类型</span>
+                <input
+                  value={editorTypeName}
+                  onChange={(event) => setEditorTypeName(stripMediaSuffix(event.target.value))}
+                  placeholder="输入之前没有过的类型"
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && stripMediaSuffix(editorTypeName)) {
+                      createEditorType();
+                    }
+                  }}
+                />
+              </label>
+              <button type="button" className="primary-button" onClick={createEditorType} disabled={!stripMediaSuffix(editorTypeName)}>
+                新增并选择
+              </button>
             </div>
           </div>
         </Dialog>
