@@ -14,6 +14,7 @@ export interface ActionRecord {
   name: string;
   typeIds: number[];
   courseTags: string[];
+  coursePackageIds?: number[];
   media: MediaRecord | null;
   createTime: string;
   updateTime: string;

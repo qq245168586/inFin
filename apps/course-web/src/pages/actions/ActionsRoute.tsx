@@ -24,6 +24,7 @@ interface ActionDraft {
   name: string;
   typeIds: number[];
   courseTags: string[];
+  coursePackageIds: number[];
   media: ActionRecord["media"] | null;
   uploadFile: File | null;
   previewUrl: string;
@@ -138,6 +139,7 @@ function createActionDraft(action: ActionRecord | null = null): ActionDraft {
     name: action?.name ?? "",
     typeIds: [...(action?.typeIds ?? [])],
     courseTags: [...(action?.courseTags ?? [])],
+    coursePackageIds: [...(action?.coursePackageIds ?? [])],
     media: action?.media ?? null,
     uploadFile: null,
     previewUrl: action?.media?.url ?? ""
@@ -194,6 +196,8 @@ export default function ActionsRoute({
   const { pushNotice } = useNotice();
   const actions = (appData?.actions || []) as ActionRecord[];
   const actionTypes = (appData?.actionTypes || []) as TypeOption[];
+  const selectedCoursePackageId = Number(selectedCoursePackage?.id) || 0;
+  const selectedCoursePackageIsDefault = Boolean(selectedCoursePackage?.isDefault);
   const selectedCoursePackageTag = selectedCoursePackage ? normalizeCoursePackageTag(selectedCoursePackage.name) : "";
   const packageCourses = useMemo(
     () => filterCoursesByCoursePackage((appData?.courses || []) as CourseRecord[], selectedCoursePackage),
@@ -204,10 +208,19 @@ export default function ActionsRoute({
     () =>
       selectedCoursePackage
         ? actions.filter(
-            (action) => packageActionIds.has(String(action.id)) || (action.courseTags || []).includes(selectedCoursePackageTag)
+            (action) => {
+              const actionPackageIds = (action.coursePackageIds || []).map(Number).filter(Boolean);
+              const isLegacyUnscopedAction = selectedCoursePackageIsDefault && actionPackageIds.length === 0;
+              return (
+                packageActionIds.has(String(action.id)) ||
+                actionPackageIds.includes(selectedCoursePackageId) ||
+                isLegacyUnscopedAction ||
+                (action.courseTags || []).includes(selectedCoursePackageTag)
+              );
+            }
           )
         : actions,
-    [actions, packageActionIds, selectedCoursePackage, selectedCoursePackageTag]
+    [actions, packageActionIds, selectedCoursePackage, selectedCoursePackageId, selectedCoursePackageIsDefault, selectedCoursePackageTag]
   );
 
   const [actionFiltersDraft, setActionFiltersDraft] = useState<FilterState>({ search: "", typeIds: [] });
@@ -285,6 +298,12 @@ export default function ActionsRoute({
         name: actionEditor.name.trim(),
         typeIds: actionEditor.typeIds,
         courseTags: [...new Set([...actionEditor.courseTags, selectedCoursePackageTag].filter(Boolean))],
+        coursePackageIds: [
+          ...new Set([
+            ...actionEditor.coursePackageIds.map(Number).filter(Boolean),
+            selectedCoursePackageId
+          ].filter(Boolean))
+        ],
         media
       };
 
@@ -368,7 +387,7 @@ export default function ActionsRoute({
     batchUploadingRef.current = true;
     setBatchUploading(true);
     const workingTypes = [...actionTypes];
-    const workingActions = [...actions];
+    const workingScopedActions = [...scopedActions];
     const typeLookup = buildActionTypeLookup(workingTypes);
     const createdTypeCache = new Map<string, TypeOption>();
     let createdCount = 0;
@@ -402,9 +421,9 @@ export default function ActionsRoute({
           createdTypeCount += 1;
         }
 
-        const existing = findExistingActionByName(workingActions, item.actionName);
+        const existing = findExistingActionByName(workingScopedActions, item.actionName);
         if (existing) {
-          failures.push(`${item.fileName}：当前工作空间已存在同名动作。`);
+          failures.push(`${item.fileName}：当前课程包已存在同名动作。`);
           continue;
         }
 
@@ -413,6 +432,7 @@ export default function ActionsRoute({
           name: item.actionName,
           typeIds: [typeOption.id],
           courseTags: selectedCoursePackageTag ? [selectedCoursePackageTag] : [],
+          coursePackageIds: selectedCoursePackageId ? [selectedCoursePackageId] : [],
           media
         };
 
@@ -420,7 +440,7 @@ export default function ActionsRoute({
           method: "POST",
           body: JSON.stringify(payload)
         });
-        workingActions.push(response.data);
+        workingScopedActions.push(response.data);
         createdCount += 1;
       } catch (error) {
         failures.push(`${item.fileName}：${getErrorMessage(error)}`);
