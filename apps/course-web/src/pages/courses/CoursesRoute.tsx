@@ -34,7 +34,7 @@ export default function CoursesRoute({
   selectedCoursePackage: CoursePackageRecord | null;
   onAddLessonType: () => void;
 }) {
-  const { authHeader } = useAuth();
+  const { authHeader, authSession } = useAuth();
   const { setBusyText } = useBusy();
   const { pushNotice } = useNotice();
   const { appData, reloadMeta } = useMeta();
@@ -74,6 +74,7 @@ export default function CoursesRoute({
   const activeCourseEditorTab = tabsVm.activeCourseEditorTab;
   const courseEditor = tabsVm.courseEditor;
   const isCourseLibraryActive = tabsVm.isCourseLibraryActive;
+  const currentAuthorName = authSession?.username || authSession?.nickname || "";
 
   const courseCrudVm = useCourseCrudVm({
     authHeader,
@@ -100,7 +101,7 @@ export default function CoursesRoute({
       return;
     }
     setCourseVersionError("");
-    tabsVm.openCourseEditor(course ?? null, selectedCoursePackage.id);
+    tabsVm.openCourseEditor(course ?? null, selectedCoursePackage.id, currentAuthorName);
   }
 
   function normalizeCourseIdentity(value: string) {
@@ -174,8 +175,8 @@ export default function CoursesRoute({
       return;
     }
 
-    const draft = createCourseDraftFromCourseTemplate(selectedTemplate);
-    tabsVm.openCourseDraft(draft, selectedCoursePackage.id);
+    const draft = createCourseDraftFromCourseTemplate(selectedTemplate, currentAuthorName);
+    tabsVm.openCourseDraft(draft, selectedCoursePackage.id, currentAuthorName);
     setCourseTemplateDialog(null);
     pushNotice(`已从整课模板“${selectedTemplate.name}”创建课程，请先修改正式训练内容后再保存。`);
   }

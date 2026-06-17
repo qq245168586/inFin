@@ -12,6 +12,8 @@ export interface TypeOption {
 export interface ActionRecord {
   id: number;
   name: string;
+  author?: string;
+  ownerUsername?: string;
   typeIds: number[];
   courseTags: string[];
   coursePackageIds?: number[];

@@ -10,6 +10,7 @@ import { displayTypeName, stripMediaSuffix } from "../../utils/typeNames.ts";
 import { useMeta } from "../../providers/MetaProvider.tsx";
 import { useBusy } from "../../providers/BusyProvider.tsx";
 import { useNotice } from "../../providers/NoticeProvider.tsx";
+import { useAuth } from "../../providers/AuthProvider.tsx";
 import type { CoursePackageRecord } from "../venues/types.ts";
 import { filterCoursesByCoursePackage } from "../../utils/coursePackageScope.ts";
 import type { CourseRecord, CourseScript } from "../../models/course/types.ts";
@@ -228,6 +229,7 @@ export default function ActionsRoute({
   selectedCoursePackage: CoursePackageRecord | null;
   onAddActionType: () => void;
 }) {
+  const { authHeader } = useAuth();
   const { appData, reloadMeta } = useMeta();
   const { setBusyText } = useBusy();
   const { pushNotice } = useNotice();
@@ -364,11 +366,13 @@ export default function ActionsRoute({
       if (actionEditor.id) {
         await requestJson(`/api/actions/${actionEditor.id}`, {
           method: "PUT",
+          headers: authHeader ? { Authorization: authHeader } : {},
           body: JSON.stringify(payload)
         });
       } else {
         await requestJson("/api/actions", {
           method: "POST",
+          headers: authHeader ? { Authorization: authHeader } : {},
           body: JSON.stringify(payload)
         });
       }
@@ -393,7 +397,10 @@ export default function ActionsRoute({
     setBusyText("正在删除动作...");
 
     try {
-      await requestJson(`/api/actions/${actionId}`, { method: "DELETE" });
+      await requestJson(`/api/actions/${actionId}`, {
+        method: "DELETE",
+        headers: authHeader ? { Authorization: authHeader } : {}
+      });
       await reloadMeta();
       pushNotice("动作已删除。");
     } catch (error) {
@@ -471,6 +478,7 @@ export default function ActionsRoute({
 
         const response = await requestJson<{ data: ActionRecord }>("/api/actions", {
           method: "POST",
+          headers: authHeader ? { Authorization: authHeader } : {},
           body: JSON.stringify(payload)
         });
         workingPackageActions.push(response.data);

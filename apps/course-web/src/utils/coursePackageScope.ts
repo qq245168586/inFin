@@ -9,9 +9,11 @@ export function filterCoursesByCoursePackage(
   if (!coursePackage) return courses;
 
   const courseIds = new Set((coursePackage.courseIds || []).map(Number));
-  if (!courseIds.size) return [];
 
-  return courses.filter((course) => courseIds.has(Number(course.id)));
+  return courses.filter((course) => {
+    if (Number(course.coursePackageId) === Number(coursePackage.id)) return true;
+    return courseIds.has(Number(course.id));
+  });
 }
 
 export function filterSchedulesByCoursePackage<T extends ScheduleRecord>(

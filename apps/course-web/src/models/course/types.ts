@@ -152,6 +152,8 @@ export interface CourseRecord {
   id: number;
   name: string;
   creator: string;
+  author?: string;
+  ownerUsername?: string;
   version: string;
   description: string;
   topic: string;
@@ -161,4 +163,5 @@ export interface CourseRecord {
   summary: CourseSummary;
   script: CourseScript;
   updateTime: string;
+  coursePackageId?: number;
 }

@@ -19,10 +19,11 @@ export function createTrainingSnapshot(script: Pick<CourseScript, "training">): 
   return JSON.stringify(script.training);
 }
 
-export function createCourseDraft(course: CourseRecord | null = null): CourseDraft {
+export function createCourseDraft(course: CourseRecord | null = null, defaultCreator = ""): CourseDraft {
   const script = course?.script || createEmptyCourseScript();
   const metadata = {
     ...script.metadata,
+    creator: script.metadata?.creator || course?.creator || defaultCreator,
     description: script.metadata?.description ?? course?.description ?? "",
     topic: script.metadata?.topic || course?.topic || "",
     rotationType: script.metadata?.rotationType || course?.rotationType || "REGION"
@@ -38,11 +39,12 @@ export function createCourseDraft(course: CourseRecord | null = null): CourseDra
   };
 }
 
-export function createCourseDraftFromCourseTemplate(template: CourseTemplateRecord): CourseDraft {
+export function createCourseDraftFromCourseTemplate(template: CourseTemplateRecord, defaultCreator = ""): CourseDraft {
   const script = normalizeCourseScriptLocal(
     cloneCourseScriptWithFreshIds(template.script, `template-${template.id}-${compactTimestamp()}`)
   );
   script.metadata.name = template.courseName || script.metadata.name || template.name;
+  script.metadata.creator = script.metadata.creator || defaultCreator;
   script.metadata.description = script.metadata.description || template.description || "";
   script.metadata.topic = script.metadata.topic || template.topic || "";
   script.metadata.rotationType = script.metadata.rotationType || template.rotationType || "REGION";
@@ -62,12 +64,12 @@ export function createCourseDraftFromCourseTemplate(template: CourseTemplateReco
   };
 }
 
-export function createCourseEditorTab(course: CourseRecord | null = null, coursePackageId: number | null = null): CourseEditorTabState {
+export function createCourseEditorTab(course: CourseRecord | null = null, coursePackageId: number | null = null, defaultCreator = ""): CourseEditorTabState {
   return {
     tabId: uid("course-tab"),
     courseId: course?.id ?? null,
     coursePackageId,
     title: course ? "编辑课程" : "添加课程",
-    draft: createCourseDraft(course)
+    draft: createCourseDraft(course, defaultCreator)
   };
 }

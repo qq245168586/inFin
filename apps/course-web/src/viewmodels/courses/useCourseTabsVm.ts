@@ -34,7 +34,7 @@ export default function useCourseTabsVm() {
     setCourseEditor((current) => ({ ...current, script: normalizeCourseScriptLocal(updater(current.script)) }));
   }
 
-  function openCourseEditor(course: CourseRecord | null = null, coursePackageId: number | null = null) {
+  function openCourseEditor(course: CourseRecord | null = null, coursePackageId: number | null = null, defaultCreator = "") {
     if (course?.id) {
       const existingTab = courseEditorTabs.find((tab) => tab.courseId === course.id);
       if (existingTab) {
@@ -43,18 +43,31 @@ export default function useCourseTabsVm() {
       }
     }
 
-    const nextTab = createCourseEditorTab(course, coursePackageId);
+    const nextTab = createCourseEditorTab(course, coursePackageId, defaultCreator);
     setCourseEditorTabs((current) => [...current, nextTab]);
     setActiveCourseTabId(nextTab.tabId);
   }
 
-  function openCourseDraft(draft: CourseDraft, coursePackageId: number | null = null) {
+  function openCourseDraft(draft: CourseDraft, coursePackageId: number | null = null, defaultCreator = "") {
+    const nextDraft =
+      draft.id || draft.script.metadata.creator
+        ? draft
+        : {
+            ...draft,
+            script: {
+              ...draft.script,
+              metadata: {
+                ...draft.script.metadata,
+                creator: defaultCreator
+              }
+            }
+          };
     const nextTab: CourseEditorTabState = {
       tabId: `course-tab-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      courseId: draft.id,
+      courseId: nextDraft.id,
       coursePackageId,
       title: draft.id ? "编辑课程" : "添加课程",
-      draft
+      draft: nextDraft
     };
     setCourseEditorTabs((current) => [...current, nextTab]);
     setActiveCourseTabId(nextTab.tabId);

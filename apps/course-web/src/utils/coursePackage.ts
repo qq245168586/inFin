@@ -8,8 +8,10 @@ export function filterCoursesByCoursePackage(
 ): CourseRecord[] {
   if (!coursePackage) return courses;
   const allowedIds = new Set((coursePackage.courseIds || []).map(Number));
-  if (!allowedIds.size) return [];
-  return courses.filter((course) => allowedIds.has(Number(course.id)));
+  return courses.filter((course) => {
+    if (Number(course.coursePackageId) === Number(coursePackage.id)) return true;
+    return allowedIds.has(Number(course.id));
+  });
 }
 
 export function filterSchedulesByCoursePackage(
