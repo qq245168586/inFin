@@ -94,6 +94,7 @@ export default function useHomeScheduleVm({
   courses,
   coursePackages,
   schedules,
+  authHeader = "",
   onBusyText,
   onNotice,
   onReloadMeta
@@ -101,6 +102,7 @@ export default function useHomeScheduleVm({
   courses: CourseRecord[];
   coursePackages: CoursePackageRecord[];
   schedules: ScheduleCollection;
+  authHeader?: string;
   onBusyText: (text: string) => void;
   onNotice: (message: string, tone?: "success" | "error") => void;
   onReloadMeta: () => Promise<void>;
@@ -236,7 +238,7 @@ export default function useHomeScheduleVm({
         date: scheduleDraft.date,
         beginTime: composeCnDateTime(scheduleDraft.date, "00:00"),
         duration: 0
-      });
+      }, authHeader);
 
       await onReloadMeta();
       setScheduleDraft(null);
@@ -246,7 +248,7 @@ export default function useHomeScheduleVm({
     } finally {
       onBusyText("");
     }
-  }, [onBusyText, onNotice, onReloadMeta, scheduleDraft]);
+  }, [authHeader, onBusyText, onNotice, onReloadMeta, scheduleDraft]);
 
   const copyLastWeek = useCallback(async () => {
     const activeCoursePackageId = Number(coursePackages[0]?.id) || 0;
@@ -260,7 +262,7 @@ export default function useHomeScheduleVm({
 
     onBusyText("正在复制上周排课...");
     try {
-      await copyLastWeekSchedules(activeCoursePackageId);
+      await copyLastWeekSchedules(activeCoursePackageId, authHeader);
       await onReloadMeta();
       onNotice("上周排课已复制到本周。");
     } catch (error) {
@@ -268,7 +270,7 @@ export default function useHomeScheduleVm({
     } finally {
       onBusyText("");
     }
-  }, [coursePackages, onBusyText, onNotice, onReloadMeta, schedules.currentWeek.length]);
+  }, [authHeader, coursePackages, onBusyText, onNotice, onReloadMeta, schedules.currentWeek.length]);
 
   const removeSchedule = useCallback(
     async (scheduleId: number) => {
@@ -278,7 +280,7 @@ export default function useHomeScheduleVm({
 
       onBusyText("正在删除排课...");
       try {
-        await deleteSchedule(scheduleId);
+        await deleteSchedule(scheduleId, authHeader);
         await onReloadMeta();
         onNotice("排课已删除。");
       } catch (error) {
@@ -287,7 +289,7 @@ export default function useHomeScheduleVm({
         onBusyText("");
       }
     },
-    [onBusyText, onNotice, onReloadMeta]
+    [authHeader, onBusyText, onNotice, onReloadMeta]
   );
 
   return {

@@ -2,6 +2,7 @@ import useHomeScheduleVm from "../../viewmodels/home/useHomeScheduleVm.ts";
 import HomePage from "../HomePage.tsx";
 import ScheduleDialog from "../schedules/ScheduleDialog.tsx";
 import { useMeta } from "../../providers/MetaProvider.tsx";
+import { useAuth } from "../../providers/AuthProvider.tsx";
 import { useBusy } from "../../providers/BusyProvider.tsx";
 import { useNotice } from "../../providers/NoticeProvider.tsx";
 import type { CoursePackageRecord } from "../venues/types.ts";
@@ -13,6 +14,7 @@ export default function HomeRoute({
   selectedCoursePackage: CoursePackageRecord | null;
 }) {
   const { appData, reloadMeta } = useMeta();
+  const { authHeader } = useAuth();
   const { setBusyText } = useBusy();
   const { pushNotice } = useNotice();
 
@@ -29,6 +31,7 @@ export default function HomeRoute({
     courses,
     coursePackages,
     schedules,
+    authHeader,
     onBusyText: setBusyText,
     onNotice: pushNotice,
     onReloadMeta: reloadMeta
