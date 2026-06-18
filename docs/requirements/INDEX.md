@@ -8,6 +8,7 @@
 
 | ID | Title | Status | Apps | Owner Notes |
 | --- | --- | --- | --- | --- |
+| [REQ-20260618-schedule-card-edit-course-entry](REQ-20260618-schedule-card-edit-course-entry.md) | 课表卡片快速编辑课程入口 | Ready for QA | `course-web` | 在课表 item 右下角增加“编辑课程”按钮，快速打开课程编辑 tab。 |
 | [REQ-20260618-copy-specific-week-schedules](REQ-20260618-copy-specific-week-schedules.md) | 复制指定周排课 | Ready for QA | `server`, `course-web` | 升级“一键复制上周排课”，支持选择过去来源周和未来目标周。 |
 
 ## Done / Shipped
