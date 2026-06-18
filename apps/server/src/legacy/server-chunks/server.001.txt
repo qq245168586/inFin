@@ -9,6 +9,7 @@ import {
   bindTvScreen,
   bindTvScreenByPairing,
   createAppPackageFilename,
+  copyWeekSchedules,
   copyLastWeekSchedules,
   createPreviewPlaybackSession,
   endExpiredPlaybackSessions,

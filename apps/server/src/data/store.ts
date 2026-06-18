@@ -81,4 +81,5 @@ export const listTvDevices = legacyStore.listTvDevices as (...args: any[]) => an
 export const bindTvScreenByPairing = legacyStore.bindTvScreenByPairing as (...args: any[]) => any;
 export const saveSchedule = legacyStore.saveSchedule as (...args: any[]) => any;
 export const deleteSchedule = legacyStore.deleteSchedule as (...args: any[]) => any;
+export const copyWeekSchedules = legacyStore.copyWeekSchedules as (...args: any[]) => any;
 export const copyLastWeekSchedules = legacyStore.copyLastWeekSchedules as (...args: any[]) => any;

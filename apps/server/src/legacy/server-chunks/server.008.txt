@@ -248,6 +248,25 @@
       return;
     }
 
+    if (request.method === "POST" && url.pathname === "/api/schedules/copy-week") {
+      const user = requireAuthorizedConsoleUser(request, response);
+      if (!user) {
+        return;
+      }
+      const payload = await readJsonBody(request);
+      try {
+        sendJson(response, 200, { data: copyWeekSchedules(payload, user) });
+      } catch (error) {
+        const statusCode = Number(error?.statusCode) || 400;
+        if (statusCode === 409) {
+          sendJson(response, 409, { message: error instanceof Error ? error.message : "目标周已有排课。" });
+          return;
+        }
+        badRequest(response, error instanceof Error ? error.message : "复制周排课失败。");
+      }
+      return;
+    }
+
     if (request.method === "DELETE" && url.pathname.startsWith("/api/schedules/")) {
       const scheduleId = url.pathname.replace("/api/schedules/", "");
       sendJson(response, 200, deleteSchedule(scheduleId));

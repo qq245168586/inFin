@@ -260,6 +260,17 @@
         },
         "additionalProperties": true
       },
+      "CopyWeekSchedulesRequest": {
+        "type": "object",
+        "required": ["coursePackageId", "sourceWeekStart", "targetWeekStart", "replaceExisting"],
+        "properties": {
+          "coursePackageId": { "type": "string", "example": "1" },
+          "sourceWeekStart": { "type": "string", "example": "2026-06-08", "description": "来源周周一，必须是过去周。" },
+          "targetWeekStart": { "type": "string", "example": "2026-06-22", "description": "目标周周一，必须是未来周。" },
+          "replaceExisting": { "type": "boolean", "example": false }
+        },
+        "additionalProperties": false
+      },
       "AppPackageUploadQuery": {
         "type": "object",
         "properties": {
@@ -1018,6 +1029,15 @@
         "summary": "复制上周排课",
         "parameters": [{ "name": "venueId", "in": "query", "schema": { "type": "string" } }],
         "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/schedules/copy-week": {
+      "post": {
+        "tags": ["Schedules"],
+        "summary": "复制指定周排课",
+        "description": "将指定过去周的当前课程包排课复制到指定未来周；目标周已有排课且 replaceExisting 为 false 时返回 409。",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CopyWeekSchedulesRequest" } } } },
+        "responses": { "200": { "description": "OK" }, "400": { "$ref": "#/components/responses/BadRequest" }, "409": { "$ref": "#/components/responses/Conflict" } }
       }
     },
     "/api/schedules/{scheduleId}": {
