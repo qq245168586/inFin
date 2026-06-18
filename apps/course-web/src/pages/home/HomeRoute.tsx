@@ -1,5 +1,6 @@
 import useHomeScheduleVm from "../../viewmodels/home/useHomeScheduleVm.ts";
 import HomePage from "../HomePage.tsx";
+import CopyWeekSchedulesDialog from "../schedules/CopyWeekSchedulesDialog.tsx";
 import ScheduleDialog from "../schedules/ScheduleDialog.tsx";
 import { useMeta } from "../../providers/MetaProvider.tsx";
 import { useAuth } from "../../providers/AuthProvider.tsx";
@@ -50,7 +51,7 @@ export default function HomeRoute({
         onMoveScheduleWeek={vm.moveScheduleWeek}
         schedules={vm.visibleSchedules}
         onAddSchedule={vm.openScheduleDialog}
-        onCopyLastWeek={vm.copyLastWeek}
+        onCopyWeekSchedules={vm.openCopyWeekDialog}
         onDeleteSchedule={vm.removeSchedule}
       />
 
@@ -61,6 +62,15 @@ export default function HomeRoute({
           onDraftChange={vm.updateScheduleDraft}
           onClose={vm.closeScheduleDialog}
           onConfirm={vm.saveSchedule}
+        />
+      ) : null}
+
+      {vm.copyWeekDraft ? (
+        <CopyWeekSchedulesDialog
+          draft={vm.copyWeekDraft}
+          onDraftChange={vm.updateCopyWeekDraft}
+          onClose={vm.closeCopyWeekDialog}
+          onConfirm={() => void vm.copyWeek()}
         />
       ) : null}
     </>

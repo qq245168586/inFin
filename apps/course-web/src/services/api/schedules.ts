@@ -9,8 +9,23 @@ export interface CreateSchedulePayload {
   duration?: number;
 }
 
+export interface CopyWeekSchedulesPayload {
+  coursePackageId: number;
+  sourceWeekStart: string;
+  targetWeekStart: string;
+  replaceExisting: boolean;
+}
+
 export async function createSchedule(payload: CreateSchedulePayload, authHeader = ""): Promise<void> {
   await requestJson<void>("/api/schedules", {
+    method: "POST",
+    headers: authHeader ? { Authorization: authHeader } : {},
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function copyWeekSchedules(payload: CopyWeekSchedulesPayload, authHeader = ""): Promise<void> {
+  await requestJson<void>("/api/schedules/copy-week", {
     method: "POST",
     headers: authHeader ? { Authorization: authHeader } : {},
     body: JSON.stringify(payload)

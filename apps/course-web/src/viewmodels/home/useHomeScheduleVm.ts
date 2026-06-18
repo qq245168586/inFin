@@ -5,7 +5,8 @@ import { groupCoursesByName } from "../../models/course/groupCoursesByName.ts";
 import type { HomeTabKey } from "../../app/navigation.ts";
 import type { ScheduleCollection } from "../../services/api/meta.ts";
 import type { CoursePackageRecord } from "../../pages/venues/types.ts";
-import { copyLastWeekSchedules, createSchedule, deleteSchedule } from "../../services/api/schedules.ts";
+import { copyWeekSchedules, createSchedule, deleteSchedule } from "../../services/api/schedules.ts";
+import { RequestJsonError } from "../../services/requestJson.ts";
 import { addDaysValue, composeCnDateTime, formatDateKey, todayValue, weekStartValue } from "../../utils/datetime.ts";
 import { getErrorMessage } from "../../utils/errors.ts";
 
@@ -15,6 +16,11 @@ export interface ScheduleDraftValue {
   coursePackageId: string;
   version: string;
   date: string;
+}
+
+export interface CopyWeekSchedulesDraftValue {
+  sourceWeekStart: string;
+  targetWeekStart: string;
 }
 
 function coursesForPackage(courses: CourseRecord[], coursePackage?: CoursePackageRecord | null): CourseRecord[] {
@@ -40,6 +46,14 @@ function createScheduleDraft(courses: CourseRecord[], coursePackages: CoursePack
     coursePackageId: firstPackage ? String(firstPackage.id) : "",
     version: first?.version ?? "",
     date: preferredDate || todayValue()
+  };
+}
+
+function createCopyWeekSchedulesDraft(): CopyWeekSchedulesDraftValue {
+  const currentWeekStart = weekStartValue(todayValue());
+  return {
+    sourceWeekStart: addDaysValue(currentWeekStart, -7),
+    targetWeekStart: addDaysValue(currentWeekStart, 7)
   };
 }
 
@@ -90,6 +104,20 @@ function getWeekDays(anchorDate: string): CalendarDay[] {
   });
 }
 
+function isCopyWeekConflict(error: unknown): boolean {
+  const message = getErrorMessage(error);
+  const lowerMessage = message.toLowerCase();
+  return (
+    (error instanceof RequestJsonError && error.status === 409) ||
+    message.includes("已有排课") ||
+    message.includes("已存在") ||
+    message.includes("冲突") ||
+    lowerMessage.includes("already") ||
+    lowerMessage.includes("exist") ||
+    lowerMessage.includes("conflict")
+  );
+}
+
 export default function useHomeScheduleVm({
   courses,
   coursePackages,
@@ -111,6 +139,7 @@ export default function useHomeScheduleVm({
   const [selectedScheduleDate, setSelectedScheduleDate] = useState(todayValue());
   const [scheduleAnchorDate, setScheduleAnchorDateRaw] = useState(todayValue());
   const [scheduleDraft, setScheduleDraft] = useState<ScheduleDraftValue | null>(null);
+  const [copyWeekDraft, setCopyWeekDraft] = useState<CopyWeekSchedulesDraftValue | null>(null);
 
   const lastWeekAnchorDate = useMemo(() => addDaysValue(todayValue(), -7), []);
   const weekDays = useMemo(
@@ -204,6 +233,24 @@ export default function useHomeScheduleVm({
 
   const closeScheduleDialog = useCallback(() => setScheduleDraft(null), []);
 
+  const openCopyWeekDialog = useCallback(() => {
+    if (!coursePackages.length || !coursePackages[0]?.id) {
+      onNotice("当前课程包为空，不能复制排课。", "error");
+      return;
+    }
+
+    setCopyWeekDraft(createCopyWeekSchedulesDraft());
+  }, [coursePackages, onNotice]);
+
+  const closeCopyWeekDialog = useCallback(() => setCopyWeekDraft(null), []);
+
+  const updateCopyWeekDraft = useCallback(
+    (updater: (current: CopyWeekSchedulesDraftValue) => CopyWeekSchedulesDraftValue) => {
+      setCopyWeekDraft((current) => (current ? updater(current) : current));
+    },
+    []
+  );
+
   const updateScheduleDraft = useCallback(
     (updater: (current: ScheduleDraftValue) => ScheduleDraftValue) => {
       setScheduleDraft((current) => (current ? updater(current) : current));
@@ -250,27 +297,65 @@ export default function useHomeScheduleVm({
     }
   }, [authHeader, onBusyText, onNotice, onReloadMeta, scheduleDraft]);
 
-  const copyLastWeek = useCallback(async () => {
+  const copyWeek = useCallback(async () => {
     const activeCoursePackageId = Number(coursePackages[0]?.id) || 0;
     if (!activeCoursePackageId) {
-      onNotice("请先选择课程包。", "error");
+      onNotice("当前课程包为空，不能复制排课。", "error");
       return;
     }
-    if (schedules.currentWeek.length && !window.confirm("本周已有排课，确认用上周排课覆盖本周吗？")) {
+    if (!copyWeekDraft?.sourceWeekStart || !copyWeekDraft.targetWeekStart) {
+      onNotice("请选择来源周和目标周。", "error");
       return;
     }
 
-    onBusyText("正在复制上周排课...");
+    const currentWeekStart = weekStartValue(todayValue());
+    const sourceWeekStart = weekStartValue(copyWeekDraft.sourceWeekStart);
+    const targetWeekStart = weekStartValue(copyWeekDraft.targetWeekStart);
+    if (sourceWeekStart >= currentWeekStart) {
+      onNotice("来源周只能选择过去周。", "error");
+      return;
+    }
+    if (targetWeekStart <= currentWeekStart) {
+      onNotice("目标周只能选择未来周。", "error");
+      return;
+    }
+
+    const payload = {
+      coursePackageId: activeCoursePackageId,
+      sourceWeekStart,
+      targetWeekStart,
+      replaceExisting: false
+    };
+
+    onBusyText("正在复制指定周排课...");
     try {
-      await copyLastWeekSchedules(activeCoursePackageId, authHeader);
+      await copyWeekSchedules(payload, authHeader);
       await onReloadMeta();
-      onNotice("上周排课已复制到本周。");
+      setCopyWeekDraft(null);
+      onNotice("排课复制成功。");
     } catch (error) {
+      if (isCopyWeekConflict(error)) {
+        if (!window.confirm("目标周已有排课，确认覆盖目标周排课吗？")) {
+          return;
+        }
+
+        try {
+          onBusyText("正在覆盖目标周排课...");
+          await copyWeekSchedules({ ...payload, replaceExisting: true }, authHeader);
+          await onReloadMeta();
+          setCopyWeekDraft(null);
+          onNotice("排课复制成功。");
+        } catch (retryError) {
+          onNotice(getErrorMessage(retryError), "error");
+        }
+        return;
+      }
+
       onNotice(getErrorMessage(error), "error");
     } finally {
       onBusyText("");
     }
-  }, [authHeader, coursePackages, onBusyText, onNotice, onReloadMeta, schedules.currentWeek.length]);
+  }, [authHeader, copyWeekDraft, coursePackages, onBusyText, onNotice, onReloadMeta]);
 
   const removeSchedule = useCallback(
     async (scheduleId: number) => {
@@ -304,11 +389,15 @@ export default function useHomeScheduleVm({
     visibleSchedules,
     courseGroups,
     scheduleDraft,
+    copyWeekDraft,
     openScheduleDialog,
     closeScheduleDialog,
+    openCopyWeekDialog,
+    closeCopyWeekDialog,
     updateScheduleDraft,
+    updateCopyWeekDraft,
     saveSchedule,
-    copyLastWeek,
+    copyWeek,
     removeSchedule
   };
 }

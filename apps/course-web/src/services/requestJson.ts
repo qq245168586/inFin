@@ -1,5 +1,15 @@
 import { clearStoredAuthSession, refreshStoredAuthHeader, withStoredAuthHeader } from "./authSessionStorage.ts";
 
+export class RequestJsonError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "RequestJsonError";
+    this.status = status;
+  }
+}
+
 export async function requestJson<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetchWithAuth(path, options);
   const payload = (await response.json().catch(() => null)) as T | { message?: string } | null;
@@ -58,5 +68,5 @@ function handleErrorResponse(status: number, payload: { message?: string } | nul
       // Ignore dispatch failures.
     }
   }
-  throw new Error(message);
+  throw new RequestJsonError(status, message);
 }

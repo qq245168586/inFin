@@ -3693,6 +3693,19 @@ textarea.is-invalid:focus {
   gap: 16px;
 }
 
+.copy-week-dialog .field small {
+  color: var(--text-faint);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.copy-week-note {
+  margin: 0;
+  color: var(--text-subtle);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .readonly-field {
   min-height: 42px;
   display: flex;

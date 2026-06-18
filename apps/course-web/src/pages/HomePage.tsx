@@ -30,7 +30,7 @@ export default function HomePage({
   onMoveScheduleWeek,
   schedules,
   onAddSchedule,
-  onCopyLastWeek,
+  onCopyWeekSchedules,
   onDeleteSchedule
 }: {
   weekDays: CalendarDay[];
@@ -43,7 +43,7 @@ export default function HomePage({
   onMoveScheduleWeek: (deltaWeeks: number) => void;
   schedules: CalendarSchedule[];
   onAddSchedule: () => void;
-  onCopyLastWeek: () => void;
+  onCopyWeekSchedules: () => void;
   onDeleteSchedule: (id: number) => void;
 }) {
   const calendarDays =
@@ -62,8 +62,8 @@ export default function HomePage({
           <button type="button" className="primary-button" onClick={onAddSchedule}>
             + 添加课程
           </button>
-          <button type="button" className="ghost-button" onClick={onCopyLastWeek}>
-            一键复制上周排课
+          <button type="button" className="ghost-button" onClick={onCopyWeekSchedules}>
+            复制指定周排课
           </button>
         </div>
       </div>
