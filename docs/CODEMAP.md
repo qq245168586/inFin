@@ -2,6 +2,8 @@
 
 这个文档是 workspace 级别的代码地图，用来快速判断“某个需求应该改哪个仓库”。
 
+需求进入开发前，先在 [requirements 工作区](requirements/README.md) 建立或更新对应文档，再根据本代码地图判断影响端。
+
 ## System Topology
 
 ```mermaid
@@ -125,3 +127,10 @@ TV APK 下载页：
 - TV APK 包放在 `/home/REDACTED_CONFIGURE_LOCALLY/infini-data/app-packages`。
 - `1.0.35` 之前的 TV 包已清理。
 - 每个项目单独构建、单独提交、单独 push。
+
+## Requirement Maintenance
+
+- 新需求先写 `docs/requirements/REQ-YYYYMMDD-short-slug.md`。
+- 如果需求改变了系统边界、数据流、部署方式或端职责，需要同步更新本代码地图。
+- 如果需求延续/覆盖已有需求，在新文档的 `Related Existing Requirements` 中链接旧文档。
+- 涉及数据库字段、课程包隔离、TV 播放或 MQTT 的需求，必须写兼容策略和手工 E2E 验收用例。

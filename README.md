@@ -33,6 +33,10 @@ git submodule update --init --recursive
 
 更详细的系统边界、接口关系和运维入口见 [docs/CODEMAP.md](docs/CODEMAP.md)。
 
+## Requirement Workflow
+
+新需求先按 [docs/requirements/README.md](docs/requirements/README.md) 的流程整理成需求文档，再进入代码改动。模板见 [docs/requirements/_template.md](docs/requirements/_template.md)。
+
 ## Workspace Rules
 
 - workspace 只提交 `.gitmodules`、文档和 submodule 指针。
