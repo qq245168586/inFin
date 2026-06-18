@@ -111,7 +111,7 @@
 
     if (request.method === "GET" && url.pathname === "/api/action-types") {
       const user = getAuthorizedConsoleUser(request);
-      sendJson(response, 200, { data: listActionTypes(user) });
+      sendJson(response, 200, { data: listActionTypes(user, { coursePackageId: url.searchParams.get("coursePackageId") || "" }) });
       return;
     }
 
@@ -218,7 +218,7 @@
       if (!user) {
         return;
       }
-      sendJson(response, 200, { data: listActions(user) });
+      sendJson(response, 200, { data: listActions(user, { coursePackageId: url.searchParams.get("coursePackageId") || "" }) });
       return;
     }
 

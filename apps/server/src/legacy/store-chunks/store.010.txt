@@ -61,6 +61,27 @@ function actionTypeAllowsUser(type = {}, user = null) {
   return packageIds.some((id) => visiblePackageIds.has(id));
 }
 
+function scopedRecordBelongsToCoursePackage(record = {}, coursePackageId = 0) {
+  const scopedPackageId = normalizeCoursePackageId(coursePackageId, 0);
+  if (scopedPackageId <= 0) {
+    return true;
+  }
+
+  const packageIds = numberList(record.coursePackageIds);
+  if (!packageIds.length) {
+    return scopedPackageId === getDefaultCoursePackageId();
+  }
+  return packageIds.includes(scopedPackageId);
+}
+
+function actionTypeMatchesCoursePackageScope(type = {}, options = {}) {
+  return scopedRecordBelongsToCoursePackage(type, options?.coursePackageId);
+}
+
+function actionMatchesCoursePackageScope(action = {}, options = {}) {
+  return scopedRecordBelongsToCoursePackage(action, options?.coursePackageId);
+}
+
 export function addActionType(payload, user = null) {
   const source = typeof payload === "string" ? { name: payload } : payload || {};
   const name = stripMediaSuffix(source.name);
@@ -171,9 +192,12 @@ function syncAllActionCourseTagsFromCourses() {
   }
 }
 
-export function listActions(user = null) {
+export function listActions(user = null, options = {}) {
   return sortByNewest(
-    state.actions.map(normalizeActionRecord).filter((action) => actionAllowsUser(action, user)),
+    state.actions
+      .map(normalizeActionRecord)
+      .filter((action) => actionAllowsUser(action, user))
+      .filter((action) => actionMatchesCoursePackageScope(action, options)),
     "updateTime"
   );
 }

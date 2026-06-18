@@ -67,6 +67,7 @@ ensureDir(backupRoot);
 migrateLegacyStorageIfNeeded();
 
 const defaultState = createDefaultState();
+let normalizeLoadedStateDidChange = false;
 let state = loadState();
 ensureConsoleAccountSeeds();
 syncCourseStationRules();

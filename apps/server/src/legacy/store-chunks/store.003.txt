@@ -125,6 +125,76 @@ function stripSeedCourseExamples(source) {
   };
 }
 
+function getScopedRecordPackageIds(record = {}, defaultPackageId = getDefaultCoursePackageId()) {
+  const packageIds = numberList(record.coursePackageIds);
+  return packageIds.length ? packageIds : [defaultPackageId];
+}
+
+function dedupeActionTypesWithinPackages(actionTypes = [], actions = [], defaultPackageId = getDefaultCoursePackageId()) {
+  const canonicalTypes = [];
+  const canonicalById = new Map();
+  const canonicalKeyToId = new Map();
+  const duplicateIdMap = new Map();
+  let changed = false;
+
+  for (const rawType of actionTypes) {
+    const type = normalizeActionTypeRecord(rawType);
+    const nameKey = stripMediaSuffix(type.name).toLowerCase();
+    if (!type.id || !nameKey) {
+      canonicalTypes.push(type);
+      continue;
+    }
+
+    const packageIds = getScopedRecordPackageIds(type, defaultPackageId);
+    let canonical = null;
+    for (const packageId of packageIds) {
+      const existingId = canonicalKeyToId.get(`${packageId}:${nameKey}`);
+      if (existingId) {
+        canonical = canonicalById.get(existingId) || null;
+        break;
+      }
+    }
+
+    if (!canonical) {
+      canonical = {
+        ...type,
+        coursePackageIds: numberList(packageIds)
+      };
+      canonicalTypes.push(canonical);
+      canonicalById.set(canonical.id, canonical);
+    } else {
+      duplicateIdMap.set(type.id, canonical.id);
+      const mergedPackageIds = numberList([...canonical.coursePackageIds, ...packageIds]);
+      if (JSON.stringify(mergedPackageIds) !== JSON.stringify(canonical.coursePackageIds)) {
+        canonical.coursePackageIds = mergedPackageIds;
+      }
+      changed = true;
+    }
+
+    for (const packageId of packageIds) {
+      canonicalKeyToId.set(`${packageId}:${nameKey}`, canonical.id);
+    }
+  }
+
+  if (!duplicateIdMap.size) {
+    return { actionTypes: canonicalTypes, actions, changed };
+  }
+
+  const remappedActions = actions.map((action) => {
+    const nextTypeIds = numberList((action.typeIds || []).map((id) => duplicateIdMap.get(id) || id));
+    if (JSON.stringify(nextTypeIds) === JSON.stringify(numberList(action.typeIds))) {
+      return action;
+    }
+    changed = true;
+    return {
+      ...action,
+      typeIds: nextTypeIds
+    };
+  });
+
+  return { actionTypes: canonicalTypes, actions: remappedActions, changed };
+}
+
 function normalizeLoadedState(parsed) {
   const parsedCourses = Array.isArray(parsed.courses) ? parsed.courses : clone(defaultState.courses);
   const defaultCourseIds = parsedCourses.map((course) => Number(course?.id)).filter((id) => Number.isFinite(id) && id > 0);
@@ -150,16 +220,25 @@ function normalizeLoadedState(parsed) {
   const templates = (
     Array.isArray(parsed.templates) ? parsed.templates : clone(defaultState.templates)
   ).map((item) => normalizeLoadedTemplateCoursePackageIds(item, coursePackages, defaultPackageId));
+  const normalizedActions = (Array.isArray(parsed.actions) ? parsed.actions : clone(defaultState.actions)).map(normalizeActionRecord);
+  const dedupedActionTypeState = dedupeActionTypesWithinPackages(
+    Array.isArray(parsed.actionTypes)
+      ? parsed.actionTypes.map(normalizeActionTypeRecord)
+      : clone(defaultState.actionTypes).map(normalizeActionTypeRecord),
+    normalizedActions,
+    defaultPackageId
+  );
+  if (dedupedActionTypeState.changed) {
+    normalizeLoadedStateDidChange = true;
+  }
 
   return {
     media: Array.isArray(parsed.media) ? parsed.media : [],
     appPackages: Array.isArray(parsed.appPackages) ? parsed.appPackages : clone(defaultState.appPackages),
     coursePackages,
-    actionTypes: Array.isArray(parsed.actionTypes)
-      ? parsed.actionTypes.map(normalizeActionTypeRecord)
-      : clone(defaultState.actionTypes).map(normalizeActionTypeRecord),
+    actionTypes: dedupedActionTypeState.actionTypes,
     lessonTypes: Array.isArray(parsed.lessonTypes) ? parsed.lessonTypes : clone(defaultState.lessonTypes),
-    actions: (Array.isArray(parsed.actions) ? parsed.actions : clone(defaultState.actions)).map(normalizeActionRecord),
+    actions: dedupedActionTypeState.actions,
     courses: parsedCourses,
     templates,
     schedules: Array.isArray(parsed.schedules)
@@ -225,9 +304,11 @@ function tryLoadStateFile(targetFile) {
   const hadScheduleVenueId = Array.isArray(parsed?.schedules)
     ? parsed.schedules.some((schedule) => schedule && typeof schedule === "object" && "venueId" in schedule)
     : false;
+  normalizeLoadedStateDidChange = false;
   const normalized = normalizeLoadedState(parsed);
   const stripped = stripSeedCourseExamples(normalized);
-  const changed = stripped.changed || hadScheduleVenueId;
+  const changed = stripped.changed || hadScheduleVenueId || normalizeLoadedStateDidChange;
+  normalizeLoadedStateDidChange = false;
   return {
     state: stripped.state,
     changed

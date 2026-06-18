@@ -223,7 +223,8 @@ const server = http.createServer(async (request, response) => {
       const user = getAuthorizedConsoleUser(request);
       const courseDetail = String(url.searchParams.get("courseDetail") || url.searchParams.get("detail") || "").trim();
       const includeFullCourses = ["full", "true", "1"].includes(courseDetail.toLowerCase());
-      sendJson(response, 200, getMetaPayload(user, { includeFullCourses }));
+      const coursePackageId = url.searchParams.get("coursePackageId") || "";
+      sendJson(response, 200, getMetaPayload(user, { includeFullCourses, coursePackageId }));
       return;
     }
 

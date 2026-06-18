@@ -139,25 +139,32 @@ export function createUploadedMedia({
 
 export function getMetaPayload(user = null, options = {}) {
   const includeFullCourses = options?.includeFullCourses === true;
+  const coursePackageId = normalizeCoursePackageId(options?.coursePackageId || 0, 0);
+  const scopeOptions = coursePackageId > 0 ? { coursePackageId } : {};
 
   return {
-    actionTypes: listActionTypes(user),
+    actionTypes: listActionTypes(user, scopeOptions),
     lessonTypes: clone(state.lessonTypes),
     coursePackages: listCoursePackagesForUser(user),
-    actions: listActions(user),
+    actions: listActions(user, scopeOptions),
     courses: includeFullCourses ? listCourses(user) : listCourseSummaries(user),
     coursesMode: includeFullCourses ? "full" : "summary",
     templates: listTemplates(user),
     schedules: {
-      currentWeek: listSchedulesByScope("CURRENTWEEK", { user }),
-      lastWeek: listSchedulesByScope("LASTWEEK", { user }),
-      history: listSchedulesByScope("HISTORY", { user })
+      currentWeek: listSchedulesByScope("CURRENTWEEK", { user, ...scopeOptions }),
+      lastWeek: listSchedulesByScope("LASTWEEK", { user, ...scopeOptions }),
+      history: listSchedulesByScope("HISTORY", { user, ...scopeOptions })
     }
   };
 }
 
-export function listActionTypes(user = null) {
-  return clone(state.actionTypes.map(normalizeActionTypeRecord).filter((type) => actionTypeAllowsUser(type, user)));
+export function listActionTypes(user = null, options = {}) {
+  return clone(
+    state.actionTypes
+      .map(normalizeActionTypeRecord)
+      .filter((type) => actionTypeAllowsUser(type, user))
+      .filter((type) => actionTypeMatchesCoursePackageScope(type, options))
+  );
 }
 
 export function listUsers() {
