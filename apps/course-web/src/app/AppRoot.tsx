@@ -139,6 +139,7 @@ export default function AppRoot() {
         {activePage === "templates" ? (
           <TemplatesPage
             templateCollections={templateCollections || { warmup: [], cooldown: [], training: [], course: [] }}
+            selectedCoursePackage={selectedCoursePackage}
             courses={appData?.courses || []}
             coursePackages={coursePackages}
             lessonTypes={appData?.lessonTypes || []}

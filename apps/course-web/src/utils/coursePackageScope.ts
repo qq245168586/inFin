@@ -1,4 +1,5 @@
 import type { CourseRecord } from "../models/course/types.ts";
+import type { TemplateCollections, TemplateRecord } from "../models/templates.ts";
 import type { CoursePackageRecord } from "../pages/venues/types.ts";
 import type { ScheduleRecord } from "../services/api/meta.ts";
 
@@ -23,4 +24,31 @@ export function filterSchedulesByCoursePackage<T extends ScheduleRecord>(
   if (!coursePackage) return schedules;
 
   return schedules.filter((schedule) => Number(schedule.coursePackageId) === Number(coursePackage.id));
+}
+
+export function templateBelongsToCoursePackage(
+  template: TemplateRecord,
+  coursePackage?: CoursePackageRecord | null
+): boolean {
+  if (!coursePackage) return true;
+
+  const packageIds = template.coursePackageIds?.length
+    ? template.coursePackageIds
+    : template.coursePackageId
+      ? [template.coursePackageId]
+      : [];
+
+  return packageIds.some((id) => Number(id) === Number(coursePackage.id));
+}
+
+export function filterTemplateCollectionsByCoursePackage(
+  collections: TemplateCollections,
+  coursePackage?: CoursePackageRecord | null
+): TemplateCollections {
+  return {
+    warmup: collections.warmup.filter((template) => templateBelongsToCoursePackage(template, coursePackage)),
+    cooldown: collections.cooldown.filter((template) => templateBelongsToCoursePackage(template, coursePackage)),
+    training: collections.training.filter((template) => templateBelongsToCoursePackage(template, coursePackage)),
+    course: collections.course.filter((template) => templateBelongsToCoursePackage(template, coursePackage))
+  };
 }

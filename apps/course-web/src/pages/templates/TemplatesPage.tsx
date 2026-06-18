@@ -16,9 +16,11 @@ import TrainingTemplateEditor from "./TrainingTemplateEditor.tsx";
 import WaterfallTemplateEditor from "./WaterfallTemplateEditor.tsx";
 import type { ActionRecord, TypeOption } from "../../services/api/meta.ts";
 import { useAuth } from "../../providers/AuthProvider.tsx";
+import { filterTemplateCollectionsByCoursePackage } from "../../utils/coursePackageScope.ts";
 
 export default function TemplatesPage({
   templateCollections,
+  selectedCoursePackage,
   courses,
   coursePackages,
   lessonTypes,
@@ -30,6 +32,7 @@ export default function TemplatesPage({
   onNotice
 }: {
   templateCollections: TemplateCollections | null | undefined;
+  selectedCoursePackage: CoursePackageRecord | null;
   courses: CourseRecord[];
   coursePackages: CoursePackageRecord[];
   lessonTypes: Array<{ id: number; name: string }>;
@@ -41,8 +44,13 @@ export default function TemplatesPage({
   onNotice: (message: string, tone?: "success" | "error") => void;
 }) {
   const { authHeader } = useAuth();
+  const scopedTemplateCollections = filterTemplateCollectionsByCoursePackage(
+    templateCollections || { warmup: [], cooldown: [], training: [], course: [] },
+    selectedCoursePackage
+  );
   const vm = useTemplatesVm({
-    templateCollections,
+    templateCollections: scopedTemplateCollections,
+    selectedCoursePackageId: selectedCoursePackage?.id || null,
     authHeader,
     onReloadMeta,
     onBusyText: onBusyTextChange,
@@ -104,7 +112,7 @@ export default function TemplatesPage({
               actions={actions}
               actionTypes={actionTypes}
               onAddLessonType={onAddLessonType}
-              templateCollections={templateCollections}
+              templateCollections={scopedTemplateCollections}
               onUpdateDraft={vm.updateTemplateEditor}
               onSaveTemplate={vm.saveTemplate}
               onNotice={onNotice}

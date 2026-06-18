@@ -15,12 +15,14 @@ interface ApiResponse<T> {
 
 export function useTemplatesVm({
   templateCollections,
+  selectedCoursePackageId,
   authHeader,
   onReloadMeta,
   onBusyText,
   onNotice
 }: {
   templateCollections: TemplateCollections | null | undefined;
+  selectedCoursePackageId: number | null;
   authHeader: string;
   onReloadMeta: () => Promise<void>;
   onBusyText: (text: string) => void;
@@ -43,7 +45,11 @@ export function useTemplatesVm({
   function openTemplateEditor(template: TemplateRecord | null = null, kind: TemplateKind = templateTab) {
     const nextKind = template?.kind || kind;
     setTemplateTab(nextKind);
-    setTemplateEditor(createTemplateDraft(template, nextKind));
+    const nextDraft = createTemplateDraft(template, nextKind);
+    setTemplateEditor({
+      ...nextDraft,
+      coursePackageId: nextDraft.coursePackageId || selectedCoursePackageId
+    });
   }
 
   async function saveTemplate() {
@@ -60,6 +66,8 @@ export function useTemplatesVm({
         payload = {
           kind: "training",
           name: templateEditor.name.trim(),
+          coursePackageId: templateEditor.coursePackageId || undefined,
+          coursePackageIds: templateEditor.coursePackageId ? [templateEditor.coursePackageId] : [],
           videoGroup: templateEditor.videoGroup ? { ...templateEditor.videoGroup, name: templateEditor.name.trim() } : null
         };
       } else if (templateEditor.kind === "course") {
@@ -110,6 +118,8 @@ export function useTemplatesVm({
         payload = {
           kind: templateEditor.kind,
           name: templateEditor.name.trim(),
+          coursePackageId: templateEditor.coursePackageId || undefined,
+          coursePackageIds: templateEditor.coursePackageId ? [templateEditor.coursePackageId] : [],
           section: templateEditor.section
         };
       }

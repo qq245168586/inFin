@@ -24,7 +24,7 @@ import useCourseTabsVm from "../../viewmodels/courses/useCourseTabsVm.ts";
 import useCourseCrudVm from "../../viewmodels/courses/useCourseCrudVm.ts";
 import { createCourseDraftFromCourseTemplate } from "../../viewmodels/courses/courseEditorFactories.ts";
 import { formatSecondsStrategy } from "../../viewmodels/courses/podFormatters.ts";
-import { filterCoursesByCoursePackage } from "../../utils/coursePackageScope.ts";
+import { filterCoursesByCoursePackage, filterTemplateCollectionsByCoursePackage } from "../../utils/coursePackageScope.ts";
 import { displayTypeName } from "../../utils/typeNames.ts";
 
 export default function CoursesRoute({
@@ -45,22 +45,12 @@ export default function CoursesRoute({
     () => new Map(lessonTypes.map((item) => [item.id, displayTypeName(item.name)])),
     [lessonTypes]
   );
-  const templateCollections = appData?.templates || { warmup: [], cooldown: [], training: [], course: [] };
-  const courseTemplates = useMemo(
-    () =>
-      (templateCollections.course || []).filter(
-        (template) => {
-          if (!selectedCoursePackage?.id) return true;
-          const packageIds = template.coursePackageIds?.length
-            ? template.coursePackageIds
-            : template.coursePackageId
-              ? [template.coursePackageId]
-              : [];
-          return !packageIds.length || packageIds.some((id) => Number(id) === Number(selectedCoursePackage.id));
-        }
-      ),
-    [selectedCoursePackage?.id, templateCollections.course]
+  const rawTemplateCollections = appData?.templates || { warmup: [], cooldown: [], training: [], course: [] };
+  const templateCollections = useMemo(
+    () => filterTemplateCollectionsByCoursePackage(rawTemplateCollections, selectedCoursePackage),
+    [rawTemplateCollections, selectedCoursePackage]
   );
+  const courseTemplates = templateCollections.course || [];
 
   const courseFiltersVm = useCourseFiltersVm(courses);
   const tabsVm = useCourseTabsVm();

@@ -17,6 +17,8 @@ export interface WaterfallTemplateRecord {
   kind: "warmup" | "cooldown";
   name: string;
   section: WaterfallSection;
+  coursePackageId?: number | null;
+  coursePackageIds?: number[];
   updateTime: string;
 }
 
@@ -25,6 +27,8 @@ export interface TrainingTemplateRecord {
   kind: "training";
   name: string;
   videoGroup: VideoGroup;
+  coursePackageId?: number | null;
+  coursePackageIds?: number[];
   updateTime: string;
 }
 
@@ -99,6 +103,7 @@ export function createTemplateDraft(template: TemplateRecord | null = null, kind
   const resolvedKind = template?.kind || kind;
   if (resolvedKind === "training") {
     const trainingTemplate = template as TrainingTemplateRecord | null;
+    const coursePackageId = trainingTemplate?.coursePackageId ?? trainingTemplate?.coursePackageIds?.[0] ?? null;
     return {
       id: trainingTemplate?.id ?? null,
       kind: "training",
@@ -111,7 +116,7 @@ export function createTemplateDraft(template: TemplateRecord | null = null, kind
       logoPreview: "",
       typeIds: [],
       script: null,
-      coursePackageId: null,
+      coursePackageId,
       sourceCourseId: null,
       summary: null
     };
@@ -142,6 +147,7 @@ export function createTemplateDraft(template: TemplateRecord | null = null, kind
   }
 
   const waterfallTemplate = template as WaterfallTemplateRecord | null;
+  const coursePackageId = waterfallTemplate?.coursePackageId ?? waterfallTemplate?.coursePackageIds?.[0] ?? null;
   const title = resolvedKind === "cooldown" ? "冷身" : "热身";
   return {
     id: waterfallTemplate?.id ?? null,
@@ -155,7 +161,7 @@ export function createTemplateDraft(template: TemplateRecord | null = null, kind
     logoPreview: "",
     typeIds: [],
     script: null,
-    coursePackageId: null,
+    coursePackageId,
     sourceCourseId: null,
     summary: null
   };
