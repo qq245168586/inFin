@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cloneDeep } from "../../utils/cloneDeep.ts";
 import { useAuth } from "../../providers/AuthProvider.tsx";
 import { useBusy } from "../../providers/BusyProvider.tsx";
@@ -34,9 +34,11 @@ import { displayTypeName } from "../../utils/typeNames.ts";
 
 export default function CoursesRoute({
   selectedCoursePackage,
+  courseEditRequest,
   onAddLessonType
 }: {
   selectedCoursePackage: CoursePackageRecord | null;
+  courseEditRequest?: { courseId: number; requestId: number } | null;
   onAddLessonType: () => void;
 }) {
   const { authHeader, authSession } = useAuth();
@@ -73,6 +75,7 @@ export default function CoursesRoute({
   const [podCopyDialog, setPodCopyDialog] = useState<PodCopyDialogState | null>(null);
   const [podConfigCopyDialog, setPodConfigCopyDialog] = useState<PodConfigCopyDialogState | null>(null);
   const [courseVersionError, setCourseVersionError] = useState("");
+  const handledCourseEditRequestIdRef = useRef<number | null>(null);
 
   const activeCourseEditorTab = tabsVm.activeCourseEditorTab;
   const courseEditor = tabsVm.courseEditor;
@@ -106,6 +109,23 @@ export default function CoursesRoute({
     setCourseVersionError("");
     tabsVm.openCourseEditor(course ?? null, selectedCoursePackage.id, currentAuthorName);
   }
+
+  useEffect(() => {
+    if (!courseEditRequest || handledCourseEditRequestIdRef.current === courseEditRequest.requestId) {
+      return;
+    }
+
+    const targetCourse = courses.find((course) => Number(course.id) === Number(courseEditRequest.courseId));
+    if (!targetCourse) {
+      handledCourseEditRequestIdRef.current = courseEditRequest.requestId;
+      pushNotice("没有找到这个课程，不能打开编辑。", "error");
+      return;
+    }
+
+    handledCourseEditRequestIdRef.current = courseEditRequest.requestId;
+    setCourseVersionError("");
+    tabsVm.openCourseEditor(targetCourse, selectedCoursePackage?.id || targetCourse.coursePackageId || null, currentAuthorName);
+  }, [courseEditRequest, courses, currentAuthorName, pushNotice, selectedCoursePackage?.id, tabsVm]);
 
   function normalizeCourseIdentity(value: string) {
     return value.trim().toLocaleLowerCase();

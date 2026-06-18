@@ -51,10 +51,12 @@ function formatDateKey(dateKey: string): string {
 export default function CalendarBoard({
   weekDays,
   schedules,
+  onOpenCourseEditor,
   onDelete
 }: {
   weekDays: CalendarDay[];
   schedules: CalendarSchedule[];
+  onOpenCourseEditor: (courseId: number) => void;
   onDelete: (scheduleId: number) => void;
 }) {
   return (
@@ -100,6 +102,18 @@ export default function CalendarBoard({
                           {topic ? <span>主题：{topic}</span> : null}
                           {stationText ? <span>站点：{stationText}</span> : null}
                           {rotationLabel ? <span>换站：{rotationLabel}</span> : null}
+                        </div>
+                      ) : null}
+
+                      {!item.courseDeleted && item.courseId ? (
+                        <div className="schedule-card-actions">
+                          <button
+                            type="button"
+                            className="schedule-edit-course-button"
+                            onClick={() => onOpenCourseEditor(Number(item.courseId))}
+                          >
+                            编辑课程
+                          </button>
                         </div>
                       ) : null}
                     </article>

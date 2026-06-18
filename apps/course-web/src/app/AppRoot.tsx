@@ -17,6 +17,11 @@ import { stripMediaSuffix } from "../utils/typeNames.ts";
 
 type TypeDialogState = TypeDialogStateValue;
 
+interface CourseEditorOpenRequest {
+  courseId: number;
+  requestId: number;
+}
+
 interface ApiResponse<T> {
   data: T;
   message?: string;
@@ -36,6 +41,7 @@ export default function AppRoot() {
   const [activePage, setActivePage] = useState<NavKey>("home");
   const [typeDialog, setTypeDialog] = useState<TypeDialogState | null>(null);
   const [selectedCoursePackageId, setSelectedCoursePackageId] = useState("");
+  const [courseEditorOpenRequest, setCourseEditorOpenRequest] = useState<CourseEditorOpenRequest | null>(null);
   const loadedCoursePackageIdRef = useRef("");
 
   const templateCollections = useMemo(() => appData?.templates, [appData?.templates]);
@@ -125,6 +131,11 @@ export default function AppRoot() {
     }
   }
 
+  function openScheduleCourseEditor(courseId: number) {
+    setCourseEditorOpenRequest({ courseId, requestId: Date.now() });
+    setActivePage("courses");
+  }
+
   if (!authReady) {
     return <div className="busy-mask">正在恢复登录...</div>;
   }
@@ -150,9 +161,15 @@ export default function AppRoot() {
         onCoursePackageChange={setSelectedCoursePackageId}
         onLogout={() => logout()}
       >
-        {activePage === "home" ? <HomeRoute selectedCoursePackage={selectedCoursePackage} /> : null}
+        {activePage === "home" ? (
+          <HomeRoute selectedCoursePackage={selectedCoursePackage} onOpenScheduleCourseEditor={openScheduleCourseEditor} />
+        ) : null}
         {activePage === "courses" ? (
-          <CoursesRoute selectedCoursePackage={selectedCoursePackage} onAddLessonType={() => setTypeDialog({ kind: "lesson", value: "" })} />
+          <CoursesRoute
+            selectedCoursePackage={selectedCoursePackage}
+            courseEditRequest={courseEditorOpenRequest}
+            onAddLessonType={() => setTypeDialog({ kind: "lesson", value: "" })}
+          />
         ) : null}
         {activePage === "actions" ? <ActionsRoute selectedCoursePackage={selectedCoursePackage} /> : null}
         {activePage === "templates" ? (

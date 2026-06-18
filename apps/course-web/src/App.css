@@ -1908,6 +1908,39 @@ textarea.is-invalid:focus {
   font-weight: 700;
 }
 
+.schedule-card-actions,
+.schedule-table-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.schedule-edit-course-button {
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  color: #ffffff;
+  background: linear-gradient(90deg, #8f18ff 0%, #b91dff 100%);
+  box-shadow: 0 10px 22px rgba(148, 28, 255, 0.22);
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.schedule-edit-course-button.is-table {
+  min-height: 30px;
+  font-size: 12px;
+}
+
+.schedule-table-actions .table-link {
+  margin-right: 0;
+}
+
+.schedule-list-card.is-past .schedule-edit-course-button {
+  filter: grayscale(0);
+}
+
 .schedule-day-empty {
   padding: 18px;
   color: var(--text-faint);

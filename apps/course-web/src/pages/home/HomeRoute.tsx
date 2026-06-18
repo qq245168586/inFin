@@ -10,9 +10,11 @@ import type { CoursePackageRecord } from "../venues/types.ts";
 import { filterCoursesByCoursePackage, filterSchedulesByCoursePackage } from "../../utils/coursePackageScope.ts";
 
 export default function HomeRoute({
-  selectedCoursePackage
+  selectedCoursePackage,
+  onOpenScheduleCourseEditor
 }: {
   selectedCoursePackage: CoursePackageRecord | null;
+  onOpenScheduleCourseEditor: (courseId: number) => void;
 }) {
   const { appData, reloadMeta } = useMeta();
   const { authHeader } = useAuth();
@@ -52,6 +54,7 @@ export default function HomeRoute({
         schedules={vm.visibleSchedules}
         onAddSchedule={vm.openScheduleDialog}
         onCopyWeekSchedules={vm.openCopyWeekDialog}
+        onOpenScheduleCourseEditor={onOpenScheduleCourseEditor}
         onDeleteSchedule={vm.removeSchedule}
       />
 

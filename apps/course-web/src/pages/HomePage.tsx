@@ -31,6 +31,7 @@ export default function HomePage({
   schedules,
   onAddSchedule,
   onCopyWeekSchedules,
+  onOpenScheduleCourseEditor,
   onDeleteSchedule
 }: {
   weekDays: CalendarDay[];
@@ -44,6 +45,7 @@ export default function HomePage({
   schedules: CalendarSchedule[];
   onAddSchedule: () => void;
   onCopyWeekSchedules: () => void;
+  onOpenScheduleCourseEditor: (courseId: number) => void;
   onDeleteSchedule: (id: number) => void;
 }) {
   const calendarDays =
@@ -116,9 +118,20 @@ export default function HomePage({
                         </div>
                       </td>
                       <td>
-                        <button type="button" className="table-link danger" onClick={() => onDeleteSchedule(item.id)} disabled={isPast}>
-                          删除
-                        </button>
+                        <div className="schedule-table-actions">
+                          {!item.courseDeleted && item.courseId ? (
+                            <button
+                              type="button"
+                              className="schedule-edit-course-button is-table"
+                              onClick={() => onOpenScheduleCourseEditor(Number(item.courseId))}
+                            >
+                              编辑课程
+                            </button>
+                          ) : null}
+                          <button type="button" className="table-link danger" onClick={() => onDeleteSchedule(item.id)} disabled={isPast}>
+                            删除
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -174,7 +187,12 @@ export default function HomePage({
             </div>
           </div>
 
-          <CalendarBoard weekDays={calendarDays} schedules={schedules} onDelete={onDeleteSchedule} />
+          <CalendarBoard
+            weekDays={calendarDays}
+            schedules={schedules}
+            onOpenCourseEditor={onOpenScheduleCourseEditor}
+            onDelete={onDeleteSchedule}
+          />
         </div>
       )}
     </section>
