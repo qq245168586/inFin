@@ -57,8 +57,19 @@ export interface MetaPayload {
   now: string;
 }
 
-export async function fetchMeta(authHeader = ""): Promise<MetaPayload> {
-  return await requestJson<MetaPayload>("/api/meta?courseDetail=full", {
+export async function fetchMeta(
+  authHeader = "",
+  options: {
+    coursePackageId?: number | null;
+  } = {}
+): Promise<MetaPayload> {
+  const params = new URLSearchParams({ courseDetail: "full" });
+  const coursePackageId = Number(options.coursePackageId || 0);
+  if (coursePackageId > 0) {
+    params.set("coursePackageId", String(coursePackageId));
+  }
+
+  return await requestJson<MetaPayload>(`/api/meta?${params.toString()}`, {
     headers: authHeader ? { Authorization: authHeader } : {}
   });
 }

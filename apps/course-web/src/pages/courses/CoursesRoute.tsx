@@ -24,7 +24,12 @@ import useCourseTabsVm from "../../viewmodels/courses/useCourseTabsVm.ts";
 import useCourseCrudVm from "../../viewmodels/courses/useCourseCrudVm.ts";
 import { createCourseDraftFromCourseTemplate } from "../../viewmodels/courses/courseEditorFactories.ts";
 import { formatSecondsStrategy } from "../../viewmodels/courses/podFormatters.ts";
-import { filterCoursesByCoursePackage, filterTemplateCollectionsByCoursePackage } from "../../utils/coursePackageScope.ts";
+import {
+  filterActionTypesByCoursePackage,
+  filterActionsByCoursePackage,
+  filterCoursesByCoursePackage,
+  filterTemplateCollectionsByCoursePackage
+} from "../../utils/coursePackageScope.ts";
 import { displayTypeName } from "../../utils/typeNames.ts";
 
 export default function CoursesRoute({
@@ -41,6 +46,14 @@ export default function CoursesRoute({
 
   const courses = filterCoursesByCoursePackage(appData?.courses || [], selectedCoursePackage);
   const lessonTypes = appData?.lessonTypes || [];
+  const packageActions = useMemo(
+    () => filterActionsByCoursePackage(appData?.actions || [], selectedCoursePackage),
+    [appData?.actions, selectedCoursePackage]
+  );
+  const packageActionTypes = useMemo(
+    () => filterActionTypesByCoursePackage(appData?.actionTypes || [], selectedCoursePackage),
+    [appData?.actionTypes, selectedCoursePackage]
+  );
   const lessonTypeMap = useMemo(
     () => new Map(lessonTypes.map((item) => [item.id, displayTypeName(item.name)])),
     [lessonTypes]
@@ -400,8 +413,8 @@ export default function CoursesRoute({
             }
             courseEditor={courseEditor}
             lessonTypes={lessonTypes}
-            actions={appData?.actions || []}
-            actionTypes={appData?.actionTypes || []}
+            actions={packageActions}
+            actionTypes={packageActionTypes}
             onAddLessonType={onAddLessonType}
             onUseWarmupTemplate={() => openTemplateUseDialog("warmup")}
             onUseCooldownTemplate={() => openTemplateUseDialog("cooldown")}

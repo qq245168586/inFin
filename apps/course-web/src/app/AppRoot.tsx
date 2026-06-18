@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import AdminShell from "./AdminShell.tsx";
 import type { NavKey } from "./navigation.ts";
 import HomeRoute from "../pages/home/HomeRoute.tsx";
@@ -36,6 +36,7 @@ export default function AppRoot() {
   const [activePage, setActivePage] = useState<NavKey>("home");
   const [typeDialog, setTypeDialog] = useState<TypeDialogState | null>(null);
   const [selectedCoursePackageId, setSelectedCoursePackageId] = useState("");
+  const loadedCoursePackageIdRef = useRef("");
 
   const templateCollections = useMemo(() => appData?.templates, [appData?.templates]);
   const coursePackages = useMemo(() => appData?.coursePackages || [], [appData?.coursePackages]);
@@ -79,6 +80,24 @@ export default function AppRoot() {
     if (!authSession || !selectedCoursePackageId) return;
     window.localStorage.setItem(coursePackageStorageKey, selectedCoursePackageId);
   }, [authSession, coursePackageStorageKey, selectedCoursePackageId]);
+
+  useEffect(() => {
+    if (!authSession || !selectedCoursePackageId) {
+      loadedCoursePackageIdRef.current = "";
+      return;
+    }
+
+    const nextCoursePackageId = String(selectedCoursePackageId);
+    if (loadedCoursePackageIdRef.current === nextCoursePackageId) {
+      return;
+    }
+
+    loadedCoursePackageIdRef.current = nextCoursePackageId;
+    void reloadMeta({
+      label: "正在加载课程包...",
+      coursePackageId: Number(nextCoursePackageId)
+    });
+  }, [authSession, reloadMeta, selectedCoursePackageId]);
 
   async function confirmTypeDialog() {
     const cleanedTypeName = stripMediaSuffix(typeDialog?.value || "");

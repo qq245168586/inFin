@@ -16,7 +16,11 @@ import TrainingTemplateEditor from "./TrainingTemplateEditor.tsx";
 import WaterfallTemplateEditor from "./WaterfallTemplateEditor.tsx";
 import type { ActionRecord, TypeOption } from "../../services/api/meta.ts";
 import { useAuth } from "../../providers/AuthProvider.tsx";
-import { filterTemplateCollectionsByCoursePackage } from "../../utils/coursePackageScope.ts";
+import {
+  filterActionTypesByCoursePackage,
+  filterActionsByCoursePackage,
+  filterTemplateCollectionsByCoursePackage
+} from "../../utils/coursePackageScope.ts";
 
 export default function TemplatesPage({
   templateCollections,
@@ -48,6 +52,8 @@ export default function TemplatesPage({
     templateCollections || { warmup: [], cooldown: [], training: [], course: [] },
     selectedCoursePackage
   );
+  const scopedActions = filterActionsByCoursePackage(actions, selectedCoursePackage);
+  const scopedActionTypes = filterActionTypesByCoursePackage(actionTypes, selectedCoursePackage);
   const vm = useTemplatesVm({
     templateCollections: scopedTemplateCollections,
     selectedCoursePackageId: selectedCoursePackage?.id || null,
@@ -94,14 +100,14 @@ export default function TemplatesPage({
 
             <TrainingTemplateEditor
               draft={vm.templateEditor}
-              actions={actions}
-              actionTypes={actionTypes}
+              actions={scopedActions}
+              actionTypes={scopedActionTypes}
               onUpdateDraft={vm.updateTemplateEditor}
             />
             <WaterfallTemplateEditor
               draft={vm.templateEditor}
-              actions={actions}
-              actionTypes={actionTypes}
+              actions={scopedActions}
+              actionTypes={scopedActionTypes}
               onUpdateDraft={vm.updateTemplateEditor}
             />
             <CourseTemplateEditor
@@ -109,8 +115,8 @@ export default function TemplatesPage({
               courses={courses}
               coursePackages={coursePackages}
               lessonTypes={lessonTypes}
-              actions={actions}
-              actionTypes={actionTypes}
+              actions={scopedActions}
+              actionTypes={scopedActionTypes}
               onAddLessonType={onAddLessonType}
               templateCollections={scopedTemplateCollections}
               onUpdateDraft={vm.updateTemplateEditor}

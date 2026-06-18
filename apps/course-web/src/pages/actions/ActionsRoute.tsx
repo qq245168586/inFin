@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ActionsPage from "../ActionsPage.tsx";
 import type { ActionRecord, TypeOption } from "../../services/api/meta.ts";
 import { requestJson } from "../../services/requestJson.ts";
@@ -12,8 +12,7 @@ import { useBusy } from "../../providers/BusyProvider.tsx";
 import { useNotice } from "../../providers/NoticeProvider.tsx";
 import { useAuth } from "../../providers/AuthProvider.tsx";
 import type { CoursePackageRecord } from "../venues/types.ts";
-import { filterCoursesByCoursePackage } from "../../utils/coursePackageScope.ts";
-import type { CourseRecord, CourseScript } from "../../models/course/types.ts";
+import { filterActionsByCoursePackage, filterActionTypesByCoursePackage } from "../../utils/coursePackageScope.ts";
 
 interface FilterState {
   search: string;
@@ -172,12 +171,14 @@ function annotateBatchUploadDuplicates(items: BatchUploadItem[], existingActions
   });
 }
 
-function createActionDraft(action: ActionRecord | null = null): ActionDraft {
+function createActionDraft(action: ActionRecord | null = null, allowedTypeIds: Set<number> | null = null): ActionDraft {
+  const typeIds = [...(action?.typeIds ?? [])].filter((typeId) => !allowedTypeIds || allowedTypeIds.has(Number(typeId)));
+
   return {
     id: action?.id ?? null,
     name: action?.name ?? "",
     description: action?.description ?? "",
-    typeIds: [...(action?.typeIds ?? [])],
+    typeIds,
     courseTags: [...(action?.courseTags ?? [])],
     coursePackageIds: [...(action?.coursePackageIds ?? [])],
     media: action?.media ?? null,
@@ -188,40 +189,6 @@ function createActionDraft(action: ActionRecord | null = null): ActionDraft {
 
 function matchesTypeFilter(sourceIds: number[], selectedIds: number[]): boolean {
   return selectedIds.length === 0 || selectedIds.some((id) => sourceIds.includes(id));
-}
-
-function collectActionIdsFromCourseScript(script?: CourseScript | null): Set<string> {
-  const actionIds = new Set<string>();
-  const add = (value: unknown) => {
-    const actionId = String(value ?? "").trim();
-    if (actionId) {
-      actionIds.add(actionId);
-    }
-  };
-
-  for (const item of script?.sections?.warmup?.items || []) {
-    add(item.actionId);
-  }
-  for (const item of script?.sections?.cooldown?.items || []) {
-    add(item.actionId);
-  }
-  for (const group of script?.training?.videoGroups || []) {
-    for (const screen of group.screens || []) {
-      for (const card of screen.videoCards || []) {
-        add(card.actionId);
-      }
-    }
-  }
-
-  return actionIds;
-}
-
-function collectActionIdsFromCourses(courses: CourseRecord[]): Set<string> {
-  const actionIds = new Set<string>();
-  for (const course of courses) {
-    collectActionIdsFromCourseScript(course.script).forEach((id) => actionIds.add(id));
-  }
-  return actionIds;
 }
 
 export default function ActionsRoute({
@@ -236,54 +203,18 @@ export default function ActionsRoute({
   const actions = (appData?.actions || []) as ActionRecord[];
   const actionTypes = (appData?.actionTypes || []) as TypeOption[];
   const selectedCoursePackageId = Number(selectedCoursePackage?.id) || 0;
-  const selectedCoursePackageIsDefault = Boolean(selectedCoursePackage?.isDefault);
   const selectedCoursePackageTag = selectedCoursePackage ? normalizeCoursePackageTag(selectedCoursePackage.name) : "";
   const packageActionTypes = useMemo(
-    () =>
-      selectedCoursePackage
-        ? actionTypes.filter((type) => {
-            const packageIds = (type.coursePackageIds || []).map(Number).filter(Boolean);
-            return packageIds.length ? packageIds.includes(selectedCoursePackageId) : selectedCoursePackageIsDefault;
-          })
-        : actionTypes,
-    [actionTypes, selectedCoursePackage, selectedCoursePackageId, selectedCoursePackageIsDefault]
+    () => filterActionTypesByCoursePackage(actionTypes, selectedCoursePackage),
+    [actionTypes, selectedCoursePackage]
   );
-  const packageCourses = useMemo(
-    () => filterCoursesByCoursePackage((appData?.courses || []) as CourseRecord[], selectedCoursePackage),
-    [appData?.courses, selectedCoursePackage]
-  );
-  const packageActionIds = useMemo(() => collectActionIdsFromCourses(packageCourses), [packageCourses]);
   const scopedActions = useMemo(
-    () =>
-      selectedCoursePackage
-        ? actions.filter(
-            (action) => {
-              const actionPackageIds = (action.coursePackageIds || []).map(Number).filter(Boolean);
-              const isLegacyUnscopedAction = selectedCoursePackageIsDefault && actionPackageIds.length === 0;
-              return (
-                packageActionIds.has(String(action.id)) ||
-                actionPackageIds.includes(selectedCoursePackageId) ||
-                isLegacyUnscopedAction ||
-                (action.courseTags || []).includes(selectedCoursePackageTag)
-              );
-            }
-          )
-        : actions,
-    [actions, packageActionIds, selectedCoursePackage, selectedCoursePackageId, selectedCoursePackageIsDefault, selectedCoursePackageTag]
+    () => filterActionsByCoursePackage(actions, selectedCoursePackage),
+    [actions, selectedCoursePackage]
   );
-  const ownedPackageActions = useMemo(
-    () =>
-      selectedCoursePackage
-        ? actions.filter((action) => {
-            const actionPackageIds = (action.coursePackageIds || []).map(Number).filter(Boolean);
-            return (
-              packageActionIds.has(String(action.id)) ||
-              actionPackageIds.includes(selectedCoursePackageId) ||
-              (action.courseTags || []).includes(selectedCoursePackageTag)
-            );
-          })
-        : actions,
-    [actions, packageActionIds, selectedCoursePackage, selectedCoursePackageId, selectedCoursePackageTag]
+  const packageActionTypeIds = useMemo(
+    () => new Set(packageActionTypes.map((type) => Number(type.id))),
+    [packageActionTypes]
   );
 
   const [actionFiltersDraft, setActionFiltersDraft] = useState<FilterState>({ search: "", typeIds: [] });
@@ -297,9 +228,16 @@ export default function ActionsRoute({
   const batchUploadingRef = useRef(false);
 
   const actionTypeNameById = useMemo(
-    () => new Map(actionTypes.map((item) => [item.id, displayTypeName(item.name)])),
-    [actionTypes]
+    () => new Map(packageActionTypes.map((item) => [item.id, displayTypeName(item.name)])),
+    [packageActionTypes]
   );
+
+  useEffect(() => {
+    const pruneTypeIds = (typeIds: number[]) => typeIds.filter((typeId) => packageActionTypeIds.has(Number(typeId)));
+    setActionFiltersDraft((current) => ({ ...current, typeIds: pruneTypeIds(current.typeIds) }));
+    setActionFilters((current) => ({ ...current, typeIds: pruneTypeIds(current.typeIds) }));
+    setActionEditor((current) => (current ? { ...current, typeIds: pruneTypeIds(current.typeIds) } : current));
+  }, [packageActionTypeIds]);
 
   const filteredActions = useMemo(() => {
     return scopedActions.filter((action) => {
@@ -309,7 +247,7 @@ export default function ActionsRoute({
   }, [actionFilters.search, actionFilters.typeIds, scopedActions]);
 
   function openActionEditor(action: ActionRecord | null = null) {
-    setActionEditor(createActionDraft(action));
+    setActionEditor(createActionDraft(action, packageActionTypeIds));
   }
 
   function openBatchUploadDialog(files: FileList | null) {
@@ -320,7 +258,7 @@ export default function ActionsRoute({
 
     const items = annotateBatchUploadDuplicates(
       pickedFiles.map((file) => createBatchUploadItem(file, packageActionTypes)),
-      ownedPackageActions
+      scopedActions
     );
     setActionBatchDialog({ items });
   }
@@ -363,7 +301,7 @@ export default function ActionsRoute({
       const payload = {
         name: actionEditor.name.trim(),
         description: actionEditor.description.trim(),
-        typeIds: actionEditor.typeIds,
+        typeIds: actionEditor.typeIds.filter((typeId) => packageActionTypeIds.has(Number(typeId))),
         courseTags: [...new Set([...actionEditor.courseTags, selectedCoursePackageTag].filter(Boolean))],
         coursePackageIds: [
           ...new Set([
@@ -462,7 +400,7 @@ export default function ActionsRoute({
       return;
     }
 
-    const checkedItems = annotateBatchUploadDuplicates(batchItems, ownedPackageActions);
+    const checkedItems = annotateBatchUploadDuplicates(batchItems, scopedActions);
     const duplicateItem = checkedItems.find((item) => item.status === "invalid" && item.message.includes("动作名重复"));
     if (duplicateItem) {
       setActionBatchDialog({ items: checkedItems });
@@ -473,7 +411,7 @@ export default function ActionsRoute({
     batchUploadingRef.current = true;
     setBatchUploading(true);
     const workingTypes = [...packageActionTypes];
-    const workingPackageActions = [...ownedPackageActions];
+    const workingPackageActions = [...scopedActions];
     const typeLookup = buildActionTypeLookup(workingTypes);
     const createdTypeCache = new Map<string, TypeOption>();
     let createdCount = 0;

@@ -1,10 +1,15 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { getErrorMessage } from "../utils/errors.ts";
 import { fetchMeta, type MetaPayload } from "../services/api/meta.ts";
 
+export interface ReloadMetaOptions {
+  label?: string;
+  coursePackageId?: number | null;
+}
+
 interface MetaContextValue {
   appData: MetaPayload | null;
-  reloadMeta: (label?: string) => Promise<void>;
+  reloadMeta: (options?: string | ReloadMetaOptions) => Promise<void>;
   clearMeta: () => void;
 }
 
@@ -32,19 +37,38 @@ export default function MetaProvider({
   onNotice: (message: string, tone?: "success" | "error") => void;
 }) {
   const [appData, setAppData] = useState<MetaPayload | null>(null);
+  const activeCoursePackageIdRef = useRef<number | null>(null);
+  const requestSeqRef = useRef(0);
 
-  const clearMeta = useCallback(() => setAppData(null), []);
+  const clearMeta = useCallback(() => {
+    activeCoursePackageIdRef.current = null;
+    setAppData(null);
+  }, []);
 
   const reloadMeta = useCallback(
-    async (label = "") => {
+    async (options: string | ReloadMetaOptions = "") => {
+      const label = typeof options === "string" ? options : options.label || "";
+      if (typeof options === "object" && "coursePackageId" in options) {
+        const nextCoursePackageId = Number(options.coursePackageId || 0);
+        activeCoursePackageIdRef.current = nextCoursePackageId > 0 ? nextCoursePackageId : null;
+      }
+
       if (label) onBusyText(label);
+      const requestSeq = requestSeqRef.current + 1;
+      requestSeqRef.current = requestSeq;
       try {
-        const payload = await fetchMeta(authHeader);
-        setAppData(payload);
+        const payload = await fetchMeta(authHeader, { coursePackageId: activeCoursePackageIdRef.current });
+        if (requestSeqRef.current === requestSeq) {
+          setAppData(payload);
+        }
       } catch (error) {
-        onNotice(getErrorMessage(error), "error");
+        if (requestSeqRef.current === requestSeq) {
+          onNotice(getErrorMessage(error), "error");
+        }
       } finally {
-        onBusyText("");
+        if (requestSeqRef.current === requestSeq) {
+          onBusyText("");
+        }
       }
     },
     [authHeader, onBusyText, onNotice]
@@ -52,6 +76,7 @@ export default function MetaProvider({
 
   useEffect(() => {
     if (!enabled) {
+      activeCoursePackageIdRef.current = null;
       setAppData(null);
       return;
     }
