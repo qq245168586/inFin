@@ -205,6 +205,93 @@ function normalizeCourseTemplatePackageIds(payload = {}, existing = null) {
   return numberList(source);
 }
 
+function normalizeTemplateCoursePackageIds(payload = {}, existing = null) {
+  return normalizeCourseTemplatePackageIds(payload, existing);
+}
+
+function normalizeCoursePackageLookupText(value = "") {
+  return trimText(value).toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
+}
+
+function compactCoursePackageLookupText(value = "") {
+  return normalizeCoursePackageLookupText(value).replace(/\s+/g, "");
+}
+
+function findCoursePackageIdByNameCandidates(candidates = [], coursePackages = null) {
+  const packages = Array.isArray(coursePackages) ? coursePackages : state.coursePackages || [];
+  const normalizedCandidates = candidates.map(normalizeCoursePackageLookupText).filter(Boolean);
+  const compactCandidates = candidates.map(compactCoursePackageLookupText).filter(Boolean);
+
+  for (const coursePackage of packages) {
+    const id = normalizeCoursePackageId(coursePackage?.id, 0);
+    const name = normalizeCoursePackageLookupText(coursePackage?.name);
+    const compactName = compactCoursePackageLookupText(coursePackage?.name);
+    if (!id || !name) {
+      continue;
+    }
+    if (normalizedCandidates.includes(name) || compactCandidates.includes(compactName)) {
+      return id;
+    }
+  }
+
+  for (const coursePackage of packages) {
+    const id = normalizeCoursePackageId(coursePackage?.id, 0);
+    const name = normalizeCoursePackageLookupText(coursePackage?.name);
+    const compactName = compactCoursePackageLookupText(coursePackage?.name);
+    if (!id || !name) {
+      continue;
+    }
+    if (
+      normalizedCandidates.some((candidate) => name.includes(candidate))
+      || compactCandidates.some((candidate) => compactName.includes(candidate))
+    ) {
+      return id;
+    }
+  }
+
+  return 0;
+}
+
+function getDefaultOrHybridCoursePackageId(coursePackages = null, fallbackId = 0) {
+  return (
+    findCoursePackageIdByNameCandidates(["Hybrid", "default", DEFAULT_COURSE_PACKAGE_NAME], coursePackages)
+    || normalizeCoursePackageId(fallbackId, 0)
+    || getDefaultCoursePackageId()
+  );
+}
+
+function getTwelveRoundCoursePackageId(coursePackages = null, fallbackId = 0) {
+  return (
+    findCoursePackageIdByNameCandidates(["12round", "12 round"], coursePackages)
+    || getDefaultOrHybridCoursePackageId(coursePackages, fallbackId)
+  );
+}
+
+function getTemplateFallbackCoursePackageIds(template = {}, coursePackages = null, fallbackId = 0) {
+  const normalizedName = normalizeCoursePackageLookupText(template.name);
+  const packageId =
+    template.kind === "warmup" && (normalizedName.includes("boxing") || normalizedName.includes("box warmup"))
+      ? getTwelveRoundCoursePackageId(coursePackages, fallbackId)
+      : getDefaultOrHybridCoursePackageId(coursePackages, fallbackId);
+  return packageId ? [packageId] : [];
+}
+
+function normalizeLoadedTemplateCoursePackageIds(template = {}, coursePackages = null, fallbackId = 0) {
+  const raw = template && typeof template === "object" ? template : {};
+  const explicitIds = normalizeTemplateCoursePackageIds(raw);
+  const validIds = new Set((Array.isArray(coursePackages) ? coursePackages : state.coursePackages || [])
+    .map((item) => normalizeCoursePackageId(item.id, 0))
+    .filter(Boolean));
+  const coursePackageIds = explicitIds.filter((id) => validIds.has(id));
+
+  return {
+    ...raw,
+    coursePackageIds: coursePackageIds.length
+      ? coursePackageIds
+      : getTemplateFallbackCoursePackageIds(raw, coursePackages, fallbackId)
+  };
+}
+
 function normalizeTemplateSourceCourseId(value, fallback = null) {
   const source = value !== undefined ? value : fallback;
   const numeric = Number(source);
@@ -267,6 +354,7 @@ function normalizeTemplatePayload(payload = {}, existing = null) {
     id: existing?.id ?? nextId(state.templates),
     kind,
     name: trimText(payload.name),
+    coursePackageIds: normalizeTemplateCoursePackageIds(payload, existing),
     createTime: existing?.createTime ?? timestamp,
     updateTime: timestamp
   };
@@ -293,20 +381,17 @@ function normalizeTemplatePayload(payload = {}, existing = null) {
 }
 
 function getCourseTemplatePackageIds(template = {}) {
-  return numberList(
+  const packageIds = numberList(
     template.coursePackageIds !== undefined
       ? template.coursePackageIds
       : template.coursePackageId !== undefined
         ? [template.coursePackageId]
         : []
   );
+  return packageIds.length ? packageIds : getTemplateFallbackCoursePackageIds(template);
 }
 
 function templateAllowsUser(template = {}, user = null) {
-  if (template.kind !== "course") {
-    return true;
-  }
-
   if (!user) {
     return false;
   }
@@ -321,12 +406,8 @@ function templateAllowsUser(template = {}, user = null) {
 }
 
 function assertCanSaveTemplate(template = {}, user = null) {
-  if (template.kind !== "course") {
-    return;
-  }
-
   if (!user) {
-    throw new Error("登录后才能保存整节课程模板。");
+    throw new Error("登录后才能保存模板。");
   }
 
   const templatePackageIds = getCourseTemplatePackageIds(template);
@@ -338,16 +419,16 @@ function assertCanSaveTemplate(template = {}, user = null) {
 
   const visiblePackageIds = getUserVisibleCoursePackageIdSet(user);
   if (visiblePackageIds && templatePackageIds.some((id) => !visiblePackageIds.has(id))) {
-    throw new Error("当前账号不能保存其它课程包下的整节课程模板。");
+    throw new Error("当前账号不能保存其它课程包下的模板。");
   }
 }
 
 function serializeTemplate(template) {
   const next = clone(template);
+  const packageIds = getCourseTemplatePackageIds(next);
+  next.coursePackageIds = packageIds;
+  next.coursePackageId = packageIds[0] || null;
   if (next.kind === "course") {
-    const packageIds = getCourseTemplatePackageIds(next);
-    next.coursePackageIds = packageIds;
-    next.coursePackageId = packageIds[0] || null;
     next.courseName = normalizeCourseTemplateName(next, next) || next.name || "";
     const typeIds = numberList(next.typeIds);
     next.description = trimText(next.script?.metadata?.description ?? next.description);

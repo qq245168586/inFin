@@ -147,6 +147,9 @@ function normalizeLoadedState(parsed) {
   }
   const defaultPackageId = normalizeCoursePackageId(coursePackages.find((item) => item.isDefault)?.id || coursePackages[0]?.id);
   const validPackageIds = new Set(coursePackages.map((item) => normalizeCoursePackageId(item.id)));
+  const templates = (
+    Array.isArray(parsed.templates) ? parsed.templates : clone(defaultState.templates)
+  ).map((item) => normalizeLoadedTemplateCoursePackageIds(item, coursePackages, defaultPackageId));
 
   return {
     media: Array.isArray(parsed.media) ? parsed.media : [],
@@ -158,7 +161,7 @@ function normalizeLoadedState(parsed) {
     lessonTypes: Array.isArray(parsed.lessonTypes) ? parsed.lessonTypes : clone(defaultState.lessonTypes),
     actions: (Array.isArray(parsed.actions) ? parsed.actions : clone(defaultState.actions)).map(normalizeActionRecord),
     courses: parsedCourses,
-    templates: Array.isArray(parsed.templates) ? parsed.templates : clone(defaultState.templates),
+    templates,
     schedules: Array.isArray(parsed.schedules)
       ? parsed.schedules.map((item) => {
           const next = normalizeScheduleEntry(item);

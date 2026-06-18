@@ -368,9 +368,11 @@ export function getTemplateById(templateId, user = null) {
 export function saveTemplate(payload, user = null) {
   const existing = payload.id ? getTemplateById(payload.id, user) : null;
   const next = normalizeTemplatePayload(payload, existing);
-  if (next.kind === "course") {
-    next.coursePackageIds = resolveWriteCoursePackageIds(user, next.coursePackageIds, existing?.coursePackageIds);
+  const requestedPackageIds = normalizeTemplateCoursePackageIds(payload);
+  if (requestedPackageIds.length) {
+    assertCanSaveTemplate({ ...next, coursePackageIds: requestedPackageIds }, user);
   }
+  next.coursePackageIds = resolveWriteCoursePackageIds(user, next.coursePackageIds, existing?.coursePackageIds);
   assertCanSaveTemplate(next, user);
   const index = state.templates.findIndex((item) => item.id === next.id);
 
