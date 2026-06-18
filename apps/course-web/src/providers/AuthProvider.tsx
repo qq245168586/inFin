@@ -1,9 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { getErrorMessage } from "../utils/errors.ts";
-import { readStorageJson, removeStorageItem, saveStorageJson } from "../utils/storage.ts";
 import { fetchProfile, loginWithPassword, refreshWithToken, type AuthSession } from "../services/api/auth.ts";
+import { clearStoredAuthSession, readStoredAuthSession, saveStoredAuthSession } from "../services/authSessionStorage.ts";
 
-const AUTH_STORAGE_KEY = "infini-admin-auth";
 const ACTIVE_SESSION_WINDOW_MS = 12 * 60 * 60 * 1000;
 const REFRESH_BEFORE_EXPIRE_MS = 10 * 60 * 1000;
 const REFRESH_CHECK_MS = 60 * 1000;
@@ -60,7 +59,7 @@ export default function AuthProvider({
   }, []);
 
   const expireSession = useCallback((message = "登录已过期，请重新登录。") => {
-    removeStorageItem(AUTH_STORAGE_KEY);
+    clearStoredAuthSession();
     setAuthSession(null);
     setLoginForm({ username: "", password: "" });
     onNotice(message, "error");
@@ -83,7 +82,7 @@ export default function AuthProvider({
 
   useEffect(() => {
     let cancelled = false;
-    const storedAuth = readStorageJson<AuthSession>(AUTH_STORAGE_KEY);
+    const storedAuth = readStoredAuthSession();
     if (!storedAuth?.refresh_token) {
       setAuthReady(true);
       return () => {
@@ -100,7 +99,7 @@ export default function AuthProvider({
         }
       } catch {
         if (!cancelled) {
-          removeStorageItem(AUTH_STORAGE_KEY);
+          clearStoredAuthSession();
           setAuthSession(null);
         }
       } finally {
@@ -120,10 +119,10 @@ export default function AuthProvider({
       return;
     }
     if (authSession) {
-      saveStorageJson(AUTH_STORAGE_KEY, authSession);
+      saveStoredAuthSession(authSession);
       return;
     }
-    removeStorageItem(AUTH_STORAGE_KEY);
+    clearStoredAuthSession();
   }, [authReady, authSession]);
 
   useEffect(() => {
@@ -191,7 +190,7 @@ export default function AuthProvider({
 
   const logout = useCallback(
     (message = "已退出登录。") => {
-      removeStorageItem(AUTH_STORAGE_KEY);
+      clearStoredAuthSession();
       setAuthSession(null);
       setLoginForm({ username: "", password: "" });
       onNotice(message);
