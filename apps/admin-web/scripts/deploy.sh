@@ -11,7 +11,7 @@ REMOTE_NGINX_CONF="/etc/nginx/sites-enabled/infini-platform"
 
 echo "[admin-web] building..."
 cd "$APP_DIR"
-npm run build
+pnpm run build
 
 echo "[admin-web] packaging..."
 COPYFILE_DISABLE=1 tar -C "$APP_DIR/dist" -czf "$ARCHIVE_PATH" .
