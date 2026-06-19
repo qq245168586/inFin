@@ -2,6 +2,7 @@
   "name": "@infini/mqtt-client",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@10.11.0",
   "scripts": {
     "start": "node src/server.js",
     "dev": "node src/server.js",
