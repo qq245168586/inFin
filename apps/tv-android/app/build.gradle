@@ -61,6 +61,7 @@ dependencies {
   implementation "org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5"
 
   testImplementation "junit:junit:4.13.2"
+  testImplementation "org.json:json:20240303"
 }
 
 tasks.withType(Test).configureEach {
@@ -85,10 +86,28 @@ tasks.register("jacocoDebugUnitTestReport", JacocoReport) {
       '**/Manifest*.*',
       '**/*Test*.*'
   ]
+  def businessIncludes = [
+      'com/infini/tv/EffectivePodScreen*.class',
+      'com/infini/tv/RemoteScheduleAction*.class',
+      'com/infini/tv/SilentInstallResult*.class',
+      'com/infini/tv/TrainingPlaybackState*.class',
+      'com/infini/tv/model/**/*.class',
+      'com/infini/tv/mqtt/**/*.class',
+      'com/infini/tv/mvi/**/*.class',
+      'com/infini/tv/player/**/*.class',
+      'com/infini/tv/repository/**/*.class',
+      'com/infini/tv/util/**/*.class'
+  ]
 
   classDirectories.setFrom(files([
-      fileTree(dir: "${buildDir}/intermediates/javac/debug/compileDebugJavaWithJavac/classes", excludes: excludes),
-      fileTree(dir: "${buildDir}/intermediates/javac/debug/classes", excludes: excludes)
+      fileTree(
+          dir: "${buildDir}/intermediates/javac/debug/compileDebugJavaWithJavac/classes",
+          includes: businessIncludes,
+          excludes: excludes),
+      fileTree(
+          dir: "${buildDir}/intermediates/javac/debug/classes",
+          includes: businessIncludes,
+          excludes: excludes)
   ]))
   sourceDirectories.setFrom(files("src/main/java"))
   executionData.setFrom(fileTree(dir: buildDir, includes: [
