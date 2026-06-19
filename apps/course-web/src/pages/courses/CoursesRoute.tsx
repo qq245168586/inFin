@@ -47,7 +47,10 @@ export default function CoursesRoute({
   const { appData, reloadMeta } = useMeta();
 
   const courses = filterCoursesByCoursePackage(appData?.courses || [], selectedCoursePackage);
-  const lessonTypes = appData?.lessonTypes || [];
+  const lessonTypes = useMemo(
+    () => filterActionTypesByCoursePackage(appData?.lessonTypes || [], selectedCoursePackage),
+    [appData?.lessonTypes, selectedCoursePackage]
+  );
   const packageActions = useMemo(
     () => filterActionsByCoursePackage(appData?.actions || [], selectedCoursePackage),
     [appData?.actions, selectedCoursePackage]

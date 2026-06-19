@@ -54,6 +54,22 @@ describe("course package filtering", () => {
     );
   });
 
+  test("keeps lesson type options inside the active course package", () => {
+    const lessonTypes = [
+      { id: 20, name: "Global legacy" },
+      { id: 21, name: "12ROUNDS", coursePackageIds: [2] }
+    ];
+
+    assert.deepEqual(
+      filterActionTypesByCoursePackage(lessonTypes, coursePackages.strength).map((type) => type.id),
+      [21]
+    );
+    assert.deepEqual(
+      filterActionTypesByCoursePackage(lessonTypes, coursePackages.default).map((type) => type.id),
+      [20]
+    );
+  });
+
   test("filters template collections by legacy and multi-package fields", () => {
     const result = filterTemplateCollectionsByCoursePackage(packageScopedTemplates, coursePackages.strength);
 

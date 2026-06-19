@@ -119,7 +119,10 @@ export default function AppRoot() {
         typeDialog.kind === "action" ? "/api/action-types" : "/api/lesson-types",
         {
           method: "POST",
-          body: JSON.stringify({ name: cleanedTypeName })
+          body: JSON.stringify({
+            name: cleanedTypeName,
+            coursePackageIds: selectedCoursePackage ? [Number(selectedCoursePackage.id)] : []
+          })
         }
       );
       await reloadMeta();
