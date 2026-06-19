@@ -249,49 +249,23 @@ abstract class TvScriptRepositoryHttpTransport extends TvScriptRepositoryMediaCa
   }
 
   protected List<String> apiBaseUrlCandidates() {
-    List<String> candidates = new ArrayList<>();
-    candidates.add(ServerConfig.API_BASE_URL);
-    if (shouldUseHttpBackup() && !ServerConfig.BACKUP_API_BASE_URL.equals(ServerConfig.API_BASE_URL)) {
-      candidates.add(ServerConfig.BACKUP_API_BASE_URL);
-    }
-    return candidates;
+    return ConnectionFallbackPolicy.baseUrlCandidates(
+        ServerConfig.API_BASE_URL, ServerConfig.BACKUP_API_BASE_URL, shouldUseHttpBackup());
   }
 
   protected List<String> baseUrlCandidates() {
-    List<String> candidates = new ArrayList<>();
-    candidates.add(ServerConfig.BASE_URL);
-    if (shouldUseHttpBackup() && !ServerConfig.BACKUP_BASE_URL.equals(ServerConfig.BASE_URL)) {
-      candidates.add(ServerConfig.BACKUP_BASE_URL);
-    }
-    return candidates;
+    return ConnectionFallbackPolicy.baseUrlCandidates(
+        ServerConfig.BASE_URL, ServerConfig.BACKUP_BASE_URL, shouldUseHttpBackup());
   }
 
   protected List<String> resolveMediaUrlCandidates(String url) {
-    List<String> candidates = new ArrayList<>();
-    if (url == null) {
-      return candidates;
-    }
-    if (url.startsWith("http://") || url.startsWith("https://")) {
-      candidates.add(url);
-      if (shouldUseHttpBackup() && url.startsWith(ServerConfig.BASE_URL + "/")) {
-        candidates.add(ServerConfig.BACKUP_BASE_URL + url.substring(ServerConfig.BASE_URL.length()));
-      } else if (shouldUseHttpBackup() && url.startsWith(ServerConfig.API_BASE_URL + "/")) {
-        candidates.add(ServerConfig.BACKUP_API_BASE_URL + url.substring(ServerConfig.API_BASE_URL.length()));
-      }
-      return candidates;
-    }
-
-    if (url.startsWith("/")) {
-      for (String baseUrl : baseUrlCandidates()) {
-        candidates.add(baseUrl + url);
-      }
-      return candidates;
-    }
-
-    for (String apiBaseUrl : apiBaseUrlCandidates()) {
-      candidates.add(apiBaseUrl + "/" + url);
-    }
-    return candidates;
+    return ConnectionFallbackPolicy.resolveMediaUrlCandidates(
+        url,
+        ServerConfig.BASE_URL,
+        ServerConfig.API_BASE_URL,
+        ServerConfig.BACKUP_BASE_URL,
+        ServerConfig.BACKUP_API_BASE_URL,
+        shouldUseHttpBackup());
   }
 
   private static synchronized void recordSecureApiFailure() {
@@ -303,6 +277,7 @@ abstract class TvScriptRepositoryHttpTransport extends TvScriptRepositoryMediaCa
   }
 
   private static synchronized boolean shouldUseHttpBackup() {
-    return secureApiFailureCount >= ServerConfig.SECURE_FALLBACK_FAILURE_THRESHOLD;
+    return ConnectionFallbackPolicy.shouldUseBackup(
+        secureApiFailureCount, ServerConfig.SECURE_FALLBACK_FAILURE_THRESHOLD);
   }
 }

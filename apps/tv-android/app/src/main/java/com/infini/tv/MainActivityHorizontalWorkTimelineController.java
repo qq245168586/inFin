@@ -2,16 +2,17 @@ package com.infini.tv;
 
 import com.infini.tv.component.horizontal.HorizontalProgressBarComponent;
 import com.infini.tv.model.CourseScript;
+import com.infini.tv.util.TrainingProgressCalculator;
 import java.util.ArrayList;
 import java.util.List;
 
 abstract class MainActivityHorizontalWorkTimelineController extends MainActivityPreviewTransitionController {
   protected List<HorizontalProgressBarComponent.WorkSegment> buildHorizontalWorkTimeline(CourseScript course) {
     List<HorizontalProgressBarComponent.WorkSegment> segments = new ArrayList<>();
-    for (HorizontalWorkTiming timing : buildHorizontalWorkTimings(course)) {
+    for (TrainingProgressCalculator.WorkSegment timing : TrainingProgressCalculator.buildHorizontalWorkTimeline(course)) {
       segments.add(
           new HorizontalProgressBarComponent.WorkSegment(
-              timing.workStartSeconds,
+              timing.startOffsetSeconds,
               timing.durationSeconds,
               timing.markerAfter));
     }
@@ -35,22 +36,7 @@ abstract class MainActivityHorizontalWorkTimelineController extends MainActivity
   }
 
   protected int resolveHorizontalWorkElapsedSeconds(CourseScript course, int elapsedSeconds) {
-    int safeElapsedSeconds = Math.max(elapsedSeconds, 0);
-    int workElapsedSeconds = 0;
-    for (HorizontalWorkTiming timing : buildHorizontalWorkTimings(course)) {
-      if (timing == null || timing.durationSeconds <= 0) {
-        continue;
-      }
-      if (safeElapsedSeconds < timing.realStartSeconds) {
-        return workElapsedSeconds;
-      }
-      int realEndSeconds = timing.realStartSeconds + timing.durationSeconds;
-      if (safeElapsedSeconds < realEndSeconds) {
-        return timing.workStartSeconds + Math.max(safeElapsedSeconds - timing.realStartSeconds, 0);
-      }
-      workElapsedSeconds = timing.workStartSeconds + timing.durationSeconds;
-    }
-    return workElapsedSeconds;
+    return TrainingProgressCalculator.resolveHorizontalWorkElapsedSeconds(course, elapsedSeconds);
   }
 
   protected List<HorizontalWorkTiming> buildHorizontalWorkTimings(CourseScript course) {

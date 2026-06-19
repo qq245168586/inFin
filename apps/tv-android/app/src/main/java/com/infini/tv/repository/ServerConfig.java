@@ -22,10 +22,7 @@ public final class ServerConfig {
   private ServerConfig() {}
 
   public static String[] mqttBrokerUris(boolean includeBackup) {
-    if (includeBackup) {
-      return new String[] { MQTT_WSS_URL, MQTT_TCP_BACKUP_URL };
-    }
-    return new String[] { MQTT_WSS_URL };
+    return ConnectionFallbackPolicy.brokerUris(MQTT_WSS_URL, MQTT_TCP_BACKUP_URL, includeBackup);
   }
 
   public static String primaryMqttBrokerUri() {

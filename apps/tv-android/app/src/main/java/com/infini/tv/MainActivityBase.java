@@ -50,6 +50,7 @@ import com.infini.tv.mqtt.TvMqttManager;
 import com.infini.tv.repository.ServerConfig;
 import com.infini.tv.repository.TvScriptRepository;
 import com.infini.tv.service.ImageLoader;
+import com.infini.tv.util.TimeDisplayFormatter;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.EncodeHintType;
 import com.google.zxing.WriterException;
@@ -364,10 +365,6 @@ abstract class MainActivityBase extends MainActivityContracts {
   }
 
   protected String formatCountdownSeconds(int seconds) {
-    int safeSeconds = Math.max(seconds, 0);
-    if (safeSeconds < 60) {
-      return String.valueOf(safeSeconds);
-    }
-    return String.format(Locale.US, "%d:%02d", safeSeconds / 60, safeSeconds % 60);
+    return TimeDisplayFormatter.formatCountdownSeconds(seconds);
   }
 }
