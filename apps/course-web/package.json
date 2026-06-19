@@ -2,13 +2,14 @@
   "name": "@infini/course-web",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@10.11.0",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "deploy": "bash scripts/deploy.sh",
     "test": "node --test --experimental-strip-types tests/**/*.test.ts",
     "test:coverage": "node --test --experimental-strip-types --experimental-test-coverage tests/**/*.test.ts",
-    "coverage": "npm run test:coverage",
+    "coverage": "pnpm run test:coverage",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview"
   },

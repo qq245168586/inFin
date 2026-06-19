@@ -10,7 +10,7 @@ REMOTE_WEB_ROOT="/var/www/infini-course"
 
 echo "[course-web] building..."
 cd "$APP_DIR"
-npm run build
+pnpm run build
 
 echo "[course-web] packaging..."
 COPYFILE_DISABLE=1 tar -C "$APP_DIR/dist" -czf "$ARCHIVE_PATH" .
