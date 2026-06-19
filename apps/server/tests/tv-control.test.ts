@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { afterEach, test } from "node:test";
+import { afterEach, test } from "vitest";
 
 const MQTT_ENV_KEYS = [
   "MQTT_CLIENT_HTTP_URL",
@@ -74,5 +74,5 @@ test("publishTvControl injects normalized namespace when using MQTT HTTP gateway
 
 async function importTvControl() {
   const cacheBust = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  return import(`../src/services/tv-control.ts?test=${cacheBust}`);
+  return import(/* @vite-ignore */ `../src/services/tv-control.ts?test=${cacheBust}`);
 }

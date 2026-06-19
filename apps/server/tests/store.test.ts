@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { test } from "vitest";
 import { createMockCourseScript } from "./fixtures/mock-db.ts";
 import { addDays, importStore, nextMonday, shanghaiNoon } from "./helpers/store.ts";
 

@@ -1,11 +1,14 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { onTestFinished } from "vitest";
 import { createMockDatabaseState } from "../fixtures/mock-db.ts";
 
 type TestContext = {
-  after: (fn: () => void | Promise<void>) => void;
-  name: string;
+  name?: string;
+  task?: {
+    name?: string;
+  };
 };
 
 export function createIsolatedDataRoot(prefix: string, state = createMockDatabaseState()) {
@@ -19,9 +22,9 @@ export function createIsolatedDataRoot(prefix: string, state = createMockDatabas
 
 export async function importStore(t: TestContext, state = createMockDatabaseState()) {
   const previousDataRoot = process.env.INFINI_DATA_ROOT;
-  const root = createIsolatedDataRoot(sanitizeName(t.name), state);
+  const root = createIsolatedDataRoot(sanitizeName(t.name || t.task?.name || "test"), state);
   process.env.INFINI_DATA_ROOT = root;
-  t.after(() => {
+  onTestFinished(() => {
     if (previousDataRoot === undefined) {
       delete process.env.INFINI_DATA_ROOT;
     } else {
@@ -31,7 +34,7 @@ export async function importStore(t: TestContext, state = createMockDatabaseStat
   });
 
   const cacheBust = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  return import(`../../src/data/store.ts?test=${cacheBust}`);
+  return import(/* @vite-ignore */ `../../src/data/store.ts?test=${cacheBust}`);
 }
 
 export function nextMonday(offsetWeeks = 0) {

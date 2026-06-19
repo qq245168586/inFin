@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
-import { test } from "node:test";
+import { test } from "vitest";
 import { readJsonBody, sendFile } from "../src/utils/http.ts";
 
 test("readJsonBody returns null for an empty request and parses JSON buffers", async () => {

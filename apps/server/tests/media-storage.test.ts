@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { afterEach, test } from "node:test";
+import { afterEach, test } from "vitest";
 import { buildStorageKey, getMediaStorageMode, uploadBufferToOss } from "../src/services/media-storage.ts";
 
 const OSS_ENV_KEYS = [
