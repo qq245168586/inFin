@@ -71,16 +71,27 @@ function escapeCell(value) {
 function readNodeCoverage(log) {
   const allFilesLine = log
     .split("\n")
-    .find((line) => /all files\s+\|/.test(line));
+    .find((line) => /^\s*(all files|All files)\s+\|/.test(line));
   if (!allFilesLine) return "See log";
 
-  const match = allFilesLine.match(/all files\s+\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)/);
+  const match = allFilesLine.match(
+    /(?:all files|All files)\s+\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)(?:\s*\|\s*([\d.]+))?/
+  );
   if (!match) return allFilesLine.trim();
 
-  return `line ${match[1]}%, branch ${match[2]}%, funcs ${match[3]}%`;
+  const lineCoverage = match[4] || match[1];
+  return `line ${lineCoverage}%, branch ${match[2]}%, funcs ${match[3]}%`;
 }
 
 function readNodeTestSummary(log) {
+  const vitestMatch = log.match(/Tests\s+(?:(\d+)\s+failed\s+\|\s+)?(\d+)\s+passed\s+\((\d+)\)/);
+  if (vitestMatch) {
+    const fail = Number(vitestMatch[1] || 0);
+    const pass = Number(vitestMatch[2] || 0);
+    const total = Number(vitestMatch[3] || pass + fail);
+    return `${pass}/${total} passed, ${fail} failed`;
+  }
+
   const tests = readMetric(log, /ℹ tests\s+(\d+)/);
   const pass = readMetric(log, /ℹ pass\s+(\d+)/);
   const fail = readMetric(log, /ℹ fail\s+(\d+)/);

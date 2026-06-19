@@ -6,4 +6,18 @@ settings:
 
 importers:
 
-  .: {}
+  .:
+    devDependencies:
+      allure-commandline:
+        specifier: ^2.43.0
+        version: 2.43.0
+
+packages:
+
+  allure-commandline@2.43.0:
+    resolution: {integrity: sha512-nsqccDOgi80fi9WjvBapZjlFlugodVWudotNtWx6XKiSI7NuN6oTWEkXnkxQBzNg02Yf9lZLtCFlKvjAlcpu6Q==}
+    hasBin: true
+
+snapshots:
+
+  allure-commandline@2.43.0: {}

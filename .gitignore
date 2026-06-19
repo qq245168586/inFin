@@ -12,6 +12,7 @@
 !tools/run-tests.sh
 !tools/generate-test-report.mjs
 !tools/install-test-hooks.sh
+!tools/junit-to-allure.mjs
 
 !docs/
 !docs/**

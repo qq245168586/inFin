@@ -6,6 +6,10 @@
     "workspace:info": "echo \"This root only keeps workspace docs and git submodules. Run build/deploy scripts inside each app.\"",
     "test": "bash tools/run-tests.sh",
     "test:coverage": "bash tools/run-tests.sh --coverage",
+    "test:report": "bash tools/run-tests.sh --coverage --allure",
     "hooks:install": "bash tools/install-test-hooks.sh"
+  },
+  "devDependencies": {
+    "allure-commandline": "^2.43.0"
   }
 }
