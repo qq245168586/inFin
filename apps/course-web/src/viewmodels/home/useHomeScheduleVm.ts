@@ -9,6 +9,11 @@ import { copyWeekSchedules, createSchedule, deleteSchedule } from "../../service
 import { RequestJsonError } from "../../services/requestJson.ts";
 import { addDaysValue, composeCnDateTime, formatDateKey, todayValue, weekStartValue } from "../../utils/datetime.ts";
 import { getErrorMessage } from "../../utils/errors.ts";
+import {
+  buildCopyWeekSchedulesPayload,
+  createCopyWeekSchedulesDraft,
+  type CopyWeekSchedulesDraftValue
+} from "./copyWeekSchedules.ts";
 
 export interface ScheduleDraftValue {
   courseName: string;
@@ -16,11 +21,6 @@ export interface ScheduleDraftValue {
   coursePackageId: string;
   version: string;
   date: string;
-}
-
-export interface CopyWeekSchedulesDraftValue {
-  sourceWeekStart: string;
-  targetWeekStart: string;
 }
 
 function coursesForPackage(courses: CourseRecord[], coursePackage?: CoursePackageRecord | null): CourseRecord[] {
@@ -46,14 +46,6 @@ function createScheduleDraft(courses: CourseRecord[], coursePackages: CoursePack
     coursePackageId: firstPackage ? String(firstPackage.id) : "",
     version: first?.version ?? "",
     date: preferredDate || todayValue()
-  };
-}
-
-function createCopyWeekSchedulesDraft(): CopyWeekSchedulesDraftValue {
-  const currentWeekStart = weekStartValue(todayValue());
-  return {
-    sourceWeekStart: addDaysValue(currentWeekStart, -7),
-    targetWeekStart: addDaysValue(currentWeekStart, 7)
   };
 }
 
@@ -298,34 +290,16 @@ export default function useHomeScheduleVm({
   }, [authHeader, onBusyText, onNotice, onReloadMeta, scheduleDraft]);
 
   const copyWeek = useCallback(async () => {
-    const activeCoursePackageId = Number(coursePackages[0]?.id) || 0;
-    if (!activeCoursePackageId) {
-      onNotice("当前课程包为空，不能复制排课。", "error");
-      return;
-    }
-    if (!copyWeekDraft?.sourceWeekStart || !copyWeekDraft.targetWeekStart) {
-      onNotice("请选择来源周和目标周。", "error");
-      return;
-    }
-
-    const currentWeekStart = weekStartValue(todayValue());
-    const sourceWeekStart = weekStartValue(copyWeekDraft.sourceWeekStart);
-    const targetWeekStart = weekStartValue(copyWeekDraft.targetWeekStart);
-    if (sourceWeekStart >= currentWeekStart) {
-      onNotice("来源周只能选择过去周。", "error");
-      return;
-    }
-    if (targetWeekStart <= currentWeekStart) {
-      onNotice("目标周只能选择未来周。", "error");
+    const payloadResult = buildCopyWeekSchedulesPayload({
+      coursePackageId: coursePackages[0]?.id,
+      draft: copyWeekDraft
+    });
+    if (payloadResult.ok === false) {
+      onNotice(payloadResult.message, "error");
       return;
     }
 
-    const payload = {
-      coursePackageId: activeCoursePackageId,
-      sourceWeekStart,
-      targetWeekStart,
-      replaceExisting: false
-    };
+    const payload = payloadResult.payload;
 
     onBusyText("正在复制指定周排课...");
     try {

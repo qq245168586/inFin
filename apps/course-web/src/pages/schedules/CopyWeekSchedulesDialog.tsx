@@ -1,6 +1,6 @@
 import Dialog from "../../components/Dialog.tsx";
 import { addDaysValue, todayValue, weekStartValue } from "../../utils/datetime.ts";
-import type { CopyWeekSchedulesDraftValue } from "../../viewmodels/home/useHomeScheduleVm.ts";
+import type { CopyWeekSchedulesDraftValue } from "../../viewmodels/home/copyWeekSchedules.ts";
 
 function normalizeWeekStart(value: string): string {
   return value ? weekStartValue(value) : "";

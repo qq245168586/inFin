@@ -6,6 +6,9 @@
     "dev": "vite",
     "build": "vite build",
     "deploy": "bash scripts/deploy.sh",
+    "test": "node --test --experimental-strip-types tests/**/*.test.ts",
+    "test:coverage": "node --test --experimental-strip-types --experimental-test-coverage tests/**/*.test.ts",
+    "coverage": "npm run test:coverage",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview"
   },
