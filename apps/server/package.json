@@ -2,11 +2,12 @@
   "name": "@infini/server",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@10.11.0",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "node --import tsx --test tests/*.test.ts",
     "test:coverage": "node --import tsx --test --experimental-test-coverage tests/*.test.ts",
-    "coverage": "npm run test:coverage",
+    "coverage": "pnpm run test:coverage",
     "start": "node dist/main.js",
     "dev": "tsx src/main.ts",
     "deploy:remote": "bash scripts/deploy-remote.sh",

@@ -24,7 +24,7 @@ load_systemd_env_file() {
 
 mkdir -p "$BACKUP_DIR"
 cd "$APP_DIR"
-tar -czf "$BACKUP_DIR/apps-server-code.tgz" package.json package-lock.json tsconfig.json API.md openapi.json src dist
+tar -czf "$BACKUP_DIR/apps-server-code.tgz" package.json pnpm-lock.yaml tsconfig.json API.md openapi.json src dist
 tar -xzf "$ARCHIVE" -C "$APP_DIR"
 
 OLD_PID="$(pgrep -f "$SERVER_ENTRY" | head -1 || true)"
