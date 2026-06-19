@@ -137,11 +137,16 @@
     }
 
     if (request.method === "GET" && url.pathname === "/api/lesson-types") {
-      sendJson(response, 200, { data: listLessonTypes() });
+      const user = getAuthorizedConsoleUser(request);
+      sendJson(response, 200, { data: listLessonTypes(user, { coursePackageId: url.searchParams.get("coursePackageId") || "" }) });
       return;
     }
 
     if (request.method === "POST" && url.pathname === "/api/lesson-types") {
+      const user = requireAuthorizedConsoleUser(request, response);
+      if (!user) {
+        return;
+      }
       const payload = await readJsonBody(request);
       const name = payload?.name?.trim?.();
 
@@ -150,7 +155,7 @@
         return;
       }
 
-      sendJson(response, 201, { data: addLessonType(name) });
+      sendJson(response, 201, { data: addLessonType(payload, user) });
       return;
     }
 

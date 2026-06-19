@@ -78,6 +78,14 @@ function actionTypeMatchesCoursePackageScope(type = {}, options = {}) {
   return scopedRecordBelongsToCoursePackage(type, options?.coursePackageId);
 }
 
+function lessonTypeAllowsUser(type = {}, user = null) {
+  return actionTypeAllowsUser(type, user);
+}
+
+function lessonTypeMatchesCoursePackageScope(type = {}, options = {}) {
+  return scopedRecordBelongsToCoursePackage(type, options?.coursePackageId);
+}
+
 function actionMatchesCoursePackageScope(action = {}, options = {}) {
   return scopedRecordBelongsToCoursePackage(action, options?.coursePackageId);
 }
@@ -106,12 +114,34 @@ export function addActionType(payload, user = null) {
   return next;
 }
 
-export function listLessonTypes() {
-  return clone(state.lessonTypes);
+export function listLessonTypes(user = null, options = {}) {
+  return clone(
+    state.lessonTypes
+      .map(normalizeActionTypeRecord)
+      .filter((type) => lessonTypeAllowsUser(type, user))
+      .filter((type) => lessonTypeMatchesCoursePackageScope(type, options))
+  );
 }
 
-export function addLessonType(name) {
-  const next = { id: nextId(state.lessonTypes), name: stripMediaSuffix(name) };
+export function addLessonType(payload, user = null) {
+  const source = typeof payload === "string" ? { name: payload } : payload || {};
+  const name = stripMediaSuffix(source.name);
+  const requestedPackageIds = numberList(source.coursePackageIds);
+  const packageIds = resolveWriteCoursePackageIds(user, requestedPackageIds, []);
+  const existing = state.lessonTypes
+    .map(normalizeActionTypeRecord)
+    .find((type) => {
+      const typePackageIds = numberList(type.coursePackageIds);
+      return (
+        stripMediaSuffix(type.name).toLowerCase() === name.toLowerCase()
+        && typePackageIds.some((id) => packageIds.includes(id))
+      );
+    });
+  if (existing) {
+    return existing;
+  }
+
+  const next = { id: nextId(state.lessonTypes), name, coursePackageIds: packageIds };
   state.lessonTypes.push(next);
   persist();
   return next;

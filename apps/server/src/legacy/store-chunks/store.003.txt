@@ -195,6 +195,95 @@ function dedupeActionTypesWithinPackages(actionTypes = [], actions = [], default
   return { actionTypes: canonicalTypes, actions: remappedActions, changed };
 }
 
+function normalizeLessonTypePackages(lessonTypes = [], courses = [], defaultPackageId = getDefaultCoursePackageId()) {
+  const usageByTypeId = new Map();
+  for (const course of courses) {
+    const packageId = normalizeCoursePackageId(course?.coursePackageId, defaultPackageId);
+    for (const typeId of numberList(course?.typeIds)) {
+      const ids = usageByTypeId.get(typeId) || [];
+      ids.push(packageId);
+      usageByTypeId.set(typeId, numberList(ids));
+    }
+  }
+
+  return lessonTypes.map((rawType) => {
+    const type = normalizeActionTypeRecord(rawType);
+    const explicitPackageIds = numberList(type.coursePackageIds);
+    const usedPackageIds = numberList(usageByTypeId.get(type.id) || []);
+    const coursePackageIds = numberList([...explicitPackageIds, ...usedPackageIds]);
+
+    return {
+      ...type,
+      coursePackageIds: coursePackageIds.length ? coursePackageIds : [defaultPackageId]
+    };
+  });
+}
+
+function dedupeLessonTypesWithinPackages(lessonTypes = [], courses = [], defaultPackageId = getDefaultCoursePackageId()) {
+  const canonicalTypes = [];
+  const canonicalById = new Map();
+  const canonicalKeyToId = new Map();
+  const duplicateIdMap = new Map();
+  let changed = false;
+
+  for (const rawType of lessonTypes) {
+    const type = normalizeActionTypeRecord(rawType);
+    const nameKey = stripMediaSuffix(type.name).toLowerCase();
+    if (!type.id || !nameKey) {
+      canonicalTypes.push(type);
+      continue;
+    }
+
+    const packageIds = getScopedRecordPackageIds(type, defaultPackageId);
+    let canonical = null;
+    for (const packageId of packageIds) {
+      const existingId = canonicalKeyToId.get(`${packageId}:${nameKey}`);
+      if (existingId) {
+        canonical = canonicalById.get(existingId) || null;
+        break;
+      }
+    }
+
+    if (!canonical) {
+      canonical = {
+        ...type,
+        coursePackageIds: numberList(packageIds)
+      };
+      canonicalTypes.push(canonical);
+      canonicalById.set(canonical.id, canonical);
+    } else {
+      duplicateIdMap.set(type.id, canonical.id);
+      const mergedPackageIds = numberList([...canonical.coursePackageIds, ...packageIds]);
+      if (JSON.stringify(mergedPackageIds) !== JSON.stringify(canonical.coursePackageIds)) {
+        canonical.coursePackageIds = mergedPackageIds;
+      }
+      changed = true;
+    }
+
+    for (const packageId of packageIds) {
+      canonicalKeyToId.set(`${packageId}:${nameKey}`, canonical.id);
+    }
+  }
+
+  if (!duplicateIdMap.size) {
+    return { lessonTypes: canonicalTypes, courses, changed };
+  }
+
+  const remappedCourses = courses.map((course) => {
+    const nextTypeIds = numberList((course.typeIds || []).map((id) => duplicateIdMap.get(id) || id));
+    if (JSON.stringify(nextTypeIds) === JSON.stringify(numberList(course.typeIds))) {
+      return course;
+    }
+    changed = true;
+    return {
+      ...course,
+      typeIds: nextTypeIds
+    };
+  });
+
+  return { lessonTypes: canonicalTypes, courses: remappedCourses, changed };
+}
+
 function normalizeLoadedState(parsed) {
   const parsedCourses = Array.isArray(parsed.courses) ? parsed.courses : clone(defaultState.courses);
   const defaultCourseIds = parsedCourses.map((course) => Number(course?.id)).filter((id) => Number.isFinite(id) && id > 0);
@@ -231,15 +320,29 @@ function normalizeLoadedState(parsed) {
   if (dedupedActionTypeState.changed) {
     normalizeLoadedStateDidChange = true;
   }
+  const dedupedLessonTypeState = dedupeLessonTypesWithinPackages(
+    normalizeLessonTypePackages(
+      Array.isArray(parsed.lessonTypes)
+        ? parsed.lessonTypes
+        : clone(defaultState.lessonTypes),
+      parsedCourses,
+      defaultPackageId
+    ),
+    parsedCourses,
+    defaultPackageId
+  );
+  if (dedupedLessonTypeState.changed) {
+    normalizeLoadedStateDidChange = true;
+  }
 
   return {
     media: Array.isArray(parsed.media) ? parsed.media : [],
     appPackages: Array.isArray(parsed.appPackages) ? parsed.appPackages : clone(defaultState.appPackages),
     coursePackages,
     actionTypes: dedupedActionTypeState.actionTypes,
-    lessonTypes: Array.isArray(parsed.lessonTypes) ? parsed.lessonTypes : clone(defaultState.lessonTypes),
+    lessonTypes: dedupedLessonTypeState.lessonTypes,
     actions: dedupedActionTypeState.actions,
-    courses: parsedCourses,
+    courses: dedupedLessonTypeState.courses,
     templates,
     schedules: Array.isArray(parsed.schedules)
       ? parsed.schedules.map((item) => {

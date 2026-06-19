@@ -54,6 +54,26 @@ test("saveCourse moves a course into exactly one target course package", async (
   );
 });
 
+test("lesson types are scoped to course packages and reused within the same package", async (t) => {
+  const store = await importStore(t);
+
+  assert.deepEqual(
+    store.listLessonTypes(null, { coursePackageId: 2 }).map((item: any) => item.id),
+    []
+  );
+
+  const first = store.addLessonType({ name: "Strength", coursePackageIds: [2] });
+  const duplicate = store.addLessonType({ name: " strength ", coursePackageIds: [2] });
+
+  assert.equal(first.id, duplicate.id);
+  assert.deepEqual(first.coursePackageIds, [2]);
+  assert.deepEqual(
+    store.listLessonTypes(null, { coursePackageId: 2 }).map((item: any) => item.id),
+    [first.id]
+  );
+  assert.ok(store.listLessonTypes(null, { coursePackageId: 1 }).every((item: any) => item.id !== first.id));
+});
+
 test("deleteCourse blocks courses scheduled for today or the future", async (t) => {
   const store = await importStore(t);
   const futureMonday = nextMonday(1);
