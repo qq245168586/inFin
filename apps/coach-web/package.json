@@ -4,7 +4,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:local": "vite --host 0.0.0.0",
     "build": "vite build",
+    "build:local": "VITE_INFINI_ENV=local vite build",
+    "build:production": "VITE_INFINI_ENV=production VITE_API_BASE_URL= vite build",
+    "test": "node --import ./tests/setup/register-ts-extension-loader.mjs --test tests/unit/*.test.ts",
+    "test:coverage": "node --import ./tests/setup/register-ts-extension-loader.mjs --experimental-test-coverage --test-coverage-include='src/**/*.ts' --test tests/unit/*.test.ts",
+    "coverage": "npm run test:coverage",
     "deploy": "bash scripts/deploy.sh",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview"
