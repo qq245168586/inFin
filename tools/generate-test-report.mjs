@@ -57,7 +57,7 @@ const lines = [
   "",
   "- Unit tests intentionally target business logic, data transforms, validation, scheduling, playback planning, and fallback behavior.",
   "- UI component rendering tests are intentionally out of scope for this pass.",
-  "- Android full-project coverage is naturally low because Activity/View/media playback code is counted but intentionally not unit-tested here.",
+  "- TV Android JaCoCo reports only business-testable packages; Activity/View/lifecycle/media UI code is excluded from the denominator.",
   "- Reports are generated from each app's native test output; detailed logs live beside this file.",
   "",
 ];

@@ -13,7 +13,7 @@ UI component rendering tests are intentionally excluded. Visual regressions shou
 | server | `pnpm run test` | API/data helpers, schedule rules, package/author ownership, mock database boundaries |
 | course-web | `pnpm run test` | course editor helpers, validation, package filters, video layout rules, schedule copy logic |
 | coach-web | `pnpm run test` | schedule date helpers, playback state mapping, screen state utilities, request helpers |
-| tv-android | `./gradlew testDebugUnitTest` | MVI reducer, timeline/progress calculations, time formatting, layout calculators |
+| tv-android | `./gradlew testDebugUnitTest` | MVI reducer, MQTT command routing, API/MQTT fallback helpers, timeline/progress calculations, time formatting, layout calculators |
 
 ## Coverage Reports
 
@@ -28,6 +28,11 @@ The unified report is written under:
 ```text
 outputs/test-results/<timestamp>/test-report.md
 ```
+
+TV JaCoCo coverage intentionally reports only business-testable Java packages:
+`model`, `mqtt`, `mvi`, `player`, `repository`, `util`, and small root-domain helpers.
+Activity, View, Android lifecycle, media playback UI, and custom view code are excluded from the
+coverage denominator and should be validated through device/E2E checks.
 
 ## Commit Gate
 
