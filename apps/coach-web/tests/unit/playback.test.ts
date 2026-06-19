@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "vitest";
 import { mockPlaybackEnvelope } from "../fixtures/coachData.ts";
 import { activeSessionState, buildScheduleBadge, normalizePlaybackSession, sessionStateLabel } from "../../src/utils/playback.ts";
 

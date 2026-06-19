@@ -1,13 +1,15 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { afterEach, test, vi } from "vitest";
 import { mockSchedule, weekSchedules } from "../fixtures/coachData.ts";
 import { buildScheduleRange, formatDateLabel, formatDateTime, formatTime, getWeekDays, scheduleStartAtMs } from "../../src/utils/time.ts";
 
-test("getWeekDays treats Sunday as the end of the current coach week", (t) => {
-  t.mock.timers.enable({
-    apis: ["Date"],
-    now: new Date("2026-06-21T10:15:00+08:00")
-  });
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+test("getWeekDays treats Sunday as the end of the current coach week", () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-06-21T10:15:00+08:00"));
 
   const days = getWeekDays(weekSchedules);
 

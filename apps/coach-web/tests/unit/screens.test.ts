@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "vitest";
 import { mockScreensPayload } from "../fixtures/coachData.ts";
 import { parsePairPayload, stateLabel, stateTone, updateInProgress, updateStateLabel, updateStateTone } from "../../src/utils/screens.ts";
 

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "vitest";
 import { mockAuthSession, mockSchedule } from "../fixtures/coachData.ts";
 import { bundleUrl, venueBody, venueQuery } from "../../src/services/consoleService.ts";
 import { buildCourseLogo, buildFormalPreviews, formatStorageBytes, isActiveSessionState, isAuthExpiredMessage, shortSessionId } from "../../src/utils/format.ts";
