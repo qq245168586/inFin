@@ -40,14 +40,14 @@ run_step() {
 overall=0
 
 if [[ "$MODE" == "coverage" ]]; then
-  run_step "server" "$ROOT_DIR/apps/server" npm run test:coverage || overall=1
-  run_step "course-web" "$ROOT_DIR/apps/course-web" npm run test:coverage || overall=1
-  run_step "coach-web" "$ROOT_DIR/apps/coach-web" npm run test:coverage || overall=1
+  run_step "server" "$ROOT_DIR/apps/server" pnpm run test:coverage || overall=1
+  run_step "course-web" "$ROOT_DIR/apps/course-web" pnpm run test:coverage || overall=1
+  run_step "coach-web" "$ROOT_DIR/apps/coach-web" pnpm run test:coverage || overall=1
   run_step "tv-android" "$ROOT_DIR/apps/tv-android" ./gradlew testDebugUnitTest jacocoDebugUnitTestReport || overall=1
 else
-  run_step "server" "$ROOT_DIR/apps/server" npm run test || overall=1
-  run_step "course-web" "$ROOT_DIR/apps/course-web" npm run test || overall=1
-  run_step "coach-web" "$ROOT_DIR/apps/coach-web" npm run test || overall=1
+  run_step "server" "$ROOT_DIR/apps/server" pnpm run test || overall=1
+  run_step "course-web" "$ROOT_DIR/apps/course-web" pnpm run test || overall=1
+  run_step "coach-web" "$ROOT_DIR/apps/coach-web" pnpm run test || overall=1
   run_step "tv-android" "$ROOT_DIR/apps/tv-android" ./gradlew testDebugUnitTest || overall=1
 fi
 

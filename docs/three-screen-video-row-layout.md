@@ -39,6 +39,6 @@
 
 ## 验证
 
-- `apps/course-web`: `npm run typecheck`
-- `apps/server`: `npm run build`
+- `apps/course-web`: `pnpm run typecheck`
+- `apps/server`: `pnpm run build`
 - `apps/tv-android`: `./gradlew assembleDebug`

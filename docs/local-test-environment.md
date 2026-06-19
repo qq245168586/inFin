@@ -55,7 +55,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 生产部署脚本会强制使用 production build：
 
 ```bash
-npm run deploy
+pnpm run deploy
 ```
 
 如果设置了 `INFINI_ENV` 且不是 `production`，部署会中止。

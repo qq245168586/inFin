@@ -4,6 +4,7 @@
 !.gitmodules
 !README.md
 !package.json
+!pnpm-lock.yaml
 
 !.githooks/
 !.githooks/**

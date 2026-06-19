@@ -10,9 +10,9 @@ UI component rendering tests are intentionally excluded. Visual regressions shou
 
 | App | Command | Scope |
 | --- | --- | --- |
-| server | `npm run test` | API/data helpers, schedule rules, package/author ownership, mock database boundaries |
-| course-web | `npm run test` | course editor helpers, validation, package filters, video layout rules, schedule copy logic |
-| coach-web | `npm run test` | schedule date helpers, playback state mapping, screen state utilities, request helpers |
+| server | `pnpm run test` | API/data helpers, schedule rules, package/author ownership, mock database boundaries |
+| course-web | `pnpm run test` | course editor helpers, validation, package filters, video layout rules, schedule copy logic |
+| coach-web | `pnpm run test` | schedule date helpers, playback state mapping, screen state utilities, request helpers |
 | tv-android | `./gradlew testDebugUnitTest` | MVI reducer, timeline/progress calculations, time formatting, layout calculators |
 
 ## Coverage Reports
@@ -20,7 +20,7 @@ UI component rendering tests are intentionally excluded. Visual regressions shou
 Run all suites with coverage:
 
 ```sh
-npm run test:coverage
+pnpm run test:coverage
 ```
 
 The unified report is written under:
@@ -34,7 +34,7 @@ outputs/test-results/<timestamp>/test-report.md
 Install hooks once per machine:
 
 ```sh
-npm run hooks:install
+pnpm run hooks:install
 ```
 
 After installation:

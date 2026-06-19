@@ -1,6 +1,7 @@
 {
   "name": "infini-workspace",
   "private": true,
+  "packageManager": "pnpm@10.11.0",
   "scripts": {
     "workspace:info": "echo \"This root only keeps workspace docs and git submodules. Run build/deploy scripts inside each app.\"",
     "test": "bash tools/run-tests.sh",
