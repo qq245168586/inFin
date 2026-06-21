@@ -203,6 +203,13 @@ export default function useHomeScheduleVm({
     });
   }, []);
 
+  const goToday = useCallback(() => {
+    const today = todayValue();
+    setHomeTab("currentWeek");
+    setScheduleAnchorDateRaw(today);
+    setSelectedScheduleDate(today);
+  }, []);
+
   const activeDraftPackage = useMemo(() => {
     const packageId = scheduleDraft?.coursePackageId || "";
     return coursePackages.find((item) => String(item.id) === String(packageId)) || coursePackages[0] || null;
@@ -359,6 +366,7 @@ export default function useHomeScheduleVm({
     scheduleAnchorDate,
     setScheduleAnchorDate,
     moveScheduleWeek,
+    goToday,
     weekDays,
     visibleSchedules,
     courseGroups,

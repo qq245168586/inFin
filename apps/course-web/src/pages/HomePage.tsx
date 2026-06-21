@@ -2,6 +2,7 @@ import CalendarBoard, { type CalendarDay, type CalendarSchedule } from "../compo
 import EmptyBlock from "../components/EmptyBlock.tsx";
 import type { HomeTabKey } from "../app/navigation.ts";
 import { HOME_TABS } from "../app/navigation.ts";
+import { useI18n } from "../providers/I18nProvider.tsx";
 import { formatDate, formatDateKey, todayValue } from "../utils/datetime.ts";
 
 function getScheduleDate(schedule: CalendarSchedule): string {
@@ -28,6 +29,7 @@ export default function HomePage({
   scheduleAnchorDate,
   onScheduleAnchorDateChange,
   onMoveScheduleWeek,
+  onGoToday,
   schedules,
   onAddSchedule,
   onCopyWeekSchedules,
@@ -42,6 +44,7 @@ export default function HomePage({
   scheduleAnchorDate: string;
   onScheduleAnchorDateChange: (value: string) => void;
   onMoveScheduleWeek: (deltaWeeks: number) => void;
+  onGoToday: () => void;
   schedules: CalendarSchedule[];
   onAddSchedule: () => void;
   onCopyWeekSchedules: () => void;
@@ -52,20 +55,21 @@ export default function HomePage({
     selectedScheduleDate === "all" ? weekDays : weekDays.filter((day) => day.key === selectedScheduleDate);
   const scheduledDateKeys = new Set(schedules.map((item) => getScheduleDate(item)).filter(Boolean));
   const today = todayValue();
+  const { t } = useI18n();
 
   return (
     <section className="page-card">
       <div className="page-card-head">
         <div>
           <p className="page-eyebrow">Scheduling</p>
-          <h1>课表</h1>
+          <h1>{t("课表")}</h1>
         </div>
         <div className="toolbar-actions">
           <button type="button" className="primary-button" onClick={onAddSchedule}>
-            + 添加课程
+            {t("+ 添加课程")}
           </button>
           <button type="button" className="ghost-button" onClick={onCopyWeekSchedules}>
-            复制指定周排课
+            {t("复制指定周排课")}
           </button>
         </div>
       </div>
@@ -78,7 +82,7 @@ export default function HomePage({
             className={`tab-button ${homeTab === tab.key ? "is-active" : ""}`}
             onClick={() => onHomeTabChange(tab.key)}
           >
-            {tab.label}
+            {t(tab.label)}
           </button>
         ))}
       </div>
@@ -90,11 +94,11 @@ export default function HomePage({
           <table className="data-table">
             <thead>
               <tr>
-                <th>课程名称</th>
-                <th>课程版本</th>
-                <th>日期</th>
-                <th>课程信息</th>
-                <th>管理</th>
+                <th>{t("课程名称")}</th>
+                <th>{t("课程版本")}</th>
+                <th>{t("日期")}</th>
+                <th>{t("课程信息")}</th>
+                <th>{t("管理")}</th>
               </tr>
             </thead>
             <tbody>
@@ -103,7 +107,7 @@ export default function HomePage({
                   const isPast = getScheduleDate(item) < today;
                   return (
                     <tr key={item.id} className={isPast ? "is-past" : ""}>
-                      <td>{item.courseDeleted ? "课程已删除" : item.courseName}</td>
+                      <td>{item.courseDeleted ? t("课程已删除") : item.courseName}</td>
                       <td>
                         {item.courseDeleted ? <span className="table-tag is-muted">--</span> : <span className="course-version-badge">{item.version || "--"}</span>}
                       </td>
@@ -111,9 +115,9 @@ export default function HomePage({
                       <td>
                         <div className="schedule-table-meta">
                           {item.description ? <span>{item.description}</span> : null}
-                          {item.topic ? <span>主题：{item.topic}</span> : null}
-                          {item.stationText ? <span>站点：{item.stationText}</span> : null}
-                          {item.rotationType ? <span>换站：{getRotationLabel(item.rotationType)}</span> : null}
+                          {item.topic ? <span>{t("主题：")}{item.topic}</span> : null}
+                          {item.stationText ? <span>{t("站点：")}{item.stationText}</span> : null}
+                          {item.rotationType ? <span>{t("换站：")}{t(getRotationLabel(item.rotationType))}</span> : null}
                           {!item.description && !item.topic && !item.stationText && !item.rotationType ? <span>--</span> : null}
                         </div>
                       </td>
@@ -125,11 +129,11 @@ export default function HomePage({
                               className="schedule-edit-course-button is-table"
                               onClick={() => onOpenScheduleCourseEditor(Number(item.courseId))}
                             >
-                              编辑课程
+                              {t("编辑课程")}
                             </button>
                           ) : null}
                           <button type="button" className="table-link danger" onClick={() => onDeleteSchedule(item.id)} disabled={isPast}>
-                            删除
+                            {t("删除")}
                           </button>
                         </div>
                       </td>
@@ -139,7 +143,7 @@ export default function HomePage({
               ) : (
                 <tr>
                   <td colSpan={5}>
-                    <EmptyBlock title="还没有历史排课" copy="你添加过的课程排期会展示在这里。" />
+                    <EmptyBlock title={t("还没有历史排课")} copy={t("你添加过的课程排期会展示在这里。")} />
                   </td>
                 </tr>
               )}
@@ -152,10 +156,13 @@ export default function HomePage({
             {homeTab === "currentWeek" ? (
               <div className="calendar-jump-controls">
                 <button type="button" className="ghost-button" onClick={() => onMoveScheduleWeek(-1)}>
-                  上一周
+                  {t("上一周")}
+                </button>
+                <button type="button" className="primary-button calendar-today-button" onClick={onGoToday}>
+                  {t("今天")}
                 </button>
                 <button type="button" className="ghost-button" onClick={() => onMoveScheduleWeek(1)}>
-                  下一周
+                  {t("下一周")}
                 </button>
               </div>
             ) : null}
@@ -163,7 +170,7 @@ export default function HomePage({
             <div className="calendar-date-strip">
               {homeTab === "currentWeek" ? (
                 <label className="calendar-date-picker-pill">
-                  <span>日期选择</span>
+                  <span>{t("日期选择")}</span>
                   <input
                     type="date"
                     value={scheduleAnchorDate}

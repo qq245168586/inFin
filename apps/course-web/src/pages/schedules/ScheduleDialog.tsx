@@ -16,6 +16,7 @@ import {
 import Dialog from "../../components/Dialog.tsx";
 import type { CourseGroups } from "../../models/course/groupCoursesByName.ts";
 import type { CourseRecord } from "../../models/course/types.ts";
+import { useI18n } from "../../providers/I18nProvider.tsx";
 import { todayValue } from "../../utils/datetime.ts";
 
 export interface ScheduleDraftValue {
@@ -40,6 +41,7 @@ function ScheduleCourseSeriesOption({
   onSelectCourse: (course: CourseRecord) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const { t } = useI18n();
   const { refs, floatingStyles, context } = useFloating({
     open: isOpen,
     onOpenChange: setIsOpen,
@@ -69,7 +71,7 @@ function ScheduleCourseSeriesOption({
       >
         <span className="schedule-course-option-main">
           <strong>{name}</strong>
-          <span className="schedule-course-count">共 {courses.length} 版</span>
+          <span className="schedule-course-count">{t("共")} {courses.length} {t("版")}</span>
         </span>
         <span className="schedule-course-arrow">›</span>
       </div>
@@ -115,6 +117,7 @@ export default function ScheduleDialog({
   onConfirm: () => void;
 }) {
   const courseGroupEntries = Object.entries(courseGroups).sort(([leftName], [rightName]) => leftName.localeCompare(rightName));
+  const { t } = useI18n();
 
   function selectCourse(course: CourseRecord) {
     onDraftChange((current) => ({
@@ -126,10 +129,10 @@ export default function ScheduleDialog({
   }
 
   return (
-    <Dialog title="添加排课" width={560} onClose={onClose} onConfirm={onConfirm}>
+    <Dialog title={t("添加排课")} width={560} onClose={onClose} onConfirm={onConfirm}>
       <div className="dialog-form">
         <div className="field">
-          <span>请选择课程</span>
+          <span>{t("请选择课程")}</span>
           <div className="schedule-course-picker">
             {courseGroupEntries.length ? (
               courseGroupEntries.map(([name, courses]) => {
@@ -164,7 +167,7 @@ export default function ScheduleDialog({
                 );
               })
             ) : (
-              <div className="schedule-course-empty">当前课程包没有可排课程</div>
+              <div className="schedule-course-empty">{t("当前课程包没有可排课程")}</div>
             )}
           </div>
         </div>
@@ -177,7 +180,7 @@ export default function ScheduleDialog({
         ) : null}
 
         <label className="field">
-          <span>课程日期</span>
+          <span>{t("课程日期")}</span>
           <input
             type="date"
             min={todayValue()}

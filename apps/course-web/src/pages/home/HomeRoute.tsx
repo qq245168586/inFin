@@ -51,6 +51,7 @@ export default function HomeRoute({
         scheduleAnchorDate={vm.scheduleAnchorDate}
         onScheduleAnchorDateChange={vm.setScheduleAnchorDate}
         onMoveScheduleWeek={vm.moveScheduleWeek}
+        onGoToday={vm.goToday}
         schedules={vm.visibleSchedules}
         onAddSchedule={vm.openScheduleDialog}
         onCopyWeekSchedules={vm.openCopyWeekDialog}

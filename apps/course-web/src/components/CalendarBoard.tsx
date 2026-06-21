@@ -1,4 +1,5 @@
 import type { CourseRotationType } from "../models/course/types.ts";
+import { useI18n } from "../providers/I18nProvider.tsx";
 import { todayValue } from "../utils/datetime.ts";
 
 export interface CalendarDay {
@@ -59,6 +60,8 @@ export default function CalendarBoard({
   onOpenCourseEditor: (courseId: number) => void;
   onDelete: (scheduleId: number) => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <div className="schedule-day-list">
       {weekDays.map((day) => {
@@ -88,10 +91,10 @@ export default function CalendarBoard({
                       <div className="schedule-list-card-main">
                         <div>
                           {!item.courseDeleted ? <span className="schedule-version-badge">Version {item.version || "--"}</span> : null}
-                          <strong>{item.courseDeleted ? "课程已删除" : item.courseName}</strong>
+                          <strong>{item.courseDeleted ? t("课程已删除") : item.courseName}</strong>
                         </div>
                         <button type="button" className="table-link danger" onClick={() => onDelete(item.id)} disabled={isPast}>
-                          删除
+                          {t("删除")}
                         </button>
                       </div>
 
@@ -99,9 +102,9 @@ export default function CalendarBoard({
 
                       {topic || stationText || rotationLabel ? (
                         <div className="schedule-meta-row">
-                          {topic ? <span>主题：{topic}</span> : null}
-                          {stationText ? <span>站点：{stationText}</span> : null}
-                          {rotationLabel ? <span>换站：{rotationLabel}</span> : null}
+                          {topic ? <span>{t("主题：")}{topic}</span> : null}
+                          {stationText ? <span>{t("站点：")}{stationText}</span> : null}
+                          {rotationLabel ? <span>{t("换站：")}{t(rotationLabel)}</span> : null}
                         </div>
                       ) : null}
 
@@ -112,7 +115,7 @@ export default function CalendarBoard({
                             className="schedule-edit-course-button"
                             onClick={() => onOpenCourseEditor(Number(item.courseId))}
                           >
-                            编辑课程
+                            {t("编辑课程")}
                           </button>
                         </div>
                       ) : null}
@@ -121,13 +124,13 @@ export default function CalendarBoard({
                 })}
               </div>
             ) : (
-              <div className="schedule-day-empty">当天未安排课程</div>
+              <div className="schedule-day-empty">{t("当天未安排课程")}</div>
             )}
           </section>
         );
       })}
 
-      {!schedules.length ? <div className="calendar-empty-state">当前周还没有排课，点击右上角“添加课程”开始创建。</div> : null}
+      {!schedules.length ? <div className="calendar-empty-state">{t("当前周还没有排课，点击右上角“添加课程”开始创建。")}</div> : null}
     </div>
   );
 }
