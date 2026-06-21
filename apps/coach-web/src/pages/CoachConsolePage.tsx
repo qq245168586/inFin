@@ -12,11 +12,7 @@ export default function CoachConsolePage(props: CoachConsoleViewModelProps) {
   return (
     <section className="coach-console-page">
       <ConsoleToolbar
-        activeCoursePackageId={vm.activeCoursePackageId}
-        coursePackages={vm.coursePackages}
         dateLabel={formatDateLabel(vm.selectedDate)}
-        disabled={Boolean(vm.pendingAction)}
-        onChangeCoursePackage={(coursePackageId) => void vm.changeActiveCoursePackage(coursePackageId)}
         onRefreshBundle={() => void vm.refreshBundle()}
         onRefreshTv={() => void vm.handleRefreshTv()}
       />

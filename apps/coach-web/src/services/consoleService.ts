@@ -115,14 +115,38 @@ export async function fetchVenueCoursePackages(authSession: AuthSession): Promis
   const payload = await requestJson<{ data: VenueCoursePackagesPayload }>("/api/coach/course-packages", {
     headers: authHeaders(authSession.token_type, authSession.access_token)
   });
-  return payload.data;
+  return normalizeVenueCoursePackagesPayload(payload.data);
 }
 
 export async function switchActiveCoursePackage(authSession: AuthSession, coursePackageId: number, commandId: string): Promise<VenueCoursePackagesPayload> {
-  const payload = await requestJson<{ data: VenueCoursePackagesPayload }>("/api/coach/active-course-package", {
+  const payload = await requestJson<{ data: VenueCoursePackagesPayload; warning?: string }>("/api/coach/active-course-package", {
     method: "POST",
     headers: authHeaders(authSession.token_type, authSession.access_token),
     body: JSON.stringify({ coursePackageId, commandId })
   });
-  return payload.data;
+  return {
+    ...normalizeVenueCoursePackagesPayload(payload.data),
+    warning: String(payload.warning || "").trim()
+  };
+}
+
+function normalizeVenueCoursePackagesPayload(payload: VenueCoursePackagesPayload): VenueCoursePackagesPayload {
+  const packages = Array.isArray(payload.packages) ? payload.packages : Array.isArray(payload.items) ? payload.items : [];
+  const venue = payload.venue || {
+    id: String(payload.venueId || ""),
+    name: String(payload.venueName || ""),
+    accountNamespace: String(payload.accountNamespace || ""),
+    activeCoursePackageId: payload.activeCoursePackageId
+  };
+  const activeCoursePackageId = Number(payload.activeCoursePackageId || venue.activeCoursePackageId || packages[0]?.id || 0);
+  return {
+    ...payload,
+    venue: {
+      ...venue,
+      activeCoursePackageId
+    },
+    packages,
+    items: packages,
+    activeCoursePackageId
+  };
 }

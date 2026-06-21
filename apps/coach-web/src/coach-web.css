@@ -180,6 +180,8 @@ button {
 
 .coach-settings-popover {
   width: min(100%, 420px);
+  max-height: calc(100vh - 112px);
+  overflow: auto;
   padding: 18px;
   border-radius: 26px;
   background: #11111b;
@@ -258,6 +260,15 @@ button {
   background: rgba(145, 46, 255, 0.18);
 }
 
+.coach-settings-item:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.coach-settings-package {
+  min-height: 66px;
+}
+
 .coach-settings-item strong {
   font-size: 15px;
 }
@@ -308,6 +319,40 @@ button {
   height: 2px;
   background: currentColor;
   box-shadow: 0 3px 0 currentColor;
+}
+
+.coach-settings-item-icon.is-package::before,
+.coach-settings-item-icon.is-package::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  height: 8px;
+  border: 2px solid currentColor;
+  border-radius: 7px;
+}
+
+.coach-settings-item-icon.is-package::before {
+  top: 11px;
+}
+
+.coach-settings-item-icon.is-package::after {
+  top: 24px;
+  box-shadow: 0 13px 0 -2px currentColor;
+}
+
+.coach-settings-empty {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.coach-settings-empty.is-warning {
+  color: #ffd8a8;
+  background: rgba(255, 174, 66, 0.1);
 }
 
 .coach-console-page {

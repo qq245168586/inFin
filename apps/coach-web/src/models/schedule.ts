@@ -65,6 +65,7 @@ export type CourseRotationType = "REGION" | "LANE" | "SNAKE";
 export interface CoachCourseScript {
   metadata?: {
     name?: string;
+    version?: string;
     description?: string;
     topic?: string;
     rotationType?: CourseRotationType;
@@ -147,6 +148,9 @@ export interface CoursePackageRecord {
 }
 
 export interface VenueCoursePackagesPayload {
+  venueId?: string;
+  venueName?: string;
+  accountNamespace?: string;
   venue: {
     id: string;
     name: string;
@@ -154,5 +158,8 @@ export interface VenueCoursePackagesPayload {
     activeCoursePackageId?: number;
   };
   packages: CoursePackageRecord[];
+  items?: CoursePackageRecord[];
   activeCoursePackageId?: number;
+  running?: boolean;
+  warning?: string;
 }

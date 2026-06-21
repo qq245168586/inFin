@@ -50,7 +50,17 @@ export default function CoachShellPage() {
         </main>
       </div>
 
-      {settingsOpen ? <CoachSettingsMenu activePage={activePage} onClose={() => setSettingsOpen(false)} onSelectPage={setActivePage} /> : null}
+      {settingsOpen ? (
+        <CoachSettingsMenu
+          activePage={activePage}
+          authSession={authSession}
+          onBusyTextChange={setBusyText}
+          onAuthExpired={handleSessionExpired}
+          onClose={() => setSettingsOpen(false)}
+          onNotice={pushNotice}
+          onSelectPage={setActivePage}
+        />
+      ) : null}
       <NoticeToast notice={notice} />
       <BusyMask text={busyText} />
     </div>

@@ -16,6 +16,7 @@ import {
   venueQuery
 } from "../services/consoleService";
 import { buildFormalPreviews, createCommandId, getErrorMessage, isActiveSessionState, isAuthExpiredMessage } from "../utils/format";
+import { COACH_COURSE_PACKAGE_CHANGED_EVENT } from "../utils/events";
 import { activeSessionState } from "../utils/playback";
 import { getWeekDays, scheduleStartAtMs, todayValue } from "../utils/time";
 import { useCoachConsoleEffects } from "./useCoachConsoleEffects";
@@ -174,7 +175,7 @@ export function useCoachConsoleViewModel({
       setSelectedScheduleId("");
       setPreviewIndex(0);
       setBundle(await fetchDailyBundle(selectedDate, authSession));
-      onNotice("课程包已切换，TV 会重新同步课表资源。");
+      onNotice(payload.warning || "课程包已切换，TV 会重新同步课表资源。", payload.warning ? "error" : undefined);
     } catch (error) {
       handleRequestError(error, "切换课程包失败。");
     } finally {
@@ -381,6 +382,25 @@ export function useCoachConsoleViewModel({
   useEffect(() => {
     void loadCoursePackages(false);
   }, [authSession.access_token, authSession.token_type]);
+
+  useEffect(() => {
+    function handleCoursePackageChanged(event: Event) {
+      const detail = (event as CustomEvent<{ activeCoursePackageId?: number }>).detail;
+      const nextCoursePackageId = Number(detail?.activeCoursePackageId || 0);
+      if (nextCoursePackageId) {
+        setActiveCoursePackageId(nextCoursePackageId);
+      }
+      setSelectedScheduleId("");
+      setPreviewIndex(0);
+      void loadCoursePackages(false);
+      fetchDailyBundle(selectedDate, authSession)
+        .then(setBundle)
+        .catch((error) => handleRequestError(error, "刷新课程包课表失败。"));
+    }
+
+    window.addEventListener(COACH_COURSE_PACKAGE_CHANGED_EVENT, handleCoursePackageChanged);
+    return () => window.removeEventListener(COACH_COURSE_PACKAGE_CHANGED_EVENT, handleCoursePackageChanged);
+  }, [authSession.access_token, authSession.token_type, selectedDate]);
 
   return {
     activePreviewItem,

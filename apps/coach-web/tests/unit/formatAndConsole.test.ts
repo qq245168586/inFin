@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import { mockAuthSession, mockSchedule } from "../fixtures/coachData.ts";
-import { bundleUrl, venueBody, venueQuery } from "../../src/services/consoleService.ts";
+import { bundleUrl, fetchVenueCoursePackages, switchActiveCoursePackage, venueBody, venueQuery } from "../../src/services/consoleService.ts";
 import { buildCourseLogo, buildFormalPreviews, formatStorageBytes, isActiveSessionState, isAuthExpiredMessage, shortSessionId } from "../../src/utils/format.ts";
 
 test("buildFormalPreviews sorts screens and skips cards without media", () => {
@@ -77,4 +77,56 @@ test("venueQuery and venueBody prefer venueId, then scoped account namespace", (
       accountNamespace: "venue-alpha"
     }
   );
+});
+
+test("fetchVenueCoursePackages normalizes legacy items payload", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response(
+    JSON.stringify({
+      data: {
+        venueId: "venue-a",
+        venueName: "Venue A",
+        accountNamespace: "venue-alpha",
+        activeCoursePackageId: 2,
+        items: [{ id: 2, name: "Hybrid" }]
+      }
+    }),
+    { status: 200, headers: { "Content-Type": "application/json" } }
+  )) as typeof fetch;
+
+  try {
+    const payload = await fetchVenueCoursePackages(mockAuthSession);
+    assert.equal(payload.venue.id, "venue-a");
+    assert.equal(payload.venue.name, "Venue A");
+    assert.equal(payload.activeCoursePackageId, 2);
+    assert.deepEqual(payload.packages.map((item) => item.name), ["Hybrid"]);
+    assert.deepEqual(payload.items?.map((item) => item.id), [2]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("switchActiveCoursePackage preserves server warning after persisted switch", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response(
+    JSON.stringify({
+      data: {
+        venueId: "venue-a",
+        venueName: "Venue A",
+        accountNamespace: "venue-alpha",
+        activeCoursePackageId: 2,
+        packages: [{ id: 2, name: "Hybrid" }]
+      },
+      warning: "课程包已保存，但 MQTT 发布失败。"
+    }),
+    { status: 200, headers: { "Content-Type": "application/json" } }
+  )) as typeof fetch;
+
+  try {
+    const payload = await switchActiveCoursePackage(mockAuthSession, 2, "cmd-1");
+    assert.equal(payload.activeCoursePackageId, 2);
+    assert.equal(payload.warning, "课程包已保存，但 MQTT 发布失败。");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
