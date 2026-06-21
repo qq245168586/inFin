@@ -33,6 +33,14 @@ flowchart LR
 - TV 版本包登记、下载、扫描。
 - 对外提供 REST API，Web 端不直接改数据库。
 
+内部结构约定：
+
+- `src/interfaces/http/compat-request-handler.ts`：承载现有 REST API 和旧客户端协议兼容，请求兼容逻辑集中放在这里。
+- `src/data/json-file-store.ts`：当前 JSON DB 文件存储实现，负责读写 `infini-data`。
+- `src/data/store-gateway.ts`：给 Nest 模块和 request 适配层使用的 store 访问网关。
+- `src/runtime/*`：启动时装配 request handler 和 store 的入口。
+- 不再新增 `src/legacy` 或 `.txt` chunks；如果业务继续拆分，应进入明确的 domain/service/repository 模块。
+
 ### `apps/mqtt-client`
 
 负责统一 MQTT 下发：
