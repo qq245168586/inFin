@@ -28,12 +28,12 @@ export default function CopyWeekSchedulesDialog({
   onConfirm: () => void;
 }) {
   const currentWeekStart = weekStartValue(todayValue());
-  const sourceMax = addDaysValue(currentWeekStart, -1);
+  const sourceMax = currentWeekStart;
   const targetMin = addDaysValue(currentWeekStart, 7);
   const confirmDisabled =
     !draft.sourceWeekStart ||
     !draft.targetWeekStart ||
-    draft.sourceWeekStart >= currentWeekStart ||
+    draft.sourceWeekStart > currentWeekStart ||
     draft.targetWeekStart <= currentWeekStart;
 
   return (
@@ -52,7 +52,7 @@ export default function CopyWeekSchedulesDialog({
               }))
             }
           />
-          <small>过去周 · {formatWeekRange(draft.sourceWeekStart)}</small>
+          <small>过去周或本周 · {formatWeekRange(draft.sourceWeekStart)}</small>
         </label>
 
         <label className="field">

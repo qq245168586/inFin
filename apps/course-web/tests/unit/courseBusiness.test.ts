@@ -271,7 +271,7 @@ describe("pod timing and endings", () => {
 describe("copy-week schedules", () => {
   test("creates default source and target weeks around the current week", () => {
     assert.deepEqual(createCopyWeekSchedulesDraft("2026-06-19"), {
-      sourceWeekStart: "2026-06-08",
+      sourceWeekStart: "2026-06-15",
       targetWeekStart: "2026-06-22"
     });
   });
@@ -297,7 +297,7 @@ describe("copy-week schedules", () => {
     });
   });
 
-  test("rejects copying from current/future weeks and into current/past weeks", () => {
+  test("allows copying from the current week into a future week", () => {
     assert.deepEqual(
       buildCopyWeekSchedulesPayload({
         coursePackageId: 2,
@@ -308,8 +308,30 @@ describe("copy-week schedules", () => {
         }
       }),
       {
+        ok: true,
+        payload: {
+          coursePackageId: 2,
+          sourceWeekStart: "2026-06-15",
+          targetWeekStart: "2026-06-22",
+          replaceExisting: false
+        }
+      }
+    );
+  });
+
+  test("rejects copying from future weeks and into current/past weeks", () => {
+    assert.deepEqual(
+      buildCopyWeekSchedulesPayload({
+        coursePackageId: 2,
+        currentDate: "2026-06-19",
+        draft: {
+          sourceWeekStart: "2026-06-22",
+          targetWeekStart: "2026-06-29"
+        }
+      }),
+      {
         ok: false,
-        message: "来源周只能选择过去周。"
+        message: "来源周只能选择过去周或本周。"
       }
     );
 

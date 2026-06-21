@@ -34,6 +34,7 @@ const en = {
     "当前课程包为空，不能复制排课。": "The current course package is empty. Schedules cannot be copied.",
     "请选择来源周和目标周。": "Select a source week and target week.",
     "来源周只能选择过去周。": "Source week must be in the past.",
+    "来源周只能选择过去周或本周。": "Source week must be in the past or this week.",
     "目标周只能选择未来周。": "Target week must be in the future.",
     "正在复制指定周排课...": "Copying schedules...",
     "正在覆盖目标周排课...": "Replacing target week schedules...",

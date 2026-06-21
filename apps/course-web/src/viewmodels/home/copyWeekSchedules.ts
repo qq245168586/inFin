@@ -19,7 +19,7 @@ export type CopyWeekSchedulesPayloadResult =
 export function createCopyWeekSchedulesDraft(currentDate = todayValue()): CopyWeekSchedulesDraftValue {
   const currentWeekStart = weekStartValue(currentDate);
   return {
-    sourceWeekStart: addDaysValue(currentWeekStart, -7),
+    sourceWeekStart: currentWeekStart,
     targetWeekStart: addDaysValue(currentWeekStart, 7)
   };
 }
@@ -52,10 +52,10 @@ export function buildCopyWeekSchedulesPayload({
   const currentWeekStart = weekStartValue(currentDate);
   const sourceWeekStart = weekStartValue(draft.sourceWeekStart);
   const targetWeekStart = weekStartValue(draft.targetWeekStart);
-  if (sourceWeekStart >= currentWeekStart) {
+  if (sourceWeekStart > currentWeekStart) {
     return {
       ok: false,
-      message: "来源周只能选择过去周。"
+      message: "来源周只能选择过去周或本周。"
     };
   }
   if (targetWeekStart <= currentWeekStart) {
