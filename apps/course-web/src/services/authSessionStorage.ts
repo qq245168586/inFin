@@ -2,6 +2,7 @@ import { refreshWithToken, type AuthSession } from "./api/auth.ts";
 import { readStorageJson, removeStorageItem, saveStorageJson } from "../utils/storage.ts";
 
 const AUTH_STORAGE_KEY = "infini-admin-auth";
+let refreshSessionPromise: Promise<AuthSession> | null = null;
 
 function enrichSession(session: AuthSession): AuthSession {
   const issuedAt = Date.now();
@@ -42,11 +43,41 @@ export function withStoredAuthHeader(headers: HeadersInit = {}): HeadersInit {
 }
 
 export async function refreshStoredAuthHeader(): Promise<string> {
+  const nextSession = await refreshStoredAuthSession();
+  return `${nextSession.token_type || "Bearer"} ${nextSession.access_token}`;
+}
+
+export async function refreshStoredAuthSession(): Promise<AuthSession> {
+  if (!refreshSessionPromise) {
+    refreshSessionPromise = refreshStoredAuthSessionOnce().finally(() => {
+      refreshSessionPromise = null;
+    });
+  }
+
+  return refreshSessionPromise;
+}
+
+async function refreshStoredAuthSessionOnce(): Promise<AuthSession> {
   const current = readStoredAuthSession();
-  if (!current?.refresh_token) return "";
+  if (!current?.refresh_token) {
+    throw new Error("refresh token 不存在。");
+  }
 
   const token = await refreshWithToken(current.refresh_token);
   const nextSession = enrichSession({ ...current, ...token });
   saveStoredAuthSession(nextSession);
-  return `${nextSession.token_type || "Bearer"} ${nextSession.access_token}`;
+  notifyAuthSessionRefreshed(nextSession);
+  return nextSession;
+}
+
+function notifyAuthSessionRefreshed(session: AuthSession) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.dispatchEvent(new CustomEvent("infini-auth-refreshed", { detail: { session } }));
+  } catch {
+    // Ignore dispatch failures.
+  }
 }

@@ -1,7 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { getErrorMessage } from "../utils/errors.ts";
 import { fetchProfile, loginWithPassword, refreshWithToken, type AuthSession } from "../services/api/auth.ts";
-import { clearStoredAuthSession, readStoredAuthSession, saveStoredAuthSession } from "../services/authSessionStorage.ts";
+import {
+  clearStoredAuthSession,
+  readStoredAuthSession,
+  refreshStoredAuthSession,
+  saveStoredAuthSession
+} from "../services/authSessionStorage.ts";
 
 const ACTIVE_SESSION_WINDOW_MS = 12 * 60 * 60 * 1000;
 const REFRESH_BEFORE_EXPIRE_MS = 10 * 60 * 1000;
@@ -70,7 +75,7 @@ export default function AuthProvider({
     if (!current?.refresh_token || refreshingRef.current) return;
     refreshingRef.current = true;
     try {
-      const token = await refreshWithToken(current.refresh_token);
+      const token = await refreshStoredAuthSession();
       const profile = await fetchProfile(token.token_type, token.access_token).catch(() => ({}));
       setAuthSession(enrichSession({ ...token, ...profile }));
     } catch (error) {
@@ -151,6 +156,21 @@ export default function AuthProvider({
     const timer = window.setInterval(tick, REFRESH_CHECK_MS);
     return () => window.clearInterval(timer);
   }, [authSession, expireSession, refreshSession]);
+
+  useEffect(() => {
+    function handleAuthRefreshed(event: Event) {
+      const detail = (event as CustomEvent<{ session?: AuthSession }>).detail;
+      const session = detail?.session;
+      if (!session?.access_token) {
+        return;
+      }
+
+      setAuthSession((current) => enrichSession({ ...(current || {}), ...session }));
+    }
+
+    window.addEventListener("infini-auth-refreshed", handleAuthRefreshed as EventListener);
+    return () => window.removeEventListener("infini-auth-refreshed", handleAuthRefreshed as EventListener);
+  }, [enrichSession]);
 
   useEffect(() => {
     function handleAuthExpired(event: Event) {
