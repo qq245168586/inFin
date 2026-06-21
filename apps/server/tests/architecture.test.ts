@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { test } from "vitest";
 import { DomainEventBus } from "../src/events/domain-event-bus.ts";
 import { LegacyStoreGateway } from "../src/data/legacy-store-gateway.ts";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const serverRoot = path.resolve(__dirname, "..");
 
 test("LegacyStoreGateway delegates calls and marks state-changing store operations", () => {
   const gateway = new LegacyStoreGateway({
@@ -20,6 +26,10 @@ test("LegacyStoreGateway delegates calls and marks state-changing store operatio
 test("DomainEventBus emits typed events to named and wildcard subscribers", () => {
   const bus = new DomainEventBus();
   const received: string[] = [];
+  const streamTypes: string[] = [];
+  const streamSubscription = bus.events().subscribe((event) => {
+    streamTypes.push(event.type);
+  });
   const unsubscribeNamed = bus.on("schedule.changed", (event) => {
     received.push(`named:${event.payload.scheduleId}`);
   });
@@ -36,6 +46,18 @@ test("DomainEventBus emits typed events to named and wildcard subscribers", () =
 
   unsubscribeNamed();
   unsubscribeWildcard();
+  streamSubscription.unsubscribe();
   bus.emit("schedule.changed", { scheduleId: "sch-2" });
   assert.deepEqual(received, ["named:sch-1", "wildcard:schedule.changed"]);
+  assert.deepEqual(streamTypes, ["schedule.changed"]);
+});
+
+test("legacy chunk filenames keep load order and describe their responsibility", () => {
+  for (const directory of ["server-chunks", "store-chunks"]) {
+    const chunkDir = path.join(serverRoot, "src", "legacy", directory);
+    const numericOnly = fs
+      .readdirSync(chunkDir)
+      .filter((name) => /^\w+\.\d+[a-z]?\.txt$/.test(name));
+    assert.deepEqual(numericOnly, [], `${directory} should not use pure numeric chunk filenames`);
+  }
 });

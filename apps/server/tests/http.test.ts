@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { test } from "vitest";
+import { createJsonHttpClient, HttpClientError } from "../src/utils/http-client.ts";
 import { readJsonBody, sendFile } from "../src/utils/http.ts";
 
 test("readJsonBody returns null for an empty request and parses JSON buffers", async () => {
@@ -39,6 +40,51 @@ test("sendFile honors HEAD requests for valid ranges without writing a body", ()
   } finally {
     cleanup();
   }
+});
+
+test("createJsonHttpClient applies base URL, JSON headers and default headers", async () => {
+  const calls: any[] = [];
+  const client = createJsonHttpClient({
+    baseUrl: "https://api.example.test/base",
+    defaultHeaders: { Authorization: "Bearer token" },
+    timeoutMs: 1200,
+    fetchImpl: (async (url: URL, init: any) => {
+      calls.push({ url, init });
+      return {
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({ ok: true })
+      } as Response;
+    }) as any
+  });
+
+  assert.ok(client);
+  assert.deepEqual(await client.post("/mqtt", { hello: "world" }), { ok: true });
+  assert.equal(String(calls[0].url), "https://api.example.test/mqtt");
+  assert.equal(calls[0].init.headers["content-type"], "application/json");
+  assert.equal(calls[0].init.headers.authorization, "Bearer token");
+  assert.equal(calls[0].init.body, JSON.stringify({ hello: "world" }));
+});
+
+test("createJsonHttpClient returns parsed error payloads", async () => {
+  const client = createJsonHttpClient({
+    baseUrl: "https://api.example.test",
+    fetchImpl: (async () =>
+      ({
+        ok: false,
+        status: 502,
+        text: async () => JSON.stringify({ message: "gateway unavailable" })
+      }) as Response) as any
+  });
+
+  assert.ok(client);
+  await assert.rejects(() => client.post("/mqtt", {}), (error: any) => {
+    assert.ok(error instanceof HttpClientError);
+    assert.equal(error.status, 502);
+    assert.equal(error.message, "gateway unavailable");
+    assert.deepEqual(error.payload, { message: "gateway unavailable" });
+    return true;
+  });
 });
 
 function writeTempFile(content: string) {

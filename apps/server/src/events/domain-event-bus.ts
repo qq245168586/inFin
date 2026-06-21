@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { EventEmitter } from "node:events";
+import { filter, Subject } from "rxjs";
 
 export type DomainEventPayload = Record<string, unknown>;
 
@@ -13,7 +13,11 @@ type DomainEventHandler = (event: DomainEvent) => void | Promise<void>;
 
 @Injectable()
 export class DomainEventBus {
-  private readonly emitter = new EventEmitter();
+  private readonly stream = new Subject<DomainEvent>();
+
+  events() {
+    return this.stream.asObservable();
+  }
 
   emit(type: string, payload: DomainEventPayload = {}) {
     const event: DomainEvent = {
@@ -21,16 +25,16 @@ export class DomainEventBus {
       payload,
       occurredAt: new Date().toISOString()
     };
-    this.emitter.emit(type, event);
-    this.emitter.emit("*", event);
+    this.stream.next(event);
     return event;
   }
 
   on(type: string, handler: DomainEventHandler) {
-    const wrapped = (event: DomainEvent) => {
-      void handler(event);
-    };
-    this.emitter.on(type, wrapped);
-    return () => this.emitter.off(type, wrapped);
+    const subscription = this.stream
+      .pipe(filter((event) => type === "*" || event.type === type))
+      .subscribe((event) => {
+        void handler(event);
+      });
+    return () => subscription.unsubscribe();
   }
 }

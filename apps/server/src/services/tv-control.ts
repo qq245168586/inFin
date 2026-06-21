@@ -1,5 +1,6 @@
 import mqtt from "mqtt";
 import { recordOutboundMqtt } from "./mqtt-ops-log.js";
+import { createJsonHttpClient } from "../utils/http-client.js";
 
 const MQTT_USERNAME = process.env.MQTT_USERNAME || "tv1";
 const MQTT_PASSWORD = process.env.MQTT_PASSWORD || "REDACTED_CONFIGURE_LOCALLY";
@@ -11,6 +12,11 @@ const MQTT_CLIENT_HTTP_URL = String(process.env.MQTT_CLIENT_HTTP_URL || process.
 const MQTT_CLIENT_HTTP_TOKEN = String(process.env.MQTT_CLIENT_HTTP_TOKEN || "").trim();
 const MQTT_CLIENT_HTTP_TIMEOUT_MS = Number(process.env.MQTT_CLIENT_HTTP_TIMEOUT_MS || 8000);
 const MQTT_CLIENT_FALLBACK_DIRECT = String(process.env.MQTT_CLIENT_FALLBACK_DIRECT || "1") !== "0";
+const mqttGatewayClient = createJsonHttpClient({
+  baseUrl: MQTT_CLIENT_HTTP_URL,
+  timeoutMs: MQTT_CLIENT_HTTP_TIMEOUT_MS,
+  defaultHeaders: MQTT_CLIENT_HTTP_TOKEN ? { authorization: `Bearer ${MQTT_CLIENT_HTTP_TOKEN}` } : {}
+});
 
 let clientPromise = null;
 
@@ -94,41 +100,11 @@ async function publishDirect(topic, payloadObject, { qos = 0, retain = false } =
 }
 
 async function publishViaGateway(pathname, body) {
-  if (!MQTT_CLIENT_HTTP_URL || typeof fetch !== "function") {
+  if (!mqttGatewayClient) {
     return null;
   }
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), MQTT_CLIENT_HTTP_TIMEOUT_MS);
-  try {
-    const url = new URL(pathname, MQTT_CLIENT_HTTP_URL.endsWith("/") ? MQTT_CLIENT_HTTP_URL : `${MQTT_CLIENT_HTTP_URL}/`);
-    const headers: Record<string, string> = {
-      "content-type": "application/json"
-    };
-    if (MQTT_CLIENT_HTTP_TOKEN) {
-      headers.authorization = `Bearer ${MQTT_CLIENT_HTTP_TOKEN}`;
-    }
-    const response = await fetch(url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(body),
-      signal: controller.signal
-    });
-    const text = await response.text();
-    let payload = null;
-    try {
-      payload = text ? JSON.parse(text) : null;
-    } catch {
-      payload = { raw: text };
-    }
-    if (!response.ok) {
-      const message = payload?.message || payload?.error || `MQTT client HTTP ${response.status}`;
-      throw new Error(message);
-    }
-    return payload;
-  } finally {
-    clearTimeout(timeoutId);
-  }
+  return mqttGatewayClient.post(pathname, body);
 }
 
 async function publishWithGatewayFallback(pathname, body, topic, payloadObject, directOptions) {
