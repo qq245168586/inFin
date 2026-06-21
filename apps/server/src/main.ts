@@ -1,7 +1,7 @@
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module.js";
-import { createLegacyRequestHandler } from "./legacy/server-runtime.js";
+import { createCompatRequestHandler } from "./runtime/http-request-runtime.js";
 
 const host = process.env.HOST || "127.0.0.1";
 const port = Number(process.env.PORT || 3100);
@@ -58,14 +58,14 @@ async function handleMqttHttpAuth(request: any, response: any) {
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bodyParser: false });
-  const legacyRequestHandler = await createLegacyRequestHandler();
+  const compatRequestHandler = await createCompatRequestHandler();
 
   app.use((request, response) => {
     if (request.method === "POST" && request.url?.split("?")[0] === "/api/mqtt/auth") {
       void handleMqttHttpAuth(request, response);
       return;
     }
-    void legacyRequestHandler(request, response);
+    void compatRequestHandler(request, response);
   });
 
   await app.listen(port, host);

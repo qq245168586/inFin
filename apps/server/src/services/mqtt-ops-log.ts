@@ -4,8 +4,8 @@ import { fileURLToPath } from "node:url";
 import mqtt from "mqtt";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const legacyStorageRoot = path.resolve(__dirname, "../../storage");
-const storageRoot = path.resolve(process.env.INFINI_DATA_ROOT || legacyStorageRoot);
+const defaultStorageRoot = path.resolve(__dirname, "../../storage");
+const storageRoot = path.resolve(process.env.INFINI_DATA_ROOT || defaultStorageRoot);
 const logRoot = path.join(storageRoot, "mqtt-logs");
 const MIN_RETENTION_DAYS = 3;
 const DEFAULT_RETENTION_DAYS = 7;

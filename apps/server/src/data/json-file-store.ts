@@ -7,14 +7,14 @@ import {
   cloneCourseScript,
   createTrainingPanel,
   courseScriptUsesAction,
-  legacyCourseToScript,
+  legacyCourseToScript as convertCourseToScript,
   normalizeCoursePlan,
   summarizeCourseScript,
   validateCourseScript
 } from "../../../../packages/shared/src/course-script.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const legacyStorageRoot = path.resolve(__dirname, "../../storage");
+const defaultStorageRoot = path.resolve(__dirname, "../../storage");
 let storageRoot = "";
 let mediaRoot = "";
 let appPackageRoot = "";
@@ -57,9 +57,9 @@ const CONSOLE_ACCOUNT_PRESETS = [
 ];
 
 /**
- * 判断是否满足 is legacy environment label 条件，供调用方做分支处理。
+ * 判断是否满足 is seed environment label 条件，供调用方做分支处理。
  */
-function isLegacyEnvironmentLabel(label = "") {
+function isSeedEnvironmentLabel(label = "") {
   const normalized = trimText(label);
   return normalized === "正式环境" || normalized === "测试环境" || normalized === "自定义环境";
 }
@@ -69,9 +69,9 @@ let normalizeLoadedStateDidChange = false;
 let state = null;
 
 /**
- * 封装 reload legacy store state 的业务步骤，避免调用方依赖内部实现细节。
+ * 封装 reload JSON file store state 的业务步骤，避免调用方依赖内部实现细节。
  */
-export function reloadLegacyStoreState() {
+export function reloadStoreState() {
   configureStorageRoot();
   state = loadState();
   ensureConsoleAccountSeeds();
@@ -80,13 +80,13 @@ export function reloadLegacyStoreState() {
   return state;
 }
 
-reloadLegacyStoreState();
+reloadStoreState();
 
 /**
- * 封装 configure storage root 的业务步骤，避免调用方依赖内部实现细节。
+ * 封装 配置 storage root 的业务步骤，避免调用方依赖内部实现细节。
  */
 function configureStorageRoot() {
-  storageRoot = path.resolve(process.env.INFINI_DATA_ROOT || legacyStorageRoot);
+  storageRoot = path.resolve(process.env.INFINI_DATA_ROOT || defaultStorageRoot);
   mediaRoot = path.join(storageRoot, "media");
   appPackageRoot = path.join(storageRoot, "app-packages");
   backupRoot = path.join(storageRoot, "backups");
@@ -95,7 +95,7 @@ function configureStorageRoot() {
   ensureDir(mediaRoot);
   ensureDir(appPackageRoot);
   ensureDir(backupRoot);
-  migrateLegacyStorageIfNeeded();
+  migrateDefaultStorageIfNeeded();
 }
 
 /**
@@ -126,27 +126,27 @@ function copyDirectoryRecursive(source, target) {
 }
 
 /**
- * 封装 migrate legacy storage if needed 的业务步骤，避免调用方依赖内部实现细节。
+ * 封装 migrate default storage if needed 的业务步骤，避免调用方依赖内部实现细节。
  */
-function migrateLegacyStorageIfNeeded() {
-  if (storageRoot === legacyStorageRoot) {
+function migrateDefaultStorageIfNeeded() {
+  if (storageRoot === defaultStorageRoot) {
     return;
   }
 
-  const legacyDbFile = path.join(legacyStorageRoot, "db.json");
-  const legacyMediaRoot = path.join(legacyStorageRoot, "media");
-  const legacyBackupRoot = path.join(legacyStorageRoot, "backups");
+  const defaultDbFile = path.join(defaultStorageRoot, "db.json");
+  const defaultMediaRoot = path.join(defaultStorageRoot, "media");
+  const defaultBackupRoot = path.join(defaultStorageRoot, "backups");
 
-  if (!fs.existsSync(dbFile) && fs.existsSync(legacyDbFile)) {
-    fs.copyFileSync(legacyDbFile, dbFile);
+  if (!fs.existsSync(dbFile) && fs.existsSync(defaultDbFile)) {
+    fs.copyFileSync(defaultDbFile, dbFile);
   }
 
   if (!fs.existsSync(mediaRoot) || fs.readdirSync(mediaRoot).length === 0) {
-    copyDirectoryRecursive(legacyMediaRoot, mediaRoot);
+    copyDirectoryRecursive(defaultMediaRoot, mediaRoot);
   }
 
   if (!fs.existsSync(backupRoot) || fs.readdirSync(backupRoot).length === 0) {
-    copyDirectoryRecursive(legacyBackupRoot, backupRoot);
+    copyDirectoryRecursive(defaultBackupRoot, backupRoot);
   }
 }
 
@@ -755,7 +755,7 @@ function ensureConsoleAccountSeeds() {
   state.users = (state.users || []).map((user) => {
     const normalizedAccountNamespace = normalizeAccountNamespace(user.accountNamespace || user.username);
     const rawEnvLabel = trimText(user.environmentLabel);
-    const environmentLabel = isLegacyEnvironmentLabel(rawEnvLabel)
+    const environmentLabel = isSeedEnvironmentLabel(rawEnvLabel)
       ? environmentLabelForNamespace(normalizedAccountNamespace)
       : rawEnvLabel || environmentLabelForNamespace(normalizedAccountNamespace);
     if (
@@ -791,11 +791,11 @@ function ensureConsoleAccountSeeds() {
     if (existing) {
       const nextAccountNamespace = normalizeAccountNamespace(existing.accountNamespace || preset.accountNamespace);
       const existingEnvLabel = trimText(existing.environmentLabel);
-      const nextEnvironmentLabel = isLegacyEnvironmentLabel(existingEnvLabel)
+      const nextEnvironmentLabel = isSeedEnvironmentLabel(existingEnvLabel)
         ? preset.environmentLabel
         : existingEnvLabel || preset.environmentLabel;
       const existingNickname = trimText(existing.nickname);
-      const nextNickname = isLegacyEnvironmentLabel(existingNickname) ? preset.nickname : existingNickname || preset.nickname;
+      const nextNickname = isSeedEnvironmentLabel(existingNickname) ? preset.nickname : existingNickname || preset.nickname;
       const nextPasswordDigest = existing.passwordDigest || normalizePassword(preset.password);
       const nextRole = trimText(existing.role) || preset.role || (SUPERADMIN_USERNAMES.has(preset.username) ? "superadmin" : "venue");
       if (
@@ -837,7 +837,7 @@ function ensureConsoleAccountSeeds() {
   }
 
   // Venue records are now created explicitly via the "场馆管理" UI.
-  // Cleanup legacy auto-seeded venues (e.g. 正式环境/测试环境) so that
+  // Cleanup seeded venues (e.g. 正式环境/测试环境) so that
   // superadmin accounts start with zero venues by default.
   state.venues = state.venues || [];
 
@@ -851,11 +851,11 @@ function ensureConsoleAccountSeeds() {
       const venueId = trimText(venue.id);
       const shouldCleanup =
         namespacesToCleanup.has(ns) &&
-        (isLegacyEnvironmentLabel(venue.name) || trimText(venue.name) === ns);
+        (isSeedEnvironmentLabel(venue.name) || trimText(venue.name) === ns);
 
       if (shouldCleanup) {
         didRemove = true;
-        // Detach any legacy venue users/screens so the newly created venue can
+        // Detach any seeded venue users/screens so the newly created venue can
         // re-bind them explicitly later.
         state.users = (state.users || []).map((user) =>
           trimText(user.venueId) === venueId ? { ...user, venueId: "" } : user
@@ -1297,7 +1297,7 @@ export function getDatabaseStatus() {
   const latestBackup = backups[0] || "";
 
   return {
-    usingExternalDataRoot: storageRoot !== legacyStorageRoot,
+    usingExternalDataRoot: storageRoot !== defaultStorageRoot,
     backupCount: backups.length,
     latestBackupAt: latestBackup ? new Date(fs.statSync(latestBackup).mtimeMs).toISOString() : "",
     dbSizeBytes
@@ -2816,7 +2816,7 @@ function deriveTrainingPanel(source = {}, script) {
 function coerceCourseScript(source = {}) {
   const script = source?.script
     ? cloneCourseScript(source.script)
-    : legacyCourseToScript(source, { actionLookup: state.actions });
+    : convertCourseToScript(source, { actionLookup: state.actions });
   const metadataFields = deriveCourseMetadataFields(source, script);
   script.metadata = {
     ...script.metadata,

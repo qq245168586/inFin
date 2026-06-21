@@ -1,13 +1,13 @@
 import { Module } from "@nestjs/common";
-import { LegacyStoreGateway, getDefaultLegacyStoreGateway } from "./legacy-store-gateway.js";
+import { StoreGateway, getDefaultStoreGateway } from "./store-gateway.js";
 
 @Module({
   providers: [
     {
-      provide: LegacyStoreGateway,
-      useFactory: getDefaultLegacyStoreGateway
+      provide: StoreGateway,
+      useFactory: getDefaultStoreGateway
     }
   ],
-  exports: [LegacyStoreGateway]
+  exports: [StoreGateway]
 })
 export class DatabaseModule {}

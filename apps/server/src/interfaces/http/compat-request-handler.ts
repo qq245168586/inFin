@@ -82,15 +82,15 @@ import {
   saveSchedule,
   unbindTvScreen,
   updatePlaybackSessionState
-} from "../data/store.js";
-import { buildStorageKey, getMediaStorageMode, uploadBufferToOss } from "../services/media-storage.js";
-import { getTvControlConfig, publishTvControl, publishTvSessionEvent } from "../services/tv-control.js";
-import { readOpsEvents, startOpsMqttSubscriber, subscribeOpsEvents } from "../services/mqtt-ops-log.js";
-import { readJsonBody, readRequestBuffer, sendFile, sendJson, sendNoContent } from "../utils/http.js";
+} from "../../data/store.js";
+import { buildStorageKey, getMediaStorageMode, uploadBufferToOss } from "../../services/media-storage.js";
+import { getTvControlConfig, publishTvControl, publishTvSessionEvent } from "../../services/tv-control.js";
+import { readOpsEvents, startOpsMqttSubscriber, subscribeOpsEvents } from "../../services/mqtt-ops-log.js";
+import { readJsonBody, readRequestBuffer, sendFile, sendJson, sendNoContent } from "../../utils/http.js";
 
 const host = process.env.HOST || "127.0.0.1";
 const port = Number(process.env.PORT || 3100);
-const legacyBasicAuth = "Basic REDACTED_CONFIGURE_LOCALLY";
+const compatBasicAuth = "Basic REDACTED_CONFIGURE_LOCALLY";
 const PLAYBACK_SESSION_SWEEP_INTERVAL_MS = 20 * 1000;
 
 const mimeByExtension = {
@@ -131,9 +131,9 @@ function unauthorized(response, message = "登录已失效，请重新登录。"
 }
 
 /**
- * 封装 ok legacy 的业务步骤，避免调用方依赖内部实现细节。
+ * 封装 compat success 的业务步骤，避免调用方依赖内部实现细节。
  */
-function okLegacy(response, data) {
+function sendCompatSuccess(response, data) {
   sendJson(response, 200, {
     code: 200,
     data,
@@ -143,10 +143,10 @@ function okLegacy(response, data) {
 }
 
 /**
- * 判断是否满足 has legacy basic auth 条件，供调用方做分支处理。
+ * 判断是否满足 has compat basic auth 条件，供调用方做分支处理。
  */
-function hasLegacyBasicAuth(request) {
-  return request.headers.authorization === legacyBasicAuth;
+function hasCompatBasicAuth(request) {
+  return request.headers.authorization === compatBasicAuth;
 }
 
 /**
@@ -396,7 +396,7 @@ async function publishPlaybackSessionControl(response, accountNamespace, type, s
   const targetAccountNamespace = resolveOptionalAccountNamespace(session?.accountNamespace) || resolveOptionalAccountNamespace(accountNamespace);
   const result = {
     sessionEvent: null,
-    legacyControl: null,
+    compatControl: null,
     errors: []
   };
 
@@ -407,12 +407,12 @@ async function publishPlaybackSessionControl(response, accountNamespace, type, s
   }
 
   try {
-    result.legacyControl = await publishTvControl(
+    result.compatControl = await publishTvControl(
       buildPlaybackSessionControlPayload(type, session, commandId, extra),
       targetAccountNamespace
     );
   } catch (error) {
-    result.errors.push(error instanceof Error ? error.message : "legacy MQTT 发布失败。");
+    result.errors.push(error instanceof Error ? error.message : "TV 控制 MQTT 发布失败。");
   }
 
   return result;
@@ -701,9 +701,9 @@ function summarizeOpsScreens(items = []) {
 }
 
 /**
- * 封装 handle legacy request 的业务步骤，避免调用方依赖内部实现细节。
+ * 封装 handle compat request 的业务步骤，避免调用方依赖内部实现细节。
  */
-export async function handleLegacyRequest(request, response) {
+export async function handleCompatRequest(request, response) {
   const url = new URL(request.url, `http://${request.headers.host || `${host}:${port}`}`);
 
   if (request.method === "OPTIONS") {
@@ -2253,7 +2253,7 @@ export async function handleLegacyRequest(request, response) {
     }
 
     if (request.method === "POST" && (url.pathname === "/app/login" || url.pathname === "/api/app/login")) {
-      if (!hasLegacyBasicAuth(request)) {
+      if (!hasCompatBasicAuth(request)) {
         unauthorized(response, "客户端凭证无效。");
         return;
       }
@@ -2277,7 +2277,7 @@ export async function handleLegacyRequest(request, response) {
         return;
       }
 
-      okLegacy(response, result.token);
+      sendCompatSuccess(response, result.token);
       return;
     }
 
@@ -2285,7 +2285,7 @@ export async function handleLegacyRequest(request, response) {
       (request.method === "GET" || request.method === "POST") &&
       (url.pathname === "/app/refresh" || url.pathname === "/api/app/refresh")
     ) {
-      if (!hasLegacyBasicAuth(request)) {
+      if (!hasCompatBasicAuth(request)) {
         unauthorized(response, "客户端凭证无效。");
         return;
       }
@@ -2306,7 +2306,7 @@ export async function handleLegacyRequest(request, response) {
         return;
       }
 
-      okLegacy(response, result);
+      sendCompatSuccess(response, result);
       return;
     }
 
@@ -2325,12 +2325,12 @@ export async function handleLegacyRequest(request, response) {
         return;
       }
 
-      okLegacy(response, user);
+      sendCompatSuccess(response, user);
       return;
     }
 
     if (request.method === "GET" && (url.pathname === "/user/list" || url.pathname === "/api/user/list")) {
-      okLegacy(response, listUsers());
+      sendCompatSuccess(response, listUsers());
       return;
     }
 
@@ -2338,7 +2338,7 @@ export async function handleLegacyRequest(request, response) {
       const payload = await readJsonBody(request);
 
       try {
-        okLegacy(response, createConsoleUser(payload));
+        sendCompatSuccess(response, createConsoleUser(payload));
       } catch (error) {
         badRequest(response, error instanceof Error ? error.message : "创建用户失败。");
       }
@@ -2807,16 +2807,16 @@ export async function handleLegacyRequest(request, response) {
   }
 }
 
-let legacyBackgroundServicesStarted = false;
+let compatRequestServicesStarted = false;
 
 /**
- * 启动 legacy background services，避免重复注册后台任务或监听器。
+ * 启动 compat request services，避免重复注册后台任务或监听器。
  */
-export function startLegacyBackgroundServices() {
-  if (legacyBackgroundServicesStarted) {
+export function startCompatRequestServices() {
+  if (compatRequestServicesStarted) {
     return;
   }
-  legacyBackgroundServicesStarted = true;
+  compatRequestServicesStarted = true;
   startOpsMqttSubscriber();
   startPlaybackSessionSweeper();
 }

@@ -4,13 +4,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "vitest";
 import { DomainEventBus } from "../src/events/domain-event-bus.ts";
-import { LegacyStoreGateway } from "../src/data/legacy-store-gateway.ts";
+import { StoreGateway } from "../src/data/store-gateway.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const serverRoot = path.resolve(__dirname, "..");
 
-test("LegacyStoreGateway delegates calls and marks state-changing store operations", () => {
-  const gateway = new LegacyStoreGateway({
+test("StoreGateway delegates calls and marks state-changing store operations", () => {
+  const gateway = new StoreGateway({
     listCourses: () => ["course-a"],
     saveCourse: (payload) => ({ ok: true, payload })
   });
@@ -20,7 +20,7 @@ test("LegacyStoreGateway delegates calls and marks state-changing store operatio
   assert.deepEqual(gateway.call("saveCourse", { id: 1 }), { ok: true, payload: { id: 1 } });
   assert.equal(gateway.isWriteOperation("listCourses"), false);
   assert.equal(gateway.isWriteOperation("saveCourse"), true);
-  assert.throws(() => gateway.call("missingFunction"), /Legacy store function not found/);
+  assert.throws(() => gateway.call("missingFunction"), /Store function not found/);
 });
 
 test("DomainEventBus emits typed events to named and wildcard subscribers", () => {
@@ -52,25 +52,15 @@ test("DomainEventBus emits typed events to named and wildcard subscribers", () =
   assert.deepEqual(streamTypes, ["schedule.changed"]);
 });
 
-test("legacy runtime uses TypeScript modules instead of text chunks", () => {
+test("server architecture uses named modules instead of legacy text chunks", () => {
   const legacyDir = path.join(serverRoot, "src", "legacy");
-  const legacyFiles = listFiles(legacyDir);
-  const textChunks = legacyFiles.filter((file) => file.endsWith(".txt"));
-  assert.deepEqual(textChunks, [], "legacy source should not use .txt chunks");
+  assert.equal(fs.existsSync(legacyDir), false, "server source should not keep a legacy directory");
 
   const runtimeSource = [
-    fs.readFileSync(path.join(legacyDir, "server-runtime.ts"), "utf8"),
-    fs.readFileSync(path.join(legacyDir, "store-runtime.ts"), "utf8")
+    fs.readFileSync(path.join(serverRoot, "src", "runtime", "http-request-runtime.ts"), "utf8"),
+    fs.readFileSync(path.join(serverRoot, "src", "runtime", "store-runtime.ts"), "utf8"),
+    fs.readFileSync(path.join(serverRoot, "src", "interfaces", "http", "compat-request-handler.ts"), "utf8")
   ].join("\n");
-  assert.equal(runtimeSource.includes("new Function"), false, "legacy runtime should not evaluate text chunks");
+  assert.equal(runtimeSource.includes("new Function"), false, "compat runtime should not evaluate text chunks");
+  assert.equal(runtimeSource.includes("server-chunks"), false, "runtime should not depend on server chunk files");
 });
-
-function listFiles(directory: string): string[] {
-  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const absolute = path.join(directory, entry.name);
-    if (entry.isDirectory()) {
-      return listFiles(absolute);
-    }
-    return [absolute];
-  });
-}
