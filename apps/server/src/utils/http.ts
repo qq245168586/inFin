@@ -1,5 +1,8 @@
 import fs from "node:fs";
 
+/**
+ * 读取 request buffer，把底层数据转成调用方可直接使用的结构。
+ */
 export async function readRequestBuffer(request) {
   const chunks = [];
 
@@ -10,6 +13,9 @@ export async function readRequestBuffer(request) {
   return chunks.length ? Buffer.concat(chunks) : Buffer.alloc(0);
 }
 
+/**
+ * 读取 json body，把底层数据转成调用方可直接使用的结构。
+ */
 export async function readJsonBody(request) {
   const buffer = await readRequestBuffer(request);
 
@@ -20,6 +26,9 @@ export async function readJsonBody(request) {
   return JSON.parse(buffer.toString("utf8"));
 }
 
+/**
+ * 封装 cors headers 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function corsHeaders(extra = {}) {
   return {
     "Access-Control-Allow-Origin": "*",
@@ -29,6 +38,9 @@ function corsHeaders(extra = {}) {
   };
 }
 
+/**
+ * 写入 json 响应，统一 HTTP 状态和响应头。
+ */
 export function sendJson(response, statusCode, payload) {
   response.writeHead(
     statusCode,
@@ -39,11 +51,17 @@ export function sendJson(response, statusCode, payload) {
   response.end(JSON.stringify(payload, null, 2));
 }
 
+/**
+ * 写入 no content 响应，统一 HTTP 状态和响应头。
+ */
 export function sendNoContent(response) {
   response.writeHead(204, corsHeaders());
   response.end();
 }
 
+/**
+ * 写入 buffer 响应，统一 HTTP 状态和响应头。
+ */
 export function sendBuffer(response, statusCode, buffer, contentType = "application/octet-stream") {
   response.writeHead(
     statusCode,
@@ -55,6 +73,9 @@ export function sendBuffer(response, statusCode, buffer, contentType = "applicat
   response.end(buffer);
 }
 
+/**
+ * 写入 file 响应，统一 HTTP 状态和响应头。
+ */
 export function sendFile(request, response, filePath, contentType = "application/octet-stream") {
   const stats = fs.statSync(filePath);
   const totalSize = stats.size;

@@ -56,6 +56,9 @@ const CONSOLE_ACCOUNT_PRESETS = [
   }
 ];
 
+/**
+ * 判断是否满足 is legacy environment label 条件，供调用方做分支处理。
+ */
 function isLegacyEnvironmentLabel(label = "") {
   const normalized = trimText(label);
   return normalized === "正式环境" || normalized === "测试环境" || normalized === "自定义环境";
@@ -65,6 +68,9 @@ const defaultState = createDefaultState();
 let normalizeLoadedStateDidChange = false;
 let state = null;
 
+/**
+ * 封装 reload legacy store state 的业务步骤，避免调用方依赖内部实现细节。
+ */
 export function reloadLegacyStoreState() {
   configureStorageRoot();
   state = loadState();
@@ -76,6 +82,9 @@ export function reloadLegacyStoreState() {
 
 reloadLegacyStoreState();
 
+/**
+ * 封装 configure storage root 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function configureStorageRoot() {
   storageRoot = path.resolve(process.env.INFINI_DATA_ROOT || legacyStorageRoot);
   mediaRoot = path.join(storageRoot, "media");
@@ -89,10 +98,16 @@ function configureStorageRoot() {
   migrateLegacyStorageIfNeeded();
 }
 
+/**
+ * 确保 dir 存在，缺失时自动补齐基础结构。
+ */
 function ensureDir(target) {
   fs.mkdirSync(target, { recursive: true });
 }
 
+/**
+ * 复制 directory recursive，并过滤不应该进入目标范围的数据。
+ */
 function copyDirectoryRecursive(source, target) {
   if (!fs.existsSync(source)) {
     return;
@@ -110,6 +125,9 @@ function copyDirectoryRecursive(source, target) {
   }
 }
 
+/**
+ * 封装 migrate legacy storage if needed 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function migrateLegacyStorageIfNeeded() {
   if (storageRoot === legacyStorageRoot) {
     return;
@@ -132,10 +150,16 @@ function migrateLegacyStorageIfNeeded() {
   }
 }
 
+/**
+ * 封装 clone 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+/**
+ * 封装 sort by newest 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function sortByNewest(list, field = "updateTime") {
   return [...list].sort((left, right) => {
     const leftValue = new Date(left[field] || left.createTime || 0).getTime();
@@ -144,14 +168,23 @@ function sortByNewest(list, field = "updateTime") {
   });
 }
 
+/**
+ * 封装 next id 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function nextId(list) {
   return list.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1;
 }
 
+/**
+ * 封装 now iso 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function nowIso() {
   return new Date().toISOString();
 }
 
+/**
+ * 封装 format backup stamp 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function formatBackupStamp(date = new Date()) {
   return `${date.getUTCFullYear()}${padNumber(date.getUTCMonth() + 1)}${padNumber(date.getUTCDate())}-${padNumber(
     date.getUTCHours()
@@ -161,6 +194,9 @@ function formatBackupStamp(date = new Date()) {
   )}`;
 }
 
+/**
+ * 读取 text if exists，把底层数据转成调用方可直接使用的结构。
+ */
 function readTextIfExists(targetFile) {
   if (!fs.existsSync(targetFile)) {
     return "";
@@ -169,6 +205,9 @@ function readTextIfExists(targetFile) {
   return fs.readFileSync(targetFile, "utf8");
 }
 
+/**
+ * 写入 text atomic，使用原子写保护数据文件完整性。
+ */
 function writeTextAtomic(targetFile, text) {
   ensureDir(path.dirname(targetFile));
   const tempFile = `${targetFile}.tmp-${process.pid}-${Date.now()}`;
@@ -176,6 +215,9 @@ function writeTextAtomic(targetFile, text) {
   fs.renameSync(tempFile, targetFile);
 }
 
+/**
+ * 读取 backup files 列表，并按业务规则过滤或排序。
+ */
 function listBackupFiles() {
   if (!fs.existsSync(backupRoot)) {
     return [];
@@ -188,6 +230,9 @@ function listBackupFiles() {
     .sort((left, right) => fs.statSync(right).mtimeMs - fs.statSync(left).mtimeMs);
 }
 
+/**
+ * 裁剪 backup files，只移除业务允许丢弃的历史数据。
+ */
 function pruneBackupFiles() {
   const backups = listBackupFiles();
   for (const staleFile of backups.slice(DB_BACKUP_RETENTION)) {
@@ -195,8 +240,12 @@ function pruneBackupFiles() {
   }
 }
 
+/**
+ * 创建 database backup，并补齐运行时需要的默认配置。
+ */
 function createDatabaseBackup(rawText, reason = "autosave") {
   const text = typeof rawText === "string" ? rawText.trim() : "";
+
   if (!text) {
     return;
   }
@@ -206,10 +255,16 @@ function createDatabaseBackup(rawText, reason = "autosave") {
   pruneBackupFiles();
 }
 
+/**
+ * 封装 pad number 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function padNumber(value) {
   return String(value).padStart(2, "0");
 }
 
+/**
+ * 创建 stored name，并补齐运行时需要的默认配置。
+ */
 function createStoredName(originalName = "asset.bin") {
   const safe = String(originalName)
     .trim()
@@ -223,10 +278,16 @@ function createStoredName(originalName = "asset.bin") {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${fallback}`;
 }
 
+/**
+ * 创建 media filename，并补齐运行时需要的默认配置。
+ */
 export function createMediaFilename(originalName = "asset.bin") {
   return createStoredName(originalName);
 }
 
+/**
+ * 创建 app package stored name，并补齐运行时需要的默认配置。
+ */
 function createAppPackageStoredName(platform = "tv", version = "", originalName = "app.apk") {
   const safePlatform = normalizeAppPlatform(platform);
   const safeVersion = sanitizeSegment(version || "build");
@@ -234,6 +295,9 @@ function createAppPackageStoredName(platform = "tv", version = "", originalName 
   return `${safePlatform}-${safeVersion}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${extension}`;
 }
 
+/**
+ * 封装 sanitize segment 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function sanitizeSegment(value) {
   return String(value || "")
     .trim()
@@ -243,11 +307,17 @@ function sanitizeSegment(value) {
     .replace(/^-|-$/g, "") || "package";
 }
 
+/**
+ * 封装 safe number 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function safeNumber(value, fallback = 0) {
   const numeric = Number(value);
   return Number.isFinite(numeric) && numeric >= 0 ? numeric : fallback;
 }
 
+/**
+ * 规范化 ready durations，避免后续业务处理不同格式的输入。
+ */
 function normalizeReadyDurations(overrides = {}) {
   return {
     warmupSeconds: safeNumber(overrides?.warmupSeconds, 15),
@@ -256,6 +326,9 @@ function normalizeReadyDurations(overrides = {}) {
   };
 }
 
+/**
+ * 封装 number list 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function numberList(input) {
   if (!Array.isArray(input)) {
     return [];
@@ -264,10 +337,16 @@ function numberList(input) {
   return [...new Set(input.map((value) => Number(value)).filter((value) => Number.isFinite(value) && value > 0))];
 }
 
+/**
+ * 修剪 text 文本，统一空值和边界字符处理。
+ */
 function trimText(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+/**
+ * 移除 media suffix，用于兼容旧数据或旧文件名。
+ */
 function stripMediaSuffix(value) {
   let next = trimText(value);
   const mediaExtensionPattern = /\.(mp4|mov|m4v|webm|avi|mkv|mpeg|mpg|wmv)$/i;
@@ -277,29 +356,47 @@ function stripMediaSuffix(value) {
   return next;
 }
 
+/**
+ * 规范化 account namespace，避免后续业务处理不同格式的输入。
+ */
 function normalizeAccountNamespace(value, fallback = DEFAULT_ACCOUNT_NAMESPACE) {
 
   const text = trimText(value).toLowerCase();
   return text || fallback;
 }
 
+/**
+ * 规范化 screen account namespace，避免后续业务处理不同格式的输入。
+ */
 function normalizeScreenAccountNamespace(value) {
   return trimText(value).toLowerCase();
 }
 
+/**
+ * 规范化 venue account namespace，避免后续业务处理不同格式的输入。
+ */
 function normalizeVenueAccountNamespace(value) {
   return trimText(value).toLowerCase();
 }
 
+/**
+ * 规范化 venue id，避免后续业务处理不同格式的输入。
+ */
 function normalizeVenueId(value) {
   return trimText(value);
 }
 
+/**
+ * 规范化 course package id，避免后续业务处理不同格式的输入。
+ */
 function normalizeCoursePackageId(value, fallback = 1) {
   const numeric = Number(value);
   return Number.isFinite(numeric) && numeric > 0 ? numeric : fallback;
 }
 
+/**
+ * 规范化 course package record，避免后续业务处理不同格式的输入。
+ */
 function normalizeCoursePackageRecord(entry = {}, fallbackCourseIds = []) {
   const raw = entry && typeof entry === "object" ? entry : {};
   const now = nowIso();
@@ -314,6 +411,9 @@ function normalizeCoursePackageRecord(entry = {}, fallbackCourseIds = []) {
   };
 }
 
+/**
+ * 规范化 schedule entry，避免后续业务处理不同格式的输入。
+ */
 function normalizeScheduleEntry(entry) {
   const raw = entry && typeof entry === "object" ? entry : {};
   return {
@@ -327,10 +427,16 @@ function normalizeScheduleEntry(entry) {
   };
 }
 
+/**
+ * 规范化 course tag，避免后续业务处理不同格式的输入。
+ */
 function normalizeCourseTag(value) {
   return stripMediaSuffix(value).toLowerCase().replace(/\s+/g, "-");
 }
 
+/**
+ * 规范化 course tags，避免后续业务处理不同格式的输入。
+ */
 function normalizeCourseTags(value) {
   const source = Array.isArray(value)
     ? value
@@ -340,6 +446,9 @@ function normalizeCourseTags(value) {
   return [...new Set(source.map(normalizeCourseTag).filter(Boolean))];
 }
 
+/**
+ * 规范化 action record，避免后续业务处理不同格式的输入。
+ */
 function normalizeActionRecord(action = {}) {
   const raw = action && typeof action === "object" ? action : {};
   const ownerUsername = trimText(raw.ownerUsername || raw.author);
@@ -359,6 +468,9 @@ function normalizeActionRecord(action = {}) {
   };
 }
 
+/**
+ * 规范化 action type record，避免后续业务处理不同格式的输入。
+ */
 function normalizeActionTypeRecord(type = {}) {
   const raw = type && typeof type === "object" ? type : {};
   return {
@@ -369,42 +481,63 @@ function normalizeActionTypeRecord(type = {}) {
   };
 }
 
+/**
+ * 规范化 client name，避免后续业务处理不同格式的输入。
+ */
 function normalizeClientName(value, fallback = "editor-web") {
   const text = trimText(value).toLowerCase();
+
   if (text === "coach-web") {
     return "coach-web";
   }
   return fallback === "coach-web" ? "coach-web" : "editor-web";
 }
 
+/**
+ * 规范化 allowed clients，避免后续业务处理不同格式的输入。
+ */
 function normalizeAllowedClients(value, fallback = ["coach-web", "editor-web"]) {
   const candidates = Array.isArray(value) ? value : fallback;
   const normalized = [...new Set(candidates.map((item) => normalizeClientName(item)).filter(Boolean))];
   return normalized.length ? normalized : [...fallback];
 }
 
+/**
+ * 封装 user allows client 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function userAllowsClient(user, clientName = "editor-web") {
   const allowedClients = normalizeAllowedClients(user?.allowedClients);
   return allowedClients.includes(normalizeClientName(clientName));
 }
 
+/**
+ * 封装 environment label for namespace 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function environmentLabelForNamespace(accountNamespace = DEFAULT_ACCOUNT_NAMESPACE) {
   const normalized = normalizeAccountNamespace(accountNamespace);
   const matched = CONSOLE_ACCOUNT_PRESETS.find((item) => item.accountNamespace === normalized);
   return trimText(matched?.environmentLabel) || normalized || DEFAULT_ACCOUNT_NAMESPACE;
 }
 
+/**
+ * 规范化 app platform，避免后续业务处理不同格式的输入。
+ */
 function normalizeAppPlatform(value, fallback = "tv") {
   const text = trimText(value).toLowerCase();
+
   if (text === "coach") {
     return "coach";
   }
+
   if (text === "tv") {
     return "tv";
   }
   return fallback === "coach" ? "coach" : "tv";
 }
 
+/**
+ * 推断 app platform from filename，从文件名或上下文补齐缺失信息。
+ */
 function inferAppPlatformFromFilename(filename = "") {
   const lower = String(filename || "").toLowerCase();
   if (lower.includes("coach")) {
@@ -413,50 +546,81 @@ function inferAppPlatformFromFilename(filename = "") {
   return "tv";
 }
 
+/**
+ * 推断 app version from filename，从文件名或上下文补齐缺失信息。
+ */
 function inferAppVersionFromFilename(filename = "") {
   const baseName = path.basename(String(filename || ""), path.extname(String(filename || "")));
   const matched = baseName.match(/(?:^|[^0-9])v?(\d+(?:\.\d+){1,4}(?:[-_][a-z0-9.]+)?)/i);
+
   if (matched?.[1]) {
     return matched[1].replace(/_/g, "-");
   }
   return baseName || "未命名版本";
 }
 
+/**
+ * 组装 app package download path，把分散的输入合成稳定输出。
+ */
 function buildAppPackageDownloadPath(filename = "") {
   return `/api/app-packages/files/${encodeURIComponent(filename)}`;
 }
 
+/**
+ * 计算 file checksum，集中封装时间或进度规则。
+ */
 function calculateFileChecksum(targetFile) {
   const hash = createHash("sha256");
   hash.update(fs.readFileSync(targetFile));
   return hash.digest("hex");
 }
 
+/**
+ * 封装 md5 text 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function md5Text(value) {
   return createHash("md5").update(String(value)).digest("hex");
 }
 
+/**
+ * 判断是否满足 is md5 digest 条件，供调用方做分支处理。
+ */
 function isMd5Digest(value) {
   return /^[a-f0-9]{32}$/i.test(trimText(value));
 }
 
+/**
+ * 规范化 password，避免后续业务处理不同格式的输入。
+ */
 function normalizePassword(value) {
   const text = trimText(value);
   return isMd5Digest(text) ? text.toLowerCase() : md5Text(text);
 }
 
+/**
+ * 封装 random token 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function randomToken() {
   return randomBytes(24).toString("base64url");
 }
 
+/**
+ * 封装 seconds from now 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function secondsFromNow(seconds) {
   return new Date(Date.now() + seconds * 1000).toISOString();
 }
 
+/**
+ * 判断是否满足 is future time 条件，供调用方做分支处理。
+ */
 function isFutureTime(value) {
   return new Date(value || 0).getTime() > Date.now();
 }
 
+/**
+ * 启动 of week，避免重复注册后台任务或监听器。
+ */
 function startOfWeek(date) {
   const current = new Date(date);
   current.setHours(0, 0, 0, 0);
@@ -466,12 +630,18 @@ function startOfWeek(date) {
   return current;
 }
 
+/**
+ * 封装 end of week 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function endOfWeek(date) {
   const end = startOfWeek(date);
   end.setDate(end.getDate() + 7);
   return end;
 }
 
+/**
+ * 封装 with time 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function withTime(base, dayOffset, hour, minute) {
   const next = new Date(base);
   next.setDate(next.getDate() + dayOffset);
@@ -481,6 +651,9 @@ function withTime(base, dayOffset, hour, minute) {
   )}:${padNumber(next.getMinutes())}:00+08:00`;
 }
 
+/**
+ * 创建 default state，并补齐运行时需要的默认配置。
+ */
 function createDefaultState() {
   const actionTypes = [
     { id: 1, name: "12ROUNDS" },
@@ -573,6 +746,9 @@ function createDefaultState() {
   };
 }
 
+/**
+ * 确保 console account seeds 存在，缺失时自动补齐基础结构。
+ */
 function ensureConsoleAccountSeeds() {
   let changed = false;
 
@@ -611,6 +787,7 @@ function ensureConsoleAccountSeeds() {
 
   for (const preset of CONSOLE_ACCOUNT_PRESETS) {
     const existing = state.users.find((user) => user.username === preset.username);
+
     if (existing) {
       const nextAccountNamespace = normalizeAccountNamespace(existing.accountNamespace || preset.accountNamespace);
       const existingEnvLabel = trimText(existing.environmentLabel);
@@ -663,16 +840,19 @@ function ensureConsoleAccountSeeds() {
   // Cleanup legacy auto-seeded venues (e.g. 正式环境/测试环境) so that
   // superadmin accounts start with zero venues by default.
   state.venues = state.venues || [];
+
   if (state.venues.length) {
     const namespacesToCleanup = new Set(CONSOLE_ACCOUNT_PRESETS.map((preset) => normalizeAccountNamespace(preset.accountNamespace || preset.username)));
     const keep = [];
     let didRemove = false;
+
     for (const venue of state.venues) {
       const ns = normalizeAccountNamespace(venue.accountNamespace);
       const venueId = trimText(venue.id);
       const shouldCleanup =
         namespacesToCleanup.has(ns) &&
         (isLegacyEnvironmentLabel(venue.name) || trimText(venue.name) === ns);
+
       if (shouldCleanup) {
         didRemove = true;
         // Detach any legacy venue users/screens so the newly created venue can
@@ -687,6 +867,7 @@ function ensureConsoleAccountSeeds() {
       }
       keep.push(venue);
     }
+
     if (didRemove) {
       state.venues = keep;
       changed = true;
@@ -698,6 +879,9 @@ function ensureConsoleAccountSeeds() {
   }
 }
 
+/**
+ * 移除 seed course examples，用于兼容旧数据或旧文件名。
+ */
 function stripSeedCourseExamples(source) {
   const signatures = new Set(["HYROX WR 001::Karl", "Boxing Circuit 002::Mina"]);
   const removableCourseIds = new Set(
@@ -720,11 +904,17 @@ function stripSeedCourseExamples(source) {
   };
 }
 
+/**
+ * 读取 scoped record package ids，并保持返回结构稳定。
+ */
 function getScopedRecordPackageIds(record = {}, defaultPackageId = getDefaultCoursePackageId()) {
   const packageIds = numberList(record.coursePackageIds);
   return packageIds.length ? packageIds : [defaultPackageId];
 }
 
+/**
+ * 封装 dedupe action types within packages 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function dedupeActionTypesWithinPackages(actionTypes = [], actions = [], defaultPackageId = getDefaultCoursePackageId()) {
   const canonicalTypes = [];
   const canonicalById = new Map();
@@ -735,6 +925,7 @@ function dedupeActionTypesWithinPackages(actionTypes = [], actions = [], default
   for (const rawType of actionTypes) {
     const type = normalizeActionTypeRecord(rawType);
     const nameKey = stripMediaSuffix(type.name).toLowerCase();
+
     if (!type.id || !nameKey) {
       canonicalTypes.push(type);
       continue;
@@ -742,8 +933,10 @@ function dedupeActionTypesWithinPackages(actionTypes = [], actions = [], default
 
     const packageIds = getScopedRecordPackageIds(type, defaultPackageId);
     let canonical = null;
+
     for (const packageId of packageIds) {
       const existingId = canonicalKeyToId.get(`${packageId}:${nameKey}`);
+
       if (existingId) {
         canonical = canonicalById.get(existingId) || null;
         break;
@@ -790,8 +983,12 @@ function dedupeActionTypesWithinPackages(actionTypes = [], actions = [], default
   return { actionTypes: canonicalTypes, actions: remappedActions, changed };
 }
 
+/**
+ * 规范化 lesson type packages，避免后续业务处理不同格式的输入。
+ */
 function normalizeLessonTypePackages(lessonTypes = [], courses = [], defaultPackageId = getDefaultCoursePackageId()) {
   const usageByTypeId = new Map();
+
   for (const course of courses) {
     const packageId = normalizeCoursePackageId(course?.coursePackageId, defaultPackageId);
     for (const typeId of numberList(course?.typeIds)) {
@@ -814,6 +1011,9 @@ function normalizeLessonTypePackages(lessonTypes = [], courses = [], defaultPack
   });
 }
 
+/**
+ * 封装 dedupe lesson types within packages 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function dedupeLessonTypesWithinPackages(lessonTypes = [], courses = [], defaultPackageId = getDefaultCoursePackageId()) {
   const canonicalTypes = [];
   const canonicalById = new Map();
@@ -824,6 +1024,7 @@ function dedupeLessonTypesWithinPackages(lessonTypes = [], courses = [], default
   for (const rawType of lessonTypes) {
     const type = normalizeActionTypeRecord(rawType);
     const nameKey = stripMediaSuffix(type.name).toLowerCase();
+
     if (!type.id || !nameKey) {
       canonicalTypes.push(type);
       continue;
@@ -831,8 +1032,10 @@ function dedupeLessonTypesWithinPackages(lessonTypes = [], courses = [], default
 
     const packageIds = getScopedRecordPackageIds(type, defaultPackageId);
     let canonical = null;
+
     for (const packageId of packageIds) {
       const existingId = canonicalKeyToId.get(`${packageId}:${nameKey}`);
+
       if (existingId) {
         canonical = canonicalById.get(existingId) || null;
         break;
@@ -879,12 +1082,16 @@ function dedupeLessonTypesWithinPackages(lessonTypes = [], courses = [], default
   return { lessonTypes: canonicalTypes, courses: remappedCourses, changed };
 }
 
+/**
+ * 规范化 loaded state，避免后续业务处理不同格式的输入。
+ */
 function normalizeLoadedState(parsed) {
   const parsedCourses = Array.isArray(parsed.courses) ? parsed.courses : clone(defaultState.courses);
   const defaultCourseIds = parsedCourses.map((course) => Number(course?.id)).filter((id) => Number.isFinite(id) && id > 0);
   let coursePackages = Array.isArray(parsed.coursePackages)
     ? parsed.coursePackages.map((item) => normalizeCoursePackageRecord(item))
     : [];
+
   if (!coursePackages.length) {
     coursePackages = [
       normalizeCoursePackageRecord(
@@ -912,6 +1119,7 @@ function normalizeLoadedState(parsed) {
     normalizedActions,
     defaultPackageId
   );
+
   if (dedupedActionTypeState.changed) {
     normalizeLoadedStateDidChange = true;
   }
@@ -926,6 +1134,7 @@ function normalizeLoadedState(parsed) {
     parsedCourses,
     defaultPackageId
   );
+
   if (dedupedLessonTypeState.changed) {
     normalizeLoadedStateDidChange = true;
   }
@@ -992,6 +1201,9 @@ function normalizeLoadedState(parsed) {
   };
 }
 
+/**
+ * 封装 try load state file 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function tryLoadStateFile(targetFile) {
   if (!fs.existsSync(targetFile)) {
     return null;
@@ -1013,6 +1225,9 @@ function tryLoadStateFile(targetFile) {
   };
 }
 
+/**
+ * 写入 state snapshot，使用原子写保护数据文件完整性。
+ */
 function writeStateSnapshot(nextState, options = {}) {
   const { createBackup = true, reason = "autosave" } = options;
   const nextText = JSON.stringify(nextState, null, 2);
@@ -1025,9 +1240,13 @@ function writeStateSnapshot(nextState, options = {}) {
   writeTextAtomic(dbFile, nextText);
 }
 
+/**
+ * 封装 load state 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function loadState() {
   try {
     const primary = tryLoadStateFile(dbFile);
+
     if (primary) {
       if (primary.changed) {
         writeStateSnapshot(primary.state, { createBackup: false, reason: "normalize" });
@@ -1041,6 +1260,7 @@ function loadState() {
   for (const backupFile of listBackupFiles()) {
     try {
       const restored = tryLoadStateFile(backupFile);
+
       if (!restored) {
         continue;
       }
@@ -1059,11 +1279,17 @@ function loadState() {
   }
 }
 
+/**
+ * 封装 persist 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function persist() {
   writeStateSnapshot(state, { createBackup: true, reason: "autosave" });
 
 }
 
+/**
+ * 读取 database status，并保持返回结构稳定。
+ */
 export function getDatabaseStatus() {
   const backups = listBackupFiles();
   const dbText = readTextIfExists(dbFile);
@@ -1078,6 +1304,9 @@ export function getDatabaseStatus() {
   };
 }
 
+/**
+ * 封装 public user info 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function publicUserInfo(user) {
   const venue = trimText(user.venueId)
     ? getVenueById(user.venueId)
@@ -1099,6 +1328,7 @@ function publicUserInfo(user) {
     coursePackageIds: numberList(user.coursePackageIds),
     allowedClients: normalizeAllowedClients(user.allowedClients)
   };
+
   if (role !== "superadmin") {
     baseInfo.password = trimText(user.passwordPlain);
   }
@@ -1107,14 +1337,21 @@ function publicUserInfo(user) {
   };
 }
 
+/**
+ * 清理 expired sessions，避免过期运行时状态影响新流程。
+ */
 function cleanupExpiredSessions() {
   const beforeLength = state.authSessions.length;
   state.authSessions = state.authSessions.filter((item) => isFutureTime(item.refreshExpiresAt));
+
   if (state.authSessions.length !== beforeLength) {
     persist();
   }
 }
 
+/**
+ * 创建 auth payload，并补齐运行时需要的默认配置。
+ */
 function createAuthPayload(userId, clientName = "editor-web") {
   const normalizedClient = normalizeClientName(clientName);
   const tokenType = "Bearer";
@@ -1146,6 +1383,9 @@ function createAuthPayload(userId, clientName = "editor-web") {
   };
 }
 
+/**
+ * 规范化 action payload，避免后续业务处理不同格式的输入。
+ */
 function normalizeActionPayload(payload = {}, existing = null) {
   const timestamp = nowIso();
   const ownerUsername = trimText(payload.ownerUsername ?? payload.author ?? existing?.ownerUsername ?? existing?.author);
@@ -1164,6 +1404,9 @@ function normalizeActionPayload(payload = {}, existing = null) {
   };
 }
 
+/**
+ * 规范化 tv playback state，避免后续业务处理不同格式的输入。
+ */
 function normalizeTvPlaybackState(value) {
   const stateText = trimText(value).toUpperCase();
   if (["IDLE", "SYNCING", "PREVIEW", "SCHEDULED", "RUNNING", "PAUSED", "ENDED", "TERMINATED"].includes(stateText)) {
@@ -1172,6 +1415,9 @@ function normalizeTvPlaybackState(value) {
   return "IDLE";
 }
 
+/**
+ * 规范化 tv update state，避免后续业务处理不同格式的输入。
+ */
 function normalizeTvUpdateState(value) {
   const stateText = trimText(value).toUpperCase();
   if (["IDLE", "DOWNLOADING", "DOWNLOADED", "INSTALLING", "ERROR"].includes(stateText)) {
@@ -1180,6 +1426,9 @@ function normalizeTvUpdateState(value) {
   return "IDLE";
 }
 
+/**
+ * 规范化 playback state，避免后续业务处理不同格式的输入。
+ */
 function normalizePlaybackState(value, fallback = "PREVIEW") {
   const stateText = trimText(value).toUpperCase();
   if (["PREVIEW", "SCHEDULED", "RUNNING", "PAUSED", "ENDED", "TERMINATED"].includes(stateText)) {
@@ -1188,10 +1437,16 @@ function normalizePlaybackState(value, fallback = "PREVIEW") {
   return fallback;
 }
 
+/**
+ * 创建 playback session id，并补齐运行时需要的默认配置。
+ */
 function createPlaybackSessionId() {
   return `ps_${Date.now().toString(36)}_${randomToken().slice(0, 10)}`;
 }
 
+/**
+ * 封装 safe time ms 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function safeTimeMs(value, fallback = Date.now()) {
   const numeric = Number(value);
   if (Number.isFinite(numeric) && numeric >= 0) {
@@ -1201,6 +1456,9 @@ function safeTimeMs(value, fallback = Date.now()) {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
+/**
+ * 规范化 playback command，避免后续业务处理不同格式的输入。
+ */
 function normalizePlaybackCommand(command = {}) {
   return {
     commandId: trimText(command.commandId),
@@ -1212,6 +1470,9 @@ function normalizePlaybackCommand(command = {}) {
   };
 }
 
+/**
+ * 规范化 playback session entry，避免后续业务处理不同格式的输入。
+ */
 function normalizePlaybackSessionEntry(entry = {}) {
   const serverStartAtMs = safeNumber(entry.serverStartAtMs);
   const state = normalizePlaybackState(entry.state, serverStartAtMs > 0 ? "RUNNING" : "TERMINATED");
@@ -1249,13 +1510,18 @@ function normalizePlaybackSessionEntry(entry = {}) {
   };
 }
 
+/**
+ * 实体化 playback session，把持久化记录补成运行时可用对象。
+ */
 function materializePlaybackSession(session) {
   if (!session) {
     return null;
   }
   const serverNowMs = Date.now();
+
   if (session.state === "PREVIEW") {
     const previewTouchedAtMs = safeNumber(session.updatedAtMs, safeNumber(session.createdAtMs));
+
     if (previewTouchedAtMs > 0 && serverNowMs - previewTouchedAtMs > PLAYBACK_PREVIEW_TTL_MS) {
       session.state = "TERMINATED";
       session.terminatedAtMs = serverNowMs;
@@ -1271,6 +1537,7 @@ function materializePlaybackSession(session) {
       persist();
     }
   }
+
   if (session.state === "SCHEDULED" && session.serverStartAtMs > 0 && serverNowMs >= session.serverStartAtMs) {
     session.state = "RUNNING";
     session.version = Math.max(1, safeNumber(session.version, 1)) + 1;
@@ -1291,14 +1558,21 @@ function materializePlaybackSession(session) {
   return session;
 }
 
+/**
+ * 读取 playback session duration ms，并保持返回结构稳定。
+ */
 function getPlaybackSessionDurationMs(session) {
   const explicitDurationMs = safeNumber(session?.expectedDurationMs);
+
   if (explicitDurationMs > 0) {
     return explicitDurationMs;
   }
   return safeNumber(session?.duration) * 60 * 1000;
 }
 
+/**
+ * 计算 playback elapsed ms，集中封装时间或进度规则。
+ */
 function calculatePlaybackElapsedMs(session, serverNowMs = Date.now()) {
   if (!session || !safeNumber(session.serverStartAtMs)) {
     return 0;
@@ -1307,20 +1581,27 @@ function calculatePlaybackElapsedMs(session, serverNowMs = Date.now()) {
   const serverStartAtMs = safeNumber(session.serverStartAtMs);
   const pausedAccumulatedMs = safeNumber(session.pausedAccumulatedMs);
   const stateText = normalizePlaybackState(session.state);
+
   if (stateText === "PAUSED") {
     return Math.max(0, safeNumber(session.pausedAtMs, serverStartAtMs) - serverStartAtMs - pausedAccumulatedMs);
   }
+
   if (stateText === "ENDED") {
     return Math.max(0, safeNumber(session.endedAtMs, serverNowMs) - serverStartAtMs - pausedAccumulatedMs);
   }
+
   if (stateText === "TERMINATED") {
     return Math.max(0, safeNumber(session.terminatedAtMs, serverNowMs) - serverStartAtMs - pausedAccumulatedMs);
   }
   return Math.max(0, serverNowMs - serverStartAtMs - pausedAccumulatedMs);
 }
 
+/**
+ * 序列化 playback session，控制对外暴露字段。
+ */
 function serializePlaybackSession(session) {
   const current = materializePlaybackSession(session);
+
   if (!current) {
     return null;
   }
@@ -1361,6 +1642,9 @@ function serializePlaybackSession(session) {
   };
 }
 
+/**
+ * 查找 playback session by id，找不到时返回空值而不是抛错。
+ */
 function findPlaybackSessionById(sessionId, accountNamespace = "") {
   const id = trimText(sessionId);
   const ns = normalizeAccountNamespace(accountNamespace);
@@ -1368,6 +1652,9 @@ function findPlaybackSessionById(sessionId, accountNamespace = "") {
   return materializePlaybackSession(session || null);
 }
 
+/**
+ * 读取 active playback session entry，并保持返回结构稳定。
+ */
 function getActivePlaybackSessionEntry(accountNamespace = "") {
   const ns = normalizeAccountNamespace(accountNamespace);
   const sessions = (state.playbackSessions || [])
@@ -1378,6 +1665,9 @@ function getActivePlaybackSessionEntry(accountNamespace = "") {
   return sessions[0] || null;
 }
 
+/**
+ * 读取 recent terminal playback session entry，并保持返回结构稳定。
+ */
 function getRecentTerminalPlaybackSessionEntry(accountNamespace = "") {
   const ns = normalizeAccountNamespace(accountNamespace);
   const nowMs = Date.now();
@@ -1401,16 +1691,24 @@ function getRecentTerminalPlaybackSessionEntry(accountNamespace = "") {
   return sessions[0] || null;
 }
 
+/**
+ * 读取 current playback session entry，并保持返回结构稳定。
+ */
 function getCurrentPlaybackSessionEntry(accountNamespace = "") {
   return getActivePlaybackSessionEntry(accountNamespace) || getRecentTerminalPlaybackSessionEntry(accountNamespace);
 }
 
+/**
+ * 记录 playback command，用于后续运维追踪和问题排查。
+ */
 function recordPlaybackCommand(session, action, commandId) {
   const id = trimText(commandId);
+
   if (!id) {
     throw new Error("commandId 不能为空。");
   }
   const existing = (session.commandLog || []).find((item) => trimText(item.commandId) === id);
+
   if (existing) {
     return { duplicate: true, command: existing };
   }
@@ -1429,6 +1727,9 @@ function recordPlaybackCommand(session, action, commandId) {
   return { duplicate: false, command };
 }
 
+/**
+ * 组装 tv screen snapshot，把分散的输入合成稳定输出。
+ */
 function buildTvScreenSnapshot(entry = null) {
   const lastSeenAt = trimText(entry?.lastSeenAt);
   const lastSeenMs = lastSeenAt ? new Date(lastSeenAt).getTime() : 0;
@@ -1467,6 +1768,9 @@ function buildTvScreenSnapshot(entry = null) {
   };
 }
 
+/**
+ * 规范化 tv screen payload，避免后续业务处理不同格式的输入。
+ */
 function normalizeTvScreenPayload(payload = {}, existing = null, fallbackAccountNamespace = "") {
   const now = nowIso();
   const nextPairToken = trimText(payload.pairToken) || trimText(existing?.pairToken);
@@ -1524,10 +1828,16 @@ function normalizeTvScreenPayload(payload = {}, existing = null, fallbackAccount
   };
 }
 
+/**
+ * 读取 app package file path，并保持返回结构稳定。
+ */
 function getAppPackageFilePath(filename = "") {
   return path.join(appPackageRoot, path.basename(String(filename || "")));
 }
 
+/**
+ * 规范化 app package record，避免后续业务处理不同格式的输入。
+ */
 function normalizeAppPackageRecord(payload = {}, existing = null) {
   const timestamp = nowIso();
   const filename = trimText(payload.filename) || trimText(existing?.filename);
@@ -1556,6 +1866,9 @@ function normalizeAppPackageRecord(payload = {}, existing = null) {
   };
 }
 
+/**
+ * 序列化 app package，控制对外暴露字段。
+ */
 function serializeAppPackage(record) {
   return clone({
     ...record,
@@ -1563,6 +1876,9 @@ function serializeAppPackage(record) {
   });
 }
 
+/**
+ * 同步 app package state，让历史数据符合当前业务模型。
+ */
 function syncAppPackageState() {
   ensureDir(appPackageRoot);
   const diskFiles = fs
@@ -1605,6 +1921,7 @@ function syncAppPackageState() {
 
   const currentSerialized = JSON.stringify((state.appPackages || []).map(serializeAppPackage));
   const nextSerialized = JSON.stringify(nextPackages.map(serializeAppPackage));
+
   if (currentSerialized !== nextSerialized) {
     state.appPackages = nextPackages;
     persist();
@@ -1613,8 +1930,12 @@ function syncAppPackageState() {
   return nextPackages;
 }
 
+/**
+ * 封装 upsert tv screen 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function upsertTvScreen(payload = {}) {
   const normalized = normalizeTvScreenPayload(payload);
+
   if (!normalized.deviceId || normalized.screenNumber < 0 || normalized.screenNumber > TV_SCREEN_COUNT) {
     return null;
   }
@@ -1660,6 +1981,7 @@ function upsertTvScreen(payload = {}) {
     const accountCompare = normalizeScreenAccountNamespace(left.accountNamespace).localeCompare(
       normalizeScreenAccountNamespace(right.accountNamespace)
     );
+
     if (accountCompare !== 0) {
       return accountCompare;
     }
@@ -1669,18 +1991,28 @@ function upsertTvScreen(payload = {}) {
   return buildTvScreenSnapshot(nextEntry);
 }
 
+/**
+ * 封装 template uid 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function templateUid(prefix) {
   return `${prefix}-${randomBytes(4).toString("hex")}`;
 }
 
+/**
+ * 解析 action name，合并请求参数、上下文和默认值。
+ */
 function resolveActionName(actionId, fallbackName = "") {
   const text = trimText(fallbackName);
+
   if (text) {
     return text;
   }
   return state.actions.find((item) => String(item.id) === String(actionId))?.name || "";
 }
 
+/**
+ * 规范化 waterfall template section，避免后续业务处理不同格式的输入。
+ */
 function normalizeWaterfallTemplateSection(kind, section = {}) {
   const title = kind === "cooldown" ? "冷身" : "热身";
   const items = Array.isArray(section.items) && section.items.length ? section.items : [{}];
@@ -1699,6 +2031,9 @@ function normalizeWaterfallTemplateSection(kind, section = {}) {
   };
 }
 
+/**
+ * 规范化 template video group，避免后续业务处理不同格式的输入。
+ */
 function normalizeTemplateVideoGroup(videoGroup = {}) {
   const screenCount = Number(videoGroup.screenCount) === 1 ? 1 : 3;
   const rawScreens = Array.isArray(videoGroup.screens) ? videoGroup.screens : [];
@@ -1713,6 +2048,7 @@ function normalizeTemplateVideoGroup(videoGroup = {}) {
     if (screenCount === 1) return cards.length ? cards : [{}];
     const capacity = rowLayouts.reduce((total, columns) => total + columns, 0);
     const nextCards = cards.slice(0, capacity);
+
     while (nextCards.length < capacity) {
       nextCards.push({});
     }
@@ -1748,6 +2084,9 @@ function normalizeTemplateVideoGroup(videoGroup = {}) {
   };
 }
 
+/**
+ * 校验 template payload，返回前端可理解的错误信息。
+ */
 function validateTemplatePayload(template) {
   const issues = [];
 
@@ -1762,6 +2101,7 @@ function validateTemplatePayload(template) {
     if (!trimText(template.courseName)) {
       issues.push("整节课程模板必须包含默认课程名称。");
     }
+
     if (!template.script || typeof template.script !== "object") {
       issues.push("整节课程模板必须包含课程脚本。");
     }
@@ -1770,6 +2110,7 @@ function validateTemplatePayload(template) {
 
   if (template.kind === "warmup" || template.kind === "cooldown") {
     const section = template.section;
+
     if (!section?.items?.length) {
       issues.push("模板至少需要一个动作。");
       return issues;
@@ -1788,6 +2129,7 @@ function validateTemplatePayload(template) {
   }
 
   const videoGroup = template.videoGroup;
+
   if (!videoGroup) {
     issues.push("正式组模板不能为空。");
     return issues;
@@ -1799,9 +2141,11 @@ function validateTemplatePayload(template) {
       (card) => card.actionId || card.actionName || trimText(card.stationNumber)
     );
     videoGroupActiveCardCount += activeCards.length;
+
     if (videoGroup.screenCount === 1 && !activeCards.length) {
       issues.push(`屏幕 ${screen.screenIndex} 至少需要一个动作卡片。`);
     }
+
     if (videoGroup.screenCount !== 1) {
       const stationCodes = activeCards.map((card) => trimText(card.stationNumber));
       if (stationCodes.some((code) => !code)) {
@@ -1812,6 +2156,7 @@ function validateTemplatePayload(template) {
       }
     }
   });
+
   if (videoGroup.screenCount !== 1 && videoGroupActiveCardCount <= 0) {
     issues.push("三屏模板至少需要一个屏幕有动作卡片。");
   }
@@ -1819,10 +2164,16 @@ function validateTemplatePayload(template) {
   return issues;
 }
 
+/**
+ * 封装 clone plain object 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function clonePlainObject(value, fallback = {}) {
   return value && typeof value === "object" && !Array.isArray(value) ? clone(value) : clone(fallback);
 }
 
+/**
+ * 规范化 course template package ids，避免后续业务处理不同格式的输入。
+ */
 function normalizeCourseTemplatePackageIds(payload = {}, existing = null) {
   const source =
     payload.coursePackageIds !== undefined
@@ -1837,18 +2188,30 @@ function normalizeCourseTemplatePackageIds(payload = {}, existing = null) {
   return numberList(source);
 }
 
+/**
+ * 规范化 template course package ids，避免后续业务处理不同格式的输入。
+ */
 function normalizeTemplateCoursePackageIds(payload = {}, existing = null) {
   return normalizeCourseTemplatePackageIds(payload, existing);
 }
 
+/**
+ * 规范化 course package lookup text，避免后续业务处理不同格式的输入。
+ */
 function normalizeCoursePackageLookupText(value = "") {
   return trimText(value).toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
 }
 
+/**
+ * 封装 compact course package lookup text 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function compactCoursePackageLookupText(value = "") {
   return normalizeCoursePackageLookupText(value).replace(/\s+/g, "");
 }
 
+/**
+ * 查找 course package id by name candidates，找不到时返回空值而不是抛错。
+ */
 function findCoursePackageIdByNameCandidates(candidates = [], coursePackages = null) {
   const packages = Array.isArray(coursePackages) ? coursePackages : state.coursePackages || [];
   const normalizedCandidates = candidates.map(normalizeCoursePackageLookupText).filter(Boolean);
@@ -1858,6 +2221,7 @@ function findCoursePackageIdByNameCandidates(candidates = [], coursePackages = n
     const id = normalizeCoursePackageId(coursePackage?.id, 0);
     const name = normalizeCoursePackageLookupText(coursePackage?.name);
     const compactName = compactCoursePackageLookupText(coursePackage?.name);
+
     if (!id || !name) {
       continue;
     }
@@ -1870,6 +2234,7 @@ function findCoursePackageIdByNameCandidates(candidates = [], coursePackages = n
     const id = normalizeCoursePackageId(coursePackage?.id, 0);
     const name = normalizeCoursePackageLookupText(coursePackage?.name);
     const compactName = compactCoursePackageLookupText(coursePackage?.name);
+
     if (!id || !name) {
       continue;
     }
@@ -1884,6 +2249,9 @@ function findCoursePackageIdByNameCandidates(candidates = [], coursePackages = n
   return 0;
 }
 
+/**
+ * 读取 default or hybrid course package id，并保持返回结构稳定。
+ */
 function getDefaultOrHybridCoursePackageId(coursePackages = null, fallbackId = 0) {
   return (
     findCoursePackageIdByNameCandidates(["Hybrid", "default", DEFAULT_COURSE_PACKAGE_NAME], coursePackages)
@@ -1892,6 +2260,9 @@ function getDefaultOrHybridCoursePackageId(coursePackages = null, fallbackId = 0
   );
 }
 
+/**
+ * 读取 twelve round course package id，并保持返回结构稳定。
+ */
 function getTwelveRoundCoursePackageId(coursePackages = null, fallbackId = 0) {
   return (
     findCoursePackageIdByNameCandidates(["12round", "12 round"], coursePackages)
@@ -1899,6 +2270,9 @@ function getTwelveRoundCoursePackageId(coursePackages = null, fallbackId = 0) {
   );
 }
 
+/**
+ * 读取 template fallback course package ids，并保持返回结构稳定。
+ */
 function getTemplateFallbackCoursePackageIds(template = {}, coursePackages = null, fallbackId = 0) {
   const normalizedName = normalizeCoursePackageLookupText(template.name);
   const packageId =
@@ -1908,6 +2282,9 @@ function getTemplateFallbackCoursePackageIds(template = {}, coursePackages = nul
   return packageId ? [packageId] : [];
 }
 
+/**
+ * 规范化 loaded template course package ids，避免后续业务处理不同格式的输入。
+ */
 function normalizeLoadedTemplateCoursePackageIds(template = {}, coursePackages = null, fallbackId = 0) {
   const raw = template && typeof template === "object" ? template : {};
   const explicitIds = normalizeTemplateCoursePackageIds(raw);
@@ -1924,12 +2301,18 @@ function normalizeLoadedTemplateCoursePackageIds(template = {}, coursePackages =
   };
 }
 
+/**
+ * 规范化 template source course id，避免后续业务处理不同格式的输入。
+ */
 function normalizeTemplateSourceCourseId(value, fallback = null) {
   const source = value !== undefined ? value : fallback;
   const numeric = Number(source);
   return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
 }
 
+/**
+ * 规范化 course template name，避免后续业务处理不同格式的输入。
+ */
 function normalizeCourseTemplateName(payload = {}, existing = null) {
   const source =
     payload.courseName
@@ -1941,6 +2324,9 @@ function normalizeCourseTemplateName(payload = {}, existing = null) {
   return trimText(source);
 }
 
+/**
+ * 规范化 course template payload，避免后续业务处理不同格式的输入。
+ */
 function normalizeCourseTemplatePayload(payload = {}, existing = null, base = {}) {
   const script = cloneCourseScript(payload.script ?? existing?.script ?? {});
   const typeIds = numberList(payload.typeIds ?? existing?.typeIds);
@@ -1975,8 +2361,12 @@ function normalizeCourseTemplatePayload(payload = {}, existing = null, base = {}
   };
 }
 
+/**
+ * 规范化 template payload，避免后续业务处理不同格式的输入。
+ */
 function normalizeTemplatePayload(payload = {}, existing = null) {
   const kind = ["warmup", "cooldown", "training", "course"].includes(payload.kind) ? payload.kind : existing?.kind;
+
   if (!kind) {
     throw new Error("模板类型无效。");
   }
@@ -2005,6 +2395,7 @@ function normalizeTemplatePayload(payload = {}, existing = null) {
         };
 
   const issues = validateTemplatePayload(next);
+
   if (issues.length) {
     throw new Error(issues.join("\n"));
   }
@@ -2012,6 +2403,9 @@ function normalizeTemplatePayload(payload = {}, existing = null) {
   return next;
 }
 
+/**
+ * 读取 course template package ids，并保持返回结构稳定。
+ */
 function getCourseTemplatePackageIds(template = {}) {
   const packageIds = numberList(
     template.coursePackageIds !== undefined
@@ -2023,12 +2417,16 @@ function getCourseTemplatePackageIds(template = {}) {
   return packageIds.length ? packageIds : getTemplateFallbackCoursePackageIds(template);
 }
 
+/**
+ * 封装 template allows user 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function templateAllowsUser(template = {}, user = null) {
   if (!user) {
     return false;
   }
 
   const visiblePackageIds = getUserVisibleCoursePackageIdSet(user);
+
   if (!visiblePackageIds) {
     return true;
   }
@@ -2037,6 +2435,9 @@ function templateAllowsUser(template = {}, user = null) {
   return templatePackageIds.some((id) => visiblePackageIds.has(id));
 }
 
+/**
+ * 封装 assert can save template 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function assertCanSaveTemplate(template = {}, user = null) {
   if (!user) {
     throw new Error("登录后才能保存模板。");
@@ -2045,6 +2446,7 @@ function assertCanSaveTemplate(template = {}, user = null) {
   const templatePackageIds = getCourseTemplatePackageIds(template);
   const existingPackageIds = new Set((state.coursePackages || []).map((item) => normalizeCoursePackageId(item.id, 0)));
   const missingPackageIds = templatePackageIds.filter((id) => !existingPackageIds.has(id));
+
   if (missingPackageIds.length) {
     throw new Error("课程包不存在。");
   }
@@ -2055,11 +2457,15 @@ function assertCanSaveTemplate(template = {}, user = null) {
   }
 }
 
+/**
+ * 序列化 template，控制对外暴露字段。
+ */
 function serializeTemplate(template) {
   const next = clone(template);
   const packageIds = getCourseTemplatePackageIds(next);
   next.coursePackageIds = packageIds;
   next.coursePackageId = packageIds[0] || null;
+
   if (next.kind === "course") {
     next.courseName = normalizeCourseTemplateName(next, next) || next.name || "";
     const typeIds = numberList(next.typeIds);
@@ -2078,6 +2484,9 @@ function serializeTemplate(template) {
   return next;
 }
 
+/**
+ * 读取 templates by kind 列表，并按业务规则过滤或排序。
+ */
 function listTemplatesByKind(kind, user = null) {
   return sortByNewest(
     state.templates.filter((item) => item.kind === kind && templateAllowsUser(item, user)),
@@ -2085,12 +2494,18 @@ function listTemplatesByKind(kind, user = null) {
   ).map(serializeTemplate);
 }
 
+/**
+ * 封装 default hydrate seconds from course 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function defaultHydrateSecondsFromCourse(course) {
   const rawValue = course?.script?.metadata?.defaultHydrateSeconds ?? course?.metadata?.defaultHydrateSeconds;
   const value = Number(rawValue);
   return Number.isFinite(value) && value >= 0 ? value : 0;
 }
 
+/**
+ * 封装 pick text field 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function pickTextField(source = {}, field) {
   if (Object.prototype.hasOwnProperty.call(source, field)) {
     return trimText(source[field]);
@@ -2104,15 +2519,24 @@ function pickTextField(source = {}, field) {
   return null;
 }
 
+/**
+ * 规范化 course rotation type，避免后续业务处理不同格式的输入。
+ */
 function normalizeCourseRotationType(value) {
   const text = trimText(value).toUpperCase();
   return ["REGION", "LANE", "SNAKE"].includes(text) ? text : "REGION";
 }
 
+/**
+ * 封装 course station rule fields 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function courseStationRuleFields() {
   return ["set", "work", "rest", "switch", "port", "leader"];
 }
 
+/**
+ * 封装 course station rule aliases 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function courseStationRuleAliases(field) {
   const aliases = {
     set: ["set", "Set"],
@@ -2125,10 +2549,16 @@ function courseStationRuleAliases(field) {
   return aliases[field] || [field];
 }
 
+/**
+ * 判断是否满足 is plain object 条件，供调用方做分支处理。
+ */
 function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+/**
+ * 封装 pick course station rule value 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function pickCourseStationRuleValue(source = {}, field) {
   const aliases = courseStationRuleAliases(field);
   const containers = [
@@ -2147,6 +2577,7 @@ function pickCourseStationRuleValue(source = {}, field) {
     if (!isPlainObject(container)) {
       continue;
     }
+
     for (const alias of aliases) {
       if (Object.prototype.hasOwnProperty.call(container, alias)) {
         return trimText(container[alias]);
@@ -2157,9 +2588,13 @@ function pickCourseStationRuleValue(source = {}, field) {
   return null;
 }
 
+/**
+ * 封装 collect course station rules 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function collectCourseStationRules(source = {}) {
   return courseStationRuleFields().reduce((rules, field) => {
     const value = pickCourseStationRuleValue(source, field);
+
     if (value !== null) {
       rules[field] = value;
     }
@@ -2167,10 +2602,16 @@ function collectCourseStationRules(source = {}) {
   }, {});
 }
 
+/**
+ * 判断是否满足 has course station rule values 条件，供调用方做分支处理。
+ */
 function hasCourseStationRuleValues(rules = {}) {
   return courseStationRuleFields().some((field) => Boolean(trimText(rules[field])));
 }
 
+/**
+ * 封装 add unique course seconds 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function addUniqueCourseSeconds(values, value) {
   const seconds = Number(value);
   if (Number.isFinite(seconds) && seconds > 0 && !values.includes(seconds)) {
@@ -2178,33 +2619,49 @@ function addUniqueCourseSeconds(values, value) {
   }
 }
 
+/**
+ * 封装 format course seconds list 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function formatCourseSecondsList(values = []) {
   return values.length ? values.map((seconds) => `${seconds}s`).join("/") : "";
 }
 
+/**
+ * 封装 derive course switch rule 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function deriveCourseSwitchRule(rotationType) {
   const normalized = normalizeCourseRotationType(rotationType);
+
   if (normalized === "LANE") {
     return "range";
   }
+
   if (normalized === "SNAKE") {
     return "follow the leader";
   }
   return "pod";
 }
 
+/**
+ * 解析 course rule script，合并请求参数、上下文和默认值。
+ */
 function resolveCourseRuleScript(source) {
   if (source?.training?.pods && source?.training?.videoGroups) {
     return source;
   }
+
   if (source?.script?.training?.pods && source?.script?.training?.videoGroups) {
     return source.script;
   }
   return null;
 }
 
+/**
+ * 封装 derive course station rules 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function deriveCourseStationRules(source = {}) {
   const script = resolveCourseRuleScript(source);
+
   if (!script) {
     return normalizeCourseStationRules();
   }
@@ -2218,6 +2675,7 @@ function deriveCourseStationRules(source = {}) {
   const setCount = threeScreenPods.reduce((total, pod) => {
     const screens = Array.isArray(pod?.screens) ? pod.screens : [];
     const firstScreen = screens.find((screen) => Number(screen?.screenIndex) === 1) || screens[0] || null;
+
     for (const screen of screens) {
       addUniqueCourseSeconds(restSeconds, screen?.stationRestSeconds);
       for (const setConfig of Array.isArray(screen?.setConfigs) ? screen.setConfigs : []) {
@@ -2238,12 +2696,16 @@ function deriveCourseStationRules(source = {}) {
   };
 }
 
+/**
+ * 规范化 course station rules，避免后续业务处理不同格式的输入。
+ */
 function normalizeCourseStationRules(...sources) {
   const rules = courseStationRuleFields().reduce((current, field) => {
     current[field] = "";
     return current;
   }, {});
   const switchRule = deriveCourseSwitchRuleFromSources(sources);
+
   for (const source of sources) {
     Object.assign(rules, collectCourseStationRules(source));
   }
@@ -2270,7 +2732,11 @@ function normalizeCourseStationRules(...sources) {
   };
 }
 
+/**
+ * 封装 derive course switch rule from sources 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function deriveCourseSwitchRuleFromSources(sources = []) {
+
   for (const source of sources) {
     const script = resolveCourseRuleScript(source);
     const rotationType =
@@ -2278,6 +2744,7 @@ function deriveCourseSwitchRuleFromSources(sources = []) {
       ?? source?.rotationType
       ?? source?.metadata?.rotationType
       ?? source?.script?.metadata?.rotationType;
+
     if (rotationType) {
       return deriveCourseSwitchRule(rotationType);
     }
@@ -2285,6 +2752,9 @@ function deriveCourseSwitchRuleFromSources(sources = []) {
   return deriveCourseSwitchRule();
 }
 
+/**
+ * 规范化 course top level metadata，避免后续业务处理不同格式的输入。
+ */
 function normalizeCourseTopLevelMetadata(source = {}, stationRules = normalizeCourseStationRules(source)) {
   return {
     ...(isPlainObject(source?.metadata) ? clone(source.metadata) : {}),
@@ -2292,6 +2762,9 @@ function normalizeCourseTopLevelMetadata(source = {}, stationRules = normalizeCo
   };
 }
 
+/**
+ * 封装 derive course topic from type ids 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function deriveCourseTopicFromTypeIds(typeIds = []) {
   const firstTypeId = numberList(typeIds)[0];
   if (!firstTypeId || !Array.isArray(state.lessonTypes)) {
@@ -2300,6 +2773,9 @@ function deriveCourseTopicFromTypeIds(typeIds = []) {
   return trimText(state.lessonTypes.find((item) => Number(item.id) === firstTypeId)?.name);
 }
 
+/**
+ * 封装 derive course metadata fields 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function deriveCourseMetadataFields(source = {}, script = {}) {
   const description = pickTextField(source, "description");
   const topic = pickTextField(source, "topic");
@@ -2313,6 +2789,9 @@ function deriveCourseMetadataFields(source = {}, script = {}) {
   };
 }
 
+/**
+ * 封装 derive training panel 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function deriveTrainingPanel(source = {}, script) {
   const incoming = source?.script?.metadata?.trainingPanel || source?.metadata?.trainingPanel || {};
   const podCount = Array.isArray(script?.training?.pods) ? script.training.pods.length : 0;
@@ -2331,6 +2810,9 @@ function deriveTrainingPanel(source = {}, script) {
   });
 }
 
+/**
+ * 封装 coerce course script 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function coerceCourseScript(source = {}) {
   const script = source?.script
     ? cloneCourseScript(source.script)
@@ -2360,6 +2842,9 @@ function coerceCourseScript(source = {}) {
   return script;
 }
 
+/**
+ * 同步 course station rules，让历史数据符合当前业务模型。
+ */
 function syncCourseStationRules() {
   if (!Array.isArray(state.courses) || !state.courses.length) {
     return;
@@ -2398,6 +2883,9 @@ function syncCourseStationRules() {
   }
 }
 
+/**
+ * 封装 course summary from script 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function courseSummaryFromScript(script) {
   const summary = summarizeCourseScript(script);
   const videoCards = (script.training?.videoGroups || []).reduce(
@@ -2415,14 +2903,23 @@ function courseSummaryFromScript(script) {
   };
 }
 
+/**
+ * 判断是否满足 has waterfall playback items 条件，供调用方做分支处理。
+ */
 function hasWaterfallPlaybackItems(section) {
   return Array.isArray(section?.items) && section.items.length > 0;
 }
 
+/**
+ * 判断是否满足 has training playback pods 条件，供调用方做分支处理。
+ */
 function hasTrainingPlaybackPods(script) {
   return Array.isArray(script?.training?.pods) && script.training.pods.length > 0;
 }
 
+/**
+ * 估算 course playback duration ms，供课表和播放流程提前判断。
+ */
 function estimateCoursePlaybackDurationMs(script) {
   if (!script || typeof script !== "object") {
     return 0;
@@ -2438,6 +2935,9 @@ function estimateCoursePlaybackDurationMs(script) {
   return totalSeconds > 0 ? totalSeconds * 1000 : 0;
 }
 
+/**
+ * 规范化 course payload，避免后续业务处理不同格式的输入。
+ */
 function normalizeCoursePayload(payload = {}, existing = null) {
   const timestamp = nowIso();
   const source = {
@@ -2479,6 +2979,9 @@ function normalizeCoursePayload(payload = {}, existing = null) {
   };
 }
 
+/**
+ * 序列化 course，控制对外暴露字段。
+ */
 function serializeCourse(course) {
   const script = coerceCourseScript(course);
   const stationRules = normalizeCourseStationRules(course, script);
@@ -2506,6 +3009,9 @@ function serializeCourse(course) {
   };
 }
 
+/**
+ * 序列化 course summary，控制对外暴露字段。
+ */
 function serializeCourseSummary(course) {
   const serialized = serializeCourse(course);
   return {
@@ -2527,6 +3033,9 @@ function serializeCourseSummary(course) {
   };
 }
 
+/**
+ * 封装 attach course basics 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function attachCourseBasics(schedule) {
   const course = state.courses.find((item) => item.id === schedule.courseId);
   const serialized = course ? serializeCourse(course) : null;
@@ -2546,10 +3055,16 @@ function attachCourseBasics(schedule) {
   };
 }
 
+/**
+ * 判断是否满足 hash value 条件，供调用方做分支处理。
+ */
 function hashValue(value) {
   return createHash("sha1").update(JSON.stringify(value)).digest("hex");
 }
 
+/**
+ * 规范化 calendar date，避免后续业务处理不同格式的输入。
+ */
 function normalizeCalendarDate(dateText, timeZone = "Asia/Shanghai") {
   if (typeof dateText === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateText.trim())) {
     return dateText.trim();
@@ -2563,6 +3078,9 @@ function normalizeCalendarDate(dateText, timeZone = "Asia/Shanghai") {
   }).format(new Date());
 }
 
+/**
+ * 封装 calendar date start iso 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function calendarDateStartIso(dateText) {
   const normalized = trimText(dateText);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
@@ -2571,8 +3089,12 @@ function calendarDateStartIso(dateText) {
   return new Date(`${normalized}T00:00:00.000+08:00`).toISOString();
 }
 
+/**
+ * 规范化 schedule begin time payload，避免后续业务处理不同格式的输入。
+ */
 function normalizeScheduleBeginTimePayload(payload = {}) {
   const dateText = trimText(payload.date);
+
   if (dateText) {
     return calendarDateStartIso(dateText);
   }
@@ -2584,6 +3106,9 @@ function normalizeScheduleBeginTimePayload(payload = {}) {
   return beginTime;
 }
 
+/**
+ * 封装 format calendar date 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function formatCalendarDate(dateValue, timeZone = "Asia/Shanghai") {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone,
@@ -2593,12 +3118,18 @@ function formatCalendarDate(dateValue, timeZone = "Asia/Shanghai") {
   }).format(new Date(dateValue));
 }
 
+/**
+ * 封装 add calendar days 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function addCalendarDays(dateText, days) {
   const base = new Date(`${dateText}T12:00:00.000+08:00`);
   base.setUTCDate(base.getUTCDate() + days);
   return formatCalendarDate(base, "Asia/Shanghai");
 }
 
+/**
+ * 读取 calendar week range，并保持返回结构稳定。
+ */
 function getCalendarWeekRange(weekOffset = 0, timeZone = "Asia/Shanghai") {
   const today = formatCalendarDate(new Date(), timeZone);
   const anchor = new Date(`${today}T12:00:00.000+08:00`);
@@ -2609,11 +3140,17 @@ function getCalendarWeekRange(weekOffset = 0, timeZone = "Asia/Shanghai") {
   return { start, end: addCalendarDays(start, 7) };
 }
 
+/**
+ * 封装 in calendar date range 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function inCalendarDateRange(dateValue, startDate, endDate, timeZone = "Asia/Shanghai") {
   const dateKey = formatCalendarDate(dateValue, timeZone);
   return dateKey >= startDate && dateKey < endDate;
 }
 
+/**
+ * 读取 schedules by date 列表，并按业务规则过滤或排序。
+ */
 function listSchedulesByDate(dateText, timeZone = "Asia/Shanghai") {
   const targetDate = normalizeCalendarDate(dateText, timeZone);
 
@@ -2623,12 +3160,19 @@ function listSchedulesByDate(dateText, timeZone = "Asia/Shanghai") {
     .sort((left, right) => new Date(left.beginTime).getTime() - new Date(right.beginTime).getTime());
 }
 
+/**
+ * 组装 action media map，把分散的输入合成稳定输出。
+ */
 function buildActionMediaMap() {
   return new Map(state.actions.map((action) => [String(action.id), action?.media || null]));
 }
 
+/**
+ * 解析 media url，合并请求参数、上下文和默认值。
+ */
 function resolveMediaUrl(actionId, fallbackUrl = "") {
   const fallback = trimText(fallbackUrl);
+
   if (fallback) {
     return fallback;
   }
@@ -2636,6 +3180,9 @@ function resolveMediaUrl(actionId, fallbackUrl = "") {
   return trimText(buildActionMediaMap().get(String(actionId))?.url);
 }
 
+/**
+ * 解析 script media urls，合并请求参数、上下文和默认值。
+ */
 function resolveScriptMediaUrls(script) {
   const actionMediaMap = buildActionMediaMap();
   const next = cloneCourseScript(script);
@@ -2675,6 +3222,9 @@ function resolveScriptMediaUrls(script) {
   return next;
 }
 
+/**
+ * 封装 collect script resources 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function collectScriptResources(script) {
   const resources = [];
   const seen = new Set();
@@ -2722,7 +3272,9 @@ function collectScriptResources(script) {
   }
 
   for (const group of script?.training?.videoGroups || []) {
+
     for (const screen of group?.screens || []) {
+
       for (const card of screen?.videoCards || []) {
         pushResource(card?.mediaUrl, card?.actionId, card?.actionName);
       }
@@ -2732,8 +3284,12 @@ function collectScriptResources(script) {
   return resources;
 }
 
+/**
+ * 组装 tv schedule entry，把分散的输入合成稳定输出。
+ */
 function buildTvScheduleEntry(schedule) {
   const course = getCourseById(schedule.courseId);
+
   if (!course) {
     return null;
   }
@@ -2778,25 +3334,41 @@ function buildTvScheduleEntry(schedule) {
   return entry;
 }
 
+/**
+ * 封装 in range 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function inRange(dateValue, from, to) {
   const target = new Date(dateValue).getTime();
   return target >= from.getTime() && target < to.getTime();
 }
 
+/**
+ * 读取 media root，并保持返回结构稳定。
+ */
 export function getMediaRoot() {
   return mediaRoot;
 }
 
+/**
+ * 读取 app package root，并保持返回结构稳定。
+ */
 export function getAppPackageRoot() {
   return appPackageRoot;
 }
 
+/**
+ * 创建 app package filename，并补齐运行时需要的默认配置。
+ */
 export function createAppPackageFilename(platform = "tv", version = "", originalName = "app.apk") {
   return createAppPackageStoredName(platform, version, originalName);
 }
 
+/**
+ * 封装 register uploaded app package 的业务步骤，避免调用方依赖内部实现细节。
+ */
 export function registerUploadedAppPackage(payload = {}) {
   const filename = trimText(payload.filename);
+
   if (!filename) {
     throw new Error("安装包文件名不能为空。");
   }
@@ -2823,6 +3395,9 @@ export function registerUploadedAppPackage(payload = {}) {
   return serializeAppPackage(next);
 }
 
+/**
+ * 读取 app packages 列表，并按业务规则过滤或排序。
+ */
 export function listAppPackages(platform = "") {
   const safePlatform = trimText(platform).toLowerCase();
   return sortByNewest(
@@ -2831,6 +3406,9 @@ export function listAppPackages(platform = "") {
   ).map(serializeAppPackage);
 }
 
+/**
+ * 读取 app package by id，并保持返回结构稳定。
+ */
 export function getAppPackageById(packageId) {
   syncAppPackageState();
   const targetId = Number(packageId);
@@ -2841,8 +3419,12 @@ export function getAppPackageById(packageId) {
   return record ? serializeAppPackage(record) : null;
 }
 
+/**
+ * 查找 app package file，找不到时返回空值而不是抛错。
+ */
 export function findAppPackageFile(packageId) {
   const record = getAppPackageById(packageId);
+
   if (!record?.filename) {
     return null;
   }
@@ -2858,14 +3440,23 @@ export function findAppPackageFile(packageId) {
   };
 }
 
+/**
+ * 封装 rescan app packages 的业务步骤，避免调用方依赖内部实现细节。
+ */
 export function rescanAppPackages() {
   return listAppPackages();
 }
 
+/**
+ * 读取 media record，并保持返回结构稳定。
+ */
 export function getMediaRecord(filename) {
   return state.media.find((item) => item.filename === filename) ?? null;
 }
 
+/**
+ * 创建 uploaded media，并补齐运行时需要的默认配置。
+ */
 export function createUploadedMedia({
   originalName,
   mimeType,
@@ -2894,6 +3485,9 @@ export function createUploadedMedia({
   return record;
 }
 
+/**
+ * 读取 meta payload，并保持返回结构稳定。
+ */
 export function getMetaPayload(user = null, options = {}) {
   const includeFullCourses = options?.includeFullCourses === true;
   const coursePackageId = normalizeCoursePackageId(options?.coursePackageId || 0, 0);
@@ -2915,6 +3509,9 @@ export function getMetaPayload(user = null, options = {}) {
   };
 }
 
+/**
+ * 读取 action types 列表，并按业务规则过滤或排序。
+ */
 export function listActionTypes(user = null, options = {}) {
   return clone(
     state.actionTypes
@@ -2924,20 +3521,31 @@ export function listActionTypes(user = null, options = {}) {
   );
 }
 
+/**
+ * 读取 users 列表，并按业务规则过滤或排序。
+ */
 export function listUsers() {
   return clone(state.users).map(publicUserInfo);
 }
 
+/**
+ * 读取 user by username，并保持返回结构稳定。
+ */
 export function getUserByUsername(username) {
   return state.users.find((item) => item.username === trimText(username)) ?? null;
 }
 
+/**
+ * 创建 console user，并补齐运行时需要的默认配置。
+ */
 export function createConsoleUser(payload = {}) {
   const username = trimText(payload.username);
   const password = trimText(payload.password);
+
   if (!username) {
     throw new Error("手机号不能为空。");
   }
+
   if (!password) {
     throw new Error("密码不能为空。");
   }
@@ -2977,13 +3585,18 @@ export function createConsoleUser(payload = {}) {
   return publicUserInfo(nextUser);
 }
 
+/**
+ * 封装 upsert console user 的业务步骤，避免调用方依赖内部实现细节。
+ */
 export function upsertConsoleUser(payload = {}) {
   const username = trimText(payload.username);
+
   if (!username) {
     throw new Error("手机号不能为空。");
   }
 
   const existing = getUserByUsername(username);
+
   if (!existing) {
     return createConsoleUser(payload);
   }
@@ -3000,6 +3613,7 @@ export function upsertConsoleUser(payload = {}) {
   existing.role = trimText(payload.role) || trimText(existing.role) || (SUPERADMIN_USERNAMES.has(username) ? "superadmin" : "venue");
   existing.venueId = trimText(payload.venueId) || trimText(existing.venueId) || "";
   existing.allowedClients = normalizeAllowedClients(payload.allowedClients || existing.allowedClients);
+
   if (payload.password) {
     existing.passwordDigest = normalizePassword(payload.password);
     if (!isSuperAdminUser(existing)) {
@@ -3010,11 +3624,16 @@ export function upsertConsoleUser(payload = {}) {
   return publicUserInfo(existing);
 }
 
+/**
+ * 判断是否满足 is super admin user 条件，供调用方做分支处理。
+ */
 export function isSuperAdminUser(user) {
-
   return Boolean(user) && (trimText(user.role) === "superadmin" || SUPERADMIN_USERNAMES.has(trimText(user.username)));
 }
 
+/**
+ * 读取 venues 列表，并按业务规则过滤或排序。
+ */
 export function listVenues() {
   return clone(state.venues || []).sort((left, right) => {
     const leftTime = new Date(left.updateTime || left.createTime || 0).getTime();
@@ -3023,19 +3642,29 @@ export function listVenues() {
   });
 }
 
+/**
+ * 读取 venue by id，并保持返回结构稳定。
+ */
 export function getVenueById(venueId) {
   const id = trimText(venueId);
   return (state.venues || []).find((item) => trimText(item.id) === id) ?? null;
 }
 
+/**
+ * 读取 venue by account namespace，并保持返回结构稳定。
+ */
 export function getVenueByAccountNamespace(accountNamespace) {
   const ns = normalizeAccountNamespace(accountNamespace);
   return (state.venues || []).find((item) => normalizeAccountNamespace(item.accountNamespace) === ns) ?? null;
 }
 
+/**
+ * 创建 venue，并补齐运行时需要的默认配置。
+ */
 export function createVenue(payload = {}) {
   const name = trimText(payload.name);
   let accountNamespace = normalizeVenueAccountNamespace(payload.accountNamespace || payload.namespace || payload.ns || "");
+
   if (!name) {
     throw new Error("场馆名称不能为空。");
   }
@@ -3072,8 +3701,12 @@ export function createVenue(payload = {}) {
   return next;
 }
 
+/**
+ * 更新 venue，只改变调用方明确提交的字段。
+ */
 export function updateVenue(venueId, payload = {}) {
   const existing = getVenueById(venueId);
+
   if (!existing) {
     return null;
   }
@@ -3086,9 +3719,11 @@ export function updateVenue(venueId, payload = {}) {
   }
   existing.name = nextName;
   existing.accountNamespace = nextNs;
+
   if (payload.themeConfig && typeof payload.themeConfig === "object") {
     existing.themeConfig = payload.themeConfig;
   }
+
   if (payload.coursePackageIds) {
     existing.coursePackageIds = normalizeVenuePackageIds(payload.coursePackageIds);
     if (!existing.coursePackageIds.includes(normalizeCoursePackageId(existing.activeCoursePackageId))) {
@@ -3100,9 +3735,13 @@ export function updateVenue(venueId, payload = {}) {
   return existing;
 }
 
+/**
+ * 删除 venue，同时遵守课程和排课的保护规则。
+ */
 export function deleteVenue(venueId) {
   const id = trimText(venueId);
   const existing = getVenueById(id);
+
   if (!existing) {
     return { ok: false, message: "场馆不存在。" };
   }
@@ -3132,6 +3771,9 @@ export function deleteVenue(venueId) {
   return { ok: true };
 }
 
+/**
+ * 读取 venue users 列表，并按业务规则过滤或排序。
+ */
 export function listVenueUsers(venueId) {
   const id = trimText(venueId);
   return clone(state.users || [])
@@ -3140,16 +3782,22 @@ export function listVenueUsers(venueId) {
     .sort((left, right) => left.username.localeCompare(right.username));
 }
 
+/**
+ * 创建 venue user，并补齐运行时需要的默认配置。
+ */
 export function createVenueUser(venueId, payload = {}) {
   const venue = getVenueById(venueId);
+
   if (!venue) {
     throw new Error("场馆不存在。");
   }
   const username = trimText(payload.username);
   const password = trimText(payload.password);
+
   if (!username) {
     throw new Error("账号不能为空。");
   }
+
   if (!password) {
     throw new Error("密码不能为空。");
   }
@@ -3165,27 +3813,36 @@ export function createVenueUser(venueId, payload = {}) {
   });
 }
 
+/**
+ * 更新 user，只改变调用方明确提交的字段。
+ */
 export function updateUser(userId, payload = {}) {
   const id = Number(userId);
   const existing = (state.users || []).find((user) => Number(user.id) === id) ?? null;
+
   if (!existing) {
     return null;
   }
+
   if (payload.password) {
     existing.passwordDigest = normalizePassword(payload.password);
     if (!isSuperAdminUser(existing)) {
       existing.passwordPlain = trimText(payload.password);
     }
   }
+
   if (payload.nickname != null) {
     existing.nickname = trimText(payload.nickname) || existing.nickname || existing.username;
   }
+
   if (payload.allowedClients) {
     existing.allowedClients = normalizeAllowedClients(payload.allowedClients);
   }
+
   if (payload.venueId != null) {
     existing.venueId = trimText(payload.venueId);
   }
+
   if (payload.role != null) {
     existing.role = trimText(payload.role);
   }
@@ -3193,6 +3850,9 @@ export function updateUser(userId, payload = {}) {
   return publicUserInfo(existing);
 }
 
+/**
+ * 读取 admin console users 列表，并按业务规则过滤或排序。
+ */
 export function listAdminConsoleUsers(query = "") {
   const q = trimText(query);
   const users = clone(state.users || [])
@@ -3203,13 +3863,18 @@ export function listAdminConsoleUsers(query = "") {
     .sort((left, right) => String(left.username).localeCompare(String(right.username)));
 }
 
+/**
+ * 绑定 user to venue，同步相关账户、场馆或屏幕状态。
+ */
 export function bindUserToVenue(userId, venueId) {
   const id = Number(userId);
   const venue = getVenueById(venueId);
+
   if (!venue) {
     throw new Error("场馆不存在。");
   }
   const existing = (state.users || []).find((user) => Number(user.id) === id) ?? null;
+
   if (!existing) {
     throw new Error("账号不存在。");
   }
@@ -3229,9 +3894,13 @@ export function bindUserToVenue(userId, venueId) {
   return publicUserInfo(existing);
 }
 
+/**
+ * 解绑 user from venue，保留后续恢复和排查需要的历史信息。
+ */
 export function unbindUserFromVenue(userId) {
   const id = Number(userId);
   const existing = (state.users || []).find((user) => Number(user.id) === id) ?? null;
+
   if (!existing) {
     throw new Error("账号不存在。");
   }
@@ -3247,15 +3916,20 @@ export function unbindUserFromVenue(userId) {
   return publicUserInfo(existing);
 }
 
+/**
+ * 封装 login console user 的业务步骤，避免调用方依赖内部实现细节。
+ */
 export function loginConsoleUser(username, password, clientName = "editor-web") {
   cleanupExpiredSessions();
   const normalizedUsername = trimText(username);
   const normalizedPassword = trimText(password);
+
   if (!normalizedUsername || !normalizedPassword) {
     return null;
   }
 
   const user = getUserByUsername(normalizedUsername);
+
   if (!user) {
     return null;
   }
@@ -3284,6 +3958,9 @@ export function loginConsoleUser(username, password, clientName = "editor-web") 
   };
 }
 
+/**
+ * 封装 refresh console user 的业务步骤，避免调用方依赖内部实现细节。
+ */
 export function refreshConsoleUser(refreshToken, clientName = "editor-web") {
   cleanupExpiredSessions();
   const session = state.authSessions.find((item) => item.refreshToken === trimText(refreshToken));
@@ -3303,6 +3980,9 @@ export function refreshConsoleUser(refreshToken, clientName = "editor-web") {
   return createAuthPayload(session.userId, clientName);
 }
 
+/**
+ * 读取 user by access token，并保持返回结构稳定。
+ */
 export function getUserByAccessToken(accessToken) {
   cleanupExpiredSessions();
   const session = state.authSessions.find((item) => item.accessToken === trimText(accessToken));
@@ -3314,48 +3994,73 @@ export function getUserByAccessToken(accessToken) {
   return user ? publicUserInfo(user) : null;
 }
 
+/**
+ * 封装 action type allows user 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function actionTypeAllowsUser(type = {}, user = null) {
   const visiblePackageIds = getUserVisibleCoursePackageIdSet(user);
+
   if (!visiblePackageIds) {
     return true;
   }
 
   const packageIds = numberList(type.coursePackageIds);
+
   if (!packageIds.length) {
     return visiblePackageIds.has(getDefaultCoursePackageId());
   }
   return packageIds.some((id) => visiblePackageIds.has(id));
 }
 
+/**
+ * 封装 scoped record belongs to course package 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function scopedRecordBelongsToCoursePackage(record = {}, coursePackageId = 0) {
   const scopedPackageId = normalizeCoursePackageId(coursePackageId, 0);
+
   if (scopedPackageId <= 0) {
     return true;
   }
 
   const packageIds = numberList(record.coursePackageIds);
+
   if (!packageIds.length) {
     return scopedPackageId === getDefaultCoursePackageId();
   }
   return packageIds.includes(scopedPackageId);
 }
 
+/**
+ * 封装 action type matches course package scope 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function actionTypeMatchesCoursePackageScope(type = {}, options = {}) {
   return scopedRecordBelongsToCoursePackage(type, options?.coursePackageId);
 }
 
+/**
+ * 封装 lesson type allows user 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function lessonTypeAllowsUser(type = {}, user = null) {
   return actionTypeAllowsUser(type, user);
 }
 
+/**
+ * 封装 lesson type matches course package scope 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function lessonTypeMatchesCoursePackageScope(type = {}, options = {}) {
   return scopedRecordBelongsToCoursePackage(type, options?.coursePackageId);
 }
 
+/**
+ * 封装 action matches course package scope 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function actionMatchesCoursePackageScope(action = {}, options = {}) {
   return scopedRecordBelongsToCoursePackage(action, options?.coursePackageId);
 }
 
+/**
+ * 封装 add action type 的业务步骤，避免调用方依赖内部实现细节。
+ */
 export function addActionType(payload, user = null) {
   const source = typeof payload === "string" ? { name: payload } : payload || {};
   const name = stripMediaSuffix(source.name);
@@ -3370,6 +4075,7 @@ export function addActionType(payload, user = null) {
         && typePackageIds.some((id) => packageIds.includes(id))
       );
     });
+
   if (existing) {
     return existing;
   }
@@ -3380,6 +4086,9 @@ export function addActionType(payload, user = null) {
   return next;
 }
 
+/**
+ * 读取 lesson types 列表，并按业务规则过滤或排序。
+ */
 export function listLessonTypes(user = null, options = {}) {
   return clone(
     state.lessonTypes
@@ -3389,6 +4098,9 @@ export function listLessonTypes(user = null, options = {}) {
   );
 }
 
+/**
+ * 封装 add lesson type 的业务步骤，避免调用方依赖内部实现细节。
+ */
 export function addLessonType(payload, user = null) {
   const source = typeof payload === "string" ? { name: payload } : payload || {};
   const name = stripMediaSuffix(source.name);
@@ -3403,6 +4115,7 @@ export function addLessonType(payload, user = null) {
         && typePackageIds.some((id) => packageIds.includes(id))
       );
     });
+
   if (existing) {
     return existing;
   }
@@ -3413,6 +4126,9 @@ export function addLessonType(payload, user = null) {
   return next;
 }
 
+/**
+ * 封装 course type tags from type ids 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function courseTypeTagsFromTypeIds(typeIds = []) {
   const ids = new Set(numberList(typeIds));
   return normalizeCourseTags(
@@ -3422,10 +4138,14 @@ function courseTypeTagsFromTypeIds(typeIds = []) {
   );
 }
 
+/**
+ * 封装 collect action ids from course script 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function collectActionIdsFromCourseScript(script = {}) {
   const ids = new Set();
   const add = (value) => {
     const id = trimText(String(value ?? ""));
+
     if (id) {
       ids.add(id);
     }
@@ -3434,11 +4154,15 @@ function collectActionIdsFromCourseScript(script = {}) {
   for (const item of script?.sections?.warmup?.items || []) {
     add(item?.actionId);
   }
+
   for (const item of script?.sections?.cooldown?.items || []) {
     add(item?.actionId);
   }
+
   for (const group of script?.training?.videoGroups || []) {
+
     for (const screen of group?.screens || []) {
+
       for (const card of screen?.videoCards || []) {
         add(card?.actionId);
       }
@@ -3448,13 +4172,18 @@ function collectActionIdsFromCourseScript(script = {}) {
   return ids;
 }
 
+/**
+ * 同步 action course tags for course，让历史数据符合当前业务模型。
+ */
 function syncActionCourseTagsForCourse(course = {}) {
   const tags = courseTypeTagsFromTypeIds(course.typeIds);
+
   if (!tags.length) {
     return false;
   }
 
   const actionIds = collectActionIdsFromCourseScript(coerceCourseScript(course));
+
   if (!actionIds.size) {
     return false;
   }
@@ -3481,13 +4210,20 @@ function syncActionCourseTagsForCourse(course = {}) {
   return changed;
 }
 
+/**
+ * 同步 all action course tags from courses，让历史数据符合当前业务模型。
+ */
 function syncAllActionCourseTagsFromCourses() {
   const changed = (state.courses || []).reduce((didChange, course) => syncActionCourseTagsForCourse(course) || didChange, false);
+
   if (changed) {
     persist();
   }
 }
 
+/**
+ * 读取 actions 列表，并按业务规则过滤或排序。
+ */
 export function listActions(user = null, options = {}) {
   return sortByNewest(
     state.actions
@@ -3498,11 +4234,17 @@ export function listActions(user = null, options = {}) {
   );
 }
 
+/**
+ * 读取 action by id，并保持返回结构稳定。
+ */
 export function getActionById(actionId) {
   const action = state.actions.find((item) => item.id === Number(actionId)) ?? null;
   return action ? normalizeActionRecord(action) : null;
 }
 
+/**
+ * 保存 action，并触发必要的归一化和持久化。
+ */
 export function saveAction(payload, user = null) {
   const existing = payload.id ? getActionById(payload.id) : null;
   if (existing && !actionAllowsUser(existing, user)) {
@@ -3521,6 +4263,9 @@ export function saveAction(payload, user = null) {
   return next;
 }
 
+/**
+ * 删除 action，同时遵守课程和排课的保护规则。
+ */
 export function deleteAction(actionId, user = null) {
   const numericId = Number(actionId);
   const existing = getActionById(numericId);
@@ -3540,6 +4285,9 @@ export function deleteAction(actionId, user = null) {
   return { ok: true };
 }
 
+/**
+ * 读取 courses 列表，并按业务规则过滤或排序。
+ */
 export function listCourses(user = null) {
   const allowedCourseIds = getUserVisibleCourseIdSet(user);
   return sortByNewest(state.courses, "updateTime")
@@ -3547,6 +4295,9 @@ export function listCourses(user = null) {
     .map(serializeCourse);
 }
 
+/**
+ * 读取 course summaries 列表，并按业务规则过滤或排序。
+ */
 export function listCourseSummaries(user = null) {
   const allowedCourseIds = getUserVisibleCourseIdSet(user);
   return sortByNewest(state.courses, "updateTime")
@@ -3554,15 +4305,24 @@ export function listCourseSummaries(user = null) {
     .map(serializeCourseSummary);
 }
 
+/**
+ * 读取 course by id，并保持返回结构稳定。
+ */
 export function getCourseById(courseId) {
   const course = state.courses.find((item) => item.id === Number(courseId)) ?? null;
   return course ? serializeCourse(course) : null;
 }
 
+/**
+ * 规范化 course identity text，避免后续业务处理不同格式的输入。
+ */
 function normalizeCourseIdentityText(value) {
   return trimText(value).toLocaleLowerCase();
 }
 
+/**
+ * 保存 course，并触发必要的归一化和持久化。
+ */
 export function saveCourse(payload, user = null) {
   const existing = payload.id ? getCourseById(payload.id) : null;
   if (existing && !courseAllowsUser(existing, user)) {
@@ -3611,6 +4371,7 @@ export function saveCourse(payload, user = null) {
             updateTime: nowIso()
           };
     }
+
     if (!containsCourse) {
       return coursePackage;
     }
@@ -3637,6 +4398,9 @@ export function saveCourse(payload, user = null) {
   return next;
 }
 
+/**
+ * 删除 course，同时遵守课程和排课的保护规则。
+ */
 export function deleteCourse(courseId, user = null) {
   const numericId = Number(courseId);
   const existing = state.courses.find((item) => Number(item.id) === numericId) ?? null;
@@ -3668,6 +4432,9 @@ export function deleteCourse(courseId, user = null) {
   return { ok: true };
 }
 
+/**
+ * 读取 templates 列表，并按业务规则过滤或排序。
+ */
 export function listTemplates(user = null) {
   return {
     warmup: listTemplatesByKind("warmup", user),
@@ -3677,6 +4444,9 @@ export function listTemplates(user = null) {
   };
 }
 
+/**
+ * 读取 template by id，并保持返回结构稳定。
+ */
 export function getTemplateById(templateId, user = null) {
   const template = state.templates.find((item) => item.id === Number(templateId)) ?? null;
   if (!template || !templateAllowsUser(template, user)) {
@@ -3685,10 +4455,14 @@ export function getTemplateById(templateId, user = null) {
   return template ? serializeTemplate(template) : null;
 }
 
+/**
+ * 保存 template，并触发必要的归一化和持久化。
+ */
 export function saveTemplate(payload, user = null) {
   const existing = payload.id ? getTemplateById(payload.id, user) : null;
   const next = normalizeTemplatePayload(payload, existing);
   const requestedPackageIds = normalizeTemplateCoursePackageIds(payload);
+
   if (requestedPackageIds.length) {
     assertCanSaveTemplate({ ...next, coursePackageIds: requestedPackageIds }, user);
   }
@@ -3706,6 +4480,9 @@ export function saveTemplate(payload, user = null) {
   return serializeTemplate(next);
 }
 
+/**
+ * 删除 template，同时遵守课程和排课的保护规则。
+ */
 export function deleteTemplate(templateId, user = null) {
   const numericId = Number(templateId);
   const existing = state.templates.find((item) => item.id === numericId) ?? null;
@@ -3717,6 +4494,9 @@ export function deleteTemplate(templateId, user = null) {
   return { ok: true };
 }
 
+/**
+ * 读取 course options 列表，并按业务规则过滤或排序。
+ */
 export function listCourseOptions(coursePackageId = "", user = null) {
   const packageCourseIds = getCoursePackageCourseIdSet(coursePackageId);
   const userCourseIds = getUserVisibleCourseIdSet(user);
@@ -3734,16 +4514,21 @@ export function listCourseOptions(coursePackageId = "", user = null) {
   });
 }
 
+/**
+ * 读取 schedules by scope 列表，并按业务规则过滤或排序。
+ */
 export function listSchedulesByScope(scope = "CURRENTWEEK", options = {}) {
   const currentWeek = getCalendarWeekRange(0);
   const lastWeek = getCalendarWeekRange(-1);
 
   let list = state.schedules.map(attachCourseBasics);
   const visiblePackageIds = getUserVisibleCoursePackageIdSet(options?.user || null);
+
   if (visiblePackageIds) {
     list = list.filter((item) => visiblePackageIds.has(normalizeCoursePackageId(item.coursePackageId)));
   }
   const coursePackageId = normalizeCoursePackageId(options?.coursePackageId || 0, 0);
+
   if (coursePackageId > 0) {
     list = list.filter((item) => normalizeCoursePackageId(item.coursePackageId) === coursePackageId);
   }
@@ -3761,6 +4546,9 @@ export function listSchedulesByScope(scope = "CURRENTWEEK", options = {}) {
   });
 }
 
+/**
+ * 查找 tv screen for request，找不到时返回空值而不是抛错。
+ */
 function findTvScreenForRequest(payload = {}, accountNamespace = "") {
   const requestedNamespace = normalizeScreenAccountNamespace(accountNamespace || payload.accountNamespace);
   const requestedDeviceId = trimText(payload.deviceId).toUpperCase();
@@ -3782,6 +4570,9 @@ function findTvScreenForRequest(payload = {}, accountNamespace = "") {
   );
 }
 
+/**
+ * 解析 tv request account namespace，合并请求参数、上下文和默认值。
+ */
 function resolveTvRequestAccountNamespace(accountNamespace = "", payload = {}) {
   const requestedNamespace = normalizeScreenAccountNamespace(accountNamespace);
   const matchedScreen = findTvScreenForRequest(payload, requestedNamespace);
@@ -3789,6 +4580,9 @@ function resolveTvRequestAccountNamespace(accountNamespace = "", payload = {}) {
   return boundNamespace || requestedNamespace;
 }
 
+/**
+ * 读取 tv daily bundle，并保持返回结构稳定。
+ */
 export function getTvDailyBundle(dateText, timeZone = "Asia/Shanghai", accountNamespace = "", tvScope = {}) {
   const date = normalizeCalendarDate(dateText, timeZone);
   const requestedNamespace = resolveTvRequestAccountNamespace(accountNamespace, tvScope);
@@ -3803,7 +4597,9 @@ export function getTvDailyBundle(dateText, timeZone = "Asia/Shanghai", accountNa
     : [];
 
   const resourceMap = new Map();
+
   for (const schedule of schedules) {
+
     for (const resource of schedule.resources || []) {
       resourceMap.set(resource.key, resource);
     }
@@ -3841,6 +4637,9 @@ export function getTvDailyBundle(dateText, timeZone = "Asia/Shanghai", accountNa
   };
 }
 
+/**
+ * 读取 tv daily checksum，并保持返回结构稳定。
+ */
 export function getTvDailyChecksum(dateText, timeZone = "Asia/Shanghai", accountNamespace = "", tvScope = {}) {
   const bundle = getTvDailyBundle(dateText, timeZone, accountNamespace, tvScope);
   return {
@@ -3866,6 +4665,9 @@ export function getTvDailyChecksum(dateText, timeZone = "Asia/Shanghai", account
   };
 }
 
+/**
+ * 读取 tv schedule bundle，并保持返回结构稳定。
+ */
 export function getTvScheduleBundle(scheduleId) {
   const numericId = Number(scheduleId);
   if (!Number.isFinite(numericId) || numericId <= 0) {
@@ -3873,11 +4675,13 @@ export function getTvScheduleBundle(scheduleId) {
   }
 
   const schedule = state.schedules.map(attachCourseBasics).find((item) => item.id === numericId);
+
   if (!schedule) {
     return null;
   }
 
   const entry = buildTvScheduleEntry(schedule);
+
   if (!entry) {
     return null;
   }
@@ -3902,14 +4706,23 @@ export function getTvScheduleBundle(scheduleId) {
   };
 }
 
+/**
+ * 读取 current playback session，并保持返回结构稳定。
+ */
 export function getCurrentPlaybackSession(accountNamespace = "") {
   return serializePlaybackSession(getCurrentPlaybackSessionEntry(accountNamespace));
 }
 
+/**
+ * 读取 active playback session，并保持返回结构稳定。
+ */
 export function getActivePlaybackSession(accountNamespace = "") {
   return serializePlaybackSession(getActivePlaybackSessionEntry(accountNamespace));
 }
 
+/**
+ * 读取 current playback session for tv，并保持返回结构稳定。
+ */
 export function getCurrentPlaybackSessionForTv(payload = {}) {
   const requestedAccountNamespace = normalizeScreenAccountNamespace(payload.accountNamespace);
   const requestedDeviceId = trimText(payload.deviceId).toUpperCase();
@@ -3929,6 +4742,7 @@ export function getCurrentPlaybackSessionForTv(payload = {}) {
     || DEFAULT_ACCOUNT_NAMESPACE;
   const active = getActivePlaybackSessionEntry(accountNamespace);
   const screenSessionId = trimText(matchedScreen?.playbackSessionId);
+
   if (active) {
     const activeState = normalizePlaybackState(active.state);
     if (
@@ -3958,32 +4772,43 @@ export function getCurrentPlaybackSessionForTv(payload = {}) {
   return serializePlaybackSession(getRecentTerminalPlaybackSessionEntry(accountNamespace));
 }
 
+/**
+ * 读取 playback session，并保持返回结构稳定。
+ */
 export function getPlaybackSession(sessionId, accountNamespace = "") {
   return serializePlaybackSession(findPlaybackSessionById(sessionId, accountNamespace));
 }
 
+/**
+ * 创建 preview playback session，并补齐运行时需要的默认配置。
+ */
 export function createPreviewPlaybackSession(payload = {}, accountNamespace = "") {
   const ns = normalizeAccountNamespace(accountNamespace);
   const scheduleId = trimText(payload.scheduleId);
   const commandId = trimText(payload.commandId);
+
   if (!commandId) {
     throw new Error("commandId 不能为空。");
   }
   const scheduleBundle = getTvScheduleBundle(scheduleId);
+
   if (!scheduleBundle?.schedule) {
     throw new Error("未找到对应的课程排课。");
   }
 
   const active = getActivePlaybackSessionEntry(ns);
   const nextChecksum = trimText(payload.bundleChecksum) || trimText(scheduleBundle.schedule.contentChecksum) || trimText(scheduleBundle.checksum);
+
   if (active) {
     const samePreview =
       trimText(active.scheduleId) === String(scheduleBundle.schedule.id)
       && safeNumber(active.courseId) === safeNumber(scheduleBundle.schedule.courseId)
       && trimText(active.bundleChecksum) === nextChecksum
       && normalizePlaybackState(active.state) === "PREVIEW";
+
     if (samePreview) {
       const commandResult = recordPlaybackCommand(active, "preview", commandId);
+
       if (!commandResult.duplicate) {
         active.updatedAtMs = Date.now();
         active.updateTime = nowIso();
@@ -4032,9 +4857,13 @@ export function createPreviewPlaybackSession(payload = {}, accountNamespace = ""
   return serializePlaybackSession(session);
 }
 
+/**
+ * 更新 playback session state，只改变调用方明确提交的字段。
+ */
 export function updatePlaybackSessionState(sessionId, action, payload = {}, accountNamespace = "") {
   const ns = normalizeAccountNamespace(accountNamespace);
   const session = findPlaybackSessionById(sessionId, ns);
+
   if (!session) {
     return null;
   }
@@ -4044,17 +4873,21 @@ export function updatePlaybackSessionState(sessionId, action, payload = {}, acco
   const existingCommand = commandId
     ? (session.commandLog || []).find((item) => trimText(item.commandId) === commandId)
     : null;
+
   if (existingCommand) {
     return serializePlaybackSession(session);
   }
+
   if (!commandId) {
     throw new Error("commandId 不能为空。");
   }
 
   const nowMs = Date.now();
+
   if (normalizedAction === "start") {
     if (safeNumber(session.serverStartAtMs) > 0 && ["SCHEDULED", "RUNNING"].includes(session.state)) {
       const commandResult = recordPlaybackCommand(session, normalizedAction, commandId);
+
       if (!commandResult.duplicate) {
         session.updatedAtMs = nowMs;
         session.updateTime = nowIso();
@@ -4065,6 +4898,7 @@ export function updatePlaybackSessionState(sessionId, action, payload = {}, acco
     if (!["PREVIEW", "SCHEDULED"].includes(session.state)) {
       if (session.state === "RUNNING") {
         const commandResult = recordPlaybackCommand(session, normalizedAction, commandId);
+
         if (!commandResult.duplicate) {
           session.updatedAtMs = nowMs;
           session.updateTime = nowIso();
@@ -4084,6 +4918,7 @@ export function updatePlaybackSessionState(sessionId, action, payload = {}, acco
   } else if (normalizedAction === "pause") {
     if (session.state === "PAUSED") {
       const commandResult = recordPlaybackCommand(session, normalizedAction, commandId);
+
       if (!commandResult.duplicate) {
         session.updatedAtMs = nowMs;
         session.updateTime = nowIso();
@@ -4102,6 +4937,7 @@ export function updatePlaybackSessionState(sessionId, action, payload = {}, acco
   } else if (normalizedAction === "resume") {
     if (session.state === "RUNNING") {
       const commandResult = recordPlaybackCommand(session, normalizedAction, commandId);
+
       if (!commandResult.duplicate) {
         session.updatedAtMs = nowMs;
         session.updateTime = nowIso();
@@ -4109,10 +4945,12 @@ export function updatePlaybackSessionState(sessionId, action, payload = {}, acco
       persist();
       return serializePlaybackSession(session);
     }
+
     if (session.state !== "PAUSED") {
       throw new Error("当前 session 状态不允许继续。");
 
     }
+
     if (session.pausedAtMs > 0) {
       session.pausedAccumulatedMs = safeNumber(session.pausedAccumulatedMs) + Math.max(0, nowMs - session.pausedAtMs);
     }
@@ -4121,6 +4959,7 @@ export function updatePlaybackSessionState(sessionId, action, payload = {}, acco
   } else if (normalizedAction === "end" || normalizedAction === "terminate") {
     if (PLAYBACK_TERMINAL_STATES.has(session.state)) {
       const commandResult = recordPlaybackCommand(session, normalizedAction, commandId);
+
       if (!commandResult.duplicate) {
         session.updatedAtMs = nowMs;
         session.updateTime = nowIso();
@@ -4131,6 +4970,7 @@ export function updatePlaybackSessionState(sessionId, action, payload = {}, acco
     if (!PLAYBACK_TERMINAL_STATES.has(session.state)) {
       session.state = normalizedAction === "end" ? "ENDED" : "TERMINATED";
       session.endTime = nowIso();
+
       if (normalizedAction === "end") {
         session.endedAtMs = nowMs;
       } else {
@@ -4149,6 +4989,9 @@ export function updatePlaybackSessionState(sessionId, action, payload = {}, acco
   return serializePlaybackSession(session);
 }
 
+/**
+ * 封装 end expired playback sessions 的业务步骤，避免调用方依赖内部实现细节。
+ */
 export function endExpiredPlaybackSessions() {
   const terminalSessions = [];
   const sessions = Array.isArray(state.playbackSessions) ? state.playbackSessions : [];
@@ -4160,6 +5003,7 @@ export function endExpiredPlaybackSessions() {
     const beforeState = normalizePlaybackState(session.state);
     const beforeVersion = safeNumber(session.version);
     const wasActive = PLAYBACK_ACTIVE_STATES.has(beforeState);
+
     if (!wasActive) {
       continue;
     }
@@ -4175,6 +5019,9 @@ export function endExpiredPlaybackSessions() {
   return terminalSessions;
 }
 
+/**
+ * 绑定 tv screen，同步相关账户、场馆或屏幕状态。
+ */
 export function bindTvScreen(payload = {}, accountNamespace = "") {
   return upsertTvScreen({
     ...payload,
@@ -4182,6 +5029,9 @@ export function bindTvScreen(payload = {}, accountNamespace = "") {
   });
 }
 
+/**
+ * 处理 tv screen 心跳，刷新在线状态和运行时快照。
+ */
 export function heartbeatTvScreen(payload = {}, accountNamespace = "") {
   const heartbeatDeviceId = trimText(payload.deviceId);
   const unboundEntry = heartbeatDeviceId
@@ -4235,6 +5085,9 @@ export function heartbeatTvScreen(payload = {}, accountNamespace = "") {
   };
 }
 
+/**
+ * 解绑 tv screen，保留后续恢复和排查需要的历史信息。
+ */
 export function unbindTvScreen(payload = {}, accountNamespace = "") {
   const deviceId = trimText(payload.deviceId);
   const screenNumber = Number(payload.screenNumber) || 0;
@@ -4292,18 +5145,24 @@ export function unbindTvScreen(payload = {}, accountNamespace = "") {
   return buildTvScreenSnapshot(removedEntry);
 }
 
+/**
+ * 读取 tv screens 列表，并按业务规则过滤或排序。
+ */
 export function listTvScreens() {
   const accountNamespace =
     arguments.length > 0 ? normalizeAccountNamespace(arguments[0]) : DEFAULT_ACCOUNT_NAMESPACE;
   const snapshots = new Map();
   const unboundDevices = [];
+
   for (const item of state.tvScreens || []) {
     const snapshot = buildTvScreenSnapshot(item);
+
     if (snapshot.deviceId) {
       const snapshotAccountNamespace = normalizeScreenAccountNamespace(snapshot.accountNamespace);
 
       if (!snapshotAccountNamespace) {
         const previousAccountNamespace = normalizeScreenAccountNamespace(snapshot.previousAccountNamespace);
+
         if (!previousAccountNamespace || previousAccountNamespace === accountNamespace) {
           unboundDevices.push(snapshot);
         }
@@ -4364,6 +5223,9 @@ export function listTvScreens() {
   };
 }
 
+/**
+ * 封装 decorate tv device snapshot 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function decorateTvDeviceSnapshot(snapshot) {
   const venue = snapshot.accountNamespace ? getVenueByAccountNamespace(snapshot.accountNamespace) : null;
   const previousVenue = snapshot.previousAccountNamespace
@@ -4380,6 +5242,9 @@ function decorateTvDeviceSnapshot(snapshot) {
   };
 }
 
+/**
+ * 读取 tv devices 列表，并按业务规则过滤或排序。
+ */
 export function listTvDevices(filters = {}) {
   const venueId = trimText(filters.venueId);
   const onlineOnly = Boolean(filters.onlineOnly);
@@ -4402,6 +5267,7 @@ export function listTvDevices(filters = {}) {
       if (left.online !== right.online) {
         return left.online ? -1 : 1;
       }
+
       if (left.accountNamespace !== right.accountNamespace) {
         return left.accountNamespace ? -1 : 1;
       }
@@ -4416,6 +5282,9 @@ export function listTvDevices(filters = {}) {
   };
 }
 
+/**
+ * 绑定 tv screen by pairing，同步相关账户、场馆或屏幕状态。
+ */
 export function bindTvScreenByPairing(payload = {}, accountNamespace = "") {
   const deviceId = trimText(payload.deviceId);
   const pairToken = trimText(payload.pairToken);
@@ -4444,6 +5313,9 @@ export function bindTvScreenByPairing(payload = {}, accountNamespace = "") {
   });
 }
 
+/**
+ * 保存 schedule，并触发必要的归一化和持久化。
+ */
 export function saveSchedule(payload, user = null) {
   const courseId = Number(payload.courseId);
   const course = getCourseById(courseId);
@@ -4461,6 +5333,7 @@ export function saveSchedule(payload, user = null) {
   }
 
   const beginTime = normalizeScheduleBeginTimePayload(payload);
+
   if (!beginTime) {
     throw new Error("排课日期无效。");
   }
@@ -4488,6 +5361,9 @@ export function saveSchedule(payload, user = null) {
   return attachCourseBasics(next);
 }
 
+/**
+ * 删除 schedule，同时遵守课程和排课的保护规则。
+ */
 export function deleteSchedule(scheduleId) {
   const numericId = Number(scheduleId);
   state.schedules = state.schedules.filter((item) => item.id !== numericId);
@@ -4495,6 +5371,9 @@ export function deleteSchedule(scheduleId) {
   return { ok: true };
 }
 
+/**
+ * 封装 schedule has existing course 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function scheduleHasExistingCourse(schedule) {
   const courseId = Number(schedule?.courseId);
   if (!Number.isFinite(courseId) || courseId <= 0) {
@@ -4503,20 +5382,32 @@ function scheduleHasExistingCourse(schedule) {
   return state.courses.some((course) => Number(course.id) === courseId);
 }
 
+/**
+ * 封装 schedule calendar date 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function scheduleCalendarDate(schedule) {
   return schedule?.beginTime ? formatCalendarDate(schedule.beginTime, "Asia/Shanghai") : trimText(schedule?.date);
 }
 
+/**
+ * 读取 schedules in week 列表，并按业务规则过滤或排序。
+ */
 function listSchedulesInWeek(coursePackageId, weekStart, weekEnd) {
   return state.schedules
     .filter((item) => scheduleMatchesCoursePackage(item, coursePackageId))
     .filter((item) => inCalendarDateRange(item.beginTime, weekStart, weekEnd));
 }
 
+/**
+ * 读取 copyable schedules in week 列表，并按业务规则过滤或排序。
+ */
 function listCopyableSchedulesInWeek(coursePackageId, weekStart, weekEnd) {
   return listSchedulesInWeek(coursePackageId, weekStart, weekEnd).filter(scheduleHasExistingCourse);
 }
 
+/**
+ * 裁剪 future deleted course schedules，只移除业务允许丢弃的历史数据。
+ */
 export function pruneFutureDeletedCourseSchedules(options = {}) {
   const today = /^\d{4}-\d{2}-\d{2}$/.test(trimText(options?.today))
     ? trimText(options.today)
@@ -4529,6 +5420,7 @@ export function pruneFutureDeletedCourseSchedules(options = {}) {
     }
     const scheduleDate = scheduleCalendarDate(item);
     const shouldRemove = !scheduleDate || scheduleDate >= today;
+
     if (shouldRemove) {
       removed.push(attachCourseBasics(item));
       return false;
@@ -4547,6 +5439,9 @@ export function pruneFutureDeletedCourseSchedules(options = {}) {
   };
 }
 
+/**
+ * 解析 schedule week start，把字符串转换成可靠的结构化值。
+ */
 function parseScheduleWeekStart(value, fieldLabel) {
   const text = trimText(value);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) {
@@ -4559,6 +5454,7 @@ function parseScheduleWeekStart(value, fieldLabel) {
   }
 
   const day = anchor.getUTCDay();
+
   if (day !== 1) {
     throw new Error(`${fieldLabel}必须是周一。`);
   }
@@ -4566,25 +5462,36 @@ function parseScheduleWeekStart(value, fieldLabel) {
   return text;
 }
 
+/**
+ * 封装 calendar date diff days 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function calendarDateDiffDays(fromDate, toDate) {
   const from = new Date(`${fromDate}T00:00:00.000+08:00`);
   const to = new Date(`${toDate}T00:00:00.000+08:00`);
   return Math.round((to.getTime() - from.getTime()) / (24 * 60 * 60 * 1000));
 }
 
+/**
+ * 封装 target week conflict error 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function targetWeekConflictError() {
   const error = new Error("目标周已有排课。");
   error.statusCode = 409;
   return error;
 }
 
+/**
+ * 复制 week schedules，并过滤不应该进入目标范围的数据。
+ */
 export function copyWeekSchedules(payload = {}, user = null, options = {}) {
   const requestedCoursePackageId = normalizeCoursePackageId(payload?.coursePackageId, 0);
+
   if (!requestedCoursePackageId && !options?.allowImplicitCoursePackage) {
     throw new Error("请选择课程包。");
   }
 
   const targetCoursePackageId = resolveWriteCoursePackageId(user, requestedCoursePackageId, 0);
+
   if (!targetCoursePackageId) {
     throw new Error("请选择课程包。");
   }
@@ -4609,6 +5516,7 @@ export function copyWeekSchedules(payload = {}, user = null, options = {}) {
   if (!sourceSchedulesInWeek.length) {
     throw new Error("来源周没有排课。");
   }
+
   if (!sourceSchedules.length) {
     throw new Error("来源周没有可复制课程。");
   }
@@ -4652,6 +5560,9 @@ export function copyWeekSchedules(payload = {}, user = null, options = {}) {
   return copied.map(attachCourseBasics);
 }
 
+/**
+ * 复制 last week schedules，并过滤不应该进入目标范围的数据。
+ */
 export function copyLastWeekSchedules(coursePackageId = "", user = null) {
   const currentWeek = getCalendarWeekRange(0);
   return copyWeekSchedules(
@@ -4669,19 +5580,29 @@ export function copyLastWeekSchedules(coursePackageId = "", user = null) {
   );
 }
 
+/**
+ * 读取 default course package id，并保持返回结构稳定。
+ */
 function getDefaultCoursePackageId() {
   const packages = Array.isArray(state.coursePackages) ? state.coursePackages : [];
   return normalizeCoursePackageId(packages.find((item) => item.isDefault)?.id || packages[0]?.id || 1);
 }
 
+/**
+ * 读取 course package by id internal，并保持返回结构稳定。
+ */
 function getCoursePackageByIdInternal(coursePackageId) {
   const id = normalizeCoursePackageId(coursePackageId, 0);
+
   if (!id) {
     return null;
   }
   return (state.coursePackages || []).find((item) => normalizeCoursePackageId(item.id) === id) || null;
 }
 
+/**
+ * 序列化 course package，控制对外暴露字段。
+ */
 function serializeCoursePackage(item) {
   const record = normalizeCoursePackageRecord(item);
   return {
@@ -4690,16 +5611,22 @@ function serializeCoursePackage(item) {
   };
 }
 
+/**
+ * 读取 course package course id set，并保持返回结构稳定。
+ */
 function getCoursePackageCourseIdSet(coursePackageId = "") {
   const id = normalizeCoursePackageId(coursePackageId, 0);
+
   if (!id) {
     return null;
   }
   const record = getCoursePackageByIdInternal(id);
+
   if (!record) {
     return new Set();
   }
   const courseIds = new Set(numberList(record.courseIds));
+
   for (const course of state.courses || []) {
     if (normalizeCoursePackageId(course.coursePackageId, 0) === id) {
       courseIds.add(Number(course.id));
@@ -4708,14 +5635,21 @@ function getCoursePackageCourseIdSet(coursePackageId = "") {
   return courseIds;
 }
 
+/**
+ * 封装 course package allows course 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function coursePackageAllowsCourse(coursePackageId, courseId) {
   const allowedCourseIds = getCoursePackageCourseIdSet(coursePackageId);
+
   if (!allowedCourseIds) {
     return true;
   }
   return allowedCourseIds.has(Number(courseId));
 }
 
+/**
+ * 读取 user visible course package id set，并保持返回结构稳定。
+ */
 function getUserVisibleCoursePackageIdSet(user = null) {
   if (!user || isSuperAdminUser(user)) {
     return null;
@@ -4723,12 +5657,17 @@ function getUserVisibleCoursePackageIdSet(user = null) {
   return new Set(normalizeUserPackageIds(user.coursePackageIds));
 }
 
+/**
+ * 读取 user visible course id set，并保持返回结构稳定。
+ */
 function getUserVisibleCourseIdSet(user = null) {
   const packageIds = getUserVisibleCoursePackageIdSet(user);
+
   if (!packageIds) {
     return null;
   }
   const courseIds = new Set();
+
   for (const packageId of packageIds) {
     const pkg = getCoursePackageByIdInternal(packageId);
     for (const courseId of numberList(pkg?.courseIds)) {
@@ -4738,19 +5677,31 @@ function getUserVisibleCourseIdSet(user = null) {
   return courseIds;
 }
 
+/**
+ * 封装 user identity text 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function userIdentityText(user = null) {
   return trimText(user?.username || user?.nickname || user?.accountNamespace);
 }
 
+/**
+ * 封装 valid course package id set 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function validCoursePackageIdSet() {
   return new Set((state.coursePackages || []).map((item) => normalizeCoursePackageId(item.id, 0)).filter(Boolean));
 }
 
+/**
+ * 封装 sanitize course package ids 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function sanitizeCoursePackageIds(value) {
   const validIds = validCoursePackageIdSet();
   return [...new Set(numberList(value).filter((id) => validIds.has(id)))];
 }
 
+/**
+ * 解析 write course package ids，合并请求参数、上下文和默认值。
+ */
 function resolveWriteCoursePackageIds(user = null, requestedIds = [], existingIds = []) {
   const visiblePackageIds = getUserVisibleCoursePackageIdSet(user);
   const requested = sanitizeCoursePackageIds(requestedIds);
@@ -4763,6 +5714,7 @@ function resolveWriteCoursePackageIds(user = null, requestedIds = [], existingId
   }
 
   const visible = [...visiblePackageIds].filter(Boolean);
+
   if (!visible.length) {
     throw new Error("当前账号没有绑定课程包。");
   }
@@ -4772,6 +5724,7 @@ function resolveWriteCoursePackageIds(user = null, requestedIds = [], existingId
   }
 
   const candidates = requested.length ? requested : existing;
+
   if (!candidates.length) {
     throw new Error("请选择课程包。");
   }
@@ -4781,10 +5734,16 @@ function resolveWriteCoursePackageIds(user = null, requestedIds = [], existingId
   return candidates;
 }
 
+/**
+ * 解析 write course package id，合并请求参数、上下文和默认值。
+ */
 function resolveWriteCoursePackageId(user = null, requestedId = 0, existingId = 0) {
   return resolveWriteCoursePackageIds(user, [requestedId].filter(Boolean), [existingId].filter(Boolean))[0] || 0;
 }
 
+/**
+ * 封装 prepare action owner payload 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function prepareActionOwnerPayload(payload = {}, existing = null, user = null) {
   const ownerUsername = userIdentityText(user) || trimText(existing?.ownerUsername || existing?.author);
   const coursePackageIds = resolveWriteCoursePackageIds(user, payload.coursePackageIds, existing?.coursePackageIds);
@@ -4796,6 +5755,9 @@ function prepareActionOwnerPayload(payload = {}, existing = null, user = null) {
   };
 }
 
+/**
+ * 封装 prepare course owner payload 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function prepareCourseOwnerPayload(payload = {}, existing = null, user = null) {
   const ownerUsername = userIdentityText(user) || trimText(existing?.ownerUsername || existing?.author);
   const creator = trimText(payload.creator) || trimText(existing?.creator) || ownerUsername;
@@ -4807,31 +5769,44 @@ function prepareCourseOwnerPayload(payload = {}, existing = null, user = null) {
   };
 }
 
+/**
+ * 封装 action allows user 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function actionAllowsUser(action = {}, user = null) {
   const visiblePackageIds = getUserVisibleCoursePackageIdSet(user);
+
   if (!visiblePackageIds) {
     return true;
   }
 
   const actionPackageIds = numberList(action.coursePackageIds);
+
   if (!actionPackageIds.length) {
     return visiblePackageIds.has(getDefaultCoursePackageId());
   }
   return actionPackageIds.some((id) => visiblePackageIds.has(id));
 }
 
+/**
+ * 封装 course allows user 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function courseAllowsUser(course = {}, user = null) {
   const visiblePackageIds = getUserVisibleCoursePackageIdSet(user);
+
   if (!visiblePackageIds) {
     return true;
   }
   const coursePackageId = normalizeCoursePackageId(course.coursePackageId, 0);
+
   if (coursePackageId > 0) {
     return visiblePackageIds.has(coursePackageId);
   }
   return [...visiblePackageIds].some((packageId) => Boolean(getCoursePackageCourseIdSet(packageId)?.has(Number(course.id))));
 }
 
+/**
+ * 规范化 venue package ids，避免后续业务处理不同格式的输入。
+ */
 function normalizeVenuePackageIds(value) {
   const ids = numberList(value);
   const validIds = new Set((state.coursePackages || []).map((item) => normalizeCoursePackageId(item.id)));
@@ -4839,30 +5814,44 @@ function normalizeVenuePackageIds(value) {
   return filtered.length ? [...new Set(filtered)] : [getDefaultCoursePackageId()];
 }
 
+/**
+ * 解析 venue active course package id，合并请求参数、上下文和默认值。
+ */
 function resolveVenueActiveCoursePackageId(venue) {
   const boundIds = normalizeVenuePackageIds(venue?.coursePackageIds);
   const activeId = normalizeCoursePackageId(venue?.activeCoursePackageId, 0);
   return boundIds.includes(activeId) ? activeId : boundIds[0];
 }
 
+/**
+ * 规范化 user package ids，避免后续业务处理不同格式的输入。
+ */
 function normalizeUserPackageIds(value) {
   const ids = numberList(value);
   const validIds = new Set((state.coursePackages || []).map((item) => normalizeCoursePackageId(item.id)));
   return [...new Set(ids.filter((id) => validIds.has(id)))];
 }
 
+/**
+ * 读取 active course package id for namespace，并保持返回结构稳定。
+ */
 function getActiveCoursePackageIdForNamespace(accountNamespace = "") {
   const ns = normalizeScreenAccountNamespace(accountNamespace);
+
   if (!ns) {
     return 0;
   }
   const venue = getVenueByAccountNamespace(ns);
+
   if (!venue) {
     return 0;
   }
   return resolveVenueActiveCoursePackageId(venue);
 }
 
+/**
+ * 推断 course package id for course，从文件名或上下文补齐缺失信息。
+ */
 function inferCoursePackageIdForCourse(courseId) {
   const normalizedCourseId = Number(courseId);
   if (!Number.isFinite(normalizedCourseId) || normalizedCourseId <= 0) {
@@ -4872,6 +5861,7 @@ function inferCoursePackageIdForCourse(courseId) {
     .filter((item) => getCoursePackageCourseIdSet(item.id)?.has(normalizedCourseId))
     .map((item) => normalizeCoursePackageId(item.id, 0))
     .filter(Boolean);
+
   if (matchedIds.length === 1) {
     return matchedIds[0];
   }
@@ -4882,15 +5872,21 @@ function inferCoursePackageIdForCourse(courseId) {
   return matchedIds[0] || 0;
 }
 
+/**
+ * 封装 schedule matches course package 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function scheduleMatchesCoursePackage(schedule, coursePackageId) {
   const activeId = normalizeCoursePackageId(coursePackageId, 0);
+
   if (!activeId) {
     return false;
   }
   const schedulePackageId = normalizeCoursePackageId(schedule?.coursePackageId, 0);
+
   if (schedulePackageId === activeId) {
     return true;
   }
+
   if (schedulePackageId > 0) {
     return false;
   }
@@ -4901,28 +5897,44 @@ function scheduleMatchesCoursePackage(schedule, coursePackageId) {
   return Boolean(getCoursePackageCourseIdSet(activeId)?.has(courseId));
 }
 
+/**
+ * 判断是否满足 is venue playback active 条件，供调用方做分支处理。
+ */
 function isVenuePlaybackActive(venue) {
   const ns = normalizeAccountNamespace(venue?.accountNamespace);
+
   if (!ns) {
     return false;
   }
   return Boolean(getActivePlaybackSessionEntry(ns));
 }
 
+/**
+ * 读取 course packages 列表，并按业务规则过滤或排序。
+ */
 export function listCoursePackages() {
   return sortByNewest(state.coursePackages || [], "updateTime").map(serializeCoursePackage);
 }
 
+/**
+ * 读取 course packages for user 列表，并按业务规则过滤或排序。
+ */
 function listCoursePackagesForUser(user = null) {
   const visiblePackageIds = getUserVisibleCoursePackageIdSet(user);
   return listCoursePackages().filter((item) => !visiblePackageIds || visiblePackageIds.has(Number(item.id)));
 }
 
+/**
+ * 读取 course package by id，并保持返回结构稳定。
+ */
 export function getCoursePackageById(coursePackageId) {
   const record = getCoursePackageByIdInternal(coursePackageId);
   return record ? serializeCoursePackage(record) : null;
 }
 
+/**
+ * 保存 course package，并触发必要的归一化和持久化。
+ */
 export function saveCoursePackage(payload = {}) {
   const existing = payload.id ? getCoursePackageByIdInternal(payload.id) : null;
   const { courseIds: _ignoredCourseIds, ...safePayload } = payload || {};
@@ -4942,6 +5954,7 @@ export function saveCoursePackage(payload = {}) {
 
   state.coursePackages = state.coursePackages || [];
   const index = state.coursePackages.findIndex((item) => normalizeCoursePackageId(item.id) === next.id);
+
   if (index >= 0) {
     state.coursePackages[index] = next;
   } else {
@@ -4951,11 +5964,16 @@ export function saveCoursePackage(payload = {}) {
   return serializeCoursePackage(next);
 }
 
+/**
+ * 删除 course package，同时遵守课程和排课的保护规则。
+ */
 export function deleteCoursePackage(coursePackageId) {
   const existing = getCoursePackageByIdInternal(coursePackageId);
+
   if (!existing) {
     return { ok: false, message: "课程包不存在。" };
   }
+
   if (existing.isDefault) {
     return { ok: false, message: "默认课程包不能删除。" };
   }
@@ -4971,8 +5989,12 @@ export function deleteCoursePackage(coursePackageId) {
   return { ok: true };
 }
 
+/**
+ * 读取 venue course packages 列表，并按业务规则过滤或排序。
+ */
 export function listVenueCoursePackages(venueId) {
   const venue = getVenueById(venueId);
+
   if (!venue) {
     return null;
   }
@@ -4999,12 +6021,17 @@ export function listVenueCoursePackages(venueId) {
   };
 }
 
+/**
+ * 绑定 course package to venue，同步相关账户、场馆或屏幕状态。
+ */
 export function bindCoursePackageToVenue(venueId, coursePackageId) {
   const venue = getVenueById(venueId);
   const pkg = getCoursePackageByIdInternal(coursePackageId);
+
   if (!venue) {
     throw new Error("场馆不存在。");
   }
+
   if (!pkg) {
     throw new Error("课程包不存在。");
   }
@@ -5024,8 +6051,12 @@ export function bindCoursePackageToVenue(venueId, coursePackageId) {
   return listVenueCoursePackages(venue.id);
 }
 
+/**
+ * 解绑 course package from venue，保留后续恢复和排查需要的历史信息。
+ */
 export function unbindCoursePackageFromVenue(venueId, coursePackageId) {
   const venue = getVenueById(venueId);
+
   if (!venue) {
     throw new Error("场馆不存在。");
   }
@@ -5034,6 +6065,7 @@ export function unbindCoursePackageFromVenue(venueId, coursePackageId) {
   }
   const pkgId = normalizeCoursePackageId(coursePackageId);
   const ids = normalizeVenuePackageIds(venue.coursePackageIds).filter((id) => id !== pkgId);
+
   if (!ids.length) {
     throw new Error("场馆至少需要绑定一个课程包。");
   }
@@ -5048,8 +6080,12 @@ export function unbindCoursePackageFromVenue(venueId, coursePackageId) {
   return listVenueCoursePackages(venue.id);
 }
 
+/**
+ * 封装 set venue active course package 的业务步骤，避免调用方依赖内部实现细节。
+ */
 export function setVenueActiveCoursePackage(venueId, coursePackageId) {
   const venue = getVenueById(venueId);
+
   if (!venue) {
     throw new Error("场馆不存在。");
   }
@@ -5067,9 +6103,13 @@ export function setVenueActiveCoursePackage(venueId, coursePackageId) {
   return listVenueCoursePackages(venue.id);
 }
 
+/**
+ * 封装 set user course packages 的业务步骤，避免调用方依赖内部实现细节。
+ */
 export function setUserCoursePackages(userId, coursePackageIds = []) {
   const id = Number(userId);
   const existing = (state.users || []).find((user) => Number(user.id) === id) || null;
+
   if (!existing) {
     throw new Error("账号不存在。");
   }

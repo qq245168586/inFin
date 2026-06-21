@@ -15,10 +15,16 @@ type DomainEventHandler = (event: DomainEvent) => void | Promise<void>;
 export class DomainEventBus {
   private readonly stream = new Subject<DomainEvent>();
 
+  /**
+   * 返回领域事件流，供需要响应业务事件的模块订阅。
+   */
   events() {
     return this.stream.asObservable();
   }
 
+  /**
+   * 发布领域事件，并补齐统一的发生时间。
+   */
   emit(type: string, payload: DomainEventPayload = {}) {
     const event: DomainEvent = {
       type,
@@ -29,6 +35,9 @@ export class DomainEventBus {
     return event;
   }
 
+  /**
+   * 订阅指定领域事件，返回取消订阅函数。
+   */
   on(type: string, handler: DomainEventHandler) {
     const subscription = this.stream
       .pipe(filter((event) => type === "*" || event.type === type))

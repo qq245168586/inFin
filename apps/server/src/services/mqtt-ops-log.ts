@@ -25,14 +25,23 @@ const DEFAULT_TOPICS = [
   "infini/tv/pairing"
 ];
 
+/**
+ * 确保 dir 存在，缺失时自动补齐基础结构。
+ */
 function ensureDir(target) {
   fs.mkdirSync(target, { recursive: true });
 }
 
+/**
+ * 封装 now iso 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function nowIso() {
   return new Date().toISOString();
 }
 
+/**
+ * 封装 day key 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function dayKey(date = new Date()) {
   const yyyy = date.getFullYear();
   const mm = String(date.getMonth() + 1).padStart(2, "0");
@@ -42,12 +51,18 @@ function dayKey(date = new Date()) {
 
 let lastRetentionSweepDay = "";
 
+/**
+ * 解析 day key，把字符串转换成可靠的结构化值。
+ */
 function parseDayKey(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
   const parsed = new Date(`${value}T00:00:00.000Z`);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+/**
+ * 封装 sweep old log days 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function sweepOldLogDays() {
   const today = dayKey();
   if (lastRetentionSweepDay === today) return;
@@ -70,17 +85,25 @@ function sweepOldLogDays() {
   }
 }
 
+/**
+ * 封装 safe text 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function safeText(value) {
   return String(value || "").trim();
 }
 
+/**
+ * 封装 guess namespace 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function guessNamespace(topic, payload) {
   const segments = safeText(topic).split("/");
   const controlIndex = segments.indexOf("control");
+
   if (controlIndex >= 0 && segments.length > controlIndex + 1) {
     return safeText(segments[controlIndex + 1]);
   }
   const sessionIndex = segments.indexOf("session");
+
   if (sessionIndex >= 0 && segments.length > sessionIndex + 1) {
     return safeText(segments[sessionIndex + 1]);
   }
@@ -88,15 +111,24 @@ function guessNamespace(topic, payload) {
   return safeText(candidate);
 }
 
+/**
+ * 封装 guess device id 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function guessDeviceId(payload) {
   const deviceId = payload?.deviceId || payload?.device_id || "";
   return safeText(deviceId).toUpperCase();
 }
 
+/**
+ * 封装 guess type 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function guessType(payload) {
   return safeText(payload?.type || payload?.action || payload?.event || "");
 }
 
+/**
+ * 写入 jsonl，使用原子写保护数据文件完整性。
+ */
 function writeJsonl(event) {
   ensureDir(logRoot);
   sweepOldLogDays();
@@ -109,6 +141,9 @@ function writeJsonl(event) {
   fs.appendFileSync(filePath, `${JSON.stringify(event)}\n`, "utf8");
 }
 
+/**
+ * 记录 outbound mqtt，用于后续运维追踪和问题排查。
+ */
 export function recordOutboundMqtt(topic, payloadObject) {
   const payload = payloadObject ?? {};
   const event = {
@@ -133,6 +168,9 @@ let subscriberClient = null;
 let started = false;
 const listeners = new Set<(event: any) => void>();
 
+/**
+ * 启动 ops mqtt subscriber，避免重复注册后台任务或监听器。
+ */
 export function startOpsMqttSubscriber({ topics = DEFAULT_TOPICS } = {}) {
   if (started) return;
   started = true;
@@ -149,6 +187,7 @@ export function startOpsMqttSubscriber({ topics = DEFAULT_TOPICS } = {}) {
 
   subscriberClient.on("connect", () => {
     try {
+
       for (const topic of topics) {
         subscriberClient.subscribe(topic, { qos: 0 });
       }
@@ -194,11 +233,17 @@ export function startOpsMqttSubscriber({ topics = DEFAULT_TOPICS } = {}) {
   });
 }
 
+/**
+ * 订阅 ops events，返回可主动取消的清理函数。
+ */
 export function subscribeOpsEvents(fn) {
   listeners.add(fn);
   return () => listeners.delete(fn);
 }
 
+/**
+ * 读取 jsonl files 列表，并按业务规则过滤或排序。
+ */
 function listJsonlFiles({ namespace, deviceId, date }) {
   const day = safeText(date) || dayKey();
   const base = path.join(logRoot, day);
@@ -220,9 +265,11 @@ function listJsonlFiles({ namespace, deviceId, date }) {
   // namespace not specified: scan all namespace directories (bounded).
   const namespaces = fs.readdirSync(base, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
   const files = [];
+
   for (const ns of namespaces) {
     const dir = path.join(base, ns);
     if (!fs.existsSync(dir)) continue;
+
     if (deviceId) {
       const filePath = path.join(dir, `${deviceId}.jsonl`);
       if (fs.existsSync(filePath)) files.push(filePath);
@@ -235,6 +282,9 @@ function listJsonlFiles({ namespace, deviceId, date }) {
   return files;
 }
 
+/**
+ * 读取 ops events，把底层数据转成调用方可直接使用的结构。
+ */
 export function readOpsEvents({ namespace = "", deviceId = "", topic = "", type = "", limit = 200, date = "" } = {}) {
   const max = Math.max(10, Math.min(Number(limit) || 200, 2000));
   const files = listJsonlFiles({
@@ -255,6 +305,7 @@ export function readOpsEvents({ namespace = "", deviceId = "", topic = "", type 
     try {
       const content = fs.readFileSync(filePath, "utf8");
       const lines = content.split("\n").filter(Boolean);
+
       for (let i = lines.length - 1; i >= 0; i -= 1) {
         if (items.length >= max) break;
         const line = lines[i];

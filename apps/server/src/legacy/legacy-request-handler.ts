@@ -105,14 +105,23 @@ const mimeByExtension = {
   ".webm": "video/webm"
 };
 
+/**
+ * 封装 guess mime type 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function guessMimeType(filename, fallback = "application/octet-stream") {
   return mimeByExtension[path.extname(filename).toLowerCase()] || fallback;
 }
 
+/**
+ * 封装 bad request 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function badRequest(response, message) {
   sendJson(response, 400, { message });
 }
 
+/**
+ * 封装 unauthorized 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function unauthorized(response, message = "登录已失效，请重新登录。") {
   sendJson(response, 403, {
     code: 403,
@@ -121,6 +130,9 @@ function unauthorized(response, message = "登录已失效，请重新登录。"
   });
 }
 
+/**
+ * 封装 ok legacy 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function okLegacy(response, data) {
   sendJson(response, 200, {
     code: 200,
@@ -130,10 +142,16 @@ function okLegacy(response, data) {
   });
 }
 
+/**
+ * 判断是否满足 has legacy basic auth 条件，供调用方做分支处理。
+ */
 function hasLegacyBasicAuth(request) {
   return request.headers.authorization === legacyBasicAuth;
 }
 
+/**
+ * 读取 bearer token，并保持返回结构稳定。
+ */
 function getBearerToken(request) {
   const authorization = request.headers.authorization || "";
   if (!authorization.startsWith("Bearer ")) {
@@ -143,8 +161,12 @@ function getBearerToken(request) {
   return authorization.slice("Bearer ".length).trim();
 }
 
+/**
+ * 读取 authorized console user，并保持返回结构稳定。
+ */
 function getAuthorizedConsoleUser(request) {
   const accessToken = getBearerToken(request);
+
   if (!accessToken) {
     return null;
   }
@@ -152,8 +174,12 @@ function getAuthorizedConsoleUser(request) {
   return getUserByAccessToken(accessToken);
 }
 
+/**
+ * 要求请求具备 authorized console user，失败时直接写入错误响应。
+ */
 function requireAuthorizedConsoleUser(request, response) {
   const user = getAuthorizedConsoleUser(request);
+
   if (!user) {
     unauthorized(response);
     return null;
@@ -161,8 +187,12 @@ function requireAuthorizedConsoleUser(request, response) {
   return user;
 }
 
+/**
+ * 要求请求具备 super admin，失败时直接写入错误响应。
+ */
 function requireSuperAdmin(request, response) {
   const user = requireAuthorizedConsoleUser(request, response);
+
   if (!user) {
     return null;
   }
@@ -173,6 +203,9 @@ function requireSuperAdmin(request, response) {
   return user;
 }
 
+/**
+ * 读取 authorized console user from query，并保持返回结构稳定。
+ */
 function getAuthorizedConsoleUserFromQuery(request, url) {
   const tokenType = String(url.searchParams.get("tokenType") || "").trim();
   const accessToken = String(url.searchParams.get("accessToken") || "").trim();
@@ -181,8 +214,12 @@ function getAuthorizedConsoleUserFromQuery(request, url) {
   return getUserByAccessToken(accessToken);
 }
 
+/**
+ * 要求请求具备 super admin from header or query，失败时直接写入错误响应。
+ */
 function requireSuperAdminFromHeaderOrQuery(request, response, url) {
   const user = getAuthorizedConsoleUser(request) || getAuthorizedConsoleUserFromQuery(request, url);
+
   if (!user) {
     unauthorized(response);
     return null;
@@ -194,15 +231,24 @@ function requireSuperAdminFromHeaderOrQuery(request, response, url) {
   return user;
 }
 
+/**
+ * 解析 account namespace，合并请求参数、上下文和默认值。
+ */
 function resolveAccountNamespace(value, fallback = "13689547720") {
   const text = String(value || "").trim().toLowerCase();
   return text || fallback;
 }
 
+/**
+ * 解析 optional account namespace，合并请求参数、上下文和默认值。
+ */
 function resolveOptionalAccountNamespace(value) {
   return String(value || "").trim().toLowerCase();
 }
 
+/**
+ * 解析 request account namespace，合并请求参数、上下文和默认值。
+ */
 function resolveRequestAccountNamespace(user, url) {
   const requestedVenueId = String(url?.searchParams?.get("venueId") || "").trim();
   const requestedVenueNamespace = requestedVenueId
@@ -216,6 +262,9 @@ function resolveRequestAccountNamespace(user, url) {
   return resolveAccountNamespace(user?.accountNamespace, user?.username);
 }
 
+/**
+ * 解析 playback request account namespace，合并请求参数、上下文和默认值。
+ */
 function resolvePlaybackRequestAccountNamespace(user, url, payload = {}) {
   const payloadVenueId = String(payload?.venueId || "").trim();
   const payloadVenueNamespace = payloadVenueId
@@ -231,12 +280,18 @@ function resolvePlaybackRequestAccountNamespace(user, url, payload = {}) {
   return resolveRequestAccountNamespace(user, url);
 }
 
+/**
+ * 判断是否满足 is valid tv control type 条件，供调用方做分支处理。
+ */
 function isValidTvControlType(value) {
   return ["refresh_checksum", "preview_course", "start_course", "pause_course", "resume_course", "terminate_course"].includes(
     String(value || "")
   );
 }
 
+/**
+ * 校验 tv control payload，返回前端可理解的错误信息。
+ */
 function validateTvControlPayload(payload) {
   const type = String(payload?.type || "");
   if (!isValidTvControlType(type)) {
@@ -252,7 +307,6 @@ function validateTvControlPayload(payload) {
   }
 
   if (!Number.isFinite(Number(payload?.courseId)) || Number(payload.courseId) <= 0) {
-
     return "TV 控制指令缺少有效的 courseId。";
   }
 
@@ -286,14 +340,21 @@ function validateTvControlPayload(payload) {
   return "";
 }
 
+/**
+ * 要求请求具备 command id，失败时直接写入错误响应。
+ */
 function requireCommandId(payload) {
   const commandId = String(payload?.commandId || "").trim();
+
   if (!commandId) {
     return "";
   }
   return commandId;
 }
 
+/**
+ * 组装 playback session control payload，把分散的输入合成稳定输出。
+ */
 function buildPlaybackSessionControlPayload(type, session, commandId, extra = {}) {
   const serverNowMs = Date.now();
   const accountNamespace = resolveOptionalAccountNamespace(session.accountNamespace);
@@ -328,6 +389,9 @@ function buildPlaybackSessionControlPayload(type, session, commandId, extra = {}
   };
 }
 
+/**
+ * 发布 playback session control，优先走网关并在允许时回退直连。
+ */
 async function publishPlaybackSessionControl(response, accountNamespace, type, session, commandId, extra = {}) {
   const targetAccountNamespace = resolveOptionalAccountNamespace(session?.accountNamespace) || resolveOptionalAccountNamespace(accountNamespace);
   const result = {
@@ -354,6 +418,9 @@ async function publishPlaybackSessionControl(response, accountNamespace, type, s
   return result;
 }
 
+/**
+ * 发布 auto ended playback session，优先走网关并在允许时回退直连。
+ */
 async function publishAutoEndedPlaybackSession(session) {
   const accountNamespace = resolveOptionalAccountNamespace(session?.accountNamespace);
   try {
@@ -366,6 +433,9 @@ async function publishAutoEndedPlaybackSession(session) {
   }
 }
 
+/**
+ * 启动 playback session sweeper，避免重复注册后台任务或监听器。
+ */
 function startPlaybackSessionSweeper() {
   const sweep = async () => {
     let endedSessions = [];
@@ -385,6 +455,9 @@ function startPlaybackSessionSweeper() {
   sweep();
 }
 
+/**
+ * 校验 tv screen payload，返回前端可理解的错误信息。
+ */
 function validateTvScreenPayload(payload) {
   const screenNumber = Number(payload?.screenNumber);
   if (!Number.isFinite(screenNumber) || screenNumber < 1 || screenNumber > 5) {
@@ -398,6 +471,9 @@ function validateTvScreenPayload(payload) {
   return "";
 }
 
+/**
+ * 校验 tv screen pairing payload，返回前端可理解的错误信息。
+ */
 function validateTvScreenPairingPayload(payload) {
   const screenNumber = Number(payload?.screenNumber);
   if (!Number.isFinite(screenNumber) || screenNumber < 1 || screenNumber > 5) {
@@ -411,6 +487,9 @@ function validateTvScreenPairingPayload(payload) {
   return "";
 }
 
+/**
+ * 校验 tv screen heartbeat payload，返回前端可理解的错误信息。
+ */
 function validateTvScreenHeartbeatPayload(payload) {
   const screenNumber = Number(payload?.screenNumber);
   if (!Number.isFinite(screenNumber) || screenNumber < 0 || screenNumber > 5) {
@@ -424,6 +503,9 @@ function validateTvScreenHeartbeatPayload(payload) {
   return "";
 }
 
+/**
+ * 校验 tv screen unbind payload，返回前端可理解的错误信息。
+ */
 function validateTvScreenUnbindPayload(payload) {
   const deviceId = String(payload?.deviceId || "").trim();
   const screenNumber = Number(payload?.screenNumber);
@@ -439,6 +521,9 @@ function validateTvScreenUnbindPayload(payload) {
   return "解绑屏幕时必须提供 deviceId 或 screenNumber。";
 }
 
+/**
+ * 校验 tv screen device payload，返回前端可理解的错误信息。
+ */
 function validateTvScreenDevicePayload(payload) {
   const deviceId = String(payload?.deviceId || "").trim();
   const screenNumber = Number(payload?.screenNumber);
@@ -454,38 +539,54 @@ function validateTvScreenDevicePayload(payload) {
   return "请提供有效的设备 ID 或屏幕编号。";
 }
 
+/**
+ * 校验 app package upload params，返回前端可理解的错误信息。
+ */
 function validateAppPackageUploadParams(url) {
   const platform = String(url.searchParams.get("platform") || "").trim().toLowerCase();
   const version = String(url.searchParams.get("version") || "").trim();
   if (!["tv", "coach"].includes(platform)) {
     return "安装包平台无效。";
   }
+
   if (!version) {
     return "安装包版本号不能为空。";
   }
   return "";
 }
 
+/**
+ * 校验 venue payload，返回前端可理解的错误信息。
+ */
 function validateVenuePayload(payload) {
   const name = String(payload?.name || "").trim();
+
   if (!name) {
     return "场馆名称不能为空。";
   }
   return "";
 }
 
+/**
+ * 校验 venue user payload，返回前端可理解的错误信息。
+ */
 function validateVenueUserPayload(payload) {
   const username = String(payload?.username || "").trim();
   const password = String(payload?.password || "").trim();
+
   if (!username) {
     return "账号不能为空。";
   }
+
   if (!password) {
     return "密码不能为空。";
   }
   return "";
 }
 
+/**
+ * 查找 target screen，找不到时返回空值而不是抛错。
+ */
 function findTargetScreen(payload, accountNamespace) {
   const screensPayload = listTvScreens(resolveAccountNamespace(accountNamespace));
   const candidates = [...screensPayload.screens, ...(screensPayload.unboundDevices || [])];
@@ -498,6 +599,9 @@ function findTargetScreen(payload, accountNamespace) {
   );
 }
 
+/**
+ * 解析 tv control namespace，合并请求参数、上下文和默认值。
+ */
 function resolveTvControlNamespace(targetScreen, accountNamespace) {
   if (!targetScreen?.deviceId) {
     return resolveAccountNamespace(accountNamespace);
@@ -508,12 +612,18 @@ function resolveTvControlNamespace(targetScreen, accountNamespace) {
   return "__unbound__";
 }
 
+/**
+ * 判断是否满足 is tv app update in progress 条件，供调用方做分支处理。
+ */
 function isTvAppUpdateInProgress(updateState) {
   return ["DOWNLOADING", "DOWNLOADED", "INSTALLING", "INSTALLED"].includes(
     String(updateState || "").trim().toUpperCase()
   );
 }
 
+/**
+ * 汇总 ops events，把明细数据压缩成看板指标。
+ */
 function summarizeOpsEvents(items = []) {
   const directionCounts = { in: 0, out: 0 };
   const typeCounts = {};
@@ -557,6 +667,9 @@ function summarizeOpsEvents(items = []) {
   };
 }
 
+/**
+ * 汇总 ops screens，把明细数据压缩成看板指标。
+ */
 function summarizeOpsScreens(items = []) {
   const boundScreens = items.filter((item) => String(item?.deviceId || "").trim());
   const stateCounts = {};
@@ -587,6 +700,9 @@ function summarizeOpsScreens(items = []) {
   };
 }
 
+/**
+ * 封装 handle legacy request 的业务步骤，避免调用方依赖内部实现细节。
+ */
 export async function handleLegacyRequest(request, response) {
   const url = new URL(request.url, `http://${request.headers.host || `${host}:${port}`}`);
 
@@ -758,6 +874,7 @@ export async function handleLegacyRequest(request, response) {
         return;
       }
       const existing = getCoursePackageById(packageId);
+
       if (!existing) {
         sendJson(response, 404, { message: "课程包不存在。" });
         return;
@@ -780,6 +897,7 @@ export async function handleLegacyRequest(request, response) {
         return;
       }
       const result = deleteCoursePackage(packageId);
+
       if (!result.ok) {
         sendJson(response, 409, result);
         return;
@@ -793,6 +911,7 @@ export async function handleLegacyRequest(request, response) {
       if (!user) return;
       const payload = await readJsonBody(request);
       const issue = validateVenuePayload(payload);
+
       if (issue) {
         badRequest(response, issue);
         return;
@@ -810,6 +929,7 @@ export async function handleLegacyRequest(request, response) {
       if (!user) return;
       const venueId = url.pathname.replace("/api/admin/venues/", "").replace("/course-packages", "");
       const result = listVenueCoursePackages(venueId);
+
       if (!result) {
         sendJson(response, 404, { message: "场馆不存在。" });
         return;
@@ -823,11 +943,13 @@ export async function handleLegacyRequest(request, response) {
       if (!user) return;
       const requestedVenueId = String(url.searchParams.get("venueId") || "").trim();
       const venueId = isSuperAdminUser(user) && requestedVenueId ? requestedVenueId : String(user.venueId || "").trim();
+
       if (!venueId) {
         badRequest(response, "当前账号尚未绑定场馆。");
         return;
       }
       const result = listVenueCoursePackages(venueId);
+
       if (!result) {
         sendJson(response, 404, { message: "场馆不存在。" });
         return;
@@ -854,6 +976,7 @@ export async function handleLegacyRequest(request, response) {
       if (!user) return;
       const payload = await readJsonBody(request);
       const venueId = String(user.venueId || payload?.venueId || "").trim();
+
       if (!venueId) {
         badRequest(response, "当前账号尚未绑定场馆。");
         return;
@@ -933,6 +1056,7 @@ export async function handleLegacyRequest(request, response) {
       const payload = await readJsonBody(request);
       try {
         const updated = updateVenue(venueId, payload);
+
         if (!updated) {
           sendJson(response, 404, { message: "场馆不存在。" });
           return;
@@ -958,10 +1082,12 @@ export async function handleLegacyRequest(request, response) {
         ? listTvScreens(venueNamespace).screens.filter((screen) => String(screen.deviceId || "").trim())
         : [];
       const result = deleteVenue(venueId);
+
       if (!result.ok) {
         badRequest(response, result.message || "删除场馆失败。");
         return;
       }
+
       for (const screen of venueScreens) {
         try {
           await publishTvControl(
@@ -998,6 +1124,7 @@ export async function handleLegacyRequest(request, response) {
       const venueId = url.pathname.replace("/api/admin/venues/", "").replace("/users", "");
       const payload = await readJsonBody(request);
       const issue = validateVenueUserPayload(payload);
+
       if (issue) {
         badRequest(response, issue);
         return;
@@ -1015,6 +1142,7 @@ export async function handleLegacyRequest(request, response) {
       if (!user) return;
       const venueId = url.pathname.replace("/api/admin/venues/", "").replace("/screens", "");
       const venue = getVenueById(venueId);
+
       if (!venue) {
         sendJson(response, 404, { message: "场馆不存在。" });
         return;
@@ -1040,17 +1168,20 @@ export async function handleLegacyRequest(request, response) {
       if (!user) return;
       const payload = await readJsonBody(request);
       const deviceId = String(payload?.deviceId || "").trim();
+
       if (!deviceId) {
         badRequest(response, "缺少设备 ID。");
         return;
       }
       const devices = listTvDevices({}).devices || [];
       const currentDevice = devices.find((item) => String(item.deviceId || "").trim() === deviceId) || null;
+
       if (!currentDevice) {
         sendJson(response, 404, { message: "设备不存在。" });
         return;
       }
       const accountNamespace = resolveOptionalAccountNamespace(payload?.accountNamespace || currentDevice.accountNamespace || "");
+
       if (!accountNamespace) {
         badRequest(response, "设备当前未绑定场馆。");
         return;
@@ -1091,14 +1222,17 @@ export async function handleLegacyRequest(request, response) {
       const venueId = String(payload?.venueId || "").trim();
       const screenNumber = Number(payload?.screenNumber) || 0;
       const venue = getVenueById(venueId);
+
       if (!deviceId) {
         badRequest(response, "缺少设备 ID。");
         return;
       }
+
       if (!venue) {
         sendJson(response, 404, { message: "场馆不存在。" });
         return;
       }
+
       if (screenNumber < 1 || screenNumber > 5) {
         badRequest(response, "请选择 1-5 的屏幕编号。");
         return;
@@ -1143,9 +1277,11 @@ export async function handleLegacyRequest(request, response) {
         requestedAt: Date.now()
       };
       const topics = new Set(["__unbound__", targetNamespace]);
+
       if (previousNamespace) {
         topics.add(previousNamespace);
       }
+
       for (const topicNamespace of topics) {
         try {
           await publishTvControl(assignPayload, topicNamespace);
@@ -1164,12 +1300,15 @@ export async function handleLegacyRequest(request, response) {
       const unboundOnly = String(url.searchParams.get("unbound") || "").trim() === "1";
       const role = String(url.searchParams.get("role") || "").trim().toLowerCase();
       let users = listAdminConsoleUsers(query);
+
       if (role === "venue") {
         users = users.filter((item) => String(item.role || "").trim() === "venue");
       }
+
       if (role === "editor") {
         users = users.filter((item) => String(item.role || "").trim() === "editor");
       }
+
       if (unboundOnly) {
         users = users.filter((item) => !String(item.venueId || "").trim());
       }
@@ -1182,6 +1321,7 @@ export async function handleLegacyRequest(request, response) {
       if (!user) return;
       const payload = await readJsonBody(request);
       const issue = validateVenueUserPayload(payload);
+
       if (issue) {
         badRequest(response, issue);
         return;
@@ -1267,6 +1407,7 @@ export async function handleLegacyRequest(request, response) {
       const userId = url.pathname.replace("/api/admin/users/", "");
       const payload = await readJsonBody(request);
       const updated = updateUser(userId, payload);
+
       if (!updated) {
         sendJson(response, 404, { message: "账号不存在。" });
         return;
@@ -1300,6 +1441,7 @@ export async function handleLegacyRequest(request, response) {
     if (request.method === "GET" && url.pathname === "/api/tv/schedule-bundle") {
       const scheduleId = url.searchParams.get("scheduleId") || "";
       const payload = getTvScheduleBundle(scheduleId);
+
       if (!payload) {
         sendJson(response, 404, {
           message: "未找到对应的课程排课。"
@@ -1312,6 +1454,7 @@ export async function handleLegacyRequest(request, response) {
 
     if (request.method === "GET" && url.pathname === "/api/tv/screens") {
       const user = requireAuthorizedConsoleUser(request, response);
+
       if (!user) {
         return;
       }
@@ -1345,11 +1488,13 @@ export async function handleLegacyRequest(request, response) {
 
     if (request.method === "POST" && url.pathname === "/api/tv/course-plan/show") {
       const user = requireAuthorizedConsoleUser(request, response);
+
       if (!user) {
         return;
       }
       const payload = await readJsonBody(request);
       const commandId = requireCommandId(payload);
+
       if (!commandId) {
         badRequest(response, "commandId 不能为空。");
         return;
@@ -1362,6 +1507,7 @@ export async function handleLegacyRequest(request, response) {
       }
 
       const course = getCourseById(courseId);
+
       if (!course) {
         sendJson(response, 404, { message: "课程不存在。" });
         return;
@@ -1399,11 +1545,13 @@ export async function handleLegacyRequest(request, response) {
 
     if (request.method === "POST" && url.pathname === "/api/tv/playback-sessions/preview") {
       const user = requireAuthorizedConsoleUser(request, response);
+
       if (!user) {
         return;
       }
       const payload = await readJsonBody(request);
       const commandId = requireCommandId(payload);
+
       if (!commandId) {
         badRequest(response, "commandId 不能为空。");
         return;
@@ -1433,6 +1581,7 @@ export async function handleLegacyRequest(request, response) {
         session,
         commandId
       );
+
       if (!publishResult) {
         return;
       }
@@ -1448,11 +1597,13 @@ export async function handleLegacyRequest(request, response) {
 
     if (request.method === "POST" && url.pathname === "/api/tv/playback-sessions/start-from-schedule") {
       const user = requireAuthorizedConsoleUser(request, response);
+
       if (!user) {
         return;
       }
       const payload = await readJsonBody(request);
       const commandId = requireCommandId(payload);
+
       if (!commandId) {
         badRequest(response, "commandId 不能为空。");
         return;
@@ -1499,6 +1650,7 @@ export async function handleLegacyRequest(request, response) {
         commandId,
         { startDelayMs: Number(session.startDelayMs) || 0 }
       );
+
       if (!publishResult) {
         return;
       }
@@ -1514,8 +1666,10 @@ export async function handleLegacyRequest(request, response) {
 
     if (url.pathname.startsWith("/api/tv/playback-sessions/")) {
       const match = url.pathname.match(/^\/api\/tv\/playback-sessions\/([^/]+)(?:\/([^/]+))?$/);
+
       if (match) {
         const user = requireAuthorizedConsoleUser(request, response);
+
         if (!user) {
           return;
         }
@@ -1525,6 +1679,7 @@ export async function handleLegacyRequest(request, response) {
         if (request.method === "GET" && !action) {
           const accountNamespace = resolveRequestAccountNamespace(user, url);
           const session = getPlaybackSession(sessionId, accountNamespace);
+
           if (!session) {
             sendJson(response, 404, { message: "playback session 不存在。" });
             return;
@@ -1541,6 +1696,7 @@ export async function handleLegacyRequest(request, response) {
         if (request.method === "POST" && ["start", "pause", "resume", "end", "terminate"].includes(action)) {
           const payload = await readJsonBody(request);
           const commandId = requireCommandId(payload);
+
           if (!commandId) {
             badRequest(response, "commandId 不能为空。");
             return;
@@ -1554,6 +1710,7 @@ export async function handleLegacyRequest(request, response) {
             badRequest(response, error instanceof Error ? error.message : "更新 playback session 失败。");
             return;
           }
+
           if (!session) {
             sendJson(response, 404, { message: "playback session 不存在。" });
             return;
@@ -1581,6 +1738,7 @@ export async function handleLegacyRequest(request, response) {
                   ? { startDelayMs: Number(session.startDelayMs) || 0 }
                   : {}
           );
+
           if (!publishResult) {
             return;
           }
@@ -1600,6 +1758,7 @@ export async function handleLegacyRequest(request, response) {
     if (request.method === "POST" && url.pathname === "/api/tv/screens/bind") {
       const payload = await readJsonBody(request);
       const validationMessage = validateTvScreenPayload(payload);
+
       if (validationMessage) {
         badRequest(response, validationMessage);
         return;
@@ -1613,6 +1772,7 @@ export async function handleLegacyRequest(request, response) {
     if (request.method === "POST" && url.pathname === "/api/tv/screens/heartbeat") {
       const payload = await readJsonBody(request);
       const validationMessage = validateTvScreenHeartbeatPayload(payload);
+
       if (validationMessage) {
         badRequest(response, validationMessage);
         return;
@@ -1625,11 +1785,13 @@ export async function handleLegacyRequest(request, response) {
 
     if (request.method === "POST" && url.pathname === "/api/tv/screens/pair-bind") {
       const user = requireAuthorizedConsoleUser(request, response);
+
       if (!user) {
         return;
       }
       const payload = await readJsonBody(request);
       const validationMessage = validateTvScreenPairingPayload(payload);
+
       if (validationMessage) {
         badRequest(response, validationMessage);
         return;
@@ -1637,6 +1799,7 @@ export async function handleLegacyRequest(request, response) {
 
       const accountNamespace = resolveAccountNamespace(user.accountNamespace, user.username);
       const data = bindTvScreenByPairing(payload, accountNamespace);
+
       if (!data) {
         sendJson(response, 404, {
           message: "绑定失败，请确认设备 ID 与屏幕编号有效。"
@@ -1670,11 +1833,13 @@ export async function handleLegacyRequest(request, response) {
 
     if (request.method === "POST" && url.pathname === "/api/tv/screens/unbind") {
       const user = requireAuthorizedConsoleUser(request, response);
+
       if (!user) {
         return;
       }
       const payload = await readJsonBody(request);
       const validationMessage = validateTvScreenUnbindPayload(payload);
+
       if (validationMessage) {
         badRequest(response, validationMessage);
         return;
@@ -1687,6 +1852,7 @@ export async function handleLegacyRequest(request, response) {
             (String(payload?.deviceId || "").trim() && item.deviceId === String(payload.deviceId || "").trim()) ||
             (Number(payload?.screenNumber) > 0 && item.screenNumber === Number(payload.screenNumber))
         ) || null;
+
       if (!currentScreen?.deviceId) {
         sendJson(response, 404, {
           message: "没有找到可解绑的屏幕。"
@@ -1718,11 +1884,13 @@ export async function handleLegacyRequest(request, response) {
 
     if (request.method === "POST" && url.pathname === "/api/tv/screens/reassign") {
       const user = requireAuthorizedConsoleUser(request, response);
+
       if (!user) {
         return;
       }
       const payload = await readJsonBody(request);
       const validationMessage = validateTvScreenPayload(payload);
+
       if (validationMessage) {
         badRequest(response, validationMessage);
         return;
@@ -1747,6 +1915,7 @@ export async function handleLegacyRequest(request, response) {
       }
 
       const data = bindTvScreen(payload, accountNamespace);
+
       if (!data) {
         sendJson(response, 404, {
           message: "没有找到可切换的屏幕。"
@@ -1760,11 +1929,13 @@ export async function handleLegacyRequest(request, response) {
 
     if (request.method === "POST" && url.pathname === "/api/tv/screens/clear-cache") {
       const user = requireAuthorizedConsoleUser(request, response);
+
       if (!user) {
         return;
       }
       const payload = await readJsonBody(request);
       const validationMessage = validateTvScreenDevicePayload(payload);
+
       if (validationMessage) {
         badRequest(response, validationMessage);
         return;
@@ -1825,11 +1996,13 @@ export async function handleLegacyRequest(request, response) {
 
     if (request.method === "POST" && url.pathname === "/api/tv/screens/install-package") {
       const user = requireAuthorizedConsoleUser(request, response);
+
       if (!user) {
         return;
       }
       const payload = await readJsonBody(request);
       const validationMessage = validateTvScreenDevicePayload(payload);
+
       if (validationMessage) {
         badRequest(response, validationMessage);
         return;
@@ -1843,6 +2016,7 @@ export async function handleLegacyRequest(request, response) {
 
       const accountNamespace = resolveAccountNamespace(user.accountNamespace, user.username);
       const currentScreen = findTargetScreen(payload, accountNamespace);
+
       if (!currentScreen?.deviceId) {
         sendJson(response, 404, {
           message: "没有找到可升级的屏幕设备。"
@@ -1865,6 +2039,7 @@ export async function handleLegacyRequest(request, response) {
       }
 
       const appPackage = getAppPackageById(packageId);
+
       if (!appPackage) {
         sendJson(response, 404, {
           message: "没有找到对应的安装包版本。"
@@ -1914,6 +2089,7 @@ export async function handleLegacyRequest(request, response) {
 
     if (request.method === "POST" && url.pathname === "/api/admin/tv-control") {
       const user = requireSuperAdmin(request, response);
+
       if (!user) {
         return;
       }
@@ -1960,6 +2136,7 @@ export async function handleLegacyRequest(request, response) {
 
     if (request.method === "POST" && url.pathname === "/api/tv/control") {
       const user = requireAuthorizedConsoleUser(request, response);
+
       if (!user) {
         return;
       }
@@ -2029,6 +2206,7 @@ export async function handleLegacyRequest(request, response) {
 
     if (request.method === "POST" && url.pathname === "/api/app-packages/upload") {
       const validationMessage = validateAppPackageUploadParams(url);
+
       if (validationMessage) {
         badRequest(response, validationMessage);
         return;
@@ -2083,14 +2261,17 @@ export async function handleLegacyRequest(request, response) {
       const payload = await readJsonBody(request);
       const clientName = String(payload?.client || payload?.clientType || payload?.client_type || "editor-web");
       const result = loginConsoleUser(payload?.username, payload?.password, clientName);
+
       if (result?.error === "CLIENT_NOT_ALLOWED") {
         unauthorized(response, "当前账号不能登录这个端口。");
         return;
       }
+
       if (result?.error === "VENUE_NOT_BOUND") {
         unauthorized(response, "该账号尚未绑定场馆，请先在场馆管理中完成绑定。");
         return;
       }
+
       if (!result) {
         unauthorized(response, "用户名或密码错误。");
         return;
@@ -2114,10 +2295,12 @@ export async function handleLegacyRequest(request, response) {
         payload?.refresh_token || payload?.refreshToken || url.searchParams.get("refresh_token") || "";
       const clientName = String(payload?.client || payload?.clientType || payload?.client_type || "editor-web");
       const result = refreshConsoleUser(refreshToken, clientName);
+
       if (result?.error === "CLIENT_NOT_ALLOWED") {
         unauthorized(response, "当前账号不能登录这个端口。");
         return;
       }
+
       if (!result) {
         unauthorized(response, "refresh token 已失效。");
         return;
@@ -2129,12 +2312,14 @@ export async function handleLegacyRequest(request, response) {
 
     if (request.method === "GET" && (url.pathname === "/user/info" || url.pathname === "/api/user/info")) {
       const accessToken = getBearerToken(request);
+
       if (!accessToken) {
         unauthorized(response);
         return;
       }
 
       const user = getUserByAccessToken(accessToken);
+
       if (!user) {
         unauthorized(response);
         return;
@@ -2168,6 +2353,7 @@ export async function handleLegacyRequest(request, response) {
 
     if (request.method === "POST" && url.pathname === "/api/action-types") {
       const user = requireAuthorizedConsoleUser(request, response);
+
       if (!user) {
         return;
       }
@@ -2195,6 +2381,7 @@ export async function handleLegacyRequest(request, response) {
 
     if (request.method === "POST" && url.pathname === "/api/lesson-types") {
       const user = requireAuthorizedConsoleUser(request, response);
+
       if (!user) {
         return;
       }
@@ -2271,6 +2458,7 @@ export async function handleLegacyRequest(request, response) {
 
     if (request.method === "GET" && url.pathname === "/api/actions") {
       const user = requireAuthorizedConsoleUser(request, response);
+
       if (!user) {
         return;
       }
@@ -2280,6 +2468,7 @@ export async function handleLegacyRequest(request, response) {
 
     if (request.method === "POST" && url.pathname === "/api/actions") {
       const user = requireAuthorizedConsoleUser(request, response);
+
       if (!user) {
         return;
       }
@@ -2300,6 +2489,7 @@ export async function handleLegacyRequest(request, response) {
 
     if (request.method === "GET" && url.pathname.startsWith("/api/actions/")) {
       const user = requireAuthorizedConsoleUser(request, response);
+
       if (!user) {
         return;
       }
@@ -2317,6 +2507,7 @@ export async function handleLegacyRequest(request, response) {
 
     if (request.method === "PUT" && url.pathname.startsWith("/api/actions/")) {
       const user = requireAuthorizedConsoleUser(request, response);
+
       if (!user) {
         return;
       }
@@ -2340,6 +2531,7 @@ export async function handleLegacyRequest(request, response) {
 
     if (request.method === "DELETE" && url.pathname.startsWith("/api/actions/")) {
       const user = requireAuthorizedConsoleUser(request, response);
+
       if (!user) {
         return;
       }
@@ -2376,6 +2568,7 @@ export async function handleLegacyRequest(request, response) {
 
     if (request.method === "POST" && url.pathname === "/api/courses") {
       const user = requireAuthorizedConsoleUser(request, response);
+
       if (!user) {
         return;
       }
@@ -2396,6 +2589,7 @@ export async function handleLegacyRequest(request, response) {
 
     if (request.method === "GET" && url.pathname.startsWith("/api/courses/")) {
       const user = requireAuthorizedConsoleUser(request, response);
+
       if (!user) {
         return;
       }
@@ -2413,6 +2607,7 @@ export async function handleLegacyRequest(request, response) {
 
     if (request.method === "PUT" && url.pathname.startsWith("/api/courses/")) {
       const user = requireAuthorizedConsoleUser(request, response);
+
       if (!user) {
         return;
       }
@@ -2437,6 +2632,7 @@ export async function handleLegacyRequest(request, response) {
 
     if (request.method === "DELETE" && url.pathname.startsWith("/api/courses/")) {
       const user = requireAuthorizedConsoleUser(request, response);
+
       if (!user) {
         return;
       }
@@ -2532,6 +2728,7 @@ export async function handleLegacyRequest(request, response) {
 
     if (request.method === "POST" && url.pathname === "/api/schedules") {
       const user = requireAuthorizedConsoleUser(request, response);
+
       if (!user) {
         return;
       }
@@ -2561,6 +2758,7 @@ export async function handleLegacyRequest(request, response) {
 
     if (request.method === "POST" && url.pathname === "/api/schedules/copy-last-week") {
       const user = requireAuthorizedConsoleUser(request, response);
+
       if (!user) {
         return;
       }
@@ -2575,6 +2773,7 @@ export async function handleLegacyRequest(request, response) {
 
     if (request.method === "POST" && url.pathname === "/api/schedules/copy-week") {
       const user = requireAuthorizedConsoleUser(request, response);
+
       if (!user) {
         return;
       }
@@ -2583,6 +2782,7 @@ export async function handleLegacyRequest(request, response) {
         sendJson(response, 200, { data: copyWeekSchedules(payload, user) });
       } catch (error) {
         const statusCode = Number(error?.statusCode) || 400;
+
         if (statusCode === 409) {
           sendJson(response, 409, { message: error instanceof Error ? error.message : "目标周已有排课。" });
           return;
@@ -2609,6 +2809,9 @@ export async function handleLegacyRequest(request, response) {
 
 let legacyBackgroundServicesStarted = false;
 
+/**
+ * 启动 legacy background services，避免重复注册后台任务或监听器。
+ */
 export function startLegacyBackgroundServices() {
   if (legacyBackgroundServicesStarted) {
     return;

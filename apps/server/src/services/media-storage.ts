@@ -1,17 +1,29 @@
 import { createHmac } from "node:crypto";
 
+/**
+ * 修剪 text 文本，统一空值和边界字符处理。
+ */
 function trimText(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+/**
+ * 修剪 slash 文本，统一空值和边界字符处理。
+ */
 function trimSlash(value) {
   return trimText(value).replace(/\/+$/g, "");
 }
 
+/**
+ * 修剪 edge slash 文本，统一空值和边界字符处理。
+ */
 function trimEdgeSlash(value) {
   return trimText(value).replace(/^\/+|\/+$/g, "");
 }
 
+/**
+ * 封装 encode object key 的业务步骤，避免调用方依赖内部实现细节。
+ */
 function encodeObjectKey(objectKey) {
   return objectKey
     .split("/")
@@ -20,6 +32,9 @@ function encodeObjectKey(objectKey) {
     .join("/");
 }
 
+/**
+ * 读取 oss config，把底层数据转成调用方可直接使用的结构。
+ */
 function readOssConfig() {
   const accessKeyId = trimText(process.env.OSS_ACCESS_KEY_ID);
   const accessKeySecret = trimText(process.env.OSS_ACCESS_KEY_SECRET);
@@ -49,6 +64,9 @@ function readOssConfig() {
   };
 }
 
+/**
+ * 创建 authorization，并补齐运行时需要的默认配置。
+ */
 function createAuthorization(config, method, contentType, date, objectKey) {
   const resource = `/${config.bucket}/${objectKey}`;
   const stringToSign = `${method}\n\n${contentType}\n${date}\n${resource}`;
@@ -56,10 +74,16 @@ function createAuthorization(config, method, contentType, date, objectKey) {
   return `OSS ${config.accessKeyId}:${signature}`;
 }
 
+/**
+ * 读取 media storage mode，并保持返回结构稳定。
+ */
 export function getMediaStorageMode() {
   return readOssConfig() ? "oss" : "local";
 }
 
+/**
+ * 组装 storage key，把分散的输入合成稳定输出。
+ */
 export function buildStorageKey(filename) {
   const config = readOssConfig();
   const cleanName = trimEdgeSlash(filename);
@@ -71,6 +95,9 @@ export function buildStorageKey(filename) {
   return `${config.objectPrefix}/${cleanName}`;
 }
 
+/**
+ * 上传 buffer to oss，并返回后续业务可保存的资源信息。
+ */
 export async function uploadBufferToOss({ buffer, objectKey, mimeType }) {
   const config = readOssConfig();
 

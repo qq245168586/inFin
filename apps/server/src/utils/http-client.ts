@@ -14,6 +14,9 @@ export class HttpClientError extends Error {
   readonly status: number;
   readonly payload: unknown;
 
+  /**
+   * 初始化当前服务实例和它依赖的运行时状态。
+   */
   constructor(message: string, status: number, payload: unknown) {
     super(message);
     this.name = "HttpClientError";
@@ -22,6 +25,9 @@ export class HttpClientError extends Error {
   }
 }
 
+/**
+ * 创建 json http client，并补齐运行时需要的默认配置。
+ */
 export function createJsonHttpClient(options: JsonHttpClientOptions) {
   const baseUrl = normalizeBaseUrl(options.baseUrl);
   const defaultHeaders = normalizeHeaders(options.defaultHeaders);
@@ -46,18 +52,26 @@ export function createJsonHttpClient(options: JsonHttpClientOptions) {
   };
 }
 
+/**
+ * 规范化 base url，避免后续业务处理不同格式的输入。
+ */
 function normalizeBaseUrl(value: string) {
   const text = String(value || "").trim();
+
   if (!text) {
     return "";
   }
   return text.endsWith("/") ? text : `${text}/`;
 }
 
+/**
+ * 规范化 headers，避免后续业务处理不同格式的输入。
+ */
 function normalizeHeaders(headers: Record<string, string> = {}) {
   const normalized: Record<string, string> = {};
   for (const [key, value] of Object.entries(headers)) {
     const name = String(key || "").trim().toLowerCase();
+
     if (!name) {
       continue;
     }
@@ -66,6 +80,9 @@ function normalizeHeaders(headers: Record<string, string> = {}) {
   return normalized;
 }
 
+/**
+ * 封装 request json 的业务步骤，避免调用方依赖内部实现细节。
+ */
 async function requestJson(
   fetchImpl: typeof fetch,
   baseUrl: string,
@@ -90,6 +107,7 @@ async function requestJson(
       signal: controller.signal
     });
     const payload = await parseJsonResponse(response);
+
     if (!response.ok) {
       const message = extractErrorMessage(payload, response.status);
       throw new HttpClientError(message, response.status, payload);
@@ -100,8 +118,12 @@ async function requestJson(
   }
 }
 
+/**
+ * 解析 json response，把字符串转换成可靠的结构化值。
+ */
 async function parseJsonResponse(response: Response) {
   const text = await response.text();
+
   if (!text) {
     return null;
   }
@@ -112,6 +134,9 @@ async function parseJsonResponse(response: Response) {
   }
 }
 
+/**
+ * 提取 error message，统一错误和响应字段读取方式。
+ */
 function extractErrorMessage(payload: any, status: number) {
   return payload?.message || payload?.error || `HTTP ${status}`;
 }
