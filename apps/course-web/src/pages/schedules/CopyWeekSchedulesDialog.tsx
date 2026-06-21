@@ -28,7 +28,7 @@ export default function CopyWeekSchedulesDialog({
   onConfirm: () => void;
 }) {
   const currentWeekStart = weekStartValue(todayValue());
-  const sourceMax = currentWeekStart;
+  const sourceMax = addDaysValue(currentWeekStart, 6);
   const targetMin = addDaysValue(currentWeekStart, 7);
   const confirmDisabled =
     !draft.sourceWeekStart ||
