@@ -388,8 +388,11 @@ const server = http.createServer(async (request, response) => {
           accountNamespace
         );
       } catch (error) {
-        sendJson(response, 502, {
-          message: error instanceof Error ? `MQTT 发布失败：${error.message}` : "MQTT 发布失败。"
+        sendJson(response, 200, {
+          data: result,
+          warning: error instanceof Error ? `课程包已保存，但 MQTT 发布失败：${error.message}` : "课程包已保存，但 MQTT 发布失败。",
+          message: "success",
+          msg: "success"
         });
         return;
       }

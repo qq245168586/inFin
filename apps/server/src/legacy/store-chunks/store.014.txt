@@ -307,16 +307,24 @@ export function listVenueCoursePackages(venueId) {
   }
   const boundIds = normalizeVenuePackageIds(venue.coursePackageIds);
   const activeCoursePackageId = resolveVenueActiveCoursePackageId(venue);
+  const packages = boundIds
+    .map((id) => getCoursePackageByIdInternal(id))
+    .filter(Boolean)
+    .map(serializeCoursePackage);
   return {
     venueId: trimText(venue.id),
     venueName: trimText(venue.name),
     accountNamespace: normalizeAccountNamespace(venue.accountNamespace),
+    venue: {
+      id: trimText(venue.id),
+      name: trimText(venue.name),
+      accountNamespace: normalizeAccountNamespace(venue.accountNamespace),
+      activeCoursePackageId
+    },
     activeCoursePackageId,
     running: isVenuePlaybackActive(venue),
-    items: boundIds
-      .map((id) => getCoursePackageByIdInternal(id))
-      .filter(Boolean)
-      .map(serializeCoursePackage)
+    items: packages,
+    packages
   };
 }
 

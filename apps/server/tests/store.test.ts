@@ -54,6 +54,53 @@ test("saveCourse moves a course into exactly one target course package", async (
   );
 });
 
+test("coach course package switch persists venue active package and filters TV bundle", async (t) => {
+  const store = await importStore(t);
+  const scheduleDate = nextMonday(1);
+  const advancedScript = createMockCourseScript({
+    metadata: {
+      id: "course-advanced-view",
+      name: "Advanced View",
+      version: "2026.03"
+    }
+  });
+  const advancedCourse = store.saveCourse({
+    name: "Advanced View",
+    creator: "Coach Kai",
+    version: "2026.03",
+    coursePackageId: 2,
+    typeIds: [1],
+    script: advancedScript
+  });
+  store.bindCoursePackageToVenue("venue-a", 2);
+  store.saveSchedule({
+    courseId: 101,
+    coursePackageId: 1,
+    beginTime: shanghaiNoon(scheduleDate),
+    duration: 45
+  });
+  store.saveSchedule({
+    courseId: advancedCourse.id,
+    coursePackageId: 2,
+    beginTime: shanghaiNoon(scheduleDate),
+    duration: 45
+  });
+
+  assert.deepEqual(
+    store.getTvDailyBundle(scheduleDate, "Asia/Shanghai", "venue-a").schedules.map((item: any) => item.coursePackageId),
+    [1]
+  );
+
+  const view = store.setVenueActiveCoursePackage("venue-a", 2);
+
+  assert.equal(view.activeCoursePackageId, 2);
+  assert.equal(store.getVenueById("venue-a").activeCoursePackageId, 2);
+  assert.deepEqual(
+    store.getTvDailyBundle(scheduleDate, "Asia/Shanghai", "venue-a").schedules.map((item: any) => item.coursePackageId),
+    [2]
+  );
+});
+
 test("lesson types are scoped to course packages and reused within the same package", async (t) => {
   const store = await importStore(t);
 
