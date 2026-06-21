@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
-import { createMockCourseScript } from "./fixtures/mock-db.ts";
+import { createMockCourseScript, createMockDatabaseState } from "./fixtures/mock-db.ts";
 import { addDays, importStore, nextMonday, shanghaiNoon } from "./helpers/store.ts";
 
 test("saveCourse rejects duplicate name and version regardless of whitespace and case", async (t) => {
@@ -190,6 +190,105 @@ test("copyWeekSchedules allows copying the current week into a future week", asy
   assert.equal(copied.length, 1);
   assert.equal(copied[0].date, addDays(targetWeek, 1));
   assert.equal(copied[0].coursePackageId, 1);
+});
+
+test("copyWeekSchedules skips source items whose courses were deleted", async (t) => {
+  const sourceWeek = nextMonday(-1);
+  const targetWeek = nextMonday(1);
+  const state = createMockDatabaseState({
+    schedules: [
+      {
+        id: 1,
+        courseId: 101,
+        coursePackageId: 1,
+        courseName: "Mock Strength",
+        version: "2026.01",
+        beginTime: shanghaiNoon(addDays(sourceWeek, 1)),
+        duration: 45
+      },
+      {
+        id: 2,
+        courseId: 999,
+        coursePackageId: 1,
+        courseName: "Deleted Course",
+        version: "1.0",
+        beginTime: shanghaiNoon(addDays(sourceWeek, 2)),
+        duration: 45
+      }
+    ]
+  });
+  const store = await importStore(t, state);
+
+  const copied = store.copyWeekSchedules({
+    coursePackageId: 1,
+    sourceWeekStart: sourceWeek,
+    targetWeekStart: targetWeek
+  });
+
+  assert.equal(copied.length, 1);
+  assert.equal(copied[0].courseId, 101);
+  assert.equal(copied[0].date, addDays(targetWeek, 1));
+  assert.equal(
+    store
+      .listSchedulesByScope("HISTORY")
+      .some((item: any) => Number(item.courseId) === 999 && item.date >= targetWeek),
+    false
+  );
+});
+
+test("pruneFutureDeletedCourseSchedules keeps past deleted records and removes future ones", async (t) => {
+  const today = nextMonday(0);
+  const state = createMockDatabaseState({
+    schedules: [
+      {
+        id: 1,
+        courseId: 999,
+        coursePackageId: 1,
+        courseName: "Past Deleted Course",
+        version: "1.0",
+        beginTime: shanghaiNoon(addDays(today, -1)),
+        duration: 45
+      },
+      {
+        id: 2,
+        courseId: 998,
+        coursePackageId: 1,
+        courseName: "Today Deleted Course",
+        version: "1.0",
+        beginTime: shanghaiNoon(today),
+        duration: 45
+      },
+      {
+        id: 3,
+        courseId: 997,
+        coursePackageId: 1,
+        courseName: "Future Deleted Course",
+        version: "1.0",
+        beginTime: shanghaiNoon(addDays(today, 7)),
+        duration: 45
+      },
+      {
+        id: 4,
+        courseId: 101,
+        coursePackageId: 1,
+        courseName: "Mock Strength",
+        version: "2026.01",
+        beginTime: shanghaiNoon(addDays(today, 7)),
+        duration: 45
+      }
+    ]
+  });
+  const store = await importStore(t, state);
+
+  const result = store.pruneFutureDeletedCourseSchedules({ today });
+  const remaining = store.listSchedulesByScope("HISTORY");
+
+  assert.equal(result.removedCount, 2);
+  assert.deepEqual(
+    remaining.map((item: any) => Number(item.id)).sort((left: number, right: number) => left - right),
+    [1, 4]
+  );
+  assert.equal(remaining.find((item: any) => Number(item.id) === 1)?.courseDeleted, true);
 });
 
 test("TV binding preserves unbound device history after unbind and heartbeat", async (t) => {

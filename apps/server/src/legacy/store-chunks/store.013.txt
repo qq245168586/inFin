@@ -19,6 +19,58 @@ export function deleteSchedule(scheduleId) {
   return { ok: true };
 }
 
+function scheduleHasExistingCourse(schedule) {
+  const courseId = Number(schedule?.courseId);
+  if (!Number.isFinite(courseId) || courseId <= 0) {
+    return false;
+  }
+  return state.courses.some((course) => Number(course.id) === courseId);
+}
+
+function scheduleCalendarDate(schedule) {
+  return schedule?.beginTime ? formatCalendarDate(schedule.beginTime, "Asia/Shanghai") : trimText(schedule?.date);
+}
+
+function listSchedulesInWeek(coursePackageId, weekStart, weekEnd) {
+  return state.schedules
+    .filter((item) => scheduleMatchesCoursePackage(item, coursePackageId))
+    .filter((item) => inCalendarDateRange(item.beginTime, weekStart, weekEnd));
+}
+
+function listCopyableSchedulesInWeek(coursePackageId, weekStart, weekEnd) {
+  return listSchedulesInWeek(coursePackageId, weekStart, weekEnd).filter(scheduleHasExistingCourse);
+}
+
+export function pruneFutureDeletedCourseSchedules(options = {}) {
+  const today = /^\d{4}-\d{2}-\d{2}$/.test(trimText(options?.today))
+    ? trimText(options.today)
+    : formatCalendarDate(new Date(), "Asia/Shanghai");
+  const removed = [];
+
+  state.schedules = state.schedules.filter((item) => {
+    if (scheduleHasExistingCourse(item)) {
+      return true;
+    }
+    const scheduleDate = scheduleCalendarDate(item);
+    const shouldRemove = !scheduleDate || scheduleDate >= today;
+    if (shouldRemove) {
+      removed.push(attachCourseBasics(item));
+      return false;
+    }
+    return true;
+  });
+
+  if (removed.length) {
+    persist();
+  }
+
+  return {
+    ok: true,
+    removedCount: removed.length,
+    removed
+  };
+}
+
 function parseScheduleWeekStart(value, fieldLabel) {
   const text = trimText(value);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) {
@@ -75,17 +127,17 @@ export function copyWeekSchedules(payload = {}, user = null, options = {}) {
     throw new Error("目标周必须是未来周。");
   }
 
-  const sourceSchedules = state.schedules
-    .filter((item) => scheduleMatchesCoursePackage(item, targetCoursePackageId))
-    .filter((item) => inCalendarDateRange(item.beginTime, sourceWeekStart, sourceWeekEnd));
+  const sourceSchedulesInWeek = listSchedulesInWeek(targetCoursePackageId, sourceWeekStart, sourceWeekEnd);
+  const sourceSchedules = listCopyableSchedulesInWeek(targetCoursePackageId, sourceWeekStart, sourceWeekEnd);
 
-  if (!sourceSchedules.length) {
+  if (!sourceSchedulesInWeek.length) {
     throw new Error("来源周没有排课。");
   }
+  if (!sourceSchedules.length) {
+    throw new Error("来源周没有可复制课程。");
+  }
 
-  const targetSchedules = state.schedules
-    .filter((item) => scheduleMatchesCoursePackage(item, targetCoursePackageId))
-    .filter((item) => inCalendarDateRange(item.beginTime, targetWeekStart, targetWeekEnd));
+  const targetSchedules = listSchedulesInWeek(targetCoursePackageId, targetWeekStart, targetWeekEnd);
 
   if (targetSchedules.length && !payload?.replaceExisting) {
     throw targetWeekConflictError();
