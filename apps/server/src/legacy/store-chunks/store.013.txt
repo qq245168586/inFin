@@ -68,8 +68,8 @@ export function copyWeekSchedules(payload = {}, user = null, options = {}) {
   const currentWeekStart = getCalendarWeekRange(0).start;
   const allowCurrentTargetWeek = Boolean(options?.allowCurrentTargetWeek);
 
-  if (sourceWeekStart >= currentWeekStart) {
-    throw new Error("来源周必须是过去周。");
+  if (sourceWeekStart > currentWeekStart) {
+    throw new Error("来源周必须是过去周或本周。");
   }
   if (targetWeekStart < currentWeekStart || (!allowCurrentTargetWeek && targetWeekStart <= currentWeekStart)) {
     throw new Error("目标周必须是未来周。");

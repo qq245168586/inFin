@@ -1,6 +1,7 @@
-import { createLegacyStore } from "../legacy/store-runtime.js";
+import { LegacyStoreGateway } from "./legacy-store-gateway.js";
 
-const legacyStore = createLegacyStore();
+const legacyStoreGateway = new LegacyStoreGateway();
+const legacyStore = legacyStoreGateway.raw();
 
 export const createMediaFilename = legacyStore.createMediaFilename as (...args: any[]) => any;
 export const getDatabaseStatus = legacyStore.getDatabaseStatus as (...args: any[]) => any;

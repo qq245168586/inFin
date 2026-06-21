@@ -170,6 +170,28 @@ test("copyWeekSchedules copies only the selected package and reports target conf
   );
 });
 
+test("copyWeekSchedules allows copying the current week into a future week", async (t) => {
+  const store = await importStore(t);
+  const sourceWeek = nextMonday(0);
+  const targetWeek = nextMonday(1);
+  store.saveSchedule({
+    courseId: 101,
+    coursePackageId: 1,
+    beginTime: shanghaiNoon(addDays(sourceWeek, 1)),
+    duration: 45
+  });
+
+  const copied = store.copyWeekSchedules({
+    coursePackageId: 1,
+    sourceWeekStart: sourceWeek,
+    targetWeekStart: targetWeek
+  });
+
+  assert.equal(copied.length, 1);
+  assert.equal(copied[0].date, addDays(targetWeek, 1));
+  assert.equal(copied[0].coursePackageId, 1);
+});
+
 test("TV binding preserves unbound device history after unbind and heartbeat", async (t) => {
   const store = await importStore(t);
 
