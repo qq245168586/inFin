@@ -52,12 +52,25 @@ test("DomainEventBus emits typed events to named and wildcard subscribers", () =
   assert.deepEqual(streamTypes, ["schedule.changed"]);
 });
 
-test("legacy chunk filenames keep load order and describe their responsibility", () => {
-  for (const directory of ["server-chunks", "store-chunks"]) {
-    const chunkDir = path.join(serverRoot, "src", "legacy", directory);
-    const numericOnly = fs
-      .readdirSync(chunkDir)
-      .filter((name) => /^\w+\.\d+[a-z]?\.txt$/.test(name));
-    assert.deepEqual(numericOnly, [], `${directory} should not use pure numeric chunk filenames`);
-  }
+test("legacy runtime uses TypeScript modules instead of text chunks", () => {
+  const legacyDir = path.join(serverRoot, "src", "legacy");
+  const legacyFiles = listFiles(legacyDir);
+  const textChunks = legacyFiles.filter((file) => file.endsWith(".txt"));
+  assert.deepEqual(textChunks, [], "legacy source should not use .txt chunks");
+
+  const runtimeSource = [
+    fs.readFileSync(path.join(legacyDir, "server-runtime.ts"), "utf8"),
+    fs.readFileSync(path.join(legacyDir, "store-runtime.ts"), "utf8")
+  ].join("\n");
+  assert.equal(runtimeSource.includes("new Function"), false, "legacy runtime should not evaluate text chunks");
 });
+
+function listFiles(directory: string): string[] {
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const absolute = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      return listFiles(absolute);
+    }
+    return [absolute];
+  });
+}
