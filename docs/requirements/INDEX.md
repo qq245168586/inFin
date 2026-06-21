@@ -8,11 +8,12 @@
 
 | ID | Title | Status | Apps | Owner Notes |
 | --- | --- | --- | --- | --- |
+| [REQ-20260619-coach-course-package-switch-settings](REQ-20260619-coach-course-package-switch-settings.md) | Coach 设置中切换场馆课程包 | Ready for QA | `coach-web`, `server`, `tv-android`, `mqtt-client` | 设置中显示场馆已绑定课程包，持久化当前启用课程包后通知 TV 刷新课表。 |
 | [REQ-20260618-schedule-card-edit-course-entry](REQ-20260618-schedule-card-edit-course-entry.md) | 课表卡片快速编辑课程入口 | Ready for QA | `course-web` | 在课表 item 右下角增加“编辑课程”按钮，快速打开课程编辑 tab。 |
-| [REQ-20260618-copy-specific-week-schedules](REQ-20260618-copy-specific-week-schedules.md) | 复制指定周排课 | Ready for QA | `server`, `course-web` | 升级“一键复制上周排课”，支持选择过去来源周和未来目标周。 |
+| [REQ-20260618-copy-specific-week-schedules](REQ-20260618-copy-specific-week-schedules.md) | 复制指定周排课 | Ready for QA | `server`, `course-web` | 升级“一键复制上周排课”，支持选择过去周或本周复制到未来目标周。 |
 
 ## Done / Shipped
 
 | ID | Title | Status | Apps | Release Notes |
 | --- | --- | --- | --- | --- |
-| - | - | - | - | - |
+| [REQ-20260621-course-schedule-i18n-today-button](REQ-20260621-course-schedule-i18n-today-button.md) | Course 课表俄语文案与今天跳转 | Shipped | `course-web` | 修复课表页俄语下仍显示中文按钮的问题，并新增“今天”按钮回到当前周与当天。 |

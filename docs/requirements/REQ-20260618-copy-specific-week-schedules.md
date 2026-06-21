@@ -5,7 +5,7 @@
 - Status: Ready for QA
 - Owner: Course scheduling
 - Created: 2026-06-18
-- Updated: 2026-06-18
+- Updated: 2026-06-21
 - Related docs:
   - [课程课表元数据与 TV 展示改造](../course-schedule-metadata-redesign.md)
   - [课程端/场馆管理端拆分需求](../course-web-separation-requirements.md)
@@ -15,7 +15,7 @@
 
 ## Requirement Summary
 
-当前首页课表只有“一键复制上周排课”，固定把上一周复制到当前周。新需求是把这个按钮升级为“复制指定周排课”：点击后弹出周选择弹窗，编课者可以选择一个过去的来源周，再选择一个未来的目标周，把来源周的所有排课复制到目标周。
+当前首页课表只有“一键复制上周排课”，固定把上一周复制到当前周。新需求是把这个按钮升级为“复制指定周排课”：点击后弹出周选择弹窗，编课者可以选择一个过去周或本周作为来源周，再选择一个未来的目标周，把来源周的所有排课复制到目标周。
 
 复制仍然按课程包隔离，只复制当前选中课程包下的排课。目标周必须是未来周，避免覆盖已经发生或正在发生的课程安排。
 
@@ -42,7 +42,7 @@
 
 - 将“一键复制上周排课”改为“复制周排课”或“复制指定周”。
 - 点击按钮后打开弹窗，选择：
-  - 来源周：只能选择过去周。
+  - 来源周：可以选择过去周或本周。
   - 目标周：只能选择未来周。
 - 复制来源周内当前课程包的所有排课到目标周，保持星期几相对位置一致。
 - 如果目标周已有排课，必须二次确认；确认后覆盖目标周当前课程包排课。
@@ -60,7 +60,7 @@
 
 | Document / Feature | Relationship | Notes |
 | --- | --- | --- |
-| `course-schedule-metadata-redesign.md` | Extends | 原文只描述“复制上周排课”，本需求升级为可选择任意过去周复制到未来周。 |
+| `course-schedule-metadata-redesign.md` | Extends | 原文只描述“复制上周排课”，本需求升级为可选择过去周或本周复制到未来周。 |
 | `course-web-separation-requirements.md` | Aligns | 其中提到“支持复制上周 / 复制某天排课”，本需求先实现周级复制。 |
 | `HomePage` 当前复制按钮 | Replaces | 当前按钮文案和行为都需要更新。 |
 
@@ -140,8 +140,8 @@ POST /api/schedules/copy-week:
   sourceWeekStart = startOfWeek(payload.sourceWeekStart)
   targetWeekStart = startOfWeek(payload.targetWeekStart)
 
-  if sourceWeekStart >= startOfWeek(today):
-    return 400 "来源周必须是过去周"
+  if sourceWeekStart > startOfWeek(today):
+    return 400 "来源周必须是过去周或本周"
 
   if targetWeekStart <= startOfWeek(today):
     return 400 "目标周必须是未来周"
@@ -178,7 +178,7 @@ onClickCopySchedule:
   open CopyWeekScheduleDialog
 
 dialog state:
-  sourceWeekStart = previousWeekStart(today)
+  sourceWeekStart = currentWeekStart(today)
   targetWeekStart = nextWeekStart(today)
   replaceExisting = false
 
@@ -199,11 +199,11 @@ UI 建议：
 
 - 按钮文案：`复制指定周排课`。
 - 弹窗字段：
-  - 来源周：`input type="week"` 或日期选择器 + 自动转周一。
+  - 来源周：`input type="week"` 或日期选择器 + 自动转周一，可选过去周或本周。
   - 目标周：`input type="week"` 或日期选择器 + 自动转周一。
   - 辅助文案：显示 `2026/06/01 - 2026/06/07 -> 2026/06/22 - 2026/06/28`。
 - 限制：
-  - 来源周不能选择本周/未来周。
+  - 来源周不能选择未来周。
   - 目标周不能选择本周/过去周。
 
 ### TV / Coach
@@ -265,7 +265,7 @@ Expected:
 
 ### Bad Flow 2: 选择非法日期
 
-1. 来源周选择本周或未来周。
+1. 来源周选择未来周。
 2. 或目标周选择过去周/本周。
 
 Expected:
