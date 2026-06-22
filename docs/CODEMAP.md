@@ -36,7 +36,13 @@ flowchart LR
 内部结构约定：
 
 - `src/interfaces/http/compat-request-handler.ts`：承载现有 REST API 和旧客户端协议兼容，请求兼容逻辑集中放在这里。
-- `src/data/json-file-store.ts`：当前 JSON DB 文件存储实现，负责读写 `infini-data`。
+- `src/data/json-file-store.ts`：JSON DB store public barrel，只 re-export 业务域 store。
+- `src/data/json-store/core.ts`：共享 JSON DB state、storage root、备份、normalize/derive/scope helper。
+- `src/data/json-store/media-app-store.ts`：媒体文件和 TV app package 上传、登记、下载。
+- `src/data/json-store/admin-store.ts`：用户、场馆、课程包、管理端元数据。
+- `src/data/json-store/content-store.ts`：动作、动作类型、课程、课程模板。
+- `src/data/json-store/schedule-store.ts`：排课、复制排课、未来无效排课清理。
+- `src/data/json-store/tv-store.ts`：TV 今日课表、bundle、屏幕、设备、播放 session。
 - `src/data/store-gateway.ts`：给 Nest 模块和 request 适配层使用的 store 访问网关。
 - `src/runtime/*`：启动时装配 request handler 和 store 的入口。
 - 不再新增 `src/legacy` 或 `.txt` chunks；如果业务继续拆分，应进入明确的 domain/service/repository 模块。
