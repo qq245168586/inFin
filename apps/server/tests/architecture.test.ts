@@ -64,3 +64,30 @@ test("server architecture uses named modules instead of legacy text chunks", () 
   assert.equal(runtimeSource.includes("new Function"), false, "compat runtime should not evaluate text chunks");
   assert.equal(runtimeSource.includes("server-chunks"), false, "runtime should not depend on server chunk files");
 });
+
+test("JSON file store is split by product domain", () => {
+  const dataRoot = path.join(serverRoot, "src", "data");
+  const storeEntry = path.join(dataRoot, "json-file-store.ts");
+  const jsonStoreRoot = path.join(dataRoot, "json-store");
+  const expectedModules = [
+    "core.ts",
+    "media-app-store.ts",
+    "admin-store.ts",
+    "content-store.ts",
+    "schedule-store.ts",
+    "tv-store.ts"
+  ];
+
+  assert.equal(fs.existsSync(jsonStoreRoot), true, "JSON store domain directory should exist");
+
+  for (const moduleName of expectedModules) {
+    assert.equal(
+      fs.existsSync(path.join(jsonStoreRoot, moduleName)),
+      true,
+      `JSON store domain module should exist: ${moduleName}`
+    );
+  }
+
+  const entryLineCount = fs.readFileSync(storeEntry, "utf8").trim().split(/\r?\n/).length;
+  assert.ok(entryLineCount <= 40, "json-file-store.ts should stay a small public barrel");
+});
