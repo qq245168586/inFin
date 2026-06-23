@@ -1,0 +1,58 @@
+sequenceDiagram
+    autonumber
+    participant Member as 微信小程序会员
+    participant Mini as 微信小程序
+    participant Server as Server API
+    participant Store as DB / Store
+    participant TV as TV 签课屏
+    participant Coach as Coach 端
+
+    Member->>Mini: 打开今日课程
+    Mini->>Server: GET /api/mini/courses?date=...
+    Server->>Store: 查询场馆可预约场次
+    Store-->>Server: bookingSessions
+    Server-->>Mini: 课程列表 + 余量 + 预约状态
+
+    Member->>Mini: 选择课程并确认预约
+    Mini->>Server: POST /api/mini/bookings
+    Server->>Store: 校验容量 / 窗口 / 重复预约
+    Store-->>Server: 校验通过
+    Server->>Store: 创建 booking
+    Server-->>Mini: 预约成功
+
+    TV->>Server: GET /api/tv/check-in/current
+    Server->>Store: 查询当前签到窗口课程
+    Store-->>Server: bookingSession
+    Server->>Store: 创建或刷新 QR token
+    Server-->>TV: 课程信息 + 小程序码 + 过期时间
+    TV->>TV: 展示二维码和签到人数
+
+    Member->>TV: 扫描二维码
+    TV-->>Member: 微信小程序码
+    Member->>Mini: 打开扫码签到页
+    Mini->>Server: POST /api/mini/check-in token
+    Server->>Store: 校验 token / 场馆 / 预约 / 签到窗口
+    Store-->>Server: booking 有效
+    Server->>Store: 创建 attendance 并更新 booking
+    Server-->>Mini: 签到成功
+
+    TV->>Server: GET /api/tv/check-in/stats
+    Server->>Store: 查询签到统计
+    Store-->>Server: bookedCount / checkedInCount / recent
+    Server-->>TV: 最新签到状态
+    TV->>TV: 刷新人数并显示成功反馈
+
+    Coach->>Server: GET /api/coach/booking-sessions/:id/bookings
+    Server->>Store: 查询预约和签到名单
+    Store-->>Server: lists
+    Server-->>Coach: 已预约 / 已签到 / 未到
+
+    Member->>Mini: 课后提交 RPE 和心率
+    Mini->>Server: POST /api/mini/feedback
+    Server->>Store: 校验已签到并保存反馈
+    Server-->>Mini: 保存成功
+
+    Coach->>Server: GET /api/coach/booking-sessions/:id/feedback-summary
+    Server->>Store: 聚合 RPE / 心率 / 提交率
+    Store-->>Server: summary
+    Server-->>Coach: 课后反馈概览
