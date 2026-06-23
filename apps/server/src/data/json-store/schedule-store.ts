@@ -381,14 +381,18 @@ export function copyWeekSchedules(payload = {}, user = null, options = {}) {
   const targetWeekStart = parseScheduleWeekStart(payload?.targetWeekStart, "目标周");
   const sourceWeekEnd = addCalendarDays(sourceWeekStart, 7);
   const targetWeekEnd = addCalendarDays(targetWeekStart, 7);
-  const currentWeekStart = getCalendarWeekRange(0).start;
-  const allowCurrentTargetWeek = Boolean(options?.allowCurrentTargetWeek);
+  const currentDate = normalizeScheduleCopyToday(options?.today);
+  const currentWeekStart = getScheduleCopyWeekStart(currentDate);
+  const targetCopyStart = targetWeekStart === currentWeekStart ? currentDate : targetWeekStart;
 
   if (sourceWeekStart > currentWeekStart) {
     throw new Error("来源周必须是过去周或本周。");
   }
-  if (targetWeekStart < currentWeekStart || (!allowCurrentTargetWeek && targetWeekStart <= currentWeekStart)) {
-    throw new Error("目标周必须是未来周。");
+  if (targetWeekStart < currentWeekStart) {
+    throw new Error("目标周必须是本周或未来周。");
+  }
+  if (sourceWeekStart === targetWeekStart) {
+    throw new Error("来源周和目标周不能相同。");
   }
 
   const sourceSchedulesInWeek = listSchedulesInWeek(targetCoursePackageId, sourceWeekStart, sourceWeekEnd);
@@ -402,7 +406,34 @@ export function copyWeekSchedules(payload = {}, user = null, options = {}) {
     throw new Error("来源周没有可复制课程。");
   }
 
-  const targetSchedules = listSchedulesInWeek(targetCoursePackageId, targetWeekStart, targetWeekEnd);
+  const dayShift = calendarDateDiffDays(sourceWeekStart, targetWeekStart);
+  const plannedCopies = sourceSchedules
+    .map((item) => {
+      const nextDate = new Date(item.beginTime);
+      nextDate.setUTCDate(nextDate.getUTCDate() + dayShift);
+      const targetDate = formatCalendarDate(nextDate, "Asia/Shanghai");
+
+      if (targetDate < targetCopyStart || targetDate >= targetWeekEnd) {
+        return null;
+      }
+
+      const source = attachCourseBasics(item);
+      return {
+        courseId: Number(item.courseId) || 0,
+        coursePackageId: targetCoursePackageId,
+        courseName: source.courseName,
+        version: source.version,
+        beginTime: nextDate.toISOString(),
+        duration: Number(item.duration) || 0
+      };
+    })
+    .filter(Boolean);
+
+  if (!plannedCopies.length) {
+    throw new Error("目标周没有可复制日期。");
+  }
+
+  const targetSchedules = listSchedulesInWeek(targetCoursePackageId, targetCopyStart, targetWeekEnd);
 
   if (targetSchedules.length && !payload?.replaceExisting) {
     throw targetWeekConflictError();
@@ -413,32 +444,36 @@ export function copyWeekSchedules(payload = {}, user = null, options = {}) {
       if (!scheduleMatchesCoursePackage(item, targetCoursePackageId)) {
         return true;
       }
-      return !inCalendarDateRange(item.beginTime, targetWeekStart, targetWeekEnd);
+      return !inCalendarDateRange(item.beginTime, targetCopyStart, targetWeekEnd);
     });
   }
 
-  const dayShift = calendarDateDiffDays(sourceWeekStart, targetWeekStart);
   let nextScheduleId = nextId(state.schedules);
 
-  const copied = sourceSchedules.map((item) => {
-    const nextDate = new Date(item.beginTime);
-    nextDate.setUTCDate(nextDate.getUTCDate() + dayShift);
-    const source = attachCourseBasics(item);
-
-    return {
+  const copied = plannedCopies.map((item) => ({
+    ...item,
       id: nextScheduleId++,
-      courseId: Number(item.courseId) || 0,
-      coursePackageId: targetCoursePackageId,
-      courseName: source.courseName,
-      version: source.version,
-      beginTime: nextDate.toISOString(),
-      duration: Number(item.duration) || 0
-    };
-  });
+  }));
 
   state.schedules.push(...copied);
   persist();
   return copied.map(attachCourseBasics);
+}
+
+function normalizeScheduleCopyToday(value) {
+  const text = trimText(value);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+    return text;
+  }
+  return formatCalendarDate(new Date(), "Asia/Shanghai");
+}
+
+function getScheduleCopyWeekStart(dateText) {
+  const anchor = new Date(`${dateText}T12:00:00.000+08:00`);
+  const day = anchor.getUTCDay();
+  const delta = day === 0 ? -6 : 1 - day;
+  anchor.setUTCDate(anchor.getUTCDate() + delta);
+  return formatCalendarDate(anchor, "Asia/Shanghai");
 }
 
 /**

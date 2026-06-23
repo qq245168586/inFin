@@ -182,7 +182,7 @@
 | --- | --- | --- |
 | `GET` | `/api/schedules` | 按 scope 和 venueId 获取排课 |
 | `POST` | `/api/schedules` | 新增排课，把可复用课程排进指定场馆的课表；新 payload 可只传 `courseId`、`coursePackageId`、`version`、`date`，服务端按当天 00:00:00 保存，`duration` 默认 `0` |
-| `POST` | `/api/schedules/copy-week` | 复制指定过去周到指定未来周；payload: `coursePackageId`、`sourceWeekStart`、`targetWeekStart`、`replaceExisting` |
+| `POST` | `/api/schedules/copy-week` | 复制指定过去周或本周到本周剩余日期或未来周；payload: `coursePackageId`、`sourceWeekStart`、`targetWeekStart`、`replaceExisting` |
 | `POST` | `/api/schedules/copy-last-week` | 复制上周排课到本周 |
 | `DELETE` | `/api/schedules/{scheduleId}` | 删除排课 |
 

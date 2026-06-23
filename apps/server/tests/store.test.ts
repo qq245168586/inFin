@@ -236,6 +236,139 @@ test("copyWeekSchedules skips source items whose courses were deleted", async (t
   );
 });
 
+test("copyWeekSchedules copies into the current week and skips elapsed target days", async (t) => {
+  const sourceWeek = nextMonday(-1);
+  const targetWeek = nextMonday(0);
+  const today = addDays(targetWeek, 1);
+  const state = createMockDatabaseState({
+    schedules: [
+      {
+        id: 1,
+        courseId: 101,
+        coursePackageId: 1,
+        courseName: "Mock Strength",
+        version: "2026.01",
+        beginTime: shanghaiNoon(sourceWeek),
+        duration: 45
+      },
+      {
+        id: 2,
+        courseId: 101,
+        coursePackageId: 1,
+        courseName: "Mock Strength",
+        version: "2026.01",
+        beginTime: shanghaiNoon(addDays(sourceWeek, 1)),
+        duration: 45
+      },
+      {
+        id: 3,
+        courseId: 101,
+        coursePackageId: 1,
+        courseName: "Mock Strength",
+        version: "2026.01",
+        beginTime: shanghaiNoon(addDays(sourceWeek, 3)),
+        duration: 45
+      },
+      {
+        id: 4,
+        courseId: 101,
+        coursePackageId: 1,
+        courseName: "Existing elapsed target",
+        version: "old",
+        beginTime: shanghaiNoon(targetWeek),
+        duration: 99
+      }
+    ]
+  });
+  const store = await importStore(t, state);
+
+  const copied = store.copyWeekSchedules(
+    {
+      coursePackageId: 1,
+      sourceWeekStart: sourceWeek,
+      targetWeekStart: targetWeek
+    },
+    null,
+    { today }
+  );
+
+  assert.deepEqual(
+    copied.map((item: any) => item.date),
+    [today, addDays(targetWeek, 3)]
+  );
+  assert.equal(copied.some((item: any) => item.date === targetWeek), false);
+  assert.equal(
+    store
+      .listSchedulesByScope("HISTORY", { coursePackageId: 1 })
+      .some((item: any) => item.date === targetWeek && item.duration === 99),
+    true
+  );
+});
+
+test("copyWeekSchedules detects and replaces current-week conflicts only from today onward", async (t) => {
+  const sourceWeek = nextMonday(-1);
+  const targetWeek = nextMonday(0);
+  const today = addDays(targetWeek, 1);
+  const state = createMockDatabaseState({
+    schedules: [
+      {
+        id: 1,
+        courseId: 101,
+        coursePackageId: 1,
+        courseName: "Mock Strength",
+        version: "2026.01",
+        beginTime: shanghaiNoon(addDays(sourceWeek, 1)),
+        duration: 45
+      },
+      {
+        id: 2,
+        courseId: 101,
+        coursePackageId: 1,
+        courseName: "Existing future target",
+        version: "old",
+        beginTime: shanghaiNoon(today),
+        duration: 99
+      }
+    ]
+  });
+  const store = await importStore(t, state);
+
+  assert.throws(
+    () =>
+      store.copyWeekSchedules(
+        {
+          coursePackageId: 1,
+          sourceWeekStart: sourceWeek,
+          targetWeekStart: targetWeek
+        },
+        null,
+        { today }
+      ),
+    (error: any) => error?.statusCode === 409 && /目标周已有排课/.test(error.message)
+  );
+
+  const copied = store.copyWeekSchedules(
+    {
+      coursePackageId: 1,
+      sourceWeekStart: sourceWeek,
+      targetWeekStart: targetWeek,
+      replaceExisting: true
+    },
+    null,
+    { today }
+  );
+
+  assert.equal(copied.length, 1);
+  assert.equal(copied[0].date, today);
+  assert.equal(copied[0].duration, 45);
+  assert.equal(
+    store
+      .listSchedulesByScope("HISTORY", { coursePackageId: 1 })
+      .some((item: any) => item.date === today && item.duration === 99),
+    false
+  );
+});
+
 test("pruneFutureDeletedCourseSchedules keeps past deleted records and removes future ones", async (t) => {
   const today = nextMonday(0);
   const state = createMockDatabaseState({
