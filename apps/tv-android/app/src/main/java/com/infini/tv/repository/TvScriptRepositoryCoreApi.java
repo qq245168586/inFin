@@ -76,6 +76,8 @@ abstract class TvScriptRepositoryCoreApi extends TvScriptRepositoryBase {
   protected static final OkHttpClient DOWNLOAD_HTTP_CLIENT =
       API_HTTP_CLIENT.newBuilder().readTimeout(60, TimeUnit.SECONDS).build();
 
+  protected static final ApiClient API_CLIENT = new ApiClient(API_HTTP_CLIENT);
+
   public List<TvScheduleItem> loadTodaySchedule() throws IOException {
     return syncTodayBundle(null).schedules;
   }
