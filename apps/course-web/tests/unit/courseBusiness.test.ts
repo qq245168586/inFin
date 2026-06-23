@@ -319,7 +319,29 @@ describe("copy-week schedules", () => {
     );
   });
 
-  test("rejects copying from future weeks and into current/past weeks", () => {
+  test("allows copying from a past week into the current week", () => {
+    assert.deepEqual(
+      buildCopyWeekSchedulesPayload({
+        coursePackageId: 2,
+        currentDate: "2026-06-19",
+        draft: {
+          sourceWeekStart: "2026-06-08",
+          targetWeekStart: "2026-06-19"
+        }
+      }),
+      {
+        ok: true,
+        payload: {
+          coursePackageId: 2,
+          sourceWeekStart: "2026-06-08",
+          targetWeekStart: "2026-06-15",
+          replaceExisting: false
+        }
+      }
+    );
+  });
+
+  test("rejects copying from future weeks, into past weeks, or into the same week", () => {
     assert.deepEqual(
       buildCopyWeekSchedulesPayload({
         coursePackageId: 2,
@@ -341,12 +363,27 @@ describe("copy-week schedules", () => {
         currentDate: "2026-06-19",
         draft: {
           sourceWeekStart: "2026-06-08",
+          targetWeekStart: "2026-06-08"
+        }
+      }),
+      {
+        ok: false,
+        message: "目标周只能选择本周或未来周。"
+      }
+    );
+
+    assert.deepEqual(
+      buildCopyWeekSchedulesPayload({
+        coursePackageId: 2,
+        currentDate: "2026-06-19",
+        draft: {
+          sourceWeekStart: "2026-06-19",
           targetWeekStart: "2026-06-19"
         }
       }),
       {
         ok: false,
-        message: "目标周只能选择未来周。"
+        message: "来源周和目标周不能相同。"
       }
     );
   });

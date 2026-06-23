@@ -29,12 +29,13 @@ export default function CopyWeekSchedulesDialog({
 }) {
   const currentWeekStart = weekStartValue(todayValue());
   const sourceMax = addDaysValue(currentWeekStart, 6);
-  const targetMin = addDaysValue(currentWeekStart, 7);
+  const targetMin = currentWeekStart;
   const confirmDisabled =
     !draft.sourceWeekStart ||
     !draft.targetWeekStart ||
     draft.sourceWeekStart > currentWeekStart ||
-    draft.targetWeekStart <= currentWeekStart;
+    draft.targetWeekStart < currentWeekStart ||
+    draft.sourceWeekStart === draft.targetWeekStart;
 
   return (
     <Dialog title="复制指定周排课" width={520} onClose={onClose} onConfirm={onConfirm} confirmText="复制" confirmDisabled={confirmDisabled}>
@@ -68,7 +69,7 @@ export default function CopyWeekSchedulesDialog({
               }))
             }
           />
-          <small>未来周 · {formatWeekRange(draft.targetWeekStart)}</small>
+          <small>本周或未来周 · {formatWeekRange(draft.targetWeekStart)}</small>
         </label>
 
         <p className="copy-week-note">来源周和目标周都会按周一作为起始日期。</p>

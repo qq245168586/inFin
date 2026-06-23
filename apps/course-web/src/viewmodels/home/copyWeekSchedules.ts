@@ -58,10 +58,16 @@ export function buildCopyWeekSchedulesPayload({
       message: "来源周只能选择过去周或本周。"
     };
   }
-  if (targetWeekStart <= currentWeekStart) {
+  if (targetWeekStart < currentWeekStart) {
     return {
       ok: false,
-      message: "目标周只能选择未来周。"
+      message: "目标周只能选择本周或未来周。"
+    };
+  }
+  if (sourceWeekStart === targetWeekStart) {
+    return {
+      ok: false,
+      message: "来源周和目标周不能相同。"
     };
   }
 
