@@ -1,0 +1,14 @@
+set timeout -1
+set host "REDACTED_CONFIGURE_LOCALLY@8.130.65.113"
+set password "REDACTED_CONFIGURE_LOCALLY"
+set command [lindex $argv 0]
+spawn ssh -o StrictHostKeyChecking=no $host $command
+expect {
+  -re "(?i)password:" {
+    send "$password\r"
+    exp_continue
+  }
+  eof
+}
+catch wait result
+exit [lindex $result 3]
