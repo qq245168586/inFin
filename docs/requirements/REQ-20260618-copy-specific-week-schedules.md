@@ -5,7 +5,7 @@
 - Status: Ready for QA
 - Owner: Course scheduling
 - Created: 2026-06-18
-- Updated: 2026-06-21
+- Updated: 2026-06-23
 - Related docs:
   - [课程课表元数据与 TV 展示改造](../course-schedule-metadata-redesign.md)
   - [课程端/场馆管理端拆分需求](../course-web-separation-requirements.md)
@@ -15,9 +15,9 @@
 
 ## Requirement Summary
 
-当前首页课表只有“一键复制上周排课”，固定把上一周复制到当前周。新需求是把这个按钮升级为“复制指定周排课”：点击后弹出周选择弹窗，编课者可以选择一个过去周或本周作为来源周，再选择一个未来的目标周，把来源周的所有排课复制到目标周。
+当前首页课表只有“一键复制上周排课”，固定把上一周复制到当前周。新需求是把这个按钮升级为“复制指定周排课”：点击后弹出周选择弹窗，编课者可以选择一个过去周或本周作为来源周，再选择本周或未来周作为目标周，把来源周的可复制排课复制到目标周。
 
-复制仍然按课程包隔离，只复制当前选中课程包下的排课。目标周必须是未来周，避免覆盖已经发生或正在发生的课程安排。
+复制仍然按课程包隔离，只复制当前选中课程包下的排课。目标周如果是本周，只复制今天及之后的日期；已经过去的目标日期不复制，也不参与覆盖判断。
 
 ## Background
 
@@ -28,7 +28,7 @@
   - 服务端固定取上周排课，复制到本周。
 - 问题：
   - 编课者不能选择更早的历史周。
-  - 编课者不能把历史周复制到指定未来周。
+  - 编课者不能把历史周复制到指定未来周或本周剩余日期。
   - 如果课程结构按月或训练周期复用，固定“上周 -> 本周”不够用。
 - 业务原因：
   - 排课越来越接近“课程包的发布机制”，需要支持更灵活的周计划复用。
@@ -43,9 +43,10 @@
 - 将“一键复制上周排课”改为“复制周排课”或“复制指定周”。
 - 点击按钮后打开弹窗，选择：
   - 来源周：可以选择过去周或本周。
-  - 目标周：只能选择未来周。
-- 复制来源周内当前课程包的所有排课到目标周，保持星期几相对位置一致。
-- 如果目标周已有排课，必须二次确认；确认后覆盖目标周当前课程包排课。
+  - 目标周：可以选择本周或未来周。
+- 复制来源周内当前课程包的可复制排课到目标周，保持星期几相对位置一致。
+- 如果目标周是本周，跳过今天之前的目标日期。
+- 如果目标周可复制日期范围内已有排课，必须二次确认；确认后覆盖目标周当前课程包在该范围内的排课。
 - 保持旧数据兼容，不做破坏性数据库迁移。
 
 ## Non-goals
@@ -60,7 +61,7 @@
 
 | Document / Feature | Relationship | Notes |
 | --- | --- | --- |
-| `course-schedule-metadata-redesign.md` | Extends | 原文只描述“复制上周排课”，本需求升级为可选择过去周或本周复制到未来周。 |
+| `course-schedule-metadata-redesign.md` | Extends | 原文只描述“复制上周排课”，本需求升级为可选择过去周或本周复制到本周剩余日期或未来周。 |
 | `course-web-separation-requirements.md` | Aligns | 其中提到“支持复制上周 / 复制某天排课”，本需求先实现周级复制。 |
 | `HomePage` 当前复制按钮 | Replaces | 当前按钮文案和行为都需要更新。 |
 
@@ -143,8 +144,11 @@ POST /api/schedules/copy-week:
   if sourceWeekStart > startOfWeek(today):
     return 400 "来源周必须是过去周或本周"
 
-  if targetWeekStart <= startOfWeek(today):
-    return 400 "目标周必须是未来周"
+  if targetWeekStart < startOfWeek(today):
+    return 400 "目标周必须是本周或未来周"
+
+  if sourceWeekStart == targetWeekStart:
+    return 400 "来源周和目标周不能相同"
 
   sourceSchedules = schedules where:
     same coursePackageId
@@ -154,16 +158,20 @@ POST /api/schedules/copy-week:
   if sourceSchedules is empty:
     return 400 "来源周没有排课"
 
-  targetSchedules = schedules where same coursePackageId and in target week
+  targetCopyStart = targetWeekStart == startOfWeek(today) ? today : targetWeekStart
+  plannedCopies = sourceSchedules mapped into target week, filtered to targetDate >= targetCopyStart
+
+  if plannedCopies is empty:
+    return 400 "目标周没有可复制日期"
+
+  targetSchedules = schedules where same coursePackageId and in [targetCopyStart, targetWeekEnd)
   if targetSchedules exists and !replaceExisting:
     return 409 "目标周已有排课"
 
-  remove targetSchedules for that coursePackageId
+  remove targetSchedules for that coursePackageId and date range
 
-  copied = sourceSchedules.map(schedule):
-    offsetDays = date(schedule) - sourceWeekStart
-    targetDate = targetWeekStart + offsetDays
-    return new schedule with new id, targetDate beginTime, same course/coursePackage/version/duration
+  copied = plannedCopies.map(schedule):
+    return new schedule with new id, same course/coursePackage/version/duration
 
   persist()
   return copied
@@ -204,7 +212,8 @@ UI 建议：
   - 辅助文案：显示 `2026/06/01 - 2026/06/07 -> 2026/06/22 - 2026/06/28`。
 - 限制：
   - 来源周不能选择未来周。
-  - 目标周不能选择本周/过去周。
+  - 目标周不能选择过去周。
+  - 来源周和目标周不能相同。
 
 ### TV / Coach
 
@@ -252,10 +261,23 @@ Expected:
 - 目标周原排课被当前课程包的新复制结果替换。
 - 其它课程包的目标周排课不受影响。
 
+### Happy Flow 3: 复制过去周到本周剩余日期
+
+1. 假设今天是周二。
+2. 来源周选择一个有周一、周二、周四排课的过去周。
+3. 目标周选择本周。
+4. 点击确认。
+
+Expected:
+
+- 来源周映射到本周周一的课程不会复制。
+- 本周周二、周四会复制成功。
+- 如果本周周二到周日已有排课，会提示覆盖；本周已过去的周一不参与覆盖。
+
 ### Bad Flow 1: 来源周没有排课
 
 1. 选择一个没有排课的过去周作为来源周。
-2. 选择合法未来周作为目标周。
+2. 选择合法本周或未来周作为目标周。
 3. 点击确认。
 
 Expected:
@@ -266,7 +288,8 @@ Expected:
 ### Bad Flow 2: 选择非法日期
 
 1. 来源周选择未来周。
-2. 或目标周选择过去周/本周。
+2. 或目标周选择过去周。
+3. 或来源周和目标周选择同一周。
 
 Expected:
 
