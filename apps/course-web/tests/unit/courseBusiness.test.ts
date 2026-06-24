@@ -94,8 +94,8 @@ describe("action type helpers", () => {
 });
 
 describe("three-screen video rules", () => {
-  test("normalizes legacy all-two-column rows to five rows and caps oversized layouts", () => {
-    assert.deepEqual(normalizeVideoRowLayouts([2, 2, 2], 3), [2, 2, 2, 2, 2]);
+  test("keeps explicit row layouts and caps oversized layouts", () => {
+    assert.deepEqual(normalizeVideoRowLayouts([2, 2, 2], 3), [2, 2, 2]);
     assert.deepEqual(normalizeVideoRowLayouts([1, 2, 2, 1, 2, 1], 3), [1, 2, 2, 1, 2]);
     assert.deepEqual(normalizeVideoRowLayouts([1, 2, 1], 1), []);
   });

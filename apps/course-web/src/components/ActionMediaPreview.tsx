@@ -4,6 +4,7 @@ import {
   readCachedVideoThumbnail,
   writeCachedVideoThumbnail
 } from "../utils/videoThumbnailCache.ts";
+import { fetchActionThumbnailBlob } from "../services/actionThumbnails.ts";
 import { withCacheToken } from "../utils/url.ts";
 
 interface ActionMedia {
@@ -22,6 +23,7 @@ export interface ActionMediaPreviewAction {
 interface CachedVideoThumbnailProps {
   src: string;
   cacheKey: string;
+  actionId?: number | string;
   alt: string;
   className?: string;
   interactive?: boolean;
@@ -70,115 +72,12 @@ function releaseObjectUrl(url: string) {
   }
 }
 
-function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
-  return new Promise((resolve) => {
-    if (typeof canvas.toBlob !== "function") {
-      resolve(null);
-      return;
-    }
-    canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.82);
-  });
-}
-
-function generateVideoThumbnailBlob(src: string): Promise<Blob | null> {
-  if (typeof document === "undefined" || !src) {
-    return Promise.resolve(null);
-  }
-
-  return new Promise((resolve) => {
-    const video = document.createElement("video");
-    let finished = false;
-    let captureStarted = false;
-    const timeout = window.setTimeout(() => finish(null), 18000);
-
-    function cleanup() {
-      window.clearTimeout(timeout);
-      video.removeEventListener("loadedmetadata", handleLoadedMetadata);
-      video.removeEventListener("loadeddata", handleLoadedData);
-      video.removeEventListener("seeked", capture);
-      video.removeEventListener("error", handleError);
-      video.pause();
-      video.removeAttribute("src");
-      try {
-        video.load();
-      } catch {
-        // Best-effort release for detached media elements.
-      }
-    }
-
-    function finish(blob: Blob | null) {
-      if (finished) {
-        return;
-      }
-      finished = true;
-      cleanup();
-      resolve(blob);
-    }
-
-    async function capture() {
-      if (finished || video.videoWidth <= 0 || video.videoHeight <= 0) {
-        finish(null);
-        return;
-      }
-
-      try {
-        const canvas = document.createElement("canvas");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const context = canvas.getContext("2d");
-        if (!context) {
-          finish(null);
-          return;
-        }
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        finish(await canvasToBlob(canvas));
-      } catch {
-        finish(null);
-      }
-    }
-
-    function handleLoadedMetadata() {
-      if (captureStarted || finished) {
-        return;
-      }
-      captureStarted = true;
-      const nextTime = getVideoPreviewCaptureTime(video);
-      try {
-        if (nextTime > 0 && Math.abs(video.currentTime - nextTime) > 0.01) {
-          video.currentTime = nextTime;
-          return;
-        }
-      } catch {
-        // Some browser/media combinations reject seeking before data is ready.
-      }
-      capture();
-    }
-
-    function handleLoadedData() {
-      if (!captureStarted) {
-        handleLoadedMetadata();
-      }
-    }
-
-    function handleError() {
-      finish(null);
-    }
-
-    video.crossOrigin = "anonymous";
-    video.muted = true;
-    video.playsInline = true;
-    video.preload = "metadata";
-    video.addEventListener("loadedmetadata", handleLoadedMetadata);
-    video.addEventListener("loadeddata", handleLoadedData);
-    video.addEventListener("seeked", capture);
-    video.addEventListener("error", handleError);
-    video.src = src;
-    video.load();
-  });
-}
-
-async function getOrCreateVideoThumbnail(cacheKey: string, src: string): Promise<Blob | null> {
-  if (!src) {
+async function getOrCreateVideoThumbnail(
+  cacheKey: string,
+  actionId: number | string | undefined,
+  sourceUrl: string
+): Promise<Blob | null> {
+  if (!actionId) {
     return null;
   }
 
@@ -187,16 +86,16 @@ async function getOrCreateVideoThumbnail(cacheKey: string, src: string): Promise
     return cached;
   }
 
-  const requestKey = `${cacheKey || "uncached"}|${src}`;
+  const requestKey = `${cacheKey || "uncached"}|${actionId}`;
   const existingRequest = thumbnailRequests.get(requestKey);
   if (existingRequest) {
     return existingRequest;
   }
 
-  const request = generateVideoThumbnailBlob(src)
+  const request = fetchActionThumbnailBlob(actionId)
     .then(async (blob) => {
       if (blob && cacheKey) {
-        await writeCachedVideoThumbnail(cacheKey, blob, src);
+        await writeCachedVideoThumbnail(cacheKey, blob, sourceUrl);
       }
       return blob;
     })
@@ -400,6 +299,7 @@ export function FirstFrameVideo({
 export function CachedVideoThumbnail({
   src,
   cacheKey,
+  actionId,
   alt,
   className = "",
   interactive = true,
@@ -427,7 +327,7 @@ export function CachedVideoThumbnail({
     let cancelled = false;
     let objectUrl = "";
 
-    getOrCreateVideoThumbnail(cacheKey, src).then((blob) => {
+    getOrCreateVideoThumbnail(cacheKey, actionId, src).then((blob) => {
       if (cancelled) {
         return;
       }
@@ -447,7 +347,7 @@ export function CachedVideoThumbnail({
       cancelled = true;
       releaseObjectUrl(objectUrl);
     };
-  }, [cacheKey, ready, src]);
+  }, [actionId, cacheKey, ready, src]);
 
   const classes = [
     "cached-video-thumbnail",
@@ -557,6 +457,7 @@ export function ActionVideoThumbnail({
     <CachedVideoThumbnail
       src={mediaUrl}
       cacheKey={cacheKey}
+      actionId={action?.id}
       alt={`${action?.name || "动作"}视频缩略图`}
       className={className}
       interactive={interactive}
