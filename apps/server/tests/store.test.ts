@@ -121,6 +121,18 @@ test("lesson types are scoped to course packages and reused within the same pack
   assert.ok(store.listLessonTypes(null, { coursePackageId: 1 }).every((item: any) => item.id !== first.id));
 });
 
+test("meta payload can be built with full course details", async (t) => {
+  const store = await importStore(t);
+
+  const payload = store.getMetaPayload(null, { includeFullCourses: true });
+
+  assert.ok(Array.isArray(payload.actionTypes));
+  assert.ok(Array.isArray(payload.coursePackages));
+  assert.ok(Array.isArray(payload.courses));
+  assert.equal(payload.coursesMode, "full");
+  assert.ok(payload.schedules?.currentWeek);
+});
+
 test("deleteCourse blocks courses scheduled for today or the future", async (t) => {
   const store = await importStore(t);
   const futureMonday = nextMonday(1);

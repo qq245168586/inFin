@@ -3928,5 +3928,7 @@ export function isVenuePlaybackActive(venue) {
  */
 export function listCoursePackagesForUser(user = null) {
   const visiblePackageIds = getUserVisibleCoursePackageIdSet(user);
-  return listCoursePackages().filter((item) => !visiblePackageIds || visiblePackageIds.has(Number(item.id)));
+  return sortByNewest(state.coursePackages || [], "updateTime")
+    .map(serializeCoursePackage)
+    .filter((item) => !visiblePackageIds || visiblePackageIds.has(Number(item.id)));
 }

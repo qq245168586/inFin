@@ -19,6 +19,7 @@ import {
   __dirname,
   actionAllowsUser,
   actionMatchesCoursePackageScope,
+  actionTypeAllowsUser,
   actionTypeMatchesCoursePackageScope,
   addCalendarDays,
   addUniqueCourseSeconds,
