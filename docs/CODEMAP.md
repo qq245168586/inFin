@@ -39,6 +39,7 @@ flowchart LR
 - `src/data/json-file-store.ts`：JSON DB store public barrel，只 re-export 业务域 store。
 - `src/data/json-store/core.ts`：共享 JSON DB state、storage root、备份、normalize/derive/scope helper。
 - `src/data/json-store/media-app-store.ts`：媒体文件和 TV app package 上传、登记、下载。
+- `src/services/media-thumbnails.ts`：动作视频服务端缩略图派生缓存，按 action/media 版本生成 JPG，不写入 DB。
 - `src/data/json-store/admin-store.ts`：用户、场馆、课程包、管理端元数据。
 - `src/data/json-store/content-store.ts`：动作、动作类型、课程、课程模板。
 - `src/data/json-store/schedule-store.ts`：排课、复制排课、未来无效排课清理。
@@ -73,7 +74,8 @@ flowchart LR
 - 编课人员和超级管理员使用。
 - 按课程包隔离动作、课程、模板、排课。
 - 管理动作视频、动作分类、课程脚本、课程计划。
-- 动作视频展示默认走浏览器本地缩略图缓存，只有用户点击播放时才加载视频。
+- 动作视频展示默认走服务端派生缩略图 + 浏览器本地 IndexedDB 缓存，只有用户点击播放时才加载视频。
+- 三屏视频组的 rowLayouts 是编课者显式添加/删除的行数，最多 5 行；不再自动从 3 行两列扩展到 5 行。
 - 课程模板用于快速生成课程骨架。
 - 排课后的课程会被 TV/Coach 按当前场馆课程包读取。
 
