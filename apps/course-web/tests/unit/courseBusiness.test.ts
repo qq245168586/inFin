@@ -248,6 +248,48 @@ describe("pod timing and endings", () => {
     assert.equal(total, 185);
   });
 
+  test("calculates switch-flow timing for every action pair in each loop", () => {
+    const linkedScreen = createScreen(1, [
+      createVideoCard("card-1", "1A"),
+      createVideoCard("card-2", "1B"),
+      createVideoCard("card-3", "2A"),
+      createVideoCard("card-4", "2B")
+    ]);
+    const total = getSwitchPodScreenTotal(
+      {
+        id: "pod-screen-1",
+        screenIndex: 1,
+        loopCount: 2,
+        stationRestSeconds: 20,
+        setConfigs: [
+          {
+            id: "set-1",
+            workSeconds: 40,
+            restSeconds: 15
+          },
+          {
+            id: "set-2",
+            workSeconds: 40,
+            restSeconds: 15
+          },
+          {
+            id: "set-3",
+            workSeconds: 40,
+            restSeconds: 15
+          },
+          {
+            id: "set-4",
+            workSeconds: 40,
+            restSeconds: 0
+          }
+        ]
+      },
+      linkedScreen
+    );
+
+    assert.equal(total, 1840);
+  });
+
   test("rebalancePodEndings reserves FINISH for the final pod", () => {
     const draft = createCourseDraft();
     const firstPod = {
