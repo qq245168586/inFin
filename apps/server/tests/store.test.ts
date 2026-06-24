@@ -123,8 +123,9 @@ test("lesson types are scoped to course packages and reused within the same pack
 
 test("meta payload can be built with full course details", async (t) => {
   const store = await importStore(t);
+  const user = store.getUserByUsername("coach");
 
-  const payload = store.getMetaPayload(null, { includeFullCourses: true });
+  const payload = store.getMetaPayload(user, { includeFullCourses: true });
 
   assert.ok(Array.isArray(payload.actionTypes));
   assert.ok(Array.isArray(payload.coursePackages));

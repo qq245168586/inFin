@@ -46,6 +46,7 @@ import {
   copyDirectoryRecursive,
   courseAllowsUser,
   coursePackageAllowsCourse,
+  courseScriptUsesAction,
   courseStationRuleAliases,
   courseStationRuleFields,
   courseSummaryFromScript,

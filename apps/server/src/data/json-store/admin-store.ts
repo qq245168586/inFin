@@ -113,6 +113,7 @@ import {
   isMd5Digest,
   isPlainObject,
   isSeedEnvironmentLabel,
+  isSuperAdminUser,
   isVenuePlaybackActive,
   lessonTypeAllowsUser,
   lessonTypeMatchesCoursePackageScope,
@@ -372,13 +373,6 @@ export function upsertConsoleUser(payload = {}) {
   }
   persist();
   return publicUserInfo(existing);
-}
-
-/**
- * 判断是否满足 is super admin user 条件，供调用方做分支处理。
- */
-export function isSuperAdminUser(user) {
-  return Boolean(user) && (trimText(user.role) === "superadmin" || SUPERADMIN_USERNAMES.has(trimText(user.username)));
 }
 
 /**

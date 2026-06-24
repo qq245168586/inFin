@@ -14,6 +14,7 @@ import {
 } from "../../../../../packages/shared/src/course-script.js";
 
 export { fs, path };
+export { courseScriptUsesAction };
 
 export const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const defaultStorageRoot = path.resolve(__dirname, "../../../storage");
@@ -64,6 +65,13 @@ export const CONSOLE_ACCOUNT_PRESETS = [
 export function isSeedEnvironmentLabel(label = "") {
   const normalized = trimText(label);
   return normalized === "正式环境" || normalized === "测试环境" || normalized === "自定义环境";
+}
+
+/**
+ * 判断用户是否为 super admin，供课程包可见性等底层范围判断复用。
+ */
+export function isSuperAdminUser(user) {
+  return Boolean(user) && (trimText(user.role) === "superadmin" || SUPERADMIN_USERNAMES.has(trimText(user.username)));
 }
 
 export const defaultState = createDefaultState();

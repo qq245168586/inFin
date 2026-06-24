@@ -5,7 +5,8 @@
   "packageManager": "pnpm@10.11.0",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "vitest run",
+    "check:refs": "node scripts/check-unbound-references.mjs",
+    "test": "pnpm run check:refs && vitest run",
     "test:coverage": "vitest run --coverage",
     "test:allure": "INFINI_ALLURE=1 vitest run --coverage",
     "coverage": "pnpm run test:coverage",
