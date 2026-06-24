@@ -2053,7 +2053,7 @@ export function normalizeTemplateVideoGroup(videoGroup = {}) {
     const source = Array.isArray(rowLayouts) ? rowLayouts : [];
     if (!source.length) return [1, 1, 1];
     const rows = source.map((columns) => (Number(columns) === 2 ? 2 : 1));
-    return rows.length === 3 && rows.every((columns) => columns === 2) ? [2, 2, 2, 2, 2] : rows;
+    return rows.slice(0, 5);
   };
   const fitCardsForRows = (cards, rowLayouts) => {
     if (screenCount === 1) return cards.length ? cards : [{}];

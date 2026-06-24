@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "vitest";
 import { buildStorageKey, getMediaStorageMode, uploadBufferToOss } from "../src/services/media-storage.ts";
+import { buildActionThumbnailKey } from "../src/services/media-thumbnails.ts";
 
 const OSS_ENV_KEYS = [
   "OSS_ACCESS_KEY_ID",
@@ -69,6 +70,35 @@ test("uploadBufferToOss encodes path segments and returns public url", async () 
     storage: "oss",
     url: "https://cdn.example.test/assets/tenant-a/media/clip%201.mp4"
   });
+});
+
+test("buildActionThumbnailKey stays stable and invalidates on action media changes", () => {
+  const action = {
+    id: 18,
+    updateTime: "2026-06-24T08:00:00.000Z",
+    media: {
+      url: "https://cdn.example.com/actions/row.mp4",
+      checksum: "abc",
+      sizeBytes: 1024
+    }
+  };
+  const first = buildActionThumbnailKey(action);
+
+  assert.equal(buildActionThumbnailKey({ ...action }), first);
+  assert.notEqual(
+    buildActionThumbnailKey({
+      ...action,
+      updateTime: "2026-06-24T09:00:00.000Z"
+    }),
+    first
+  );
+  assert.notEqual(
+    buildActionThumbnailKey({
+      ...action,
+      media: { ...action.media, url: "https://cdn.example.com/actions/row-v2.mp4" }
+    }),
+    first
+  );
 });
 
 function configureOssEnv() {

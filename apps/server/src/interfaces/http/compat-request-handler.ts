@@ -84,6 +84,7 @@ import {
   updatePlaybackSessionState
 } from "../../data/store.js";
 import { buildStorageKey, getMediaStorageMode, uploadBufferToOss } from "../../services/media-storage.js";
+import { getOrCreateActionThumbnailFile } from "../../services/media-thumbnails.js";
 import { getTvControlConfig, publishTvControl, publishTvSessionEvent } from "../../services/tv-control.js";
 import { readOpsEvents, startOpsMqttSubscriber, subscribeOpsEvents } from "../../services/mqtt-ops-log.js";
 import { readJsonBody, readRequestBuffer, sendFile, sendJson, sendNoContent } from "../../utils/http.js";
@@ -2453,6 +2454,35 @@ export async function handleCompatRequest(request, response) {
       }
 
       sendFile(request, response, filePath, media.type || guessMimeType(filename));
+      return;
+    }
+
+    const actionThumbnailMatch = /^\/api\/actions\/(\d+)\/thumbnail$/.exec(url.pathname);
+    if ((request.method === "GET" || request.method === "HEAD") && actionThumbnailMatch) {
+      const user = requireAuthorizedConsoleUser(request, response);
+
+      if (!user) {
+        return;
+      }
+
+      const actionId = Number(actionThumbnailMatch[1]);
+      const action = listActions(user).find((item) => Number(item.id) === actionId) || null;
+      if (!action?.media?.url) {
+        sendJson(response, 404, { message: "动作视频不存在。" });
+        return;
+      }
+
+      try {
+        const thumbnailFile = await getOrCreateActionThumbnailFile(action, getMediaRoot());
+        if (!thumbnailFile || !fs.existsSync(thumbnailFile)) {
+          sendJson(response, 404, { message: "动作缩略图不可用。" });
+          return;
+        }
+        sendFile(request, response, thumbnailFile, "image/jpeg");
+      } catch (error) {
+        console.warn("[media-thumbnail] failed", error instanceof Error ? error.message : error);
+        sendJson(response, 503, { message: "动作缩略图生成失败。" });
+      }
       return;
     }
 
