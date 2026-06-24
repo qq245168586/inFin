@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import Dialog from "../components/Dialog.tsx";
 import EmptyBlock from "../components/EmptyBlock.tsx";
 import FilterChips, { type ChipOption } from "../components/FilterChips.tsx";
 import InnerTabs from "../components/InnerTabs.tsx";
-import { FirstFrameVideo } from "../components/ActionMediaPreview.tsx";
+import { ActionVideoThumbnail, FirstFrameVideo } from "../components/ActionMediaPreview.tsx";
 import { formatDate } from "../utils/datetime.ts";
 import { withCacheToken } from "../utils/url.ts";
 import type { ActionRecord } from "../services/api/meta.ts";
@@ -44,87 +44,15 @@ function ActionThumbnail({
   action: ActionRecord;
   onPlay: (action: ActionRecord) => void;
 }) {
-  const buttonRef = useRef<HTMLButtonElement | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const [shouldLoad, setShouldLoad] = useState(false);
-  const [hasFrame, setHasFrame] = useState(false);
-  const mediaUrl = action.media?.url ? withCacheToken(action.media.url, action.updateTime) : "";
-
-  useEffect(() => {
-    setShouldLoad(false);
-    setHasFrame(false);
-  }, [mediaUrl]);
-
-  useEffect(() => {
-    const button = buttonRef.current;
-    if (!button || !mediaUrl) {
-      return;
-    }
-
-    if (typeof IntersectionObserver === "undefined") {
-      setShouldLoad(true);
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          setShouldLoad(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: "240px" }
-    );
-    observer.observe(button);
-
-    return () => observer.disconnect();
-  }, [mediaUrl]);
-
-  function seekToPreviewFrame(video: HTMLVideoElement) {
-    const duration = Number(video.duration);
-    const previewTime = Number.isFinite(duration) && duration > 0 ? Math.min(0.18, Math.max(duration * 0.02, 0.05), Math.max(duration - 0.01, 0)) : 0.08;
-
-    try {
-      if (Math.abs(video.currentTime - previewTime) > 0.01) {
-        video.currentTime = previewTime;
-      }
-    } catch {
-      setHasFrame(true);
-    }
-  }
-
-  if (!mediaUrl) {
-    return (
-      <button type="button" className="action-thumb-button is-empty" disabled aria-label={`${action.name} 暂无视频`}>
-        <span>无视频</span>
-      </button>
-    );
-  }
-
   return (
-    <button
-      ref={buttonRef}
-      type="button"
-      className={`action-thumb-button${hasFrame ? " has-frame" : ""}`}
-      onClick={() => onPlay(action)}
-      aria-label={`播放 ${action.name}`}
-    >
-      {shouldLoad ? (
-        <video
-          ref={videoRef}
-          src={mediaUrl}
-          muted
-          playsInline
-          preload="metadata"
-          tabIndex={-1}
-          onLoadedMetadata={(event) => seekToPreviewFrame(event.currentTarget)}
-          onLoadedData={() => setHasFrame(true)}
-          onSeeked={() => setHasFrame(true)}
-          onError={() => setHasFrame(false)}
-        />
-      ) : null}
-      <span className="action-thumb-play">播放</span>
-    </button>
+    <ActionVideoThumbnail
+      action={action}
+      className="action-thumb-button"
+      emptyCopy="无视频"
+      inlinePlayback={false}
+      playLabel="播放"
+      onPreviewClick={() => onPlay(action)}
+    />
   );
 }
 

@@ -883,7 +883,8 @@ textarea.is-invalid:focus {
   border-radius: 20px;
 }
 
-.action-picker-preview-card .action-media-preview-frame video {
+.action-picker-preview-card .action-media-preview-frame video,
+.action-picker-preview-card .action-media-preview-frame .cached-video-thumbnail {
   pointer-events: none;
 }
 
@@ -2007,18 +2008,54 @@ textarea.is-invalid:focus {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 
+.cached-video-thumbnail {
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 0;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+button.cached-video-thumbnail {
+  font: inherit;
+}
+
+.cached-video-thumbnail.is-interactive {
+  cursor: pointer;
+}
+
+.cached-video-thumbnail img,
+.cached-video-thumbnail video,
+.action-thumb-button img,
 .action-thumb-button video {
   width: 100%;
   height: 100%;
   display: block;
   object-fit: cover;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 160ms ease;
+  background: #000000;
 }
 
-.action-thumb-button.has-frame video {
+.cached-video-thumbnail img,
+.action-thumb-button img {
   opacity: 1;
+}
+
+.action-thumb-button video {
+  pointer-events: none;
+}
+
+.cached-video-thumbnail-placeholder {
+  padding: 0 8px;
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.cached-video-thumbnail.has-failed .cached-video-thumbnail-placeholder {
+  color: rgba(255, 255, 255, 0.54);
 }
 
 .action-thumb-play {
@@ -2035,6 +2072,10 @@ textarea.is-invalid:focus {
 .action-thumb-button.has-frame .action-thumb-play {
   color: #ffe884;
   background: rgba(5, 7, 13, 0.72);
+}
+
+.cached-video-thumbnail.is-playing .action-thumb-play {
+  display: none;
 }
 
 .action-thumb-button.is-empty {
@@ -2977,6 +3018,19 @@ textarea.is-invalid:focus {
   justify-content: center;
 }
 
+.action-media-preview-frame .cached-video-thumbnail {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: inherit;
+  background: #0f1118;
+}
+
+.action-picker-preview-card .action-media-preview-frame .cached-video-thumbnail.is-interactive {
+  pointer-events: auto;
+}
+
+.action-media-preview-frame img,
 .action-media-preview-frame video {
   width: 100%;
   height: 100%;
@@ -3238,7 +3292,8 @@ textarea.is-invalid:focus {
   border-radius: 0;
 }
 
-.screen-video-slot-preview .action-media-preview-frame video {
+.screen-video-slot-preview .action-media-preview-frame video,
+.screen-video-slot-preview .action-media-preview-frame .cached-video-thumbnail {
   pointer-events: none;
 }
 

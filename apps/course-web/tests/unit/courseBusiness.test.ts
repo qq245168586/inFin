@@ -18,6 +18,10 @@ import {
   createCopyWeekSchedulesDraft
 } from "../../src/viewmodels/home/copyWeekSchedules.ts";
 import {
+  buildVideoThumbnailCacheKey,
+  selectVideoThumbnailKeysToDelete
+} from "../../src/utils/videoThumbnailCache.ts";
+import {
   coursePackages,
   createCourseDraft,
   createScreen,
@@ -427,6 +431,67 @@ describe("copy-week schedules", () => {
         ok: false,
         message: "来源周和目标周不能相同。"
       }
+    );
+  });
+});
+
+describe("video thumbnail cache", () => {
+  test("builds stable action thumbnail keys and invalidates on video updates", () => {
+    const base = buildVideoThumbnailCacheKey({
+      actionId: 18,
+      mediaUrl: "https://cdn.example.com/actions/row.mp4",
+      updateTime: "2026-06-24T08:00:00.000Z"
+    });
+
+    assert.equal(
+      base,
+      buildVideoThumbnailCacheKey({
+        actionId: 18,
+        mediaUrl: "https://cdn.example.com/actions/row.mp4",
+        updateTime: "2026-06-24T08:00:00.000Z"
+      })
+    );
+    assert.notEqual(
+      base,
+      buildVideoThumbnailCacheKey({
+        actionId: 18,
+        mediaUrl: "https://cdn.example.com/actions/row-v2.mp4",
+        updateTime: "2026-06-24T08:00:00.000Z"
+      })
+    );
+    assert.notEqual(
+      base,
+      buildVideoThumbnailCacheKey({
+        actionId: 18,
+        mediaUrl: "https://cdn.example.com/actions/row.mp4",
+        updateTime: "2026-06-24T09:00:00.000Z"
+      })
+    );
+  });
+
+  test("selects oldest thumbnails for deletion until cache is under the limit", () => {
+    assert.deepEqual(
+      selectVideoThumbnailKeysToDelete(
+        [
+          { key: "newest", bytes: 40, updatedAt: 300 },
+          { key: "oldest", bytes: 70, updatedAt: 100 },
+          { key: "middle", bytes: 50, updatedAt: 200 }
+        ],
+        90
+      ),
+      ["oldest"]
+    );
+
+    assert.deepEqual(
+      selectVideoThumbnailKeysToDelete(
+        [
+          { key: "a", bytes: 60, updatedAt: 100 },
+          { key: "b", bytes: 60, updatedAt: 200 },
+          { key: "c", bytes: 60, updatedAt: 300 }
+        ],
+        80
+      ),
+      ["a", "b"]
     );
   });
 });
