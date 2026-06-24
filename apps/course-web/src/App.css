@@ -883,7 +883,6 @@ textarea.is-invalid:focus {
   border-radius: 20px;
 }
 
-.action-picker-preview-card .action-media-preview-frame video,
 .action-picker-preview-card .action-media-preview-frame .cached-video-thumbnail {
   pointer-events: none;
 }

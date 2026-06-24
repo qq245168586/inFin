@@ -460,11 +460,21 @@ export function CachedVideoThumbnail({
     .filter(Boolean)
     .join(" ");
 
+  const placeholderText = failed
+    ? interactive
+      ? "缩略图暂不可用，点击播放"
+      : "缩略图暂不可用"
+    : interactive
+      ? "点击播放视频"
+      : ready
+        ? "生成缩略图..."
+        : "视频缩略图";
+
   const content = isPlaying ? (
     <video key={src} src={src} controls autoPlay playsInline preload="auto" />
   ) : (
     <>
-      {thumbnailUrl ? <img src={thumbnailUrl} alt={alt} /> : <span className="cached-video-thumbnail-placeholder">{ready ? "生成缩略图..." : "视频缩略图"}</span>}
+      {thumbnailUrl ? <img src={thumbnailUrl} alt={alt} /> : <span className="cached-video-thumbnail-placeholder">{placeholderText}</span>}
       {interactive ? <span className="action-thumb-play">{playLabel}</span> : null}
     </>
   );
