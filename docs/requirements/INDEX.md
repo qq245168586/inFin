@@ -9,6 +9,7 @@
 | ID | Title | Status | Apps | Owner Notes |
 | --- | --- | --- | --- | --- |
 | [REQ-20260619-coach-course-package-switch-settings](REQ-20260619-coach-course-package-switch-settings.md) | Coach 设置中切换场馆课程包 | Ready for QA | `coach-web`, `server`, `tv-android`, `mqtt-client` | 设置中显示场馆已绑定课程包，持久化当前启用课程包后通知 TV 刷新课表。 |
+| [REQ-20260624-course-action-thumbnail-cache](REQ-20260624-course-action-thumbnail-cache.md) | Course 动作视频缩略图本地缓存 | Ready for QA | `course-web` | 动作展示窗口先显示 IndexedDB 本地缩略图，点击后才播放视频，缓存上限 5GB。 |
 | [REQ-20260618-schedule-card-edit-course-entry](REQ-20260618-schedule-card-edit-course-entry.md) | 课表卡片快速编辑课程入口 | Ready for QA | `course-web` | 在课表 item 右下角增加“编辑课程”按钮，快速打开课程编辑 tab。 |
 | [REQ-20260618-copy-specific-week-schedules](REQ-20260618-copy-specific-week-schedules.md) | 复制指定周排课 | Ready for QA | `server`, `course-web` | 升级“一键复制上周排课”，支持选择过去周或本周复制到本周剩余日期或未来目标周。 |
 | [REQ-20260621-server-request-compat-store-refactor](REQ-20260621-server-request-compat-store-refactor.md) | Server Request 兼容层与 Store 命名重构 | Ready for QA | `server` | 删除 `src/legacy`，把兼容协议集中到 request 适配层，JSON store 按 TV / 课程 / Admin / 排课 / 媒体包拆分。 |
