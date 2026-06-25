@@ -42,7 +42,7 @@ export default function AppRoot() {
   const [typeDialog, setTypeDialog] = useState<TypeDialogState | null>(null);
   const [selectedCoursePackageId, setSelectedCoursePackageId] = useState("");
   const [courseEditorOpenRequest, setCourseEditorOpenRequest] = useState<CourseEditorOpenRequest | null>(null);
-  const loadedCoursePackageIdRef = useRef("");
+  const loadedMetaProfileRef = useRef("");
 
   const templateCollections = useMemo(() => appData?.templates, [appData?.templates]);
   const coursePackages = useMemo(() => appData?.coursePackages || [], [appData?.coursePackages]);
@@ -89,21 +89,32 @@ export default function AppRoot() {
 
   useEffect(() => {
     if (!authSession || !selectedCoursePackageId) {
-      loadedCoursePackageIdRef.current = "";
+      loadedMetaProfileRef.current = "";
       return;
     }
 
     const nextCoursePackageId = String(selectedCoursePackageId);
-    if (loadedCoursePackageIdRef.current === nextCoursePackageId) {
+    const needsActions = activePage === "actions" || activePage === "courses" || activePage === "templates";
+    const needsTemplates = activePage === "courses" || activePage === "templates";
+
+    if (!needsActions && !needsTemplates) {
       return;
     }
 
-    loadedCoursePackageIdRef.current = nextCoursePackageId;
+    const nextProfile = `${activePage}:${nextCoursePackageId}:${needsActions ? "actions" : ""}:${needsTemplates ? "templates" : ""}`;
+    if (loadedMetaProfileRef.current === nextProfile) {
+      return;
+    }
+
+    loadedMetaProfileRef.current = nextProfile;
     void reloadMeta({
       label: "正在加载课程包...",
-      coursePackageId: Number(nextCoursePackageId)
+      coursePackageId: Number(nextCoursePackageId),
+      includeActions: needsActions,
+      includeTemplates: needsTemplates,
+      includeSchedules: false
     });
-  }, [authSession, reloadMeta, selectedCoursePackageId]);
+  }, [activePage, authSession, reloadMeta, selectedCoursePackageId]);
 
   async function confirmTypeDialog() {
     const cleanedTypeName = stripMediaSuffix(typeDialog?.value || "");

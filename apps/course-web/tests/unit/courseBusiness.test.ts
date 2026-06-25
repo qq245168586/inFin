@@ -107,9 +107,17 @@ describe("week schedules api", () => {
     }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await fetchMeta("Bearer test", { coursePackageId: 2, includeSchedules: false });
+    await fetchMeta("Bearer test", {
+      coursePackageId: 2,
+      includeSchedules: false,
+      includeActions: false,
+      includeTemplates: false
+    });
 
-    assert.equal(fetchMock.mock.calls[0][0], "/api/meta?coursePackageId=2&includeSchedules=0");
+    assert.equal(
+      fetchMock.mock.calls[0][0],
+      "/api/meta?coursePackageId=2&includeSchedules=0&includeActions=0&includeTemplates=0"
+    );
   });
 
   test("fetches one full course through meta when a course id is requested", async () => {

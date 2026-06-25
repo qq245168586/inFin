@@ -65,6 +65,8 @@ export async function fetchMeta(
     courseId?: number | null;
     includeFullCourses?: boolean;
     includeSchedules?: boolean;
+    includeActions?: boolean;
+    includeTemplates?: boolean;
   } = {}
 ): Promise<MetaPayload> {
   const params = new URLSearchParams();
@@ -82,6 +84,12 @@ export async function fetchMeta(
   }
   if (options.includeSchedules === false) {
     params.set("includeSchedules", "0");
+  }
+  if (options.includeActions === false) {
+    params.set("includeActions", "0");
+  }
+  if (options.includeTemplates === false) {
+    params.set("includeTemplates", "0");
   }
 
   const query = params.toString();

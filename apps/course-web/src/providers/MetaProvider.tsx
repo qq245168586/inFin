@@ -8,6 +8,8 @@ export interface ReloadMetaOptions {
   courseId?: number | null;
   includeFullCourses?: boolean;
   includeSchedules?: boolean;
+  includeActions?: boolean;
+  includeTemplates?: boolean;
 }
 
 interface MetaContextValue {
@@ -41,19 +43,41 @@ export default function MetaProvider({
 }) {
   const [appData, setAppData] = useState<MetaPayload | null>(null);
   const activeCoursePackageIdRef = useRef<number | null>(null);
+  const includeActionsRef = useRef(false);
+  const includeTemplatesRef = useRef(false);
+  const includeSchedulesRef = useRef(false);
+  const includeFullCoursesRef = useRef(false);
   const requestSeqRef = useRef(0);
 
   const clearMeta = useCallback(() => {
     activeCoursePackageIdRef.current = null;
+    includeActionsRef.current = false;
+    includeTemplatesRef.current = false;
+    includeSchedulesRef.current = false;
+    includeFullCoursesRef.current = false;
     setAppData(null);
   }, []);
 
   const reloadMeta = useCallback(
     async (options: string | ReloadMetaOptions = "") => {
       const label = typeof options === "string" ? options : options.label || "";
-      if (typeof options === "object" && "coursePackageId" in options) {
-        const nextCoursePackageId = Number(options.coursePackageId || 0);
-        activeCoursePackageIdRef.current = nextCoursePackageId > 0 ? nextCoursePackageId : null;
+      if (typeof options === "object") {
+        if ("coursePackageId" in options) {
+          const nextCoursePackageId = Number(options.coursePackageId || 0);
+          activeCoursePackageIdRef.current = nextCoursePackageId > 0 ? nextCoursePackageId : null;
+        }
+        if ("includeActions" in options) {
+          includeActionsRef.current = options.includeActions === true;
+        }
+        if ("includeTemplates" in options) {
+          includeTemplatesRef.current = options.includeTemplates === true;
+        }
+        if ("includeSchedules" in options) {
+          includeSchedulesRef.current = options.includeSchedules === true;
+        }
+        if ("includeFullCourses" in options) {
+          includeFullCoursesRef.current = options.includeFullCourses === true;
+        }
       }
 
       if (label) onBusyText(label);
@@ -63,8 +87,10 @@ export default function MetaProvider({
         const payload = await fetchMeta(authHeader, {
           coursePackageId: activeCoursePackageIdRef.current,
           courseId: typeof options === "object" ? options.courseId : null,
-          includeFullCourses: typeof options === "object" ? options.includeFullCourses === true : false,
-          includeSchedules: typeof options === "object" ? options.includeSchedules === true : false
+          includeFullCourses: includeFullCoursesRef.current,
+          includeSchedules: includeSchedulesRef.current,
+          includeActions: includeActionsRef.current,
+          includeTemplates: includeTemplatesRef.current
         });
         if (requestSeqRef.current === requestSeq) {
           setAppData(payload);
