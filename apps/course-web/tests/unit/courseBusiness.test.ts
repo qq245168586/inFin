@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, test } from "vitest";
+import { afterEach, describe, test, vi } from "vitest";
 
 import {
   filterActionsByCoursePackage,
@@ -17,6 +17,8 @@ import {
   buildCopyWeekSchedulesPayload,
   createCopyWeekSchedulesDraft
 } from "../../src/viewmodels/home/copyWeekSchedules.ts";
+import { fetchMeta } from "../../src/services/api/meta.ts";
+import { fetchWeekSchedules } from "../../src/services/api/schedules.ts";
 import {
   buildVideoThumbnailCacheKey,
   selectVideoThumbnailKeysToDelete
@@ -32,6 +34,10 @@ import {
   packageScopedCourses,
   packageScopedTemplates
 } from "../fixtures/courseData.ts";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe("course package filtering", () => {
   test("keeps courses assigned directly or listed by package courseIds", () => {
@@ -82,6 +88,88 @@ describe("course package filtering", () => {
       [2]
     );
     assert.deepEqual(result.cooldown, []);
+  });
+});
+
+describe("week schedules api", () => {
+  test("fetches lightweight meta without schedules by default for course home", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        actionTypes: [],
+        lessonTypes: [],
+        actions: [],
+        courses: [],
+        coursePackages: [],
+        templates: { warmup: [], cooldown: [], training: [], course: [] },
+        schedules: { currentWeek: [], lastWeek: [], history: [] }
+      })
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await fetchMeta("Bearer test", { coursePackageId: 2, includeSchedules: false });
+
+    assert.equal(fetchMock.mock.calls[0][0], "/api/meta?coursePackageId=2&includeSchedules=0");
+  });
+
+  test("fetches one full course through meta when a course id is requested", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        actionTypes: [],
+        lessonTypes: [],
+        actions: [],
+        courses: [],
+        coursePackages: [],
+        templates: { warmup: [], cooldown: [], training: [], course: [] },
+        schedules: { currentWeek: [], lastWeek: [], history: [] }
+      })
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await fetchMeta("", { courseId: 101, includeSchedules: false });
+
+    assert.equal(fetchMock.mock.calls[0][0], "/api/meta?courseId=101&courseDetail=full&includeSchedules=0");
+  });
+
+  test("fetches a package-scoped week and accepts data-wrapped responses", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        data: {
+          date: "2026-06-24",
+          weekStart: "2026-06-22",
+          weekEnd: "2026-06-28",
+          schedules: [{ id: 1, courseId: 10, courseName: "Strength", version: "v1", date: "2026-06-24" }]
+        }
+      })
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await fetchWeekSchedules({ date: "2026-06-24", coursePackageId: 2 }, "Bearer test");
+
+    assert.equal(fetchMock.mock.calls[0][0], "/api/schedules/week?date=2026-06-24&coursePackageId=2");
+    assert.deepEqual(result.schedules.map((schedule) => schedule.id), [1]);
+  });
+
+  test("accepts direct week schedule responses", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          date: "2026-06-24",
+          weekStart: "2026-06-22",
+          weekEnd: "2026-06-28",
+          schedules: []
+        })
+      }))
+    );
+
+    const result = await fetchWeekSchedules({ date: "2026-06-24" });
+
+    assert.equal(result.weekStart, "2026-06-22");
+    assert.deepEqual(result.schedules, []);
   });
 });
 

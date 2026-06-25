@@ -158,6 +158,7 @@ export interface CourseRecord {
   description: string;
   topic: string;
   rotationType: CourseRotationType;
+  stationRules?: StationRuleConfig;
   typeIds: number[];
   logoMedia: MediaRecord | null;
   summary: CourseSummary;

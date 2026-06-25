@@ -1,4 +1,5 @@
 import { requestJson } from "../requestJson.ts";
+import type { ScheduleRecord } from "./meta.ts";
 
 export interface CreateSchedulePayload {
   courseId: number;
@@ -14,6 +15,45 @@ export interface CopyWeekSchedulesPayload {
   sourceWeekStart: string;
   targetWeekStart: string;
   replaceExisting: boolean;
+}
+
+export interface FetchWeekSchedulesParams {
+  date: string;
+  coursePackageId?: number | string | null;
+}
+
+export interface WeekSchedulesPayload {
+  date: string;
+  weekStart: string;
+  weekEnd: string;
+  weekEndExclusive?: string;
+  schedules: ScheduleRecord[];
+}
+
+type WeekSchedulesResponse = WeekSchedulesPayload | { data?: WeekSchedulesPayload };
+
+function normalizeWeekSchedulesPayload(payload: WeekSchedulesResponse): WeekSchedulesPayload {
+  if ("data" in payload && payload.data) {
+    return payload.data;
+  }
+  return payload as WeekSchedulesPayload;
+}
+
+export async function fetchWeekSchedules(
+  { date, coursePackageId }: FetchWeekSchedulesParams,
+  authHeader = ""
+): Promise<WeekSchedulesPayload> {
+  const params = new URLSearchParams({ date });
+  const numericCoursePackageId = Number(coursePackageId || 0);
+  if (numericCoursePackageId > 0) {
+    params.set("coursePackageId", String(numericCoursePackageId));
+  }
+
+  const payload = await requestJson<WeekSchedulesResponse>(`/api/schedules/week?${params.toString()}`, {
+    headers: authHeader ? { Authorization: authHeader } : {}
+  });
+
+  return normalizeWeekSchedulesPayload(payload);
 }
 
 export async function createSchedule(payload: CreateSchedulePayload, authHeader = ""): Promise<void> {

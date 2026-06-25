@@ -18,12 +18,14 @@ import { createPodName, syncPodsForVideoGroup } from "../../viewmodels/courses/p
 import { createPodRuleDialogState, resizePodRuleSetDrafts, type PodConfigCopyDialogState, type PodCopyDialogState, type PodRuleDialogState } from "../../viewmodels/courses/podDialogs.ts";
 import type { TemplateUseDialogState } from "../../viewmodels/courses/templateUseDialog.ts";
 import { parseNonNegativeIntInput, parsePositiveIntInput } from "../../utils/number.ts";
+import { getErrorMessage } from "../../utils/errors.ts";
 import { hasEditedVideoGroup } from "../../viewmodels/courses/courseEditorGuards.ts";
 import useCourseFiltersVm from "../../viewmodels/courses/useCourseFiltersVm.ts";
 import useCourseTabsVm from "../../viewmodels/courses/useCourseTabsVm.ts";
 import useCourseCrudVm from "../../viewmodels/courses/useCourseCrudVm.ts";
 import { createCourseDraftFromCourseTemplate } from "../../viewmodels/courses/courseEditorFactories.ts";
 import { formatSecondsStrategy } from "../../viewmodels/courses/podFormatters.ts";
+import { fetchCourseDetail } from "../../services/api/courses.ts";
 import {
   filterActionTypesByCoursePackage,
   filterActionsByCoursePackage,
@@ -104,13 +106,36 @@ export default function CoursesRoute({
     setPodConfigCopyDialog(null);
   }
 
-  function openCourseEditorForCurrentPackage(course: Parameters<typeof tabsVm.openCourseEditor>[0] = null) {
+  async function resolveCourseDetailForEditor(course: Parameters<typeof tabsVm.openCourseEditor>[0]) {
+    if (!course?.id) {
+      return course ?? null;
+    }
+    if (course.script?.training) {
+      return course;
+    }
+
+    setBusyText("正在加载课程内容...");
+    try {
+      return await fetchCourseDetail(course.id, authHeader);
+    } catch (error) {
+      pushNotice(getErrorMessage(error), "error");
+      return null;
+    } finally {
+      setBusyText("");
+    }
+  }
+
+  async function openCourseEditorForCurrentPackage(course: Parameters<typeof tabsVm.openCourseEditor>[0] = null) {
     if (!selectedCoursePackage) {
       pushNotice("请先选择课程包。", "error");
       return;
     }
     setCourseVersionError("");
-    tabsVm.openCourseEditor(course ?? null, selectedCoursePackage.id, currentAuthorName);
+    const courseDetail = await resolveCourseDetailForEditor(course ?? null);
+    if (course?.id && !courseDetail) {
+      return;
+    }
+    tabsVm.openCourseEditor(courseDetail, selectedCoursePackage.id, currentAuthorName);
   }
 
   useEffect(() => {
@@ -127,7 +152,13 @@ export default function CoursesRoute({
 
     handledCourseEditRequestIdRef.current = courseEditRequest.requestId;
     setCourseVersionError("");
-    tabsVm.openCourseEditor(targetCourse, selectedCoursePackage?.id || targetCourse.coursePackageId || null, currentAuthorName);
+    void (async () => {
+      const courseDetail = await resolveCourseDetailForEditor(targetCourse);
+      if (!courseDetail) {
+        return;
+      }
+      tabsVm.openCourseEditor(courseDetail, selectedCoursePackage?.id || targetCourse.coursePackageId || null, currentAuthorName);
+    })();
   }, [courseEditRequest, courses, currentAuthorName, pushNotice, selectedCoursePackage?.id, tabsVm]);
 
   function normalizeCourseIdentity(value: string) {
@@ -471,7 +502,7 @@ export default function CoursesRoute({
             filteredCourses={courseFiltersVm.filteredCourses}
             courseTemplates={courseTemplates}
             coursePackageName={selectedCoursePackage?.name || ""}
-            onOpenCourseEditor={(course) => openCourseEditorForCurrentPackage(course ?? null)}
+            onOpenCourseEditor={(course) => void openCourseEditorForCurrentPackage(course ?? null)}
             onOpenCourseTemplateDialog={openCourseTemplateDialog}
             onRemoveCourse={(courseId) => void courseCrudVm.removeCourse(courseId)}
           />

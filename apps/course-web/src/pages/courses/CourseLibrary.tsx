@@ -34,7 +34,7 @@ function getWarmupCount(course: CourseRecord): number {
 }
 
 function getStationRuleItems(course: CourseRecord): Array<{ label: string; value: string }> {
-  const config = course.script?.metadata?.stationRules;
+  const config = course.script?.metadata?.stationRules || course.stationRules;
   return [
     { label: "Set", value: config?.set || "" },
     { label: "Work", value: config?.work || "" },

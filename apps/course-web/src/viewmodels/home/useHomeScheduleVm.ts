@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CalendarDay, CalendarSchedule } from "../../components/CalendarBoard.tsx";
 import type { CourseRecord } from "../../models/course/types.ts";
 import { groupCoursesByName } from "../../models/course/groupCoursesByName.ts";
 import type { HomeTabKey } from "../../app/navigation.ts";
-import type { ScheduleCollection } from "../../services/api/meta.ts";
+import type { ScheduleRecord } from "../../services/api/meta.ts";
 import type { CoursePackageRecord } from "../../pages/venues/types.ts";
-import { copyWeekSchedules, createSchedule, deleteSchedule } from "../../services/api/schedules.ts";
+import { copyWeekSchedules, createSchedule, deleteSchedule, fetchWeekSchedules } from "../../services/api/schedules.ts";
 import { RequestJsonError } from "../../services/requestJson.ts";
 import { addDaysValue, composeCnDateTime, formatDateKey, todayValue, weekStartValue } from "../../utils/datetime.ts";
 import { getErrorMessage } from "../../utils/errors.ts";
@@ -113,32 +113,67 @@ function isCopyWeekConflict(error: unknown): boolean {
 export default function useHomeScheduleVm({
   courses,
   coursePackages,
-  schedules,
   authHeader = "",
   onBusyText,
-  onNotice,
-  onReloadMeta
+  onNotice
 }: {
   courses: CourseRecord[];
   coursePackages: CoursePackageRecord[];
-  schedules: ScheduleCollection;
   authHeader?: string;
   onBusyText: (text: string) => void;
   onNotice: (message: string, tone?: "success" | "error") => void;
-  onReloadMeta: () => Promise<void>;
 }) {
   const [homeTab, setHomeTab] = useState<HomeTabKey>("currentWeek");
   const [selectedScheduleDate, setSelectedScheduleDate] = useState(todayValue());
   const [scheduleAnchorDate, setScheduleAnchorDateRaw] = useState(todayValue());
+  const [weekSchedules, setWeekSchedules] = useState<ScheduleRecord[]>([]);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleDraft, setScheduleDraft] = useState<ScheduleDraftValue | null>(null);
   const [copyWeekDraft, setCopyWeekDraft] = useState<CopyWeekSchedulesDraftValue | null>(null);
+  const requestSeq = useRef(0);
 
   const lastWeekAnchorDate = useMemo(() => addDaysValue(todayValue(), -7), []);
+  const coursePackageId = coursePackages[0]?.id || null;
+  const activeScheduleAnchorDate = homeTab === "lastWeek" ? lastWeekAnchorDate : scheduleAnchorDate;
   const weekDays = useMemo(
-    () => getWeekDays(homeTab === "lastWeek" ? lastWeekAnchorDate : scheduleAnchorDate),
-    [homeTab, lastWeekAnchorDate, scheduleAnchorDate]
+    () => getWeekDays(activeScheduleAnchorDate),
+    [activeScheduleAnchorDate]
   );
   const weekDayKeysSignature = useMemo(() => weekDays.map((day) => day.key).join("|"), [weekDays]);
+
+  const refreshWeekSchedules = useCallback(
+    async (date = activeScheduleAnchorDate, options: { silent?: boolean } = {}) => {
+      if (!coursePackageId) {
+        requestSeq.current += 1;
+        setWeekSchedules([]);
+        setScheduleLoading(false);
+        return;
+      }
+
+      const seq = requestSeq.current + 1;
+      requestSeq.current = seq;
+      setScheduleLoading(true);
+      try {
+        const payload = await fetchWeekSchedules({ date, coursePackageId }, authHeader);
+        if (requestSeq.current !== seq) return;
+        setWeekSchedules(payload.schedules || []);
+      } catch (error) {
+        if (requestSeq.current !== seq) return;
+        if (!options.silent) {
+          onNotice(getErrorMessage(error), "error");
+        }
+      } finally {
+        if (requestSeq.current === seq) {
+          setScheduleLoading(false);
+        }
+      }
+    },
+    [activeScheduleAnchorDate, authHeader, coursePackageId, onNotice]
+  );
+
+  useEffect(() => {
+    void refreshWeekSchedules(activeScheduleAnchorDate);
+  }, [activeScheduleAnchorDate, refreshWeekSchedules]);
 
   useEffect(() => {
     if (homeTab === "currentWeek" && !weekDays.some((day) => day.key === selectedScheduleDate)) {
@@ -168,7 +203,7 @@ export default function useHomeScheduleVm({
 
   const allSchedules = useMemo<CalendarSchedule[]>(() => {
     const seen = new Set<number>();
-    return [...schedules.currentWeek, ...schedules.lastWeek, ...schedules.history]
+    return weekSchedules
       .filter((item) => {
         const key = Number(item.id);
         if (seen.has(key)) return false;
@@ -176,18 +211,15 @@ export default function useHomeScheduleVm({
         return true;
       })
       .map(enrichSchedule);
-  }, [enrichSchedule, schedules.currentWeek, schedules.history, schedules.lastWeek]);
+  }, [enrichSchedule, weekSchedules]);
 
   const visibleSchedules = useMemo<CalendarSchedule[]>(() => {
-    if (homeTab === "lastWeek") {
-      return schedules.lastWeek.map(enrichSchedule);
-    }
     if (homeTab === "history") {
       return allSchedules;
     }
     const weekKeys = new Set(weekDays.map((day) => day.key));
     return allSchedules.filter((item) => weekKeys.has(getScheduleDateKey(item)));
-  }, [allSchedules, enrichSchedule, homeTab, schedules.lastWeek, weekDays]);
+  }, [allSchedules, homeTab, weekDays]);
 
   const setScheduleAnchorDate = useCallback((value: string) => {
     const nextValue = value || todayValue();
@@ -286,7 +318,7 @@ export default function useHomeScheduleVm({
         duration: 0
       }, authHeader);
 
-      await onReloadMeta();
+      await refreshWeekSchedules(scheduleDraft.date);
       setScheduleDraft(null);
       onNotice("排课已添加。");
     } catch (error) {
@@ -294,7 +326,7 @@ export default function useHomeScheduleVm({
     } finally {
       onBusyText("");
     }
-  }, [authHeader, onBusyText, onNotice, onReloadMeta, scheduleDraft]);
+  }, [authHeader, onBusyText, onNotice, refreshWeekSchedules, scheduleDraft]);
 
   const copyWeek = useCallback(async () => {
     const payloadResult = buildCopyWeekSchedulesPayload({
@@ -311,7 +343,7 @@ export default function useHomeScheduleVm({
     onBusyText("正在复制指定周排课...");
     try {
       await copyWeekSchedules(payload, authHeader);
-      await onReloadMeta();
+      await refreshWeekSchedules(payload.targetWeekStart);
       setCopyWeekDraft(null);
       onNotice("排课复制成功。");
     } catch (error) {
@@ -323,7 +355,7 @@ export default function useHomeScheduleVm({
         try {
           onBusyText("正在覆盖目标周排课...");
           await copyWeekSchedules({ ...payload, replaceExisting: true }, authHeader);
-          await onReloadMeta();
+          await refreshWeekSchedules(payload.targetWeekStart);
           setCopyWeekDraft(null);
           onNotice("排课复制成功。");
         } catch (retryError) {
@@ -336,7 +368,7 @@ export default function useHomeScheduleVm({
     } finally {
       onBusyText("");
     }
-  }, [authHeader, copyWeekDraft, coursePackages, onBusyText, onNotice, onReloadMeta]);
+  }, [authHeader, copyWeekDraft, coursePackages, onBusyText, onNotice, refreshWeekSchedules]);
 
   const removeSchedule = useCallback(
     async (scheduleId: number) => {
@@ -347,7 +379,7 @@ export default function useHomeScheduleVm({
       onBusyText("正在删除排课...");
       try {
         await deleteSchedule(scheduleId, authHeader);
-        await onReloadMeta();
+        await refreshWeekSchedules();
         onNotice("排课已删除。");
       } catch (error) {
         onNotice(getErrorMessage(error), "error");
@@ -355,7 +387,7 @@ export default function useHomeScheduleVm({
         onBusyText("");
       }
     },
-    [authHeader, onBusyText, onNotice, onReloadMeta]
+    [authHeader, onBusyText, onNotice, refreshWeekSchedules]
   );
 
   return {
@@ -369,6 +401,8 @@ export default function useHomeScheduleVm({
     goToday,
     weekDays,
     visibleSchedules,
+    weekSchedules,
+    scheduleLoading,
     courseGroups,
     scheduleDraft,
     copyWeekDraft,

@@ -49,6 +49,7 @@ export default function CourseTemplateEditor({
   actionTypes,
   templateCollections,
   onAddLessonType,
+  onLoadCourseDetail,
   onSaveTemplate,
   onNotice,
   onUpdateDraft
@@ -61,6 +62,7 @@ export default function CourseTemplateEditor({
   actionTypes: TypeOption[];
   templateCollections: TemplateCollections | null | undefined;
   onAddLessonType: () => void;
+  onLoadCourseDetail: (course: CourseRecord) => Promise<CourseRecord | null>;
   onSaveTemplate: () => void;
   onNotice: (message: string, tone?: "success" | "error") => void;
   onUpdateDraft: (updater: (current: TemplateDraft) => TemplateDraft) => void;
@@ -124,9 +126,13 @@ export default function CourseTemplateEditor({
     });
   }
 
-  function applySourceCourse(course: CourseRecord | null) {
+  async function applySourceCourse(course: CourseRecord | null) {
+    const courseDetail = course ? await onLoadCourseDetail(course) : null;
+    if (course && !courseDetail) {
+      return;
+    }
     onUpdateDraft((current) => {
-      if (!course) {
+      if (!courseDetail) {
         return {
           ...current,
           sourceCourseId: null
@@ -134,21 +140,21 @@ export default function CourseTemplateEditor({
       }
 
       const sourcePackage = coursePackages.find((coursePackage) =>
-        (coursePackage.courseIds || []).some((courseId) => Number(courseId) === Number(course.id))
+        (coursePackage.courseIds || []).some((courseId) => Number(courseId) === Number(courseDetail.id))
       );
 
       return {
         ...current,
-        name: current.name || course.name,
-        courseName: course.name,
-        logoMedia: course.logoMedia,
+        name: current.name || courseDetail.name,
+        courseName: courseDetail.name,
+        logoMedia: courseDetail.logoMedia,
         logoFile: null,
-        logoPreview: course.logoMedia?.url || "",
-        typeIds: [...course.typeIds],
-        script: normalizeCourseScriptLocal(cloneCourseScriptWithFreshIds(course.script)),
+        logoPreview: courseDetail.logoMedia?.url || "",
+        typeIds: [...courseDetail.typeIds],
+        script: normalizeCourseScriptLocal(cloneCourseScriptWithFreshIds(courseDetail.script)),
         coursePackageId: current.coursePackageId || sourcePackage?.id || null,
-        sourceCourseId: course.id,
-        summary: course.summary
+        sourceCourseId: courseDetail.id,
+        summary: courseDetail.summary
       };
     });
   }
@@ -369,7 +375,7 @@ export default function CourseTemplateEditor({
                 value={draft.sourceCourseId ? String(draft.sourceCourseId) : ""}
                 onChange={(event) => {
                   const course = courses.find((item) => String(item.id) === event.target.value) || null;
-                  applySourceCourse(course);
+                  void applySourceCourse(course);
                 }}
               >
                 <option value="">不选择，直接从空白模板编辑</option>

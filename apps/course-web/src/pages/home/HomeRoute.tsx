@@ -7,7 +7,7 @@ import { useAuth } from "../../providers/AuthProvider.tsx";
 import { useBusy } from "../../providers/BusyProvider.tsx";
 import { useNotice } from "../../providers/NoticeProvider.tsx";
 import type { CoursePackageRecord } from "../venues/types.ts";
-import { filterCoursesByCoursePackage, filterSchedulesByCoursePackage } from "../../utils/coursePackageScope.ts";
+import { filterCoursesByCoursePackage } from "../../utils/coursePackageScope.ts";
 
 export default function HomeRoute({
   selectedCoursePackage,
@@ -16,28 +16,20 @@ export default function HomeRoute({
   selectedCoursePackage: CoursePackageRecord | null;
   onOpenScheduleCourseEditor: (courseId: number) => void;
 }) {
-  const { appData, reloadMeta } = useMeta();
+  const { appData } = useMeta();
   const { authHeader } = useAuth();
   const { setBusyText } = useBusy();
   const { pushNotice } = useNotice();
 
   const courses = filterCoursesByCoursePackage(appData?.courses || [], selectedCoursePackage);
   const coursePackages = selectedCoursePackage ? [selectedCoursePackage] : [];
-  const rawSchedules = appData?.schedules || { currentWeek: [], lastWeek: [], history: [] };
-  const schedules = {
-    currentWeek: filterSchedulesByCoursePackage(rawSchedules.currentWeek, selectedCoursePackage),
-    lastWeek: filterSchedulesByCoursePackage(rawSchedules.lastWeek, selectedCoursePackage),
-    history: filterSchedulesByCoursePackage(rawSchedules.history, selectedCoursePackage)
-  };
 
   const vm = useHomeScheduleVm({
     courses,
     coursePackages,
-    schedules,
     authHeader,
     onBusyText: setBusyText,
-    onNotice: pushNotice,
-    onReloadMeta: reloadMeta
+    onNotice: pushNotice
   });
 
   return (
@@ -53,6 +45,7 @@ export default function HomeRoute({
         onMoveScheduleWeek={vm.moveScheduleWeek}
         onGoToday={vm.goToday}
         schedules={vm.visibleSchedules}
+        scheduleLoading={vm.scheduleLoading}
         onAddSchedule={vm.openScheduleDialog}
         onCopyWeekSchedules={vm.openCopyWeekDialog}
         onOpenScheduleCourseEditor={onOpenScheduleCourseEditor}

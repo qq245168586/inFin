@@ -31,6 +31,7 @@ export default function HomePage({
   onMoveScheduleWeek,
   onGoToday,
   schedules,
+  scheduleLoading,
   onAddSchedule,
   onCopyWeekSchedules,
   onOpenScheduleCourseEditor,
@@ -46,6 +47,7 @@ export default function HomePage({
   onMoveScheduleWeek: (deltaWeeks: number) => void;
   onGoToday: () => void;
   schedules: CalendarSchedule[];
+  scheduleLoading?: boolean;
   onAddSchedule: () => void;
   onCopyWeekSchedules: () => void;
   onOpenScheduleCourseEditor: (courseId: number) => void;
@@ -88,6 +90,8 @@ export default function HomePage({
       </div>
 
       <div className="divider" />
+
+      {scheduleLoading ? <div className="schedule-loading-strip">{t("正在加载课表...")}</div> : null}
 
       {homeTab === "history" ? (
         <div className="table-wrap">

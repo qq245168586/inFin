@@ -54,6 +54,7 @@ export interface MetaPayload {
   coursePackages: CoursePackageRecord[];
   templates: TemplateCollections;
   schedules: ScheduleCollection;
+  coursesMode?: "summary" | "mixed" | "full";
   now: string;
 }
 
@@ -61,15 +62,30 @@ export async function fetchMeta(
   authHeader = "",
   options: {
     coursePackageId?: number | null;
+    courseId?: number | null;
+    includeFullCourses?: boolean;
+    includeSchedules?: boolean;
   } = {}
 ): Promise<MetaPayload> {
-  const params = new URLSearchParams({ courseDetail: "full" });
+  const params = new URLSearchParams();
+  if (options.includeFullCourses) {
+    params.set("courseDetail", "full");
+  }
   const coursePackageId = Number(options.coursePackageId || 0);
   if (coursePackageId > 0) {
     params.set("coursePackageId", String(coursePackageId));
   }
+  const courseId = Number(options.courseId || 0);
+  if (courseId > 0) {
+    params.set("courseId", String(courseId));
+    params.set("courseDetail", "full");
+  }
+  if (options.includeSchedules === false) {
+    params.set("includeSchedules", "0");
+  }
 
-  return await requestJson<MetaPayload>(`/api/meta?${params.toString()}`, {
+  const query = params.toString();
+  return await requestJson<MetaPayload>(`/api/meta${query ? `?${query}` : ""}`, {
     headers: authHeader ? { Authorization: authHeader } : {}
   });
 }

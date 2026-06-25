@@ -16,6 +16,8 @@ import TrainingTemplateEditor from "./TrainingTemplateEditor.tsx";
 import WaterfallTemplateEditor from "./WaterfallTemplateEditor.tsx";
 import type { ActionRecord, TypeOption } from "../../services/api/meta.ts";
 import { useAuth } from "../../providers/AuthProvider.tsx";
+import { fetchCourseDetail } from "../../services/api/courses.ts";
+import { getErrorMessage } from "../../utils/errors.ts";
 import {
   filterActionTypesByCoursePackage,
   filterActionsByCoursePackage,
@@ -64,6 +66,22 @@ export default function TemplatesPage({
   });
 
   const isEditingTemplate = Boolean(vm.templateEditor);
+
+  async function loadCourseDetail(course: CourseRecord): Promise<CourseRecord | null> {
+    if (course.script?.training) {
+      return course;
+    }
+
+    onBusyTextChange("正在加载课程内容...");
+    try {
+      return await fetchCourseDetail(course.id, authHeader);
+    } catch (error) {
+      onNotice(getErrorMessage(error), "error");
+      return null;
+    } finally {
+      onBusyTextChange("");
+    }
+  }
 
   return (
     <section className="page-card is-no-padding">
@@ -118,6 +136,7 @@ export default function TemplatesPage({
               actions={scopedActions}
               actionTypes={scopedActionTypes}
               onAddLessonType={onAddLessonType}
+              onLoadCourseDetail={loadCourseDetail}
               templateCollections={scopedTemplateCollections}
               onUpdateDraft={vm.updateTemplateEditor}
               onSaveTemplate={vm.saveTemplate}

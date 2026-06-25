@@ -5,6 +5,9 @@ import { fetchMeta, type MetaPayload } from "../services/api/meta.ts";
 export interface ReloadMetaOptions {
   label?: string;
   coursePackageId?: number | null;
+  courseId?: number | null;
+  includeFullCourses?: boolean;
+  includeSchedules?: boolean;
 }
 
 interface MetaContextValue {
@@ -57,7 +60,12 @@ export default function MetaProvider({
       const requestSeq = requestSeqRef.current + 1;
       requestSeqRef.current = requestSeq;
       try {
-        const payload = await fetchMeta(authHeader, { coursePackageId: activeCoursePackageIdRef.current });
+        const payload = await fetchMeta(authHeader, {
+          coursePackageId: activeCoursePackageIdRef.current,
+          courseId: typeof options === "object" ? options.courseId : null,
+          includeFullCourses: typeof options === "object" ? options.includeFullCourses === true : false,
+          includeSchedules: typeof options === "object" ? options.includeSchedules === true : false
+        });
         if (requestSeqRef.current === requestSeq) {
           setAppData(payload);
         }

@@ -1433,6 +1433,16 @@ textarea.is-invalid:focus {
   background: var(--bg-line);
 }
 
+.schedule-loading-strip {
+  margin: 18px 28px 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-size: 14px;
+  font-weight: 800;
+}
+
 .calendar-wrap {
   padding: 24px 28px 28px;
 }
