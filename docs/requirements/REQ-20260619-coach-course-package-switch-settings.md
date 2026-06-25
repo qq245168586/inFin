@@ -5,7 +5,7 @@
 - Status: Ready for QA
 - Owner: Coach / TV control
 - Created: 2026-06-19
-- Updated: 2026-06-20
+- Updated: 2026-06-25
 - Related docs:
   - [Infini Code Map](../CODEMAP.md)
   - [课程端/场馆管理端拆分需求](../course-web-separation-requirements.md)
@@ -35,6 +35,7 @@
   - 设置面板当前只有“课程控制”和“屏幕管理”，没有课程包切换入口。
   - 当前需求需要持久化场馆当前启用课程包，但不是迁移业务数据归属：课程、排课、动作、模板等 DB 记录不迁移、不重写；只是更新 `venues[].activeCoursePackageId`，并让课表 API 按这个字段过滤。
   - 如果 MQTT 发布失败，可能出现 Coach 已看到新课程包结果，但 TV 仍显示旧课表的状态不一致。
+  - 2026-06-25 发现切换到另一个课程包后，Coach 端立即点击开始课程可能没有效果；切回上一个课程包又正常。根因是 Coach 本地仍保留旧课程包的 `playbackSession` 上下文，开课时可能误复用旧 session，而不是走当前课程包 schedule 的 `start-from-schedule`。
 - 业务原因：
   - 一个场馆可能绑定多个课程包，例如 Hybrid、12round 等，教练需要现场切换当天使用的课程体系。
   - 切换后 TV 必须通过原有课表 API 同步到新课程包课表，否则 Coach 和 TV 看到的课程不一致。
@@ -51,6 +52,7 @@
 - 选中课程包后调用服务端持久化场馆当前启用课程包。
 - 服务端 DB 保存成功后通知 TV 刷新课表校验，让 TV 调用原有课表 API；该 API 在服务端按当前课程包过滤输出数据。
 - Coach 端切换成功后刷新本地 daily bundle，并清理已选中的旧 schedule / preview。
+- Coach 端切换成功后必须清空本地 playback session 上下文；开课时只有当前 session 仍处于 active 状态且属于同一 schedule，才允许复用 session `/start` 路径，否则必须走 `start-from-schedule`，由 server 为当前课程包 schedule 创建/启动 session。
 - 保留现有权限和运行中课程保护。
 
 ## Non-goals
@@ -171,6 +173,18 @@ CoachSettingsMenu:
 if coursePackages.length == 1:
   render single selected item
   helper text: 当前场馆只绑定了一个课程包
+
+on course package changed:
+  clear selectedScheduleId
+  clear previewIndex
+  clear playbackSession
+  refresh current daily bundle
+
+startCourse(schedule):
+  if playbackSession is active and playbackSession.scheduleId == schedule.id:
+    call /api/tv/playback-sessions/:id/start
+  else:
+    call /api/tv/playback-sessions/start-from-schedule
 ```
 
 ### Server
@@ -245,6 +259,7 @@ verify outbound mqtt log contains:
 | 只有一个课程包时隐藏入口 | 教练不知道当前场馆属于哪个课程包。 | 只有一个也显示，标记已选中和“当前场馆只绑定一个课程包”。 |
 | SuperAdmin / venue account 作用域不同 | 超管可能需要按 venueId 切换；普通场馆账号只能切自己的场馆。 | 保持现有 server 规则，普通账号使用 `user.venueId`，不要信任客户端传入其它 venueId。 |
 | 切换后 Coach daily bundle 与 TV daily bundle 不一致 | Coach 拉了新包，TV 没拉或拉失败。 | 切换成功后 Coach 立即拉 bundle；TV 通过 MQTT 刷新；失败时提示手动刷新 TV。 |
+| 切换后 Coach 仍持有旧课程包 session | 开始新课程时误复用旧 session，TV 不响应或启动旧上下文。 | 切换成功和收到切换事件后清空本地 `playbackSession`；开课前只允许复用 active 且同一 schedule 的 session。 |
 | TV 旧版本不支持 `refresh_checksum` | 部分旧设备不会更新课表。 | 验收覆盖当前线上最低 TV 版本；必要时 Coach 保留“刷新 TV”按钮兜底。 |
 | 误把“切换课程包”实现成业务记录归属变更 | 课程、排课、动作、模板数据被错误改包，影响其它端。 | 实现和 code review 明确禁止修改业务记录归属；只改 `venues[].activeCoursePackageId` 和后续输出过滤。 |
 
@@ -264,6 +279,7 @@ Expected:
 - 切换成功后设置里选中态更新。
 - Coach 课表列表刷新为目标课程包当天排课。
 - TV 收到刷新指令后，课表变为目标课程包当天排课。
+- 在目标课程包中选择一节课并点击开始课程，Coach 调用当前 schedule 的开课链路，TV 能进入该课程而不是旧课程包 session。
 - Ops/MQTT 日志能看到 `refresh_checksum`，`reason=course_package_changed`。
 
 ### Single Package Flow
