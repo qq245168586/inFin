@@ -26,6 +26,37 @@ test("saveCourse rejects duplicate name and version regardless of whitespace and
   );
 });
 
+test("store barrel exposes super admin checker for admin routes", async (t) => {
+  const state = createMockDatabaseState({
+    users: [
+      ...createMockDatabaseState().users,
+      {
+        id: 99,
+        username: "admin",
+        nickname: "Admin",
+        avatar: "",
+        gender: "UNKNOWN",
+        userType: "CONSOLE",
+        passwordDigest: "test",
+        passwordPlain: "test",
+        accountNamespace: "",
+        environmentLabel: "",
+        role: "superadmin",
+        venueId: "",
+        coursePackageIds: [],
+        allowedClients: ["admin-web"],
+        createTime: "2026-06-01T00:00:00.000Z",
+        lastLoginTime: null
+      }
+    ]
+  });
+  const store = await importStore(t, state);
+
+  assert.equal(typeof store.isSuperAdminUser, "function");
+  assert.equal(store.isSuperAdminUser(store.getUserByUsername("admin")), true);
+  assert.equal(store.isSuperAdminUser(store.getUserByUsername("coach")), false);
+});
+
 test("saveCourse moves a course into exactly one target course package", async (t) => {
   const store = await importStore(t);
   const script = createMockCourseScript({
