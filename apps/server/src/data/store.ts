@@ -64,6 +64,7 @@ export const saveTemplate = storeModule.saveTemplate as (...args: any[]) => any;
 export const deleteTemplate = storeModule.deleteTemplate as (...args: any[]) => any;
 export const listCourseOptions = storeModule.listCourseOptions as (...args: any[]) => any;
 export const listSchedulesByScope = storeModule.listSchedulesByScope as (...args: any[]) => any;
+export const listSchedulesByWeekDate = storeModule.listSchedulesByWeekDate as (...args: any[]) => any;
 export const getTvDailyBundle = storeModule.getTvDailyBundle as (...args: any[]) => any;
 export const getTvDailyChecksum = storeModule.getTvDailyChecksum as (...args: any[]) => any;
 export const getTvScheduleBundle = storeModule.getTvScheduleBundle as (...args: any[]) => any;

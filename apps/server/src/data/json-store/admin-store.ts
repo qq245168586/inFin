@@ -242,6 +242,7 @@ import {
   listActionTypes,
   listLessonTypes,
   listActions,
+  getCourseById,
   listCourses,
   listCourseSummaries,
   listTemplates
@@ -253,22 +254,45 @@ import { listSchedulesByScope } from "./schedule-store.js";
  */
 export function getMetaPayload(user = null, options = {}) {
   const includeFullCourses = options?.includeFullCourses === true;
+  const includeSchedules = options?.includeSchedules !== false;
   const coursePackageId = normalizeCoursePackageId(options?.coursePackageId || 0, 0);
+  const courseId = Number(options?.courseId || 0);
   const scopeOptions = coursePackageId > 0 ? { coursePackageId } : {};
+  const courseSummaries = listCourseSummaries(user);
+  let courses = courseSummaries;
+  let coursesMode = "summary";
+
+  if (includeFullCourses && courseId > 0) {
+    const fullCourse = getCourseById(courseId);
+    const canReadCourse = fullCourse && courseSummaries.some((item) => Number(item.id) === Number(fullCourse.id));
+    courses = canReadCourse
+      ? courseSummaries.map((course) => (Number(course.id) === Number(fullCourse.id) ? fullCourse : course))
+      : courseSummaries;
+    coursesMode = canReadCourse ? "mixed" : "summary";
+  } else if (includeFullCourses) {
+    courses = listCourses(user);
+    coursesMode = "full";
+  }
 
   return {
     actionTypes: listActionTypes(user, scopeOptions),
     lessonTypes: listLessonTypes(user, scopeOptions),
     coursePackages: listCoursePackagesForUser(user),
     actions: listActions(user, scopeOptions),
-    courses: includeFullCourses ? listCourses(user) : listCourseSummaries(user),
-    coursesMode: includeFullCourses ? "full" : "summary",
+    courses,
+    coursesMode,
     templates: listTemplates(user),
-    schedules: {
-      currentWeek: listSchedulesByScope("CURRENTWEEK", { user, ...scopeOptions }),
-      lastWeek: listSchedulesByScope("LASTWEEK", { user, ...scopeOptions }),
-      history: listSchedulesByScope("HISTORY", { user, ...scopeOptions })
-    }
+    schedules: includeSchedules
+      ? {
+          currentWeek: listSchedulesByScope("CURRENTWEEK", { user, ...scopeOptions }),
+          lastWeek: listSchedulesByScope("LASTWEEK", { user, ...scopeOptions }),
+          history: listSchedulesByScope("HISTORY", { user, ...scopeOptions })
+        }
+      : {
+          currentWeek: [],
+          lastWeek: [],
+          history: []
+        }
   };
 }
 

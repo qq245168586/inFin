@@ -270,6 +270,44 @@ export function listSchedulesByScope(scope = "CURRENTWEEK", options = {}) {
 }
 
 /**
+ * 按指定日期所在周读取排课。date 为空时使用服务器当前日期，返回周一到周日。
+ */
+export function listSchedulesByWeekDate(dateText = "", options = {}) {
+  const timeZone = options?.timeZone || "Asia/Shanghai";
+  const targetDate = normalizeCalendarDate(dateText, timeZone);
+  const anchor = new Date(`${targetDate}T12:00:00.000+08:00`);
+  const day = anchor.getUTCDay();
+  const delta = day === 0 ? -6 : 1 - day;
+  anchor.setUTCDate(anchor.getUTCDate() + delta);
+  const weekStart = formatCalendarDate(anchor, timeZone);
+  const weekEndExclusive = addCalendarDays(weekStart, 7);
+  const weekEnd = addCalendarDays(weekStart, 6);
+  const coursePackageId = normalizeCoursePackageId(options?.coursePackageId || 0, 0);
+
+  let list = state.schedules.map(attachCourseBasics);
+  const visiblePackageIds = getUserVisibleCoursePackageIdSet(options?.user || null);
+
+  if (visiblePackageIds) {
+    list = list.filter((item) => visiblePackageIds.has(normalizeCoursePackageId(item.coursePackageId)));
+  }
+  if (coursePackageId > 0) {
+    list = list.filter((item) => normalizeCoursePackageId(item.coursePackageId) === coursePackageId);
+  }
+
+  list = list
+    .filter((item) => inCalendarDateRange(item.beginTime, weekStart, weekEndExclusive, timeZone))
+    .sort((left, right) => new Date(left.beginTime).getTime() - new Date(right.beginTime).getTime());
+
+  return {
+    date: targetDate,
+    weekStart,
+    weekEnd,
+    weekEndExclusive,
+    schedules: list
+  };
+}
+
+/**
  * 保存 schedule，并触发必要的归一化和持久化。
  */
 export function saveSchedule(payload, user = null) {

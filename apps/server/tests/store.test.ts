@@ -134,6 +134,55 @@ test("meta payload can be built with full course details", async (t) => {
   assert.ok(payload.schedules?.currentWeek);
 });
 
+test("meta payload can omit schedules and return summary courses", async (t) => {
+  const store = await importStore(t);
+  const user = store.getUserByUsername("coach");
+
+  const payload = store.getMetaPayload(user, { includeSchedules: false });
+
+  assert.equal(payload.coursesMode, "summary");
+  assert.equal("script" in payload.courses[0], false);
+  assert.deepEqual(payload.schedules, { currentWeek: [], lastWeek: [], history: [] });
+});
+
+test("meta payload can include full detail for one course only", async (t) => {
+  const store = await importStore(t);
+  const user = store.getUserByUsername("coach");
+
+  const payload = store.getMetaPayload(user, { includeFullCourses: true, courseId: 101, includeSchedules: false });
+
+  assert.equal(payload.coursesMode, "mixed");
+  assert.ok(payload.courses.find((course: any) => Number(course.id) === 101)?.script?.training);
+  assert.deepEqual(payload.schedules.currentWeek, []);
+});
+
+test("listSchedulesByWeekDate reads only the requested package week", async (t) => {
+  const store = await importStore(t);
+  const weekStart = nextMonday(1);
+  const laterWeekStart = nextMonday(2);
+  store.saveSchedule({
+    courseId: 101,
+    coursePackageId: 1,
+    beginTime: shanghaiNoon(addDays(weekStart, 2)),
+    duration: 45
+  });
+  store.saveSchedule({
+    courseId: 101,
+    coursePackageId: 1,
+    beginTime: shanghaiNoon(addDays(laterWeekStart, 2)),
+    duration: 45
+  });
+
+  const payload = store.listSchedulesByWeekDate(addDays(weekStart, 3), { coursePackageId: 1 });
+
+  assert.equal(payload.weekStart, weekStart);
+  assert.equal(payload.weekEnd, addDays(weekStart, 6));
+  assert.deepEqual(
+    payload.schedules.map((schedule: any) => schedule.date),
+    [addDays(weekStart, 2)]
+  );
+});
+
 test("deleteCourse blocks courses scheduled for today or the future", async (t) => {
   const store = await importStore(t);
   const futureMonday = nextMonday(1);

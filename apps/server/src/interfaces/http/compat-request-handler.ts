@@ -70,6 +70,7 @@ import {
   listLessonTypes,
   listTemplates,
   listSchedulesByScope,
+  listSchedulesByWeekDate,
   listTvDevices,
   listTvScreens,
   loginConsoleUser,
@@ -835,8 +836,11 @@ export async function handleCompatRequest(request, response) {
       const user = getAuthorizedConsoleUser(request);
       const courseDetail = String(url.searchParams.get("courseDetail") || url.searchParams.get("detail") || "").trim();
       const includeFullCourses = ["full", "true", "1"].includes(courseDetail.toLowerCase());
+      const includeSchedulesParam = String(url.searchParams.get("includeSchedules") || "").trim().toLowerCase();
+      const includeSchedules = !["0", "false", "no"].includes(includeSchedulesParam);
       const coursePackageId = url.searchParams.get("coursePackageId") || "";
-      sendJson(response, 200, getMetaPayload(user, { includeFullCourses, coursePackageId }));
+      const courseId = url.searchParams.get("courseId") || "";
+      sendJson(response, 200, getMetaPayload(user, { includeFullCourses, includeSchedules, coursePackageId, courseId }));
       return;
     }
 
@@ -2626,7 +2630,7 @@ export async function handleCompatRequest(request, response) {
       const courseId = url.pathname.replace("/api/courses/", "");
       const course = getCourseById(courseId);
 
-      if (!course || !listCourses(user).some((item) => Number(item.id) === Number(course.id))) {
+      if (!course || !listCourseSummaries(user).some((item) => Number(item.id) === Number(course.id))) {
         sendJson(response, 404, { message: "课程不存在。" });
         return;
       }
@@ -2749,6 +2753,17 @@ export async function handleCompatRequest(request, response) {
       const user = getAuthorizedConsoleUser(request);
       sendJson(response, 200, {
         data: listSchedulesByScope(scope, {
+          coursePackageId: url.searchParams.get("coursePackageId") || "",
+          user
+        })
+      });
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/schedules/week") {
+      const user = getAuthorizedConsoleUser(request);
+      sendJson(response, 200, {
+        data: listSchedulesByWeekDate(url.searchParams.get("date") || "", {
           coursePackageId: url.searchParams.get("coursePackageId") || "",
           user
         })
