@@ -43,6 +43,8 @@ flowchart LR
 - `src/data/json-store/admin-store.ts`：用户、场馆、课程包、管理端元数据。
 - `src/data/json-store/content-store.ts`：动作、动作类型、课程、课程模板。
 - `src/data/json-store/schedule-store.ts`：排课、复制排课、未来无效排课清理。
+- `GET /api/schedules/week`：Course 首页使用的轻量周课表读取接口，按 `date` 所在周和 `coursePackageId` 过滤，只返回 schedule basics，不携带课程脚本。
+- `GET /api/meta`：默认返回课程 summary；`includeSchedules=0` 可关闭课表；`courseDetail=full&courseId=ID` 只返回单课程 full；无 `courseId` 的 `courseDetail=full` 仅作为兼容兜底。
 - `src/data/json-store/tv-store.ts`：TV 今日课表、bundle、屏幕、设备、播放 session。
 - `src/data/store-gateway.ts`：给 Nest 模块和 request 适配层使用的 store 访问网关。
 - `src/runtime/*`：启动时装配 request handler 和 store 的入口。
@@ -74,6 +76,8 @@ flowchart LR
 - 编课人员和超级管理员使用。
 - 按课程包隔离动作、课程、模板、排课。
 - 管理动作视频、动作分类、课程脚本、课程计划。
+- 首页课表不从 meta 读取 full course/schedules；先拉轻量 meta，再通过 `/api/schedules/week` 按周读取课表。
+- 课程列表使用 course summary；进入课程编辑器或从已有课程生成整课模板时，才通过 `/api/courses/:id` 拉单课程完整脚本。
 - 动作视频展示默认走服务端派生缩略图 + 浏览器本地 IndexedDB 缓存，只有用户点击播放时才加载视频。
 - 三屏视频组的 rowLayouts 是编课者显式添加/删除的行数，最多 5 行；不再自动从 3 行两列扩展到 5 行。
 - 课程模板用于快速生成课程骨架。
