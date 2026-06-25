@@ -255,6 +255,8 @@ import { listSchedulesByScope } from "./schedule-store.js";
 export function getMetaPayload(user = null, options = {}) {
   const includeFullCourses = options?.includeFullCourses === true;
   const includeSchedules = options?.includeSchedules !== false;
+  const includeActions = options?.includeActions !== false;
+  const includeTemplates = options?.includeTemplates !== false;
   const coursePackageId = normalizeCoursePackageId(options?.coursePackageId || 0, 0);
   const courseId = Number(options?.courseId || 0);
   const scopeOptions = coursePackageId > 0 ? { coursePackageId } : {};
@@ -278,10 +280,17 @@ export function getMetaPayload(user = null, options = {}) {
     actionTypes: listActionTypes(user, scopeOptions),
     lessonTypes: listLessonTypes(user, scopeOptions),
     coursePackages: listCoursePackagesForUser(user),
-    actions: listActions(user, scopeOptions),
+    actions: includeActions ? listActions(user, scopeOptions) : [],
     courses,
     coursesMode,
-    templates: listTemplates(user),
+    templates: includeTemplates
+      ? listTemplates(user)
+      : {
+          warmup: [],
+          cooldown: [],
+          training: [],
+          course: []
+        },
     schedules: includeSchedules
       ? {
           currentWeek: listSchedulesByScope("CURRENTWEEK", { user, ...scopeOptions }),

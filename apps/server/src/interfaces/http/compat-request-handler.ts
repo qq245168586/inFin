@@ -152,6 +152,17 @@ function hasCompatBasicAuth(request) {
 }
 
 /**
+ * 解析可选布尔查询参数，未传时保持兼容默认值。
+ */
+function parseOptionalBooleanQuery(value, fallback = true) {
+  const text = String(value || "").trim().toLowerCase();
+  if (!text) return fallback;
+  if (["0", "false", "no", "off"].includes(text)) return false;
+  if (["1", "true", "yes", "on"].includes(text)) return true;
+  return fallback;
+}
+
+/**
  * 读取 bearer token，并保持返回结构稳定。
  */
 function getBearerToken(request) {
@@ -836,11 +847,19 @@ export async function handleCompatRequest(request, response) {
       const user = getAuthorizedConsoleUser(request);
       const courseDetail = String(url.searchParams.get("courseDetail") || url.searchParams.get("detail") || "").trim();
       const includeFullCourses = ["full", "true", "1"].includes(courseDetail.toLowerCase());
-      const includeSchedulesParam = String(url.searchParams.get("includeSchedules") || "").trim().toLowerCase();
-      const includeSchedules = !["0", "false", "no"].includes(includeSchedulesParam);
+      const includeSchedules = parseOptionalBooleanQuery(url.searchParams.get("includeSchedules"), true);
+      const includeActions = parseOptionalBooleanQuery(url.searchParams.get("includeActions"), true);
+      const includeTemplates = parseOptionalBooleanQuery(url.searchParams.get("includeTemplates"), true);
       const coursePackageId = url.searchParams.get("coursePackageId") || "";
       const courseId = url.searchParams.get("courseId") || "";
-      sendJson(response, 200, getMetaPayload(user, { includeFullCourses, includeSchedules, coursePackageId, courseId }));
+      sendJson(response, 200, getMetaPayload(user, {
+        includeFullCourses,
+        includeSchedules,
+        includeActions,
+        includeTemplates,
+        coursePackageId,
+        courseId
+      }));
       return;
     }
 

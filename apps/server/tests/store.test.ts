@@ -145,6 +145,21 @@ test("meta payload can omit schedules and return summary courses", async (t) => 
   assert.deepEqual(payload.schedules, { currentWeek: [], lastWeek: [], history: [] });
 });
 
+test("meta payload can omit heavy editor collections", async (t) => {
+  const store = await importStore(t);
+  const user = store.getUserByUsername("coach");
+
+  const payload = store.getMetaPayload(user, {
+    includeActions: false,
+    includeTemplates: false,
+    includeSchedules: false
+  });
+
+  assert.deepEqual(payload.actions, []);
+  assert.deepEqual(payload.templates, { warmup: [], cooldown: [], training: [], course: [] });
+  assert.equal("script" in payload.courses[0], false);
+});
+
 test("meta payload can include full detail for one course only", async (t) => {
   const store = await importStore(t);
   const user = store.getUserByUsername("coach");
