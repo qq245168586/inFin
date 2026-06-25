@@ -61,3 +61,17 @@ export function buildScheduleBadge(value: CoachSessionState) {
   }
   return { label: "可开课", tone: "idle" };
 }
+
+export function canReusePlaybackSessionForSchedule(
+  session: PlaybackSession | null,
+  state: CoachSessionState,
+  scheduleId: string | number
+): boolean {
+  if (!session?.id) {
+    return false;
+  }
+  if (!["PREVIEW", "SCHEDULED", "RUNNING", "PAUSED"].includes(state)) {
+    return false;
+  }
+  return String(session.scheduleId) === String(scheduleId);
+}

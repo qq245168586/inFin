@@ -17,7 +17,7 @@ import {
 } from "../services/consoleService";
 import { buildFormalPreviews, createCommandId, getErrorMessage, isActiveSessionState, isAuthExpiredMessage } from "../utils/format";
 import { COACH_COURSE_PACKAGE_CHANGED_EVENT } from "../utils/events";
-import { activeSessionState } from "../utils/playback";
+import { activeSessionState, canReusePlaybackSessionForSchedule } from "../utils/playback";
 import { getWeekDays, scheduleStartAtMs, todayValue } from "../utils/time";
 import { useCoachConsoleEffects } from "./useCoachConsoleEffects";
 import { useConsoleRefreshActions } from "./useConsoleRefreshActions";
@@ -78,6 +78,8 @@ export function useCoachConsoleViewModel({
     }
     if (session?.serverNowMs) {
       setServerClockBase({ serverNowMs: session.serverNowMs, localNowMs: performance.now() });
+    } else {
+      setServerClockBase(null);
     }
   }
 
@@ -174,6 +176,7 @@ export function useCoachConsoleViewModel({
       setActiveCoursePackageId(Number(payload.activeCoursePackageId || coursePackageId));
       setSelectedScheduleId("");
       setPreviewIndex(0);
+      applyPlaybackSession(null);
       setBundle(await fetchDailyBundle(selectedDate, authSession));
       onNotice(payload.warning || "课程包已切换，TV 会重新同步课表资源。", payload.warning ? "error" : undefined);
     } catch (error) {
@@ -277,7 +280,8 @@ export function useCoachConsoleViewModel({
       }
     }
     const startBody = venueBody(authSession, isSuperAdmin, { commandId: createCommandId(), startDelayMs: 5000 }, schedule, playbackSession);
-    const nextSession = playbackSession?.id && String(playbackSession.scheduleId) === String(schedule.id)
+    const shouldReusePlaybackSession = canReusePlaybackSessionForSchedule(playbackSession, sessionState, schedule.id);
+    const nextSession = shouldReusePlaybackSession && playbackSession?.id
       ? await requestSession(
         `/api/tv/playback-sessions/${encodeURIComponent(playbackSession.id)}/start`,
         startBody,
@@ -392,6 +396,7 @@ export function useCoachConsoleViewModel({
       }
       setSelectedScheduleId("");
       setPreviewIndex(0);
+      applyPlaybackSession(null);
       void loadCoursePackages(false);
       fetchDailyBundle(selectedDate, authSession)
         .then(setBundle)

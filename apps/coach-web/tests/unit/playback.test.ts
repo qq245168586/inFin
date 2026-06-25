@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import { mockPlaybackEnvelope } from "../fixtures/coachData.ts";
-import { activeSessionState, buildScheduleBadge, normalizePlaybackSession, sessionStateLabel } from "../../src/utils/playback.ts";
+import {
+  activeSessionState,
+  buildScheduleBadge,
+  canReusePlaybackSessionForSchedule,
+  normalizePlaybackSession,
+  sessionStateLabel
+} from "../../src/utils/playback.ts";
 
 test("activeSessionState accepts known states case-insensitively and falls back to IDLE", () => {
   assert.equal(activeSessionState("running"), "RUNNING");
@@ -44,4 +50,15 @@ test("session labels and schedule badges map TV playback states to coach-facing 
   assert.equal(sessionStateLabel("TERMINATED"), "ENDED");
   assert.deepEqual(buildScheduleBadge("IDLE"), { label: "可开课", tone: "idle" });
   assert.deepEqual(buildScheduleBadge("PAUSED"), { label: "PAUSED", tone: "paused" });
+});
+
+test("course start only reuses active sessions for the same schedule", () => {
+  const session = normalizePlaybackSession(mockPlaybackEnvelope);
+
+  assert.equal(canReusePlaybackSessionForSchedule(session, "PREVIEW", 101), true);
+  assert.equal(canReusePlaybackSessionForSchedule(session, "RUNNING", "101"), true);
+  assert.equal(canReusePlaybackSessionForSchedule(session, "TERMINATED", 101), false);
+  assert.equal(canReusePlaybackSessionForSchedule(session, "ENDED", 101), false);
+  assert.equal(canReusePlaybackSessionForSchedule(session, "PREVIEW", 202), false);
+  assert.equal(canReusePlaybackSessionForSchedule(null, "PREVIEW", 101), false);
 });
