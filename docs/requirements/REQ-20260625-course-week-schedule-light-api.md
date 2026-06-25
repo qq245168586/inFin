@@ -25,7 +25,7 @@ Course 首页课表不再通过 `/api/meta?courseDetail=full` 一次性拉取所
 
 ## Goals
 
-- `course-web` 默认 meta 请求不带课程完整脚本，也不带 schedules。
+- `course-web` 首页默认 meta 请求不带课程完整脚本、不带 schedules、不带 actions、不带 templates。
 - 新增按周课表 API：传 `date` 返回该日期所在周；不传则按 server 当前日期返回本周。
 - 首页周切换、添加、删除、复制排课后只刷新目标周课表。
 - 课程列表继续显示 summary 信息；点击“编辑”时只拉当前课程详情。
@@ -70,7 +70,7 @@ Course 首页课表不再通过 `/api/meta?courseDetail=full` 一次性拉取所
 | Endpoint | Change | Compatibility |
 | --- | --- | --- |
 | `GET /api/schedules/week?date=YYYY-MM-DD&coursePackageId=ID` | New | 返回 `{ date, weekStart, weekEnd, weekEndExclusive, schedules }`；`date` 为空时使用服务器当前日期。 |
-| `GET /api/meta?includeSchedules=0` | Extended | 返回稳定 schedules 空数组结构，不再把课表塞进 meta。 |
+| `GET /api/meta?includeSchedules=0&includeActions=0&includeTemplates=0` | Extended | 返回稳定空数组/空集合结构，不再把课表、动作、模板塞进首页 meta。 |
 | `GET /api/meta?courseDetail=full&courseId=ID` | Extended | 只把指定课程替换为 full，其余课程保持 summary；`courseDetail=full` 无 `courseId` 时仍返回全部 full。 |
 | `GET /api/courses/:id` | Existing reuse | course-web 编辑入口使用它获取单课程完整脚本。 |
 
@@ -92,6 +92,8 @@ GET /api/schedules/week:
 
 GET /api/meta:
   includeSchedules = query.includeSchedules not false
+  includeActions = query.includeActions not false
+  includeTemplates = query.includeTemplates not false
   includeFullCourses = query.courseDetail == full
   if includeFullCourses && query.courseId:
     courses = summaries with only selected course full
@@ -105,7 +107,7 @@ GET /api/meta:
 
 ```pseudo
 MetaProvider.reload:
-  fetch /api/meta?coursePackageId=current&includeSchedules=0
+  fetch /api/meta?includeSchedules=0&includeActions=0&includeTemplates=0
 
 Home schedule VM:
   on selected week/package change:
@@ -124,6 +126,10 @@ CoursesRoute.openEditor(course):
 
 CourseTemplateEditor.applySourceCourse(course):
   load course detail by id before cloning script
+
+AppRoot:
+  home page keeps the lightweight bootstrap meta
+  courses/actions/templates page asks meta for package-scoped actions/templates only when needed
 ```
 
 ## Risks
@@ -131,6 +137,7 @@ CourseTemplateEditor.applySourceCourse(course):
 | Risk | Mitigation |
 | --- | --- |
 | 列表 summary 缺少编辑器需要的 `script` | 所有打开编辑器路径先拉 `GET /api/courses/:id`。 |
+| 首页误拉 actions/templates 导致 payload 大 | `includeActions=0&includeTemplates=0` 裁掉重集合；只有进入编辑相关页面才重新拉。 |
 | 周切换请求乱序导致显示旧周 | course schedule VM 使用 request sequence，只接受最后一次响应。 |
 | 课表加载期间用户以为空白 | 首页显示局部 loading strip，不遮住整页。 |
 | 旧客户端依赖 full meta | 保留 `courseDetail=full` 全量兜底。 |
@@ -141,13 +148,14 @@ CourseTemplateEditor.applySourceCourse(course):
 ### Happy Flow
 
 1. 打开 course-web 首页。
-2. 在 Network 中确认 `/api/meta` 没有 `courseDetail=full`，并带 `includeSchedules=0`。
+2. 在 Network 中确认首页 `/api/meta` 没有 `courseDetail=full`，并带 `includeSchedules=0&includeActions=0&includeTemplates=0`。
 3. 切换下一周或日期选择器到任意日期。
 4. 点击课表卡片右下角“编辑课程”。
 
 Expected:
 
 - 首页课表通过 `/api/schedules/week` 加载。
+- 首页刷新时不再额外发带 `coursePackageId` 的大 meta；切到课程/动作/模板页才会按当前课程包拉对应编辑数据。
 - 周切换期间只出现局部“正在加载课表...”提示。
 - 点击编辑后才出现 `/api/courses/:id` 或单课程详情请求。
 - 编辑器内容完整，可保存。
