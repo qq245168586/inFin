@@ -100,10 +100,14 @@ abstract class MainActivityRemotePlaybackController extends MainActivityScreenPl
     hideCoursePlanPanel();
     if (!TextUtils.isEmpty(playbackSessionId)) {
       Log.d(TAG, "Remote start resolved by authoritative session id=" + playbackSessionId);
+      if (syncInProgress) {
+        markPendingSessionApply("start_course_session_authoritative_while_syncing");
+      }
       requestCurrentPlaybackSession("start_course_session_authoritative");
       return;
     }
     if (syncInProgress) {
+      markPendingSessionApply("start_course_while_syncing");
       requestCurrentPlaybackSession("start_course_while_syncing");
       return;
     }
@@ -218,10 +222,8 @@ abstract class MainActivityRemotePlaybackController extends MainActivityScreenPl
     dispatchIntent(new TvIntent.FinishPlayback());
     bringPlaybackUiToFront();
     hideCoursePlanPanel();
-    if (TextUtils.isEmpty(playbackSessionId) || TextUtils.equals(playbackSessionId, activePlaybackSessionId)) {
-      returnToScheduleListAfterFinish();
-      return;
-    }
+    markPendingTerminalSessionApply("terminate_course", playbackSessionId);
+    returnToScheduleListAfterFinish();
     requestCurrentPlaybackSession("terminate_course");
   }
 

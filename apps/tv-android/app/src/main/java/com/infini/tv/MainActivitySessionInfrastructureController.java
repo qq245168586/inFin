@@ -438,7 +438,9 @@ abstract class MainActivitySessionInfrastructureController extends MainActivityI
 
     boolean accountChanged = !serverNamespace.equals(activeAccountNamespace);
     boolean screenChanged = activeScreenNumber != serverScreenNumber || readSavedScreenNumber() != serverScreenNumber;
-    if (!accountChanged && !screenChanged && selectorPanel != null && selectorPanel.getVisibility() != View.VISIBLE) {
+    boolean selectorVisible = selectorPanel != null && selectorPanel.getVisibility() == View.VISIBLE;
+    if (!accountChanged && !screenChanged && !selectorVisible) {
+      applyHeartbeatSessionHint(registration);
       return;
     }
 
@@ -446,6 +448,52 @@ abstract class MainActivitySessionInfrastructureController extends MainActivityI
     saveAccountNamespace(activeAccountNamespace);
     saveScreenNumber(serverScreenNumber);
     openScreen(serverScreenNumber, false);
+  }
+
+  protected void applyHeartbeatSessionHint(TvScriptRepository.ScreenRegistration registration) {
+    if (registration == null || !registration.sessionOutdated) {
+      return;
+    }
+
+    Log.d(
+        TAG,
+        "Heartbeat reported outdated playback session screen="
+            + registration.screenNumber
+            + " session="
+            + (registration.session == null ? "" : registration.session.id)
+            + " version="
+            + (registration.session == null ? 0 : registration.session.version));
+    requestCurrentPlaybackSession("heartbeat_session_outdated");
+  }
+
+  protected void markPendingSessionApply(String reason) {
+    pendingSessionApplyAfterSync = true;
+    pendingTerminalSessionApply = false;
+    pendingSessionApplyReason =
+        TextUtils.isEmpty(reason) ? "pending_session_after_sync" : reason;
+  }
+
+  protected void markPendingTerminalSessionApply(String reason, String playbackSessionId) {
+    pendingSessionApplyAfterSync = false;
+    pendingTerminalSessionApply = true;
+    pendingSessionApplyReason =
+        TextUtils.isEmpty(reason) ? "pending_terminal_after_sync" : reason;
+    pendingTerminalPlaybackSessionId = playbackSessionId == null ? "" : playbackSessionId;
+  }
+
+  protected void clearPendingSessionApply() {
+    pendingSessionApplyAfterSync = false;
+    pendingTerminalSessionApply = false;
+    pendingSessionApplyReason = "";
+    pendingTerminalPlaybackSessionId = "";
+  }
+
+  protected boolean isTerminalPlaybackSessionState(String state) {
+    if (state == null) {
+      return false;
+    }
+    String normalized = state.trim().toUpperCase(Locale.US);
+    return "TERMINATED".equals(normalized) || "ENDED".equals(normalized);
   }
 
   protected void requestCurrentPlaybackSession(String reason) {

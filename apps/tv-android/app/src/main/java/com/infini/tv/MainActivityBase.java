@@ -281,6 +281,10 @@ abstract class MainActivityBase extends MainActivityContracts {
   protected long sessionTerminatedAtMs = 0L;
   protected boolean sessionRestoreInFlight = false;
   protected volatile String pendingSessionRestoreReason = "";
+  protected boolean pendingSessionApplyAfterSync = false;
+  protected boolean pendingTerminalSessionApply = false;
+  protected String pendingSessionApplyReason = "";
+  protected String pendingTerminalPlaybackSessionId = "";
   protected String activeBundleChecksum = "";
   protected String currentUpdateState = "IDLE";
   protected String currentUpdateTargetVersion = "";

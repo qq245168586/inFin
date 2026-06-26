@@ -137,11 +137,29 @@ abstract class TvScriptRepositoryTypes {
     public final int screenNumber;
     public final String deviceId;
     public final boolean online;
+    public final long serverNowMs;
+    public final boolean sessionOutdated;
+    public final PlaybackSessionSnapshot session;
+
     public ScreenRegistration(String accountNamespace, int screenNumber, String deviceId, boolean online) {
+      this(accountNamespace, screenNumber, deviceId, online, 0L, false, null);
+    }
+
+    public ScreenRegistration(
+        String accountNamespace,
+        int screenNumber,
+        String deviceId,
+        boolean online,
+        long serverNowMs,
+        boolean sessionOutdated,
+        PlaybackSessionSnapshot session) {
       this.accountNamespace = accountNamespace == null ? "" : accountNamespace;
       this.screenNumber = screenNumber;
       this.deviceId = deviceId == null ? "" : deviceId;
       this.online = online;
+      this.serverNowMs = serverNowMs;
+      this.sessionOutdated = sessionOutdated;
+      this.session = session;
     }
   }
   public static class PlaybackSessionSnapshot {

@@ -122,7 +122,10 @@ abstract class TvScriptRepositoryHttpTransport extends TvScriptRepositoryMediaCa
         data.optString("accountNamespace", ""),
         data.optInt("screenNumber", 0),
         data.optString("deviceId", ""),
-        data.optBoolean("online", false));
+        data.optBoolean("online", false),
+        data.optLong("serverNowMs", 0L),
+        data.optBoolean("sessionOutdated", false),
+        parsePlaybackSessionSnapshot(data.optJSONObject("session")));
   }
 
   protected CurrentPlaybackSession parseCurrentPlaybackSession(JSONObject response) {

@@ -71,12 +71,18 @@ abstract class MainActivityScreenPlaybackController extends MainActivitySessionI
   protected void applyCurrentPlaybackSession(
       TvScriptRepository.CurrentPlaybackSession result, String reason) {
     if (result == null || result.session == null) {
+      if (pendingSessionApplyAfterSync || pendingTerminalSessionApply) {
+        Log.d(TAG, "Current playback session is empty; clearing pending apply reason=" + reason);
+        clearPendingSessionApply();
+        returnToScheduleListAfterFinish();
+      }
       return;
     }
     TvScriptRepository.PlaybackSessionSnapshot session = result.session;
     if (TextUtils.isEmpty(session.id)) {
       return;
     }
+    String state = session.state == null ? "" : session.state.toUpperCase(Locale.US);
     if (activePlaybackSessionVersion > 0
         && session.version > 0
         && session.version <= activePlaybackSessionVersion
@@ -85,6 +91,11 @@ abstract class MainActivityScreenPlaybackController extends MainActivitySessionI
           result.serverNowMs,
           result.requestStartedElapsedRealtimeMs,
           result.responseReceivedElapsedRealtimeMs);
+      if (isTerminalPlaybackSessionState(state)) {
+        clearPendingSessionApply();
+        applyPlaybackSessionFields(session);
+        returnToScheduleListAfterFinish();
+      }
       return;
     }
 
@@ -103,7 +114,6 @@ abstract class MainActivityScreenPlaybackController extends MainActivitySessionI
         result.serverNowMs,
         result.requestStartedElapsedRealtimeMs,
         result.responseReceivedElapsedRealtimeMs);
-    String state = session.state == null ? "" : session.state.toUpperCase(Locale.US);
     if ("PREVIEW".equals(state)
         && !previewMode
         && activePlaybackItem != null
@@ -114,21 +124,54 @@ abstract class MainActivityScreenPlaybackController extends MainActivitySessionI
     }
 
     if ("TERMINATED".equals(state)) {
-      if (TextUtils.equals(session.id, activePlaybackSessionId) || TextUtils.isEmpty(activePlaybackSessionId)) {
+      clearPendingSessionApply();
+      applyPlaybackSessionFields(session);
+      returnToScheduleListAfterFinish();
+      return;
+    }
+
+    if ("ENDED".equals(state)) {
+      clearPendingSessionApply();
+      if (TextUtils.equals(session.id, activePlaybackSessionId) && activePlaybackItem != null) {
+        applyPlaybackSessionFields(session);
+        showFinishState();
+        stopPlaybackLoop();
+      } else {
         applyPlaybackSessionFields(session);
         returnToScheduleListAfterFinish();
       }
       return;
     }
 
-    if ("ENDED".equals(state)) {
-      if (TextUtils.equals(session.id, activePlaybackSessionId) && activePlaybackItem != null) {
-        applyPlaybackSessionFields(session);
-        showFinishState();
-        stopPlaybackLoop();
-      }
+    if (pendingTerminalSessionApply
+        && (TextUtils.isEmpty(pendingTerminalPlaybackSessionId)
+            || TextUtils.equals(pendingTerminalPlaybackSessionId, session.id))) {
+      Log.d(
+          TAG,
+          "Ignoring non-terminal current session while terminal apply is pending id="
+              + session.id
+              + " state="
+              + state
+              + " reason="
+              + reason);
+      returnToScheduleListAfterFinish();
       return;
     }
+
+    if (syncInProgress) {
+      markPendingSessionApply(reason);
+      Log.d(
+          TAG,
+          "Deferring non-terminal playback session until schedule sync completes id="
+              + session.id
+              + " state="
+              + state
+              + " reason="
+              + reason);
+      return;
+    }
+
+    clearPendingSessionApply();
 
     resolveRemoteSchedule(
         session.scheduleId,
@@ -559,6 +602,7 @@ abstract class MainActivityScreenPlaybackController extends MainActivitySessionI
       return;
     }
     if (syncInProgress) {
+      markPendingSessionApply("preview_while_syncing");
       requestCurrentPlaybackSession("preview_while_syncing");
       return;
     }
