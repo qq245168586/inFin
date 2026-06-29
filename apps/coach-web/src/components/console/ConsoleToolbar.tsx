@@ -1,3 +1,5 @@
+import { useI18n } from "../../providers/I18nProvider";
+
 export function ConsoleToolbar({
   dateLabel,
   onRefreshBundle,
@@ -7,6 +9,7 @@ export function ConsoleToolbar({
   onRefreshBundle: () => void;
   onRefreshTv: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="coach-console-toolbar">
       <div className="coach-toolbar-copy">
@@ -15,10 +18,10 @@ export function ConsoleToolbar({
       </div>
       <div className="coach-toolbar-actions">
         <button type="button" className="ghost-button" onClick={onRefreshBundle}>
-          刷新课表
+          {t("刷新课表")}
         </button>
         <button type="button" className="primary-button" onClick={onRefreshTv}>
-          刷新 TV
+          {t("刷新 TV")}
         </button>
       </div>
     </div>

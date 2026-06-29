@@ -1,5 +1,6 @@
 import type { AuthSession, NoticeTone } from "../models/common";
 import type { TvDailyBundle } from "../models/schedule";
+import { useI18n } from "../providers/I18nProvider";
 import { fetchDailyBundle, publishTvControl } from "../services/consoleService";
 
 interface ConsoleRefreshParams {
@@ -12,27 +13,28 @@ interface ConsoleRefreshParams {
 }
 
 export function useConsoleRefreshActions(params: ConsoleRefreshParams) {
+  const { t } = useI18n();
   async function refreshBundle(manualNotice = true) {
-    params.onBusyTextChange("正在刷新教练端课表...");
+    params.onBusyTextChange(t("正在刷新教练端课表..."));
     try {
       params.setBundle(await fetchDailyBundle(params.selectedDate, params.authSession));
       if (manualNotice) {
-        params.onNotice("教练端课表已刷新。");
+        params.onNotice(t("教练端课表已刷新。"));
       }
     } catch (error) {
-      params.handleRequestError(error, "刷新课表失败。");
+      params.handleRequestError(error, t("刷新课表失败。"));
     } finally {
       params.onBusyTextChange("");
     }
   }
 
   async function handleRefreshTv() {
-    params.onBusyTextChange("正在通知 TV 端刷新课程校验...");
+    params.onBusyTextChange(t("正在通知 TV 端刷新课程校验..."));
     try {
       await publishTvControl(params.authSession, { type: "refresh_checksum", source: "coach-web", requestedAt: Date.now() });
-      params.onNotice("已通知 TV 端刷新课程校验。");
+      params.onNotice(t("已通知 TV 端刷新课程校验。"));
     } catch (error) {
-      params.handleRequestError(error, "TV 控制指令发送失败。");
+      params.handleRequestError(error, t("TV 控制指令发送失败。"));
     } finally {
       params.onBusyTextChange("");
     }

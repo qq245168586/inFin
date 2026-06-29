@@ -1,5 +1,6 @@
 import type { CoachSessionState } from "../../models/playback";
 import type { CoachCourseScript, CoachPod, CoachPodScreen, CoachVideoGroup, TvDailySchedule } from "../../models/schedule";
+import { useI18n } from "../../providers/I18nProvider";
 import { buildCourseLogo } from "../../utils/format";
 import { buildScheduleBadge } from "../../utils/playback";
 
@@ -30,12 +31,13 @@ interface ScheduleCardInfo {
 }
 
 export function ScheduleList(props: ScheduleListProps) {
+  const { t } = useI18n();
   const { pendingAction, schedules, selectedScheduleId, sessionStateForSchedule } = props;
   return (
     <div className="coach-schedule-panel">
       <div className="coach-panel-head">
-        <h2>今日课程表</h2>
-        <span>{schedules.length} 节课程</span>
+        <h2>{t("今日课程表")}</h2>
+        <span>{schedules.length} {t("节课程")}</span>
       </div>
       <div className="coach-schedule-list">
         {schedules.length ? schedules.map((schedule) => {
@@ -52,22 +54,22 @@ export function ScheduleList(props: ScheduleListProps) {
                   <div className="coach-schedule-title-row">
                     <span className="coach-schedule-topic">{info.topic}</span>
                     <span className="coach-schedule-version">Version {info.version}</span>
-                    <span className={`coach-schedule-badge is-${badge.tone}`}>{badge.label}</span>
+                    <span className={`coach-schedule-badge is-${badge.tone}`}>{t(badge.label)}</span>
                   </div>
                   <strong>{info.name}</strong>
-                  <p>{info.description}</p>
-                  <div className="coach-schedule-metrics" aria-label="课程训练信息">
-                    <ScheduleMetric label="站点" value={info.stationText} />
+                  <p>{t(info.description)}</p>
+                  <div className="coach-schedule-metrics" aria-label={t("课程训练信息")}>
+                    <ScheduleMetric label={t("站点")} value={t(info.stationText)} />
                     <ScheduleMetric label="WORK" value={info.workText} />
                     <ScheduleMetric label="REST" value={info.restText} />
-                    <ScheduleMetric label="换站" value={info.rotationText} />
+                    <ScheduleMetric label={t("换站")} value={t(info.rotationText)} />
                   </div>
                 </div>
               </button>
               {isSelected ? <ScheduleActions schedule={schedule} scheduleState={scheduleState} showRunningActions={showRunningActions} {...props} /> : null}
             </article>
           );
-        }) : <div className="coach-empty-block">这一天还没有排课。</div>}
+        }) : <div className="coach-empty-block">{t("这一天还没有排课。")}</div>}
       </div>
     </div>
   );
@@ -83,22 +85,23 @@ function ScheduleMetric({ label, value }: { label: string; value: string }) {
 }
 
 function ScheduleActions(props: ScheduleListProps & { schedule: TvDailySchedule; scheduleState: CoachSessionState; showRunningActions: boolean }) {
+  const { t } = useI18n();
   if (props.showRunningActions) {
     return (
       <div className="coach-schedule-actions">
         <button type="button" className="ghost-button" disabled={Boolean(props.pendingAction)} onClick={() => props.onShowPlan(props.schedule)}>
-          计划
+          {t("计划")}
         </button>
         <button type="button" className="primary-button" disabled={Boolean(props.pendingAction)} onClick={() => props.scheduleState === "PAUSED" ? props.onResume() : props.onPause()}>
-          {props.pendingAction ? "处理中..." : props.scheduleState === "PAUSED" ? "继续" : "暂停"}
+          {props.pendingAction ? t("处理中...") : props.scheduleState === "PAUSED" ? t("继续") : t("暂停")}
         </button>
         <button
           type="button"
           className="ghost-button danger"
           disabled={Boolean(props.pendingAction)}
-          onClick={() => window.confirm("是否结束当前课程？") && props.onTerminate()}
+          onClick={() => window.confirm(t("是否结束当前课程？")) && props.onTerminate()}
         >
-          结束
+          {t("结束")}
         </button>
       </div>
     );
@@ -107,7 +110,7 @@ function ScheduleActions(props: ScheduleListProps & { schedule: TvDailySchedule;
   return (
     <div className="coach-schedule-actions">
       <button type="button" className="ghost-button" disabled={Boolean(props.pendingAction)} onClick={() => props.onShowPlan(props.schedule)}>
-        计划
+        {t("计划")}
       </button>
       <button
         type="button"
@@ -115,10 +118,10 @@ function ScheduleActions(props: ScheduleListProps & { schedule: TvDailySchedule;
         disabled={Boolean(props.pendingAction)}
         onClick={() => props.scheduleState === "PREVIEW" ? props.onExitPreview(props.schedule) : props.onEnterPreview(props.schedule)}
       >
-        {props.scheduleState === "PREVIEW" ? "退出预览" : "预览"}
+        {props.scheduleState === "PREVIEW" ? t("退出预览") : t("预览")}
       </button>
       <button type="button" className="primary-button" disabled={Boolean(props.pendingAction)} onClick={() => props.onStart(props.schedule)}>
-        {props.pendingAction ? "处理中..." : "开始"}
+        {props.pendingAction ? t("处理中...") : t("开始")}
       </button>
     </div>
   );

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { AuthSession, NoticeTone } from "../models/common";
 import type { AppPackageListPayload, ParsedPairPayload, TvScreenItem, TvScreensPayload } from "../models/screens";
+import { useI18n } from "../providers/I18nProvider";
 import { bindTvScreen, clearTvCache, fetchScreens, fetchTvPackages, installTvPackage, unbindTvScreen } from "../services/screensService";
 import { getErrorMessage, isAuthExpiredMessage } from "../utils/format";
 import { updateInProgress } from "../utils/screens";
@@ -17,6 +18,7 @@ interface ScreensVmProps {
 }
 
 export function useScreensViewModel({ authSession, onBusyTextChange, onNotice, onAuthExpired }: ScreensVmProps) {
+  const { t } = useI18n();
   const [payload, setPayload] = useState<TvScreensPayload | null>(null);
   const [packagePayload, setPackagePayload] = useState<AppPackageListPayload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,11 +41,11 @@ export function useScreensViewModel({ authSession, onBusyTextChange, onNotice, o
   }
 
   async function loadScreens(showBusy = false) {
-    if (showBusy) onBusyTextChange("正在刷新屏幕状态...");
+    if (showBusy) onBusyTextChange(t("正在刷新屏幕状态..."));
     try {
       setPayload(await fetchScreens(authSession));
     } catch (error) {
-      handleRequestError(error, "加载屏幕状态失败。");
+      handleRequestError(error, t("加载屏幕状态失败。"));
     } finally {
       setLoading(false);
       if (showBusy) onBusyTextChange("");
@@ -51,11 +53,11 @@ export function useScreensViewModel({ authSession, onBusyTextChange, onNotice, o
   }
 
   async function loadPackages(showBusy = false) {
-    if (showBusy) onBusyTextChange("正在刷新 TV 版本列表...");
+    if (showBusy) onBusyTextChange(t("正在刷新 TV 版本列表..."));
     try {
       setPackagePayload(await fetchTvPackages(authSession));
     } catch (error) {
-      handleRequestError(error, "加载 TV 版本失败。");
+      handleRequestError(error, t("加载 TV 版本失败。"));
     } finally {
       if (showBusy) onBusyTextChange("");
     }
@@ -66,7 +68,7 @@ export function useScreensViewModel({ authSession, onBusyTextChange, onNotice, o
     setPairDeviceId(parsed.deviceId);
     setPairToken(parsed.pairToken);
     scanner.setScannerError("");
-    onNotice(`已识别设备 ${parsed.deviceId}，现在选择屏幕编号即可绑定。`);
+    onNotice(`${t("已识别设备")} ${parsed.deviceId}，${t("现在选择屏幕编号即可绑定。")}`);
   }
 
   function updatePairRawInput(value: string) {
@@ -101,61 +103,61 @@ export function useScreensViewModel({ authSession, onBusyTextChange, onNotice, o
 
   async function bindScannedDevice() {
     if (!pairDeviceId || !pairToken) {
-      onNotice("请先扫码，或粘贴 TV 上的配对字符串。", "error");
+      onNotice(t("请先扫码，或粘贴 TV 上的配对字符串。"), "error");
       return;
     }
     const screenNumber = Number(pairScreenNumber);
     if (!Number.isFinite(screenNumber) || screenNumber < 1 || screenNumber > 5) {
-      onNotice("请选择有效的屏幕编号。", "error");
+      onNotice(t("请选择有效的屏幕编号。"), "error");
       return;
     }
     const occupied = screens.find((item) => item.screenNumber === screenNumber && item.deviceId && item.deviceId !== pairDeviceId);
-    if (occupied && !window.confirm(`屏幕 ${screenNumber} 当前已绑定 ${occupied.deviceId}，继续会覆盖原绑定，确定继续吗？`)) return;
-    await runDeviceMutation(pairDeviceId, `正在把 ${pairDeviceId} 绑定到屏幕 ${screenNumber}...`, async () => {
+    if (occupied && !window.confirm(`${t("屏幕")} ${screenNumber} ${t("当前已绑定")} ${occupied.deviceId}，${t("继续会覆盖原绑定，确定继续吗？")}`)) return;
+    await runDeviceMutation(pairDeviceId, `${t("正在把")} ${pairDeviceId} ${t("绑定到屏幕")} ${screenNumber}...`, async () => {
       await bindTvScreen(authSession, { deviceId: pairDeviceId, pairToken, screenNumber });
       await loadScreens(false);
-      onNotice(`已把 ${pairDeviceId} 绑定到屏幕 ${screenNumber}。`);
+      onNotice(`${t("已把")} ${pairDeviceId} ${t("绑定到屏幕")} ${screenNumber}。`);
       resetPairDraft(String(screenNumber));
-    }, "绑定屏幕失败。");
+    }, t("绑定屏幕失败。"));
   }
 
   async function unbindScreen(screen: TvScreenItem) {
-    if (!screen.deviceId || !window.confirm(`确定解绑 ${screen.deviceId} 吗？解绑后 TV 会回到二维码待绑定页面。`)) return;
-    await runDeviceMutation(screen.deviceId, `正在解绑 ${screen.deviceId}...`, async () => {
+    if (!screen.deviceId || !window.confirm(`${t("确定解绑")} ${screen.deviceId} ${t("吗？解绑后 TV 会回到二维码待绑定页面。")}`)) return;
+    await runDeviceMutation(screen.deviceId, `${t("正在解绑")} ${screen.deviceId}...`, async () => {
       await unbindTvScreen(authSession, screen.deviceId);
       await loadScreens(false);
-      onNotice(`已解绑 ${screen.deviceId}。`);
-    }, "解绑屏幕失败。");
+      onNotice(`${t("已解绑")} ${screen.deviceId}。`);
+    }, t("解绑屏幕失败。"));
   }
 
   async function clearDeviceCache(screen: TvScreenItem) {
     if (!screen.deviceId) return;
     if (!canClearCache(screen)) {
-      onNotice("请先确保屏幕在线且处于待机状态，再执行清缓存。", "error");
+      onNotice(t("请先确保屏幕在线且处于待机状态，再执行清缓存。"), "error");
       return;
     }
-    if (!window.confirm(`确定清除 ${screen.deviceId} 的本地课程缓存吗？`)) return;
-    await runDeviceMutation(screen.deviceId, `正在通知 ${screen.deviceId} 清理本地缓存...`, async () => {
+    if (!window.confirm(`${t("确定清除")} ${screen.deviceId} ${t("的本地课程缓存吗？")}`)) return;
+    await runDeviceMutation(screen.deviceId, `${t("正在通知")} ${screen.deviceId} ${t("清理本地缓存")}...`, async () => {
       await clearTvCache(authSession, screen.deviceId);
       await loadScreens(false);
-      onNotice(`已通知 ${screen.deviceId} 清理缓存。`);
-    }, "清理缓存失败。");
+      onNotice(`${t("已通知")} ${screen.deviceId} ${t("清理缓存。")}`);
+    }, t("清理缓存失败。"));
   }
 
   async function installPackageToDevice(screen: TvScreenItem) {
     if (!screen.deviceId) return;
     const selectedPackage = tvPackages.find((item) => String(item.id) === String(selectedPackageId)) || null;
-    if (!selectedPackageId) onNotice("请先选择一个 TV 版本。", "error");
-    else if (!screen.online) onNotice("屏幕当前离线，暂时无法更新。", "error");
-    else if (updateInProgress(screen.updateState)) onNotice("屏幕正在更新中，请等待当前更新完成。", "error");
-    else if (String(screen.playbackState || "").toUpperCase() !== "IDLE") onNotice("请先确保屏幕处于待机状态，再执行更新。", "error");
-    else if (!selectedPackage) onNotice("没有找到所选 TV 版本。", "error");
-    else if (window.confirm(`确定把 ${screen.deviceId} 更新到 ${selectedPackage.version} 吗？`)) {
-      await runDeviceMutation(screen.deviceId, `正在通知 ${screen.deviceId} 安装 ${selectedPackage.version}...`, async () => {
+    if (!selectedPackageId) onNotice(t("请先选择一个 TV 版本。"), "error");
+    else if (!screen.online) onNotice(t("屏幕当前离线，暂时无法更新。"), "error");
+    else if (updateInProgress(screen.updateState)) onNotice(t("屏幕正在更新中，请等待当前更新完成。"), "error");
+    else if (String(screen.playbackState || "").toUpperCase() !== "IDLE") onNotice(t("请先确保屏幕处于待机状态，再执行更新。"), "error");
+    else if (!selectedPackage) onNotice(t("没有找到所选 TV 版本。"), "error");
+    else if (window.confirm(`${t("确定把")} ${screen.deviceId} ${t("更新到")} ${selectedPackage.version} ${t("吗？")}`)) {
+      await runDeviceMutation(screen.deviceId, `${t("正在通知")} ${screen.deviceId} ${t("安装")} ${selectedPackage.version}...`, async () => {
         await installTvPackage(authSession, screen.deviceId, selectedPackage.id);
         await loadScreens(false);
-        onNotice(`已通知 ${screen.deviceId} 安装 ${selectedPackage.version}。`);
-      }, "下发更新失败。");
+        onNotice(`${t("已通知")} ${screen.deviceId} ${t("安装")} ${selectedPackage.version}。`);
+      }, t("下发更新失败。"));
     }
   }
 
@@ -187,7 +189,7 @@ export function useScreensViewModel({ authSession, onBusyTextChange, onNotice, o
       } catch (error) {
         if (!cancelled) {
           setLoading(false);
-          handleRequestError(error, "加载屏幕状态失败。");
+          handleRequestError(error, t("加载屏幕状态失败。"));
         }
       } finally {
         if (!cancelled) timer = window.setTimeout(() => void loop(false), document.visibilityState === "visible" ? POLL_INTERVAL_MS : HIDDEN_POLL_INTERVAL_MS);

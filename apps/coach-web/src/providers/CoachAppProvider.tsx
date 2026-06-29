@@ -5,6 +5,7 @@ import { AUTH_STORAGE_KEY, loginCoach, refreshCoachSession } from "../services/a
 import { fetchCurrentWeekSchedules } from "../services/metaService";
 import { readStorageJson, removeStorageItem, saveStorageJson } from "../services/storage";
 import { getErrorMessage, isAuthExpiredMessage } from "../utils/format";
+import { useI18n } from "./I18nProvider";
 
 interface CoachAppContextValue {
   activePage: CoachPageKey;
@@ -31,6 +32,7 @@ const REFRESH_BEFORE_EXPIRE_MS = 10 * 60 * 1000;
 const REFRESH_CHECK_MS = 60 * 1000;
 
 export function CoachAppProvider({ children }: { children: ReactNode }) {
+  const { t } = useI18n();
   const noticeTimerRef = useRef<number | null>(null);
   const lastActivityAtRef = useRef(Date.now());
   const refreshingRef = useRef(false);
@@ -60,7 +62,7 @@ export function CoachAppProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const handleSessionExpired = useCallback((message = "登录已失效，请重新登录。") => {
+  const handleSessionExpired = useCallback((message = t("登录已失效，请重新登录。")) => {
     removeStorageItem(AUTH_STORAGE_KEY);
     setAuthSession(null);
     setCurrentWeekSchedules([]);
@@ -69,7 +71,7 @@ export function CoachAppProvider({ children }: { children: ReactNode }) {
     setPasswordVisible(false);
     setLoginForm({ username: "", password: "" });
     pushNotice(message, "error");
-  }, [pushNotice]);
+  }, [pushNotice, t]);
 
   const refreshSession = useCallback(async (current: AuthSession | null) => {
     if (!current?.refresh_token || refreshingRef.current) return;
@@ -78,7 +80,7 @@ export function CoachAppProvider({ children }: { children: ReactNode }) {
       const nextAuth = await refreshCoachSession(current.refresh_token);
       setAuthSession(enrichSession(nextAuth));
     } catch (error) {
-      handleSessionExpired(isAuthExpiredMessage(getErrorMessage(error)) ? "登录已过期，请重新登录。" : getErrorMessage(error));
+      handleSessionExpired(isAuthExpiredMessage(getErrorMessage(error)) ? t("登录已过期，请重新登录。") : getErrorMessage(error));
     } finally {
       refreshingRef.current = false;
     }
@@ -92,7 +94,7 @@ export function CoachAppProvider({ children }: { children: ReactNode }) {
         setAuthReady(true);
         return;
       }
-      setBusyText("正在恢复登录...");
+      setBusyText(t("正在恢复登录..."));
       try {
         const nextAuth = await refreshCoachSession(storedAuth.refresh_token);
         if (!cancelled) {
@@ -137,7 +139,7 @@ export function CoachAppProvider({ children }: { children: ReactNode }) {
     if (!authReady || !authSession) {
       return;
     }
-    void loadMeta("正在加载教练端课表...");
+    void loadMeta(t("正在加载教练端课表..."));
   }, [authReady, authSession?.access_token]);
 
   useEffect(() => {
@@ -154,7 +156,7 @@ export function CoachAppProvider({ children }: { children: ReactNode }) {
     const tick = () => {
       const now = Date.now();
       if (now - lastActivityAtRef.current > ACTIVE_SESSION_WINDOW_MS) {
-        handleSessionExpired("登录已超过 12 小时未操作，请重新登录。");
+      handleSessionExpired(t("登录已超过 12 小时未操作，请重新登录。"));
         return;
       }
       const expiresAt = Number(authSession.expires_at || 0);
@@ -169,9 +171,9 @@ export function CoachAppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     function handleAuthExpired(event: Event) {
-      const message = String((event as CustomEvent<{ message?: string }>).detail?.message || "登录已过期，请重新登录。");
+      const message = String((event as CustomEvent<{ message?: string }>).detail?.message || t("登录已过期，请重新登录。"));
       if (!isAuthExpiredMessage(message)) return;
-      handleSessionExpired("登录已过期，请重新登录。");
+      handleSessionExpired(t("登录已过期，请重新登录。"));
     }
 
     window.addEventListener("infini-auth-expired", handleAuthExpired as EventListener);
@@ -180,17 +182,17 @@ export function CoachAppProvider({ children }: { children: ReactNode }) {
 
   async function handleLogin() {
     if (!loginForm.username.trim() || !loginForm.password.trim()) {
-      pushNotice("请输入账号和密码。", "error");
+      pushNotice(t("请输入账号和密码。"), "error");
       return;
     }
-    setBusyText("正在登录...");
+    setBusyText(t("正在登录..."));
     try {
       const nextAuth = await loginCoach(loginForm.username.trim(), loginForm.password.trim());
       setAuthSession(enrichSession(nextAuth));
       lastActivityAtRef.current = Date.now();
       setActivePage("console");
       setLoginForm({ username: "", password: "" });
-      pushNotice("登录成功。");
+      pushNotice(t("登录成功。"));
     } catch (error) {
       pushNotice(getErrorMessage(error), "error");
     } finally {
@@ -205,12 +207,12 @@ export function CoachAppProvider({ children }: { children: ReactNode }) {
     setActivePage("console");
     setLoginForm({ username: "", password: "" });
     setPasswordVisible(false);
-    pushNotice("已退出登录。");
+    pushNotice(t("已退出登录。"));
   }
 
   async function loadMeta(label = "") {
     if (label) {
-      setBusyText(label);
+      setBusyText(t(label));
     }
     try {
       setCurrentWeekSchedules(await fetchCurrentWeekSchedules());

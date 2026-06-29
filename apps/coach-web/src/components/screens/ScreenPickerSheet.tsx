@@ -1,3 +1,5 @@
+import { useI18n } from "../../providers/I18nProvider";
+
 type ScreenPickerMode = "scan" | "upload" | "select";
 
 interface ScreenPickerSheetProps {
@@ -26,6 +28,7 @@ const modeCopy: Record<ScreenPickerMode, { eyebrow: string; title: string; hint:
 };
 
 export function ScreenPickerSheet(props: ScreenPickerSheetProps) {
+  const { t } = useI18n();
   if (!props.mode) return null;
   const copy = modeCopy[props.mode];
 
@@ -35,11 +38,11 @@ export function ScreenPickerSheet(props: ScreenPickerSheetProps) {
         <div className="coach-scanner-head">
           <div>
             <p>{copy.eyebrow}</p>
-            <strong>{copy.title}</strong>
+            <strong>{t(copy.title)}</strong>
           </div>
-          <button type="button" className="ghost-button" onClick={props.onClose}>关闭</button>
+          <button type="button" className="ghost-button" onClick={props.onClose}>{t("关闭")}</button>
         </div>
-        <p className="coach-screen-picker-hint">{copy.hint}</p>
+        <p className="coach-screen-picker-hint">{t(copy.hint)}</p>
         <div className="coach-screen-picker-grid">
           {[1, 2, 3, 4, 5].map((screenNumber) => {
             const selected = String(screenNumber) === props.selectedScreenNumber;
@@ -50,7 +53,7 @@ export function ScreenPickerSheet(props: ScreenPickerSheetProps) {
                 className={`coach-screen-picker-option${selected ? " active" : ""}`}
                 onClick={() => props.onSelect(screenNumber)}
               >
-                <span>屏幕</span>
+                <span>{t("屏幕")}</span>
                 <strong>{screenNumber}</strong>
               </button>
             );

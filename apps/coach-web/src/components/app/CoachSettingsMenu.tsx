@@ -4,6 +4,7 @@ import type { VenueCoursePackagesPayload } from "../../models/schedule";
 import { fetchVenueCoursePackages, switchActiveCoursePackage } from "../../services/consoleService";
 import { COACH_COURSE_PACKAGE_CHANGED_EVENT } from "../../utils/events";
 import { createCommandId, getErrorMessage, isAuthExpiredMessage } from "../../utils/format";
+import { useI18n } from "../../providers/I18nProvider";
 
 interface CoachSettingsMenuProps {
   activePage: CoachPageKey;
@@ -24,6 +25,7 @@ export function CoachSettingsMenu({
   onNotice,
   onSelectPage
 }: CoachSettingsMenuProps) {
+  const { t } = useI18n();
   const [coursePackagesPayload, setCoursePackagesPayload] = useState<VenueCoursePackagesPayload | null>(null);
   const [loadingPackages, setLoadingPackages] = useState(true);
   const [pendingPackageId, setPendingPackageId] = useState<number>(0);
@@ -51,7 +53,7 @@ export function CoachSettingsMenu({
       setCoursePackagesPayload(await fetchVenueCoursePackages(authSession));
     } catch (error) {
       if (showError) {
-        handleError(error, "加载课程包失败。");
+        handleError(error, t("加载课程包失败。"));
       } else if (isAuthExpiredMessage(getErrorMessage(error))) {
         onAuthExpired(getErrorMessage(error));
       }
@@ -65,16 +67,16 @@ export function CoachSettingsMenu({
       return;
     }
     setPendingPackageId(coursePackageId);
-    onBusyTextChange("正在切换课程包...");
+    onBusyTextChange(t("正在切换课程包..."));
     try {
       const payload = await switchActiveCoursePackage(authSession, coursePackageId, createCommandId());
       setCoursePackagesPayload(payload);
       window.dispatchEvent(new CustomEvent(COACH_COURSE_PACKAGE_CHANGED_EVENT, {
         detail: { activeCoursePackageId: payload.activeCoursePackageId || coursePackageId }
       }));
-      onNotice(payload.warning || "课程包已切换，TV 会重新同步课表。", payload.warning ? "error" : undefined);
+      onNotice(payload.warning || t("课程包已切换，TV 会重新同步课表。"), payload.warning ? "error" : undefined);
     } catch (error) {
-      handleError(error, "切换课程包失败。");
+      handleError(error, t("切换课程包失败。"));
     } finally {
       setPendingPackageId(0);
       onBusyTextChange("");
@@ -87,20 +89,20 @@ export function CoachSettingsMenu({
 
   return (
     <div className="coach-settings-layer" role="presentation" onClick={onClose}>
-      <div className="coach-settings-popover" role="dialog" aria-modal="true" aria-label="设置" onClick={(event) => event.stopPropagation()}>
+      <div className="coach-settings-popover" role="dialog" aria-modal="true" aria-label={t("设置")} onClick={(event) => event.stopPropagation()}>
         <div className="coach-settings-head">
           <div>
-            <span>设置</span>
-            <strong>教练端管理</strong>
+            <span>{t("设置")}</span>
+            <strong>{t("教练端管理")}</strong>
           </div>
-          <button type="button" className="coach-settings-close" onClick={onClose} aria-label="关闭设置">
+          <button type="button" className="coach-settings-close" onClick={onClose} aria-label={t("关闭设置")}>
             ×
           </button>
         </div>
         <div className="coach-settings-group">
-          <span className="coach-settings-group-title">课程包</span>
+          <span className="coach-settings-group-title">{t("课程包")}</span>
           {loadingPackages ? (
-            <div className="coach-settings-empty">正在加载课程包...</div>
+            <div className="coach-settings-empty">{t("正在加载课程包...")}</div>
           ) : coursePackages.length ? (
             <>
               {coursePackages.map((item) => {
@@ -117,21 +119,21 @@ export function CoachSettingsMenu({
                     <span className="coach-settings-item-icon is-package" aria-hidden="true" />
                     <span>
                       <strong>{item.name}</strong>
-                      <em>{pending ? "正在切换..." : selected ? "当前课表课程包" : "点击切换课表输出"}</em>
+                      <em>{pending ? t("正在切换...") : selected ? t("当前课表课程包") : t("点击切换课表输出")}</em>
                     </span>
                   </button>
                 );
               })}
               {coursePackagesPayload?.running ? (
-                <div className="coach-settings-empty is-warning">课程正在运行，结束后才能切换课程包。</div>
+                <div className="coach-settings-empty is-warning">{t("课程正在运行，结束后才能切换课程包。")}</div>
               ) : null}
             </>
           ) : (
-            <div className="coach-settings-empty">当前场馆没有绑定课程包。</div>
+            <div className="coach-settings-empty">{t("当前场馆没有绑定课程包。")}</div>
           )}
         </div>
         <div className="coach-settings-group">
-          <span className="coach-settings-group-title">现场操作</span>
+          <span className="coach-settings-group-title">{t("现场操作")}</span>
           <button
             type="button"
             className={`coach-settings-item ${activePage === "console" ? "is-active" : ""}`}
@@ -139,13 +141,13 @@ export function CoachSettingsMenu({
           >
             <span className="coach-settings-item-icon is-play" aria-hidden="true" />
             <span>
-              <strong>课程控制</strong>
-              <em>预览、开始、暂停和结束课程</em>
+              <strong>{t("课程控制")}</strong>
+              <em>{t("预览、开始、暂停和结束课程")}</em>
             </span>
           </button>
         </div>
         <div className="coach-settings-group">
-          <span className="coach-settings-group-title">设备设置</span>
+          <span className="coach-settings-group-title">{t("设备设置")}</span>
           <button
             type="button"
             className={`coach-settings-item ${activePage === "screens" ? "is-active" : ""}`}
@@ -153,8 +155,8 @@ export function CoachSettingsMenu({
           >
             <span className="coach-settings-item-icon is-screen" aria-hidden="true" />
             <span>
-              <strong>屏幕管理</strong>
-              <em>绑定屏幕、清缓存和更新 TV</em>
+              <strong>{t("屏幕管理")}</strong>
+              <em>{t("绑定屏幕、清缓存和更新 TV")}</em>
             </span>
           </button>
         </div>

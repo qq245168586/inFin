@@ -1,9 +1,11 @@
 import jsQR from "jsqr";
 import { useEffect, useRef, useState } from "react";
 import type { BarcodeDetectorShape, ParsedPairPayload } from "../models/screens";
+import { useI18n } from "../providers/I18nProvider";
 import { barcodeDetectorApi, parsePairPayload } from "../utils/screens";
 
 export function usePairScannerViewModel(onParsed: (payload: ParsedPairPayload) => void) {
+  const { t } = useI18n();
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scannerError, setScannerError] = useState("");
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -17,7 +19,7 @@ export function usePairScannerViewModel(onParsed: (payload: ParsedPairPayload) =
   function applyPairPayload(rawValue: string) {
     const parsed = parsePairPayload(rawValue);
     if (!parsed) {
-      setScannerError("没有识别到有效的 TV 配对二维码。");
+      setScannerError(t("没有识别到有效的 TV 配对二维码。"));
       return false;
     }
     setScannerError("");
@@ -75,11 +77,11 @@ export function usePairScannerViewModel(onParsed: (payload: ParsedPairPayload) =
   async function startScanner() {
     if (startingRef.current || scannerOpen) return;
     if (!window.isSecureContext) {
-      setScannerError("当前页面不是安全地址（HTTPS），浏览器会拦截摄像头。请改用 HTTPS 打开 coach 页面，或先上传二维码照片。");
+      setScannerError(t("当前页面不是安全地址（HTTPS），浏览器会拦截摄像头。请改用 HTTPS 打开 coach 页面，或先上传二维码照片。"));
       return;
     }
     if (!navigator.mediaDevices?.getUserMedia) {
-      setScannerError("当前浏览器没有开放摄像头接口，请改用上传二维码照片或手动粘贴配对字符串。");
+      setScannerError(t("当前浏览器没有开放摄像头接口，请改用上传二维码照片或手动粘贴配对字符串。"));
       return;
     }
     startingRef.current = true;
@@ -100,8 +102,8 @@ export function usePairScannerViewModel(onParsed: (payload: ParsedPairPayload) =
       void scanLoop();
     } catch (error) {
       stopScanner();
-      const message = error instanceof Error ? error.message : "打开摄像头失败。";
-      setScannerError(/secure|https|permission|denied|notallowed/i.test(message) ? `摄像头权限未成功打开：${message}` : message);
+      const message = error instanceof Error ? error.message : t("打开摄像头失败。");
+      setScannerError(/secure|https|permission|denied|notallowed/i.test(message) ? `${t("摄像头权限未成功打开：")}${message}` : message);
     } finally {
       startingRef.current = false;
     }
@@ -112,7 +114,7 @@ export function usePairScannerViewModel(onParsed: (payload: ParsedPairPayload) =
       await new Promise((resolve) => window.setTimeout(resolve, 50));
       if (videoRef.current) return videoRef.current;
     }
-    throw new Error("扫码预览初始化失败。");
+    throw new Error(t("扫码预览初始化失败。"));
   }
 
   async function waitForMetadata(video: HTMLVideoElement) {
@@ -153,9 +155,9 @@ export function usePairScannerViewModel(onParsed: (payload: ParsedPairPayload) =
       await image.decode();
       URL.revokeObjectURL(imageUrl);
       const raw = await detectPairPayload(image, image.naturalWidth || image.width || 1, image.naturalHeight || image.height || 1);
-      if (!raw || !applyPairPayload(raw)) setScannerError("这张图片里没有识别到有效的 TV 配对二维码。");
+      if (!raw || !applyPairPayload(raw)) setScannerError(t("这张图片里没有识别到有效的 TV 配对二维码。"));
     } catch (error) {
-      setScannerError(error instanceof Error ? error.message : "识别二维码图片失败。");
+      setScannerError(error instanceof Error ? error.message : t("识别二维码图片失败。"));
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
@@ -165,4 +167,3 @@ export function usePairScannerViewModel(onParsed: (payload: ParsedPairPayload) =
 
   return { applyPairPayload, fileInputRef, handleQrImageSelected, scannerError, scannerOpen, setScannerError, startScanner, stopScanner, videoRef };
 }
-

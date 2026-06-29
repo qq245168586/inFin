@@ -1,6 +1,7 @@
 import { useEffect, type RefObject } from "react";
 import type { AuthSession } from "../models/common";
 import type { CoachWeekDay, TvDailyBundle } from "../models/schedule";
+import { useI18n } from "../providers/I18nProvider";
 import { fetchDailyBundle } from "../services/consoleService";
 import { todayValue } from "../utils/time";
 
@@ -22,6 +23,7 @@ interface ConsoleEffectsParams {
 }
 
 export function useCoachConsoleEffects(params: ConsoleEffectsParams) {
+  const { t } = useI18n();
   useEffect(() => {
     if (!params.weekDays.some((day) => day.key === params.selectedDate)) {
       params.setSelectedDate(todayValue());
@@ -30,12 +32,12 @@ export function useCoachConsoleEffects(params: ConsoleEffectsParams) {
 
   useEffect(() => {
     let cancelled = false;
-    params.onBusyTextChange("正在加载教练端课表...");
+    params.onBusyTextChange(t("正在加载教练端课表..."));
     fetchDailyBundle(params.selectedDate, params.authSession)
       .then((payload) => {
         if (!cancelled) params.setBundle(payload);
       })
-      .catch((error) => !cancelled && params.handleRequestError(error, "加载教练端课表失败。"))
+      .catch((error) => !cancelled && params.handleRequestError(error, t("加载教练端课表失败。")))
       .finally(() => !cancelled && params.onBusyTextChange(""));
     return () => {
       cancelled = true;

@@ -1,6 +1,7 @@
 import type { RefObject, TouchEvent } from "react";
 import type { CoachSessionState, PlaybackSession } from "../../models/playback";
 import type { CoachPreviewItem, TvDailySchedule } from "../../models/schedule";
+import { useI18n } from "../../providers/I18nProvider";
 import { shortSessionId } from "../../utils/format";
 import { sessionStateLabel } from "../../utils/playback";
 import { buildScheduleRange, formatDateLabel } from "../../utils/time";
@@ -21,8 +22,9 @@ interface PreviewPanelProps {
 }
 
 export function PreviewPanel(props: PreviewPanelProps) {
+  const { t } = useI18n();
   if (!props.selectedSchedule) {
-    return <div className="coach-preview-panel"><div className="coach-empty-block is-large">点选上方课程，先进入 preview，再开始课程。</div></div>;
+    return <div className="coach-preview-panel"><div className="coach-empty-block is-large">{t("点选上方课程，先进入 preview，再开始课程。")}</div></div>;
   }
   const { selectedSchedule, selectedScheduleSessionState } = props;
   return (
@@ -33,7 +35,7 @@ export function PreviewPanel(props: PreviewPanelProps) {
           <h2>{selectedSchedule.courseName}</h2>
           <p>{formatDateLabel(selectedSchedule.beginTime)} · {buildScheduleRange(selectedSchedule)}</p>
         </div>
-        <span className={`coach-preview-state is-${selectedScheduleSessionState.toLowerCase()}`}>{sessionStateLabel(selectedScheduleSessionState)}</span>
+        <span className={`coach-preview-state is-${selectedScheduleSessionState.toLowerCase()}`}>{t(sessionStateLabel(selectedScheduleSessionState))}</span>
       </div>
       <SessionMeta {...props} />
       <PreviewStage {...props} />
@@ -55,6 +57,7 @@ function SessionMeta(props: PreviewPanelProps) {
 }
 
 function PreviewStage(props: PreviewPanelProps) {
+  const { t } = useI18n();
   return (
     <div className="coach-preview-stage">
       <div className="coach-preview-frame" onTouchStart={props.onTouchStart} onTouchEnd={props.onTouchEnd}>
@@ -77,13 +80,13 @@ function PreviewStage(props: PreviewPanelProps) {
             }}
             onCanPlay={(event) => void event.currentTarget.play().catch(() => undefined)}
           />
-        ) : <div className="coach-preview-empty">正式组还没有可预览的视频。</div>}
+        ) : <div className="coach-preview-empty">{t("正式组还没有可预览的视频。")}</div>}
         <PreviewNav {...props} />
       </div>
       <div className="coach-preview-caption">
-        <strong>{props.activePreviewItem?.actionName || "预览视频"}</strong>
+        <strong>{props.activePreviewItem?.actionName || t("预览视频")}</strong>
         {props.previewItems.length ? <span className="coach-preview-index">{props.previewIndex + 1} / {props.previewItems.length}</span> : null}
-        <span>左右滑动切换正式组动作。课程卡片里的按钮负责预览、开始和课堂控制。</span>
+        <span>{t("左右滑动切换正式组动作。课程卡片里的按钮负责预览、开始和课堂控制。")}</span>
       </div>
     </div>
   );

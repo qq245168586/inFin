@@ -7,6 +7,7 @@ import { ScannerSheet } from "../components/screens/ScannerSheet";
 import { ScreenGrid } from "../components/screens/ScreenGrid";
 import { ScreenPickerSheet } from "../components/screens/ScreenPickerSheet";
 import { ScreensToolbar } from "../components/screens/ScreensToolbar";
+import { useI18n } from "../providers/I18nProvider";
 import { useScreensViewModel } from "../viewModels/useScreensViewModel";
 
 interface CoachScreensPageProps {
@@ -17,6 +18,7 @@ interface CoachScreensPageProps {
 }
 
 export default function CoachScreensPage(props: CoachScreensPageProps) {
+  const { t } = useI18n();
   const vm = useScreensViewModel(props);
   const [screenPickerMode, setScreenPickerMode] = useState<"scan" | "upload" | "select" | null>(null);
 
@@ -61,7 +63,7 @@ export default function CoachScreensPage(props: CoachScreensPageProps) {
         onToggle={vm.toggleExpanded}
         onUnbind={(screen) => void vm.unbindScreen(screen)}
       />
-      <BusyMask text={vm.loading ? "正在刷新屏幕状态..." : ""} inline />
+      <BusyMask text={vm.loading ? t("正在刷新屏幕状态...") : ""} inline />
       <ScreenPickerSheet mode={screenPickerMode} selectedScreenNumber={vm.pairScreenNumber} onClose={() => setScreenPickerMode(null)} onSelect={handleScreenPicked} />
       <ScannerSheet open={vm.scanner.scannerOpen} videoRef={vm.scanner.videoRef} onClose={vm.scanner.stopScanner} />
     </section>

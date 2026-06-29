@@ -3,6 +3,7 @@ import type { AuthSession } from "../models/common";
 import type { CoachConsoleViewModelProps } from "../models/consoleVm";
 import type { CoachSessionState, PlaybackSession } from "../models/playback";
 import type { CoachPreviewItem, TvDailySchedule } from "../models/schedule";
+import { useI18n } from "../providers/I18nProvider";
 import {
   createPreviewSession,
   fetchCurrentPlayback,
@@ -29,6 +30,7 @@ export function useCoachConsoleViewModel({
   onNotice,
   onAuthExpired
 }: CoachConsoleViewModelProps) {
+  const { t } = useI18n();
   const weekDays = useMemo(() => getWeekDays(currentWeekSchedules), [currentWeekSchedules]);
   const [selectedDate, setSelectedDate] = useState(todayValue());
   const [bundle, setBundle] = useState<Awaited<ReturnType<typeof fetchDailyBundle>> | null>(null);
@@ -97,7 +99,7 @@ export function useCoachConsoleViewModel({
       return session;
     } catch (error) {
       if (showError) {
-        handleRequestError(error, "同步课程 session 失败。");
+        handleRequestError(error, t("同步课程 session 失败。"));
       } else if (isAuthExpiredMessage(getErrorMessage(error))) {
         onAuthExpired(getErrorMessage(error));
       }
@@ -125,7 +127,7 @@ export function useCoachConsoleViewModel({
 
   async function requestStartFromSchedule(schedule: TvDailySchedule, body: Record<string, unknown>) {
     setPendingAction(String(body.commandId || schedule.id));
-    onBusyTextChange("正在发送开始课程指令...");
+    onBusyTextChange(t("正在发送开始课程指令..."));
     try {
       const session = await startScheduleSession(authSession, schedule, body);
       if (session) {
@@ -133,7 +135,7 @@ export function useCoachConsoleViewModel({
       }
       return session;
     } catch (error) {
-      handleRequestError(error, "开始课程失败。");
+      handleRequestError(error, t("开始课程失败。"));
       return null;
     } finally {
       setPendingAction("");
@@ -151,7 +153,7 @@ export function useCoachConsoleViewModel({
       return payload;
     } catch (error) {
       if (showError) {
-        handleRequestError(error, "加载课程包失败。");
+        handleRequestError(error, t("加载课程包失败。"));
       } else if (isAuthExpiredMessage(getErrorMessage(error))) {
         onAuthExpired(getErrorMessage(error));
       }
@@ -164,12 +166,12 @@ export function useCoachConsoleViewModel({
       return;
     }
     if (isVenueBusy) {
-      onNotice("课程正在运行，结束后才能切换课程包。", "error");
+      onNotice(t("课程正在运行，结束后才能切换课程包。"), "error");
       return;
     }
     const commandId = createCommandId();
     setPendingAction(commandId);
-    onBusyTextChange("正在切换场馆课程包...");
+    onBusyTextChange(t("正在切换场馆课程包..."));
     try {
       const payload = await switchActiveCoursePackage(authSession, coursePackageId, commandId);
       setCoursePackages(payload);
@@ -178,9 +180,9 @@ export function useCoachConsoleViewModel({
       setPreviewIndex(0);
       applyPlaybackSession(null);
       setBundle(await fetchDailyBundle(selectedDate, authSession));
-      onNotice(payload.warning || "课程包已切换，TV 会重新同步课表资源。", payload.warning ? "error" : undefined);
+      onNotice(payload.warning || t("课程包已切换，TV 会重新同步课表资源。"), payload.warning ? "error" : undefined);
     } catch (error) {
-      handleRequestError(error, "切换课程包失败。");
+      handleRequestError(error, t("切换课程包失败。"));
     } finally {
       setPendingAction("");
       onBusyTextChange("");
@@ -197,8 +199,8 @@ export function useCoachConsoleViewModel({
     const session = await requestSession(
       `/api/tv/playback-sessions/${encodeURIComponent(playbackSession.id)}/terminate`,
       venueBody(authSession, isSuperAdmin, { commandId: createCommandId() }, selectedSchedule, playbackSession),
-      nextSchedule ? "正在终止当前课程并切换预览..." : "正在终止课程...",
-      "终止课程失败。"
+      nextSchedule ? t("正在终止当前课程并切换预览...") : t("正在终止课程..."),
+      t("终止课程失败。")
     );
     if (!session) {
       return null;
@@ -207,10 +209,10 @@ export function useCoachConsoleViewModel({
     setSelectedScheduleId("");
     setPreviewIndex(0);
     if (nextSchedule) {
-      onNotice("当前课程已终止，正在切换到新的课程预览。");
+      onNotice(t("当前课程已终止，正在切换到新的课程预览。"));
       await enterPreview(nextSchedule);
     } else {
-      onNotice("课程已终止，TV 端已回到课表页。");
+      onNotice(t("课程已终止，TV 端已回到课表页。"));
     }
     return session;
   }
@@ -218,7 +220,7 @@ export function useCoachConsoleViewModel({
   async function enterPreview(schedule: TvDailySchedule): Promise<PlaybackSession | null> {
     const commandId = createCommandId();
     setPendingAction(commandId);
-    onBusyTextChange("正在同步课程预览到 TV...");
+    onBusyTextChange(t("正在同步课程预览到 TV..."));
     try {
       const session = await createPreviewSession(authSession, schedule);
       if (session) {
@@ -226,13 +228,13 @@ export function useCoachConsoleViewModel({
       }
       setSelectedScheduleId(String(schedule.id));
       setPreviewIndex(0);
-      onNotice("课程预览已同步到 TV。可以在课程卡片里开始课程。");
+      onNotice(t("课程预览已同步到 TV。可以在课程卡片里开始课程。"));
       return session;
     } catch (error) {
       const requestError = error as Error & { status?: number };
       if (requestError.status === 409) {
         const current = playbackSession || (await fetchCurrentPlaybackSession(false));
-        if (!window.confirm("当前已有未结束课程。切换预览会终止当前课程，是否继续？")) {
+        if (!window.confirm(t("当前已有未结束课程。切换预览会终止当前课程，是否继续？"))) {
           return null;
         }
         if (current?.id && !(await terminateCurrent(schedule))) {
@@ -240,7 +242,7 @@ export function useCoachConsoleViewModel({
         }
         return enterPreview(schedule);
       }
-      handleRequestError(error, "同步课程预览失败。");
+      handleRequestError(error, t("同步课程预览失败。"));
       return null;
     } finally {
       setPendingAction("");
@@ -256,8 +258,8 @@ export function useCoachConsoleViewModel({
     const session = await requestSession(
       `/api/tv/playback-sessions/${encodeURIComponent(playbackSession.id)}/terminate`,
       venueBody(authSession, isSuperAdmin, { commandId: createCommandId() }, schedule, playbackSession),
-      "正在退出课程预览...",
-      "退出预览失败。"
+      t("正在退出课程预览..."),
+      t("退出预览失败。")
     );
     if (!session) {
       return null;
@@ -265,14 +267,14 @@ export function useCoachConsoleViewModel({
     applyPlaybackSession(null);
     setSelectedScheduleId(String(schedule.id));
     setPreviewIndex(0);
-    onNotice("已退出预览，TV 端已回到课表页。");
+    onNotice(t("已退出预览，TV 端已回到课表页。"));
     return session;
   }
 
   async function startCourse(schedule: TvDailySchedule) {
     setSelectedScheduleId(String(schedule.id));
     if (playbackSession?.id && isActiveSessionState(sessionState) && String(playbackSession.scheduleId) !== String(schedule.id)) {
-      if (!window.confirm("当前已有未结束课程。开始这节课会终止当前课程，是否继续？")) {
+      if (!window.confirm(t("当前已有未结束课程。开始这节课会终止当前课程，是否继续？"))) {
         return;
       }
       if (!(await terminateCurrent())) {
@@ -285,12 +287,12 @@ export function useCoachConsoleViewModel({
       ? await requestSession(
         `/api/tv/playback-sessions/${encodeURIComponent(playbackSession.id)}/start`,
         startBody,
-        "正在发送开始课程指令...",
-        "开始课程失败。"
+        t("正在发送开始课程指令..."),
+        t("开始课程失败。")
       )
       : await requestStartFromSchedule(schedule, startBody);
     if (nextSession) {
-      onNotice("课程开始指令已发送，TV 端会按服务端时间同步开始。");
+      onNotice(t("课程开始指令已发送，TV 端会按服务端时间同步开始。"));
     }
   }
 
@@ -298,9 +300,9 @@ export function useCoachConsoleViewModel({
     if (!selectedSchedule || !playbackSession?.id || sessionState === "PAUSED") {
       return;
     }
-    const session = await requestSession(`/api/tv/playback-sessions/${encodeURIComponent(playbackSession.id)}/pause`, venueBody(authSession, isSuperAdmin, { commandId: createCommandId() }, selectedSchedule, playbackSession), "正在暂停课程...", "暂停课程失败。");
+    const session = await requestSession(`/api/tv/playback-sessions/${encodeURIComponent(playbackSession.id)}/pause`, venueBody(authSession, isSuperAdmin, { commandId: createCommandId() }, selectedSchedule, playbackSession), t("正在暂停课程..."), t("暂停课程失败。"));
     if (session) {
-      onNotice("课程已暂停，TV 端会停在当前状态。");
+      onNotice(t("课程已暂停，TV 端会停在当前状态。"));
     }
   }
 
@@ -308,9 +310,9 @@ export function useCoachConsoleViewModel({
     if (!selectedSchedule || !playbackSession?.id) {
       return;
     }
-    const session = await requestSession(`/api/tv/playback-sessions/${encodeURIComponent(playbackSession.id)}/resume`, venueBody(authSession, isSuperAdmin, { commandId: createCommandId() }, selectedSchedule, playbackSession), "正在继续课程...", "继续课程失败。");
+    const session = await requestSession(`/api/tv/playback-sessions/${encodeURIComponent(playbackSession.id)}/resume`, venueBody(authSession, isSuperAdmin, { commandId: createCommandId() }, selectedSchedule, playbackSession), t("正在继续课程..."), t("继续课程失败。"));
     if (session) {
-      onNotice("课程已继续。");
+      onNotice(t("课程已继续。"));
     }
   }
 
@@ -318,7 +320,7 @@ export function useCoachConsoleViewModel({
     const commandId = createCommandId();
     setSelectedScheduleId(String(schedule.id));
     setPendingAction(commandId);
-    onBusyTextChange("正在同步课程计划到 TV...");
+    onBusyTextChange(t("正在同步课程计划到 TV..."));
     try {
       await showCoursePlanOnTv(
         authSession,
@@ -336,9 +338,9 @@ export function useCoachConsoleViewModel({
           playbackSession
         )
       );
-      onNotice("课程计划已同步到 TV。");
+      onNotice(t("课程计划已同步到 TV。"));
     } catch (error) {
-      handleRequestError(error, "同步课程计划失败。");
+      handleRequestError(error, t("同步课程计划失败。"));
     } finally {
       setPendingAction("");
       onBusyTextChange("");
@@ -400,7 +402,7 @@ export function useCoachConsoleViewModel({
       void loadCoursePackages(false);
       fetchDailyBundle(selectedDate, authSession)
         .then(setBundle)
-        .catch((error) => handleRequestError(error, "刷新课程包课表失败。"));
+        .catch((error) => handleRequestError(error, t("刷新课程包课表失败。")));
     }
 
     window.addEventListener(COACH_COURSE_PACKAGE_CHANGED_EVENT, handleCoursePackageChanged);

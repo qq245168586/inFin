@@ -1,6 +1,8 @@
 import type { RefObject } from "react";
+import { useI18n } from "../../providers/I18nProvider";
 
 export function ScannerSheet({ open, videoRef, onClose }: { open: boolean; videoRef: RefObject<HTMLVideoElement>; onClose: () => void }) {
+  const { t } = useI18n();
   if (!open) {
     return null;
   }
@@ -10,10 +12,10 @@ export function ScannerSheet({ open, videoRef, onClose }: { open: boolean; video
         <div className="coach-scanner-head">
           <div>
             <p>QR Scanner</p>
-            <strong>对准 TV 上的二维码</strong>
+            <strong>{t("对准 TV 上的二维码")}</strong>
           </div>
           <button type="button" className="ghost-button" onClick={onClose}>
-            关闭
+            {t("关闭")}
           </button>
         </div>
         <video ref={videoRef} className="coach-scanner-video" muted playsInline autoPlay />
@@ -21,4 +23,3 @@ export function ScannerSheet({ open, videoRef, onClose }: { open: boolean; video
     </div>
   );
 }
-

@@ -1,4 +1,5 @@
 import type { AuthSession } from "../../models/common";
+import { useI18n } from "../../providers/I18nProvider";
 
 export function CoachTopbar({
   authSession,
@@ -9,6 +10,7 @@ export function CoachTopbar({
   onLogout: () => void;
   onOpenSettings: () => void;
 }) {
+  const { locale, locales, setLocale, t } = useI18n();
   const venueName = getVenueDisplayName(authSession);
 
   return (
@@ -20,14 +22,20 @@ export function CoachTopbar({
       <div className="coach-web-account">
         <div className="coach-web-account-copy">
           <strong>{authSession.username}</strong>
-          <span title="当前账号所属健身房">健身房：{venueName}</span>
+          <span title={t("当前账号所属健身房")}>{t("健身房：")}{t(venueName)}</span>
         </div>
-        <button type="button" className="coach-settings-button" onClick={onOpenSettings} aria-label="打开设置">
+        <label className="language-switcher coach-language-switcher">
+          <span>{t("语言")}</span>
+          <select value={locale} onChange={(event) => setLocale(event.target.value as typeof locale)}>
+            {locales.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+          </select>
+        </label>
+        <button type="button" className="coach-settings-button" onClick={onOpenSettings} aria-label={t("打开设置")}>
           <span className="coach-settings-icon" aria-hidden="true" />
-          <span>设置</span>
+          <span>{t("设置")}</span>
         </button>
         <button type="button" className="ghost-button" onClick={onLogout}>
-          退出
+          {t("退出")}
         </button>
       </div>
     </header>
