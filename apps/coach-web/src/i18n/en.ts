@@ -29,6 +29,8 @@ const en = {
   "退出": "Log out",
   "关闭设置": "Close settings",
   "教练端管理": "Coach Management",
+  "偏好设置": "Preferences",
+  "切换教练端显示语言": "Switch the coach display language",
   "课程包": "Course Package",
   "正在加载课程包...": "Loading course packages...",
   "加载课程包失败。": "Failed to load course packages.",

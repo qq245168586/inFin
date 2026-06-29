@@ -25,7 +25,7 @@ export function CoachSettingsMenu({
   onNotice,
   onSelectPage
 }: CoachSettingsMenuProps) {
-  const { t } = useI18n();
+  const { locale, locales, setLocale, t } = useI18n();
   const [coursePackagesPayload, setCoursePackagesPayload] = useState<VenueCoursePackagesPayload | null>(null);
   const [loadingPackages, setLoadingPackages] = useState(true);
   const [pendingPackageId, setPendingPackageId] = useState<number>(0);
@@ -98,6 +98,18 @@ export function CoachSettingsMenu({
           <button type="button" className="coach-settings-close" onClick={onClose} aria-label={t("关闭设置")}>
             ×
           </button>
+        </div>
+        <div className="coach-settings-group">
+          <span className="coach-settings-group-title">{t("偏好设置")}</span>
+          <label className="coach-settings-language">
+            <span>
+              <strong>{t("语言")}</strong>
+              <em>{t("切换教练端显示语言")}</em>
+            </span>
+            <select value={locale} onChange={(event) => setLocale(event.target.value as typeof locale)}>
+              {locales.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+            </select>
+          </label>
         </div>
         <div className="coach-settings-group">
           <span className="coach-settings-group-title">{t("课程包")}</span>

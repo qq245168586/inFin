@@ -255,6 +255,48 @@ button {
   align-items: center;
 }
 
+.coach-settings-language {
+  width: 100%;
+  min-height: 68px;
+  padding: 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+  display: grid;
+  grid-template-columns: 1fr 132px;
+  gap: 12px;
+  align-items: center;
+}
+
+.coach-settings-language span {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.coach-settings-language strong {
+  font-size: 15px;
+}
+
+.coach-settings-language em {
+  font-style: normal;
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.coach-settings-language select {
+  width: 100%;
+  height: 42px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  font-weight: 900;
+  padding: 0 12px;
+}
+
 .coach-settings-item.is-active {
   border-color: rgba(187, 44, 255, 0.62);
   background: rgba(145, 46, 255, 0.18);

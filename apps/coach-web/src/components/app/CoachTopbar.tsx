@@ -10,7 +10,7 @@ export function CoachTopbar({
   onLogout: () => void;
   onOpenSettings: () => void;
 }) {
-  const { locale, locales, setLocale, t } = useI18n();
+  const { t } = useI18n();
   const venueName = getVenueDisplayName(authSession);
 
   return (
@@ -24,12 +24,6 @@ export function CoachTopbar({
           <strong>{authSession.username}</strong>
           <span title={t("当前账号所属健身房")}>{t("健身房：")}{t(venueName)}</span>
         </div>
-        <label className="language-switcher coach-language-switcher">
-          <span>{t("语言")}</span>
-          <select value={locale} onChange={(event) => setLocale(event.target.value as typeof locale)}>
-            {locales.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-          </select>
-        </label>
         <button type="button" className="coach-settings-button" onClick={onOpenSettings} aria-label={t("打开设置")}>
           <span className="coach-settings-icon" aria-hidden="true" />
           <span>{t("设置")}</span>
