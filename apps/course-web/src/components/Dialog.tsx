@@ -1,6 +1,7 @@
 import type { ReactNode, SyntheticEvent } from "react";
 import { createPortal } from "react-dom";
 import { useRef } from "react";
+import { useI18n } from "../providers/I18nProvider.tsx";
 
 export interface DialogProps {
   title: string;
@@ -21,6 +22,7 @@ export default function Dialog({
   confirmDisabled = false,
   children
 }: DialogProps) {
+  const { t } = useI18n();
   const lastActionAtRef = useRef(0);
 
   function runDialogAction(event: SyntheticEvent, action: () => void) {
@@ -41,7 +43,7 @@ export default function Dialog({
     <div className="dialog-mask" onMouseDown={(event) => event.stopPropagation()}>
       <div className="dialog-card" style={{ width }} onMouseDown={(event) => event.stopPropagation()}>
         <div className="dialog-head">
-          <h3>{title}</h3>
+          <h3>{t(title)}</h3>
           <button
             type="button"
             className="dialog-close"
@@ -61,7 +63,7 @@ export default function Dialog({
             onTouchEnd={(event) => runDialogAction(event, onClose)}
             onClick={(event) => runDialogAction(event, onClose)}
           >
-            取消
+            {t("取消")}
           </button>
           <button
             type="button"
@@ -83,7 +85,7 @@ export default function Dialog({
             }}
             disabled={confirmDisabled}
           >
-            {confirmText}
+            {t(confirmText)}
           </button>
         </div>
       </div>

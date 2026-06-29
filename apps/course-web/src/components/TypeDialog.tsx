@@ -1,5 +1,6 @@
 import Dialog from "./Dialog.tsx";
 import { stripMediaSuffix } from "../utils/typeNames.ts";
+import { useI18n } from "../providers/I18nProvider.tsx";
 
 export interface TypeDialogStateValue {
   kind: "action" | "lesson";
@@ -17,21 +18,22 @@ export default function TypeDialog({
   onConfirm: () => void;
   onStateChange: (updater: (current: TypeDialogStateValue) => TypeDialogStateValue) => void;
 }) {
+  const { t } = useI18n();
   return (
     <Dialog
-      title={state.kind === "action" ? "添加动作分类" : "添加课程分类"}
+      title={state.kind === "action" ? t("添加动作分类") : t("添加课程分类")}
       width={420}
       onClose={onClose}
       onConfirm={onConfirm}
-      confirmText="保存"
+      confirmText={t("保存")}
     >
       <div className="dialog-form">
         <label className="field">
-          <span>名称</span>
+          <span>{t("名称")}</span>
           <input
             value={state.value}
             onChange={(event) => onStateChange((current) => ({ ...current, value: stripMediaSuffix(event.target.value) }))}
-            placeholder="请输入分类名称"
+            placeholder={t("请输入分类名称")}
           />
         </label>
       </div>

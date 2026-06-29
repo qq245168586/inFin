@@ -6,6 +6,7 @@ import {
 } from "../utils/videoThumbnailCache.ts";
 import { fetchActionThumbnailBlob } from "../services/actionThumbnails.ts";
 import { withCacheToken } from "../utils/url.ts";
+import { useI18n } from "../providers/I18nProvider.tsx";
 
 interface ActionMedia {
   url: string;
@@ -308,6 +309,7 @@ export function CachedVideoThumbnail({
   playLabel = "播放",
   onPreviewClick
 }: CachedVideoThumbnailProps) {
+  const { t } = useI18n();
   const { nodeRef, ready } = useLazyThumbnailGate(lazy);
   const [thumbnailUrl, setThumbnailUrl] = useState("");
   const [isPlaying, setIsPlaying] = useState(false);
@@ -362,20 +364,20 @@ export function CachedVideoThumbnail({
 
   const placeholderText = failed
     ? interactive
-      ? "缩略图暂不可用，点击播放"
-      : "缩略图暂不可用"
+      ? t("缩略图暂不可用，点击播放")
+      : t("缩略图暂不可用")
     : interactive
-      ? "点击播放视频"
+      ? t("点击播放视频")
       : ready
-        ? "生成缩略图..."
-        : "视频缩略图";
+        ? t("生成缩略图...")
+        : t("视频缩略图");
 
   const content = isPlaying ? (
     <video key={src} src={src} controls autoPlay playsInline preload="auto" />
   ) : (
     <>
       {thumbnailUrl ? <img src={thumbnailUrl} alt={alt} /> : <span className="cached-video-thumbnail-placeholder">{placeholderText}</span>}
-      {interactive ? <span className="action-thumb-play">{playLabel}</span> : null}
+      {interactive ? <span className="action-thumb-play">{t(playLabel)}</span> : null}
     </>
   );
 
@@ -389,7 +391,7 @@ export function CachedVideoThumbnail({
 
   if (isPlaying && inlinePlayback && !onPreviewClick) {
     return (
-      <div ref={nodeRef as MutableRefObject<HTMLDivElement | null>} className={classes} aria-label={`${playLabel} ${alt}`}>
+      <div ref={nodeRef as MutableRefObject<HTMLDivElement | null>} className={classes} aria-label={`${t(playLabel)} ${alt}`}>
         {content}
       </div>
     );
@@ -410,7 +412,7 @@ export function CachedVideoThumbnail({
           setIsPlaying(true);
         }
       }}
-      aria-label={`${playLabel} ${alt}`}
+      aria-label={`${t(playLabel)} ${alt}`}
     >
       {content}
     </button>
@@ -427,6 +429,7 @@ export function ActionVideoThumbnail({
   playLabel = "播放",
   onPreviewClick
 }: ActionVideoThumbnailProps) {
+  const { t } = useI18n();
   const sourceUrl = action?.media?.url || "";
   const mediaUrl = sourceUrl ? withCacheToken(sourceUrl, action?.updateTime) : "";
   const cacheKey = sourceUrl
@@ -441,14 +444,14 @@ export function ActionVideoThumbnail({
     const classes = ["cached-video-thumbnail", className, "is-empty"].filter(Boolean).join(" ");
     if (interactive) {
       return (
-        <button type="button" className={classes} disabled aria-label={`${action?.name || "动作"} 暂无视频`}>
-          <span>{emptyCopy}</span>
+        <button type="button" className={classes} disabled aria-label={`${action?.name || t("动作")} ${t("暂无视频")}`}>
+          <span>{t(emptyCopy)}</span>
         </button>
       );
     }
     return (
-      <div className={classes} aria-label={`${action?.name || "动作"} 暂无视频`}>
-        <span>{emptyCopy}</span>
+      <div className={classes} aria-label={`${action?.name || t("动作")} ${t("暂无视频")}`}>
+        <span>{t(emptyCopy)}</span>
       </div>
     );
   }
@@ -458,7 +461,7 @@ export function ActionVideoThumbnail({
       src={mediaUrl}
       cacheKey={cacheKey}
       actionId={action?.id}
-      alt={`${action?.name || "动作"}视频缩略图`}
+      alt={`${action?.name || t("动作")}${t("视频缩略图")}`}
       className={className}
       interactive={interactive}
       inlinePlayback={inlinePlayback}
@@ -483,20 +486,21 @@ export default function ActionMediaPreview({
   interactive?: boolean;
   autoPlayPreview?: boolean;
 }) {
+  const { t } = useI18n();
   const action = findActionRecord(actions, actionId);
 
   return (
     <div className={`action-media-preview${compact ? " is-compact" : ""}`}>
       <div className="action-media-preview-frame">
         {action?.media?.url ? (
-          <ActionVideoThumbnail action={action} interactive={interactive} playLabel="点击播放" />
+          <ActionVideoThumbnail action={action} interactive={interactive} playLabel={t("点击播放")} />
         ) : (
-          <div className="action-media-preview-empty">{action ? "该动作暂无视频" : emptyCopy}</div>
+          <div className="action-media-preview-empty">{action ? t("该动作暂无视频") : t(emptyCopy)}</div>
         )}
       </div>
       <div className="action-media-preview-copy">
-        <strong>{action?.name || "未选择动作"}</strong>
-        <span>{action ? "已选动作缩略图，点击后播放视频" : "选中动作后显示缩略图，点击后播放视频"}</span>
+        <strong>{action?.name || t("未选择动作")}</strong>
+        <span>{action ? t("已选动作缩略图，点击后播放视频") : t("选中动作后显示缩略图，点击后播放视频")}</span>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import ActionMediaPreview, { type ActionMediaPreviewAction } from "./ActionMedia
 import Dialog from "./Dialog.tsx";
 import type { TypeOption } from "../services/api/meta.ts";
 import { displayTypeName } from "../utils/typeNames.ts";
+import { useI18n } from "../providers/I18nProvider.tsx";
 
 function normalizeSearch(value: string): string {
   return String(value || "").trim().toLowerCase();
@@ -31,6 +32,7 @@ export default function ActionPicker({
   emptyLabel?: string;
   onChange: (actionId: string, actionName: string) => void;
 }) {
+  const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [typeId, setTypeId] = useState("");
@@ -79,23 +81,23 @@ export default function ActionPicker({
   return (
     <div className="action-picker">
       <button type="button" className={`action-picker-trigger ${value ? "has-value" : ""}`} onClick={openDialog}>
-        <span>{selectedName || placeholder}</span>
-        <strong>选择</strong>
+        <span>{selectedName || t(placeholder)}</span>
+        <strong>{t("选择")}</strong>
       </button>
 
       {isOpen ? (
-        <Dialog title="选择动作" width={1080} onClose={() => setIsOpen(false)} onConfirm={confirmSelection} confirmText={draftActionId ? "选择动作" : emptyLabel}>
+        <Dialog title={t("选择动作")} width={1080} onClose={() => setIsOpen(false)} onConfirm={confirmSelection} confirmText={draftActionId ? t("选择动作") : t(emptyLabel)}>
           <div className="action-picker-modal">
             <section className="action-picker-search-card">
               <div className="action-picker-filters">
                 <label className="action-picker-filter">
-                  <span>动作名称</span>
-                  <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="输入名称关键字" autoFocus />
+                  <span>{t("动作名称")}</span>
+                  <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("输入名称关键字")} autoFocus />
                 </label>
                 <label className="action-picker-filter">
-                  <span>动作类型</span>
+                  <span>{t("动作类型")}</span>
                   <select value={typeId} onChange={(event) => setTypeId(event.target.value)}>
-                    <option value="">全部类型</option>
+                    <option value="">{t("全部类型")}</option>
                     {actionTypes.map((type) => (
                       <option key={type.id} value={type.id}>
                         {displayTypeName(type.name)}
@@ -105,9 +107,9 @@ export default function ActionPicker({
                 </label>
                 {courseTagOptions.length ? (
                   <label className="action-picker-filter">
-                    <span>课程标签</span>
+                    <span>{t("课程标签")}</span>
                     <select value={courseTag} onChange={(event) => setCourseTag(event.target.value)}>
-                      <option value="">全部标签</option>
+                      <option value="">{t("全部标签")}</option>
                       {courseTagOptions.map((tag) => (
                         <option key={tag} value={tag}>
                           {tag}
@@ -120,15 +122,15 @@ export default function ActionPicker({
 
               <div className="action-picker-toolbar">
                 <button type="button" className="action-picker-mini-button" onClick={resetFilters}>
-                  重置筛选
+                  {t("重置筛选")}
                 </button>
-                <span>{filteredActions.length} 个结果</span>
+                <span>{filteredActions.length} {t("个结果")}</span>
               </div>
 
               <div className="action-picker-options">
                 <button type="button" className={`action-picker-option ${!draftActionId ? "is-selected" : ""}`} onClick={() => setDraftActionId("")}>
-                  <strong>{emptyLabel}</strong>
-                  <span>不绑定动作</span>
+                  <strong>{t(emptyLabel)}</strong>
+                  <span>{t("不绑定动作")}</span>
                 </button>
 
                 {filteredActions.length ? (
@@ -147,12 +149,12 @@ export default function ActionPicker({
                         onClick={() => setDraftActionId(String(action.id))}
                       >
                         <strong>{action.name}</strong>
-                        <span>{[typeNames || "未分类", courseTags].filter(Boolean).join(" · ")}</span>
+                        <span>{[typeNames || t("未分类"), courseTags].filter(Boolean).join(" · ")}</span>
                       </button>
                     );
                   })
                 ) : (
-                  <div className="action-picker-empty">没有匹配动作，可以换一个名称或类型。</div>
+                  <div className="action-picker-empty">{t("没有匹配动作，可以换一个名称或类型。")}</div>
                 )}
               </div>
             </section>
@@ -160,12 +162,12 @@ export default function ActionPicker({
             <section className="action-picker-preview-card">
               <div>
                 <span className="eyebrow">VIDEO PREVIEW</span>
-                <h3>{draftAction?.name || "未选择动作"}</h3>
+                <h3>{draftAction?.name || t("未选择动作")}</h3>
               </div>
               <ActionMediaPreview
                 actionId={draftActionId}
                 actions={actions}
-                emptyCopy="在左侧选择动作后，可以先确认视频内容。"
+                emptyCopy={t("在左侧选择动作后，可以先确认视频内容。")}
                 autoPlayPreview
               />
             </section>
