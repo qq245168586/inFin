@@ -39,6 +39,14 @@ abstract class MainActivityHorizontalWorkTimelineController extends MainActivity
     return TrainingProgressCalculator.resolveHorizontalWorkElapsedSeconds(course, elapsedSeconds);
   }
 
+  protected int getHorizontalFormalTrainingTotalSeconds(CourseScript course) {
+    return TrainingProgressCalculator.getFormalTrainingTotalSeconds(course);
+  }
+
+  protected int resolveHorizontalFormalTrainingElapsedSeconds(CourseScript course, int elapsedSeconds) {
+    return TrainingProgressCalculator.resolveFormalTrainingElapsedSeconds(course, elapsedSeconds);
+  }
+
   protected List<HorizontalWorkTiming> buildHorizontalWorkTimings(CourseScript course) {
     List<HorizontalWorkTiming> timings = new ArrayList<>();
     if (course == null || course.pods == null) {

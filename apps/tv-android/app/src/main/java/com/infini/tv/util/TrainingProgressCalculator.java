@@ -90,6 +90,48 @@ public final class TrainingProgressCalculator {
     return total;
   }
 
+  public static int getFormalTrainingTotalSeconds(CourseScript course) {
+    if (course == null || course.pods == null) {
+      return 0;
+    }
+
+    int total = 0;
+    for (CourseScript.Pod pod : course.pods) {
+      total += getPodDurationSeconds(pod, materializeProgressPodScreen(course, pod));
+    }
+    return total;
+  }
+
+  public static int resolveFormalTrainingElapsedSeconds(CourseScript course, int elapsedSeconds) {
+    if (course == null || course.pods == null) {
+      return 0;
+    }
+
+    int safeElapsedSeconds = Math.max(elapsedSeconds, 0);
+    int realTrainingOffsetSeconds = 0;
+    int formalTrainingElapsedSeconds = 0;
+    for (CourseScript.Pod pod : course.pods) {
+      ProgressPodScreen effectiveScreen = materializeProgressPodScreen(course, pod);
+      int podDurationSeconds = getPodDurationSeconds(pod, effectiveScreen);
+      int podEndSeconds = realTrainingOffsetSeconds + podDurationSeconds;
+      if (safeElapsedSeconds < podEndSeconds) {
+        return formalTrainingElapsedSeconds
+            + Math.max(safeElapsedSeconds - realTrainingOffsetSeconds, 0);
+      }
+
+      formalTrainingElapsedSeconds += podDurationSeconds;
+      realTrainingOffsetSeconds = podEndSeconds;
+
+      int endingDurationSeconds = getPodEndingDurationSeconds(course, pod);
+      int endingEndSeconds = realTrainingOffsetSeconds + endingDurationSeconds;
+      if (safeElapsedSeconds < endingEndSeconds) {
+        return formalTrainingElapsedSeconds;
+      }
+      realTrainingOffsetSeconds = endingEndSeconds;
+    }
+    return formalTrainingElapsedSeconds;
+  }
+
   private static int addHorizontalWorkTimings(
       List<WorkTiming> timings,
       CourseScript.Pod pod,

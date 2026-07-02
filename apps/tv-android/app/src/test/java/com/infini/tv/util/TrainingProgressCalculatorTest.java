@@ -27,6 +27,24 @@ public class TrainingProgressCalculatorTest {
   }
 
   @Test
+  public void getFormalTrainingTotalSeconds_excludesHydrateBreaks() {
+    CourseScript course = CourseScriptFixtures.singleScreenHydrateCourse();
+
+    assertEquals(201, TrainingProgressCalculator.getFormalTrainingTotalSeconds(course));
+    assertEquals(209, TrainingProgressCalculator.getTrainingTotalSeconds(course));
+  }
+
+  @Test
+  public void resolveFormalTrainingElapsedSeconds_freezesDuringHydrateBreak() {
+    CourseScript course = CourseScriptFixtures.singleScreenHydrateCourse();
+
+    assertEquals(200, TrainingProgressCalculator.resolveFormalTrainingElapsedSeconds(course, 200));
+    assertEquals(201, TrainingProgressCalculator.resolveFormalTrainingElapsedSeconds(course, 201));
+    assertEquals(201, TrainingProgressCalculator.resolveFormalTrainingElapsedSeconds(course, 205));
+    assertEquals(201, TrainingProgressCalculator.resolveFormalTrainingElapsedSeconds(course, 10_000));
+  }
+
+  @Test
   public void resolveHorizontalWorkElapsedSeconds_freezesDuringRestAndClampsAfterEnd() {
     CourseScript course = CourseScriptFixtures.singleScreenHydrateCourse();
 

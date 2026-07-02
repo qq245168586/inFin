@@ -235,7 +235,9 @@ abstract class MainActivityHorizontalProgressController extends MainActivityHori
         workElapsedSeconds,
         totalWorkSeconds,
         shortSide);
-    renderHorizontalWorkTimeText(workElapsedSeconds, totalWorkSeconds);
+    renderHorizontalWorkTimeText(
+        resolveHorizontalFormalTrainingElapsedSeconds(course, elapsedSeconds),
+        getHorizontalFormalTrainingTotalSeconds(course));
   }
 
   protected void renderHorizontalWorkTimeText(int elapsedSeconds, int totalSeconds) {
