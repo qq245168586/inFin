@@ -376,17 +376,35 @@ abstract class MainActivityReadyResponsiveController extends MainActivityHorizon
         horizontalTransitionCircle.setLayoutParams(params);
       }
     }
+    int horizontalProgressBottomMargin = clamp(Math.round(shortSide * 0.055f), dp(42), dp(76));
+    int horizontalProgressWidth =
+        clamp(Math.round(screenWidth * 0.86f), dp(760), Math.max(screenWidth - dp(80), dp(760)));
     if (horizontalProgressRow != null) {
       ViewGroup.LayoutParams rawParams = horizontalProgressRow.getLayoutParams();
       if (rawParams instanceof FrameLayout.LayoutParams) {
         FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) rawParams;
-        params.width = clamp(Math.round(screenWidth * 0.86f), dp(760), Math.max(screenWidth - dp(80), dp(760)));
+        params.width = horizontalProgressWidth;
         params.height = FrameLayout.LayoutParams.WRAP_CONTENT;
         params.gravity = android.view.Gravity.BOTTOM | android.view.Gravity.CENTER_HORIZONTAL;
         params.leftMargin = 0;
         params.rightMargin = 0;
-        params.bottomMargin = clamp(Math.round(shortSide * 0.055f), dp(42), dp(76));
+        params.bottomMargin = horizontalProgressBottomMargin;
         horizontalProgressRow.setLayoutParams(params);
+      }
+    }
+    if (horizontalWorkTimeText != null) {
+      horizontalWorkTimeText.setTextSize(
+          TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.026f, sp(16), sp(26)));
+      ViewGroup.LayoutParams rawParams = horizontalWorkTimeText.getLayoutParams();
+      if (rawParams instanceof FrameLayout.LayoutParams) {
+        FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) rawParams;
+        params.width = horizontalProgressWidth;
+        params.height = FrameLayout.LayoutParams.WRAP_CONTENT;
+        params.gravity = android.view.Gravity.BOTTOM | android.view.Gravity.CENTER_HORIZONTAL;
+        params.leftMargin = 0;
+        params.rightMargin = 0;
+        params.bottomMargin = Math.max(dp(4), horizontalProgressBottomMargin - dp(42));
+        horizontalWorkTimeText.setLayoutParams(params);
       }
     }
     if (horizontalLogoText != null) {

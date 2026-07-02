@@ -235,6 +235,34 @@ abstract class MainActivityHorizontalProgressController extends MainActivityHori
         workElapsedSeconds,
         totalWorkSeconds,
         shortSide);
+    renderHorizontalWorkTimeText(workElapsedSeconds, totalWorkSeconds);
+  }
+
+  protected void renderHorizontalWorkTimeText(int elapsedSeconds, int totalSeconds) {
+    if (horizontalWorkTimeText == null) {
+      return;
+    }
+    if (totalSeconds <= 0 || !shouldShowHorizontalWorkTimeText()) {
+      horizontalWorkTimeText.setText("");
+      horizontalWorkTimeText.setVisibility(View.GONE);
+      return;
+    }
+    int safeElapsedSeconds = clamp(Math.max(elapsedSeconds, 0), 0, totalSeconds);
+    horizontalWorkTimeText.setText(
+        formatHorizontalWorkTime(safeElapsedSeconds) + "/" + formatHorizontalWorkTime(totalSeconds));
+    horizontalWorkTimeText.setVisibility(View.VISIBLE);
+    horizontalWorkTimeText.bringToFront();
+  }
+
+  protected boolean shouldShowHorizontalWorkTimeText() {
+    return HORIZONTAL_WORK_TIME_VENUE_NAMESPACE.equals(activeAccountNamespace);
+  }
+
+  protected String formatHorizontalWorkTime(int seconds) {
+    int safeSeconds = Math.max(seconds, 0);
+    int minutes = safeSeconds / 60;
+    int remainderSeconds = safeSeconds % 60;
+    return String.format(Locale.US, "%02d:%02d", minutes, remainderSeconds);
   }
 
   protected void configureVerticalPlaybackHeader(boolean previewHeader) {
@@ -340,6 +368,9 @@ abstract class MainActivityHorizontalProgressController extends MainActivityHori
       countdownColumn.setVisibility(View.GONE);
       if (horizontalLogoText != null) {
         horizontalLogoText.setVisibility(View.GONE);
+      }
+      if (horizontalWorkTimeText != null) {
+        horizontalWorkTimeText.setVisibility(View.GONE);
       }
       if (stateColumn instanceof LinearLayout) {
         ((LinearLayout) stateColumn).setGravity(android.view.Gravity.CENTER);

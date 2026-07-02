@@ -194,6 +194,10 @@ abstract class MainActivitySettingsPlanController extends MainActivityCoursePlan
     if (horizontalProgressRow != null) {
       horizontalProgressRow.removeAllViews();
     }
+    if (horizontalWorkTimeText != null) {
+      horizontalWorkTimeText.setText("");
+      horizontalWorkTimeText.setVisibility(View.GONE);
+    }
     configureVerticalPlaybackHeader(false);
     dispatchScreenHeartbeat(false);
   }

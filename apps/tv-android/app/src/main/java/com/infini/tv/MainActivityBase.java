@@ -87,6 +87,7 @@ abstract class MainActivityBase extends MainActivityContracts {
   protected static final String PREF_SCREEN_NUMBER = "screen_number";
   protected static final String PREF_ACCOUNT_NAMESPACE = "account_namespace";
   protected static final String PREF_PAIR_TOKEN = "pair_token";
+  protected static final String HORIZONTAL_WORK_TIME_VENUE_NAMESPACE = "venue-432a10d5";
   protected TvScriptRepository repository;
   protected TvMqttManager mqttManager;
   protected final DateTimeFormatter dateFormatter =
@@ -213,6 +214,7 @@ abstract class MainActivityBase extends MainActivityContracts {
   protected TextView horizontalStateSecondary;
   protected LinearLayout horizontalStateDotsRow;
   protected LinearLayout horizontalProgressRow;
+  protected TextView horizontalWorkTimeText;
   protected TextView horizontalLogoText;
   protected TextView horizontalTransitionCountdownText;
   protected TextView horizontalTransitionTitle;

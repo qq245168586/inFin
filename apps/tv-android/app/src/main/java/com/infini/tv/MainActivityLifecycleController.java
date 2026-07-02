@@ -338,6 +338,7 @@ abstract class MainActivityLifecycleController extends MainActivityBase {
     horizontalStateSecondary = findViewById(R.id.horizontalStateSecondary);
     horizontalStateDotsRow = findViewById(R.id.horizontalStateDotsRow);
     horizontalProgressRow = findViewById(R.id.horizontalProgressRow);
+    horizontalWorkTimeText = findViewById(R.id.horizontalWorkTimeText);
     horizontalLogoText = findViewById(R.id.horizontalLogoText);
     horizontalTransitionCountdownText = findViewById(R.id.horizontalTransitionCountdownText);
     horizontalTransitionTitle = findViewById(R.id.horizontalTransitionTitle);
