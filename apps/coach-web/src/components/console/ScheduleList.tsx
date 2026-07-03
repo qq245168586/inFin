@@ -88,6 +88,7 @@ function ScheduleMetric({ label, value }: { label: string; value: string }) {
 function ScheduleActions(props: ScheduleListProps & { schedule: TvDailySchedule; scheduleState: CoachSessionState; showRunningActions: boolean }) {
   const { t } = useI18n();
   const controlsDisabled = Boolean(props.pendingAction) || props.controlButtonsLocked;
+  const lockHint = props.pendingAction ? t("处理中...") : props.controlButtonsLocked ? t("指令已发送，请稍候...") : "";
   if (props.showRunningActions) {
     return (
       <div className="coach-schedule-actions">
@@ -95,7 +96,7 @@ function ScheduleActions(props: ScheduleListProps & { schedule: TvDailySchedule;
           {t("计划")}
         </button>
         <button type="button" className="primary-button" disabled={controlsDisabled} onClick={() => props.scheduleState === "PAUSED" ? props.onResume() : props.onPause()}>
-          {props.pendingAction ? t("处理中...") : props.scheduleState === "PAUSED" ? t("继续") : t("暂停")}
+          {lockHint || (props.scheduleState === "PAUSED" ? t("继续") : t("暂停"))}
         </button>
         <button
           type="button"
@@ -105,6 +106,7 @@ function ScheduleActions(props: ScheduleListProps & { schedule: TvDailySchedule;
         >
           {t("结束")}
         </button>
+        {lockHint ? <span className="coach-schedule-lock-hint">{lockHint}</span> : null}
       </div>
     );
   }
@@ -123,8 +125,9 @@ function ScheduleActions(props: ScheduleListProps & { schedule: TvDailySchedule;
         {props.scheduleState === "PREVIEW" ? t("退出预览") : t("预览")}
       </button>
       <button type="button" className="primary-button" disabled={controlsDisabled} onClick={() => props.onStart(props.schedule)}>
-        {props.pendingAction ? t("处理中...") : t("开始")}
+        {lockHint || t("开始")}
       </button>
+      {lockHint ? <span className="coach-schedule-lock-hint">{lockHint}</span> : null}
     </div>
   );
 }

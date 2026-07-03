@@ -529,6 +529,20 @@ button {
   transform: translateY(-1px);
 }
 
+.primary-button:disabled,
+.ghost-button:disabled,
+button:disabled {
+  cursor: wait;
+  opacity: 0.46;
+  box-shadow: none;
+}
+
+.primary-button:disabled:hover,
+.ghost-button:disabled:hover,
+button:disabled:hover {
+  transform: none;
+}
+
 .primary-button {
   background: linear-gradient(135deg, #7d18ff 0%, #bb2cff 100%);
   color: #ffffff;
@@ -671,6 +685,19 @@ button {
 .coach-schedule-actions .ghost-button.danger {
   border-color: rgba(255, 120, 120, 0.42);
   color: #ffb8b8;
+}
+
+.coach-schedule-lock-hint {
+  grid-column: 1 / -1;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 28px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .coach-schedule-logo {

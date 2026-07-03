@@ -80,11 +80,16 @@ export function CoachAppProvider({ children }: { children: ReactNode }) {
       const nextAuth = await refreshCoachSession(current.refresh_token);
       setAuthSession(enrichSession(nextAuth));
     } catch (error) {
-      handleSessionExpired(isAuthExpiredMessage(getErrorMessage(error)) ? t("登录已过期，请重新登录。") : getErrorMessage(error));
+      const message = getErrorMessage(error);
+      if (isAuthExpiredMessage(message)) {
+        handleSessionExpired(t("登录已过期，请重新登录。"));
+      } else {
+        pushNotice(message, "error");
+      }
     } finally {
       refreshingRef.current = false;
     }
-  }, [enrichSession, handleSessionExpired]);
+  }, [enrichSession, handleSessionExpired, pushNotice, t]);
 
   useEffect(() => {
     let cancelled = false;

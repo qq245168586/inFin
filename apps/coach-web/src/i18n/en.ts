@@ -57,6 +57,7 @@ const en = {
   "这一天还没有排课。": "No courses scheduled for this day.",
   "计划": "Plan",
   "处理中...": "Processing...",
+  "指令已发送，请稍候...": "Command sent. Please wait...",
   "继续": "Resume",
   "暂停": "Pause",
   "是否结束当前课程？": "End the current course?",
