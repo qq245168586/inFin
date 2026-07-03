@@ -5,7 +5,7 @@
 - Status: Ready for QA
 - Owner: Codex
 - Created: 2026-06-26
-- Updated: 2026-06-26
+- Updated: 2026-07-03
 - Related docs:
   - [REQ-20260619-coach-course-package-switch-settings](REQ-20260619-coach-course-package-switch-settings.md)
   - [CODEMAP](../CODEMAP.md)
@@ -48,7 +48,7 @@ Coach 切换课程包或刷新课表后，TV 可能仍在同步资源，此时�
 ## Non-goals
 
 - 不调整 MQTT QoS、retain、topic 结构。
-- 不改变 Coach 控制按钮交互。
+- 除 2 秒控制按钮冷却外，不改变 Coach 页面结构和主要操作路径。
 - 不改变 Server session 数据模型。
 - 不新增屏幕绑定模型，沿用物理屏幕 1/2/3/4/5 与 TV 本地映射。
 
@@ -149,6 +149,17 @@ current session endpoint remains the source of truth
 | 点结束后慢屏幕稍后进入旧课程 | terminate 标记为 terminal pending，旧 session 的非终态 current 不会重新开始。 |
 | 1/3/5 屏因为本机时间不同步而进度不同 | RUNNING 统一使用服务端 `serverNowMs/serverStartAtMs` 和请求 RTT 修正。 |
 | heartbeat 返回字段缺失 | TV 按 `sessionOutdated=false` 兼容。 |
+| 多屏同公网 IP 场馆高频拉取 `/current` 被限流 | TV 端合并 800ms 内重复 current 请求，请求失败后 2 秒退避；线上将 TV API 从普通 API 限流中拆分。 |
+| Coach 连续点击预览/开始/结束形成多 session 风暴 | Coach 下发 preview/start/terminate 后控制按钮强制锁定 2 秒，网络请求未完成时继续保持 disabled。 |
+
+## 2026-07-03 Production Incident Addendum
+
+- WE CLUB 场馆 4 台 TV 共用同一公网 IP，高频 preview/start/terminate 后，`/api/tv/playback-sessions/current` 与 `/api/tv/screens/heartbeat` 在一分钟内接近 600 次请求。
+- 线上 nginx 普通 API 限流为 `10r/s burst=60 nodelay`，导致 TV current/heartbeat 出现 503，部分屏幕无法及时拉到 authoritative session。
+- 修正方向：
+  - `coach-web`：preview/start/terminate 相关控制按钮发指令后至少 2 秒不可再次点击。
+  - `tv-android`：`requestCurrentPlaybackSession` 增加 800ms 合并和失败 2 秒退避。
+  - `server/nginx`：`/api/tv/*` 使用专用代理配置，避免与普通管理 API 共用过低 IP 限流。
 
 ## Manual E2E Acceptance
 
