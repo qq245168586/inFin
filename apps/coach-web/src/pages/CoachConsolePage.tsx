@@ -18,6 +18,7 @@ export default function CoachConsolePage(props: CoachConsoleViewModelProps) {
       />
       <WeekStrip days={vm.weekDays} selectedDate={vm.selectedDate} onSelectDate={vm.setSelectedDate} />
       <ScheduleList
+        controlButtonsLocked={vm.controlButtonsLocked}
         pendingAction={vm.pendingAction}
         schedules={vm.filteredSchedules}
         selectedScheduleId={vm.selectedScheduleId}

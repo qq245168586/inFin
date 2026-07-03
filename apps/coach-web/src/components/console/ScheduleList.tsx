@@ -5,6 +5,7 @@ import { buildCourseLogo } from "../../utils/format";
 import { buildScheduleBadge } from "../../utils/playback";
 
 interface ScheduleListProps {
+  controlButtonsLocked: boolean;
   pendingAction: string;
   schedules: TvDailySchedule[];
   selectedScheduleId: string;
@@ -86,19 +87,20 @@ function ScheduleMetric({ label, value }: { label: string; value: string }) {
 
 function ScheduleActions(props: ScheduleListProps & { schedule: TvDailySchedule; scheduleState: CoachSessionState; showRunningActions: boolean }) {
   const { t } = useI18n();
+  const controlsDisabled = Boolean(props.pendingAction) || props.controlButtonsLocked;
   if (props.showRunningActions) {
     return (
       <div className="coach-schedule-actions">
-        <button type="button" className="ghost-button" disabled={Boolean(props.pendingAction)} onClick={() => props.onShowPlan(props.schedule)}>
+        <button type="button" className="ghost-button" disabled={controlsDisabled} onClick={() => props.onShowPlan(props.schedule)}>
           {t("计划")}
         </button>
-        <button type="button" className="primary-button" disabled={Boolean(props.pendingAction)} onClick={() => props.scheduleState === "PAUSED" ? props.onResume() : props.onPause()}>
+        <button type="button" className="primary-button" disabled={controlsDisabled} onClick={() => props.scheduleState === "PAUSED" ? props.onResume() : props.onPause()}>
           {props.pendingAction ? t("处理中...") : props.scheduleState === "PAUSED" ? t("继续") : t("暂停")}
         </button>
         <button
           type="button"
           className="ghost-button danger"
-          disabled={Boolean(props.pendingAction)}
+          disabled={controlsDisabled}
           onClick={() => window.confirm(t("是否结束当前课程？")) && props.onTerminate()}
         >
           {t("结束")}
@@ -109,18 +111,18 @@ function ScheduleActions(props: ScheduleListProps & { schedule: TvDailySchedule;
 
   return (
     <div className="coach-schedule-actions">
-      <button type="button" className="ghost-button" disabled={Boolean(props.pendingAction)} onClick={() => props.onShowPlan(props.schedule)}>
+      <button type="button" className="ghost-button" disabled={controlsDisabled} onClick={() => props.onShowPlan(props.schedule)}>
         {t("计划")}
       </button>
       <button
         type="button"
         className="ghost-button"
-        disabled={Boolean(props.pendingAction)}
+        disabled={controlsDisabled}
         onClick={() => props.scheduleState === "PREVIEW" ? props.onExitPreview(props.schedule) : props.onEnterPreview(props.schedule)}
       >
         {props.scheduleState === "PREVIEW" ? t("退出预览") : t("预览")}
       </button>
-      <button type="button" className="primary-button" disabled={Boolean(props.pendingAction)} onClick={() => props.onStart(props.schedule)}>
+      <button type="button" className="primary-button" disabled={controlsDisabled} onClick={() => props.onStart(props.schedule)}>
         {props.pendingAction ? t("处理中...") : t("开始")}
       </button>
     </div>

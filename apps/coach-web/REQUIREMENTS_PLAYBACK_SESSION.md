@@ -213,6 +213,7 @@ Coach 端不直接依赖 MQTT。
 - 手动结束必须二次确认。
 - Coach 显示服务端 `version`，便于排查。
 - 操作日志展示最近 commandId、sessionId、state、version。
+- 预览、退出预览、开始、结束等 TV 控制按钮在下发指令后强制 disabled 2 秒；如果请求仍在 pending，则继续保持 disabled，避免现场连点造成多 session 和 MQTT 指令风暴。
 
 ## 兼容策略
 

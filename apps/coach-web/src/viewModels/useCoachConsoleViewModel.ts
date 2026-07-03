@@ -23,6 +23,8 @@ import { getWeekDays, scheduleStartAtMs, todayValue } from "../utils/time";
 import { useCoachConsoleEffects } from "./useCoachConsoleEffects";
 import { useConsoleRefreshActions } from "./useConsoleRefreshActions";
 
+const COACH_CONTROL_LOCK_MS = 2000;
+
 export function useCoachConsoleViewModel({
   authSession,
   currentWeekSchedules,
@@ -41,8 +43,11 @@ export function useCoachConsoleViewModel({
   const [pendingAction, setPendingAction] = useState("");
   const [coursePackages, setCoursePackages] = useState<Awaited<ReturnType<typeof fetchVenueCoursePackages>> | null>(null);
   const [activeCoursePackageId, setActiveCoursePackageId] = useState<number>(0);
+  const [controlButtonsLocked, setControlButtonsLocked] = useState(false);
   const [serverClockBase, setServerClockBase] = useState<{ serverNowMs: number; localNowMs: number } | null>(null);
   const [previewIndex, setPreviewIndex] = useState(0);
+  const controlLockTimerRef = useRef<number | null>(null);
+  const controlLockUntilRef = useRef(0);
   const touchStartXRef = useRef<number | null>(null);
   const previewVideoRef = useRef<HTMLVideoElement | null>(null);
   const isSuperAdmin = String(authSession.role || "").toLowerCase() === "superadmin";
@@ -83,6 +88,30 @@ export function useCoachConsoleViewModel({
     } else {
       setServerClockBase(null);
     }
+  }
+
+  function lockControlButtons() {
+    const unlockAt = Date.now() + COACH_CONTROL_LOCK_MS;
+    controlLockUntilRef.current = unlockAt;
+    setControlButtonsLocked(true);
+    if (controlLockTimerRef.current != null) {
+      window.clearTimeout(controlLockTimerRef.current);
+    }
+    controlLockTimerRef.current = window.setTimeout(() => {
+      if (Date.now() >= controlLockUntilRef.current) {
+        controlLockUntilRef.current = 0;
+        controlLockTimerRef.current = null;
+        setControlButtonsLocked(false);
+      }
+    }, COACH_CONTROL_LOCK_MS);
+  }
+
+  function beginControlCommand(): boolean {
+    if (Date.now() < controlLockUntilRef.current) {
+      return false;
+    }
+    lockControlButtons();
+    return true;
   }
 
   async function fetchCurrentPlaybackSession(showError = false): Promise<PlaybackSession | null> {
@@ -189,10 +218,13 @@ export function useCoachConsoleViewModel({
     }
   }
 
-  async function terminateCurrent(nextSchedule?: TvDailySchedule) {
+  async function terminateCurrent(nextSchedule?: TvDailySchedule, options: { skipControlLock?: boolean } = {}) {
+    if (!options.skipControlLock && !beginControlCommand()) {
+      return null;
+    }
     if (!selectedSchedule || !playbackSession?.id) {
       if (nextSchedule) {
-        await enterPreview(nextSchedule);
+        await enterPreview(nextSchedule, { skipControlLock: true });
       }
       return null;
     }
@@ -210,14 +242,17 @@ export function useCoachConsoleViewModel({
     setPreviewIndex(0);
     if (nextSchedule) {
       onNotice(t("当前课程已终止，正在切换到新的课程预览。"));
-      await enterPreview(nextSchedule);
+      await enterPreview(nextSchedule, { skipControlLock: true });
     } else {
       onNotice(t("课程已终止，TV 端已回到课表页。"));
     }
     return session;
   }
 
-  async function enterPreview(schedule: TvDailySchedule): Promise<PlaybackSession | null> {
+  async function enterPreview(schedule: TvDailySchedule, options: { skipControlLock?: boolean } = {}): Promise<PlaybackSession | null> {
+    if (!options.skipControlLock && !beginControlCommand()) {
+      return null;
+    }
     const commandId = createCommandId();
     setPendingAction(commandId);
     onBusyTextChange(t("正在同步课程预览到 TV..."));
@@ -237,10 +272,10 @@ export function useCoachConsoleViewModel({
         if (!window.confirm(t("当前已有未结束课程。切换预览会终止当前课程，是否继续？"))) {
           return null;
         }
-        if (current?.id && !(await terminateCurrent(schedule))) {
+        if (current?.id && !(await terminateCurrent(schedule, { skipControlLock: true }))) {
           return null;
         }
-        return enterPreview(schedule);
+        return enterPreview(schedule, { skipControlLock: true });
       }
       handleRequestError(error, t("同步课程预览失败。"));
       return null;
@@ -251,6 +286,9 @@ export function useCoachConsoleViewModel({
   }
 
   async function exitPreview(schedule: TvDailySchedule) {
+    if (!beginControlCommand()) {
+      return null;
+    }
     setSelectedScheduleId(String(schedule.id));
     if (!playbackSession?.id || String(playbackSession.scheduleId) !== String(schedule.id) || sessionState !== "PREVIEW") {
       return null;
@@ -272,12 +310,15 @@ export function useCoachConsoleViewModel({
   }
 
   async function startCourse(schedule: TvDailySchedule) {
+    if (!beginControlCommand()) {
+      return;
+    }
     setSelectedScheduleId(String(schedule.id));
     if (playbackSession?.id && isActiveSessionState(sessionState) && String(playbackSession.scheduleId) !== String(schedule.id)) {
       if (!window.confirm(t("当前已有未结束课程。开始这节课会终止当前课程，是否继续？"))) {
         return;
       }
-      if (!(await terminateCurrent())) {
+      if (!(await terminateCurrent(undefined, { skipControlLock: true }))) {
         return;
       }
     }
@@ -389,6 +430,12 @@ export function useCoachConsoleViewModel({
     void loadCoursePackages(false);
   }, [authSession.access_token, authSession.token_type]);
 
+  useEffect(() => () => {
+    if (controlLockTimerRef.current != null) {
+      window.clearTimeout(controlLockTimerRef.current);
+    }
+  }, []);
+
   useEffect(() => {
     function handleCoursePackageChanged(event: Event) {
       const detail = (event as CustomEvent<{ activeCoursePackageId?: number }>).detail;
@@ -413,6 +460,7 @@ export function useCoachConsoleViewModel({
     activePreviewItem,
     activeCoursePackageId,
     changeActiveCoursePackage,
+    controlButtonsLocked: controlButtonsLocked || Boolean(pendingAction),
     coursePackages: coursePackages?.packages || [],
     displayElapsedMs,
     enterPreview,
