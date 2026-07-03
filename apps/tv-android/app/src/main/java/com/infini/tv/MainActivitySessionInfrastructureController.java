@@ -67,6 +67,24 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
 abstract class MainActivitySessionInfrastructureController extends MainActivityInstallerAndAudioController {
+  private static final long CURRENT_SESSION_MIN_INTERVAL_MS = 800L;
+  private static final long CURRENT_SESSION_ERROR_BACKOFF_MS = 2000L;
+
+  private long currentSessionLastRequestAtMs = 0L;
+  private long currentSessionRetryBlockedUntilMs = 0L;
+  private final Runnable delayedCurrentSessionRestoreRunnable =
+      new Runnable() {
+        @Override
+        public void run() {
+          final String queuedReason =
+              TextUtils.isEmpty(pendingSessionRestoreReason)
+                  ? "delayed_session_restore"
+                  : pendingSessionRestoreReason;
+          pendingSessionRestoreReason = "";
+          requestCurrentPlaybackSession(queuedReason + "_delayed");
+        }
+      };
+
   protected Intent buildPackageInstallerIntent(Uri apkUri) {
     PackageManager packageManager = getPackageManager();
     ClipData apkClipData = ClipData.newRawUri("tv-apk", apkUri);
@@ -504,9 +522,29 @@ abstract class MainActivitySessionInfrastructureController extends MainActivityI
         || selectorPanel.getVisibility() == View.VISIBLE) {
       return;
     }
+    final String requestReason =
+        TextUtils.isEmpty(reason) ? "current_session_restore" : reason;
     if (sessionRestoreInFlight) {
-      pendingSessionRestoreReason = reason == null ? "queued_session_restore" : reason;
+      pendingSessionRestoreReason = requestReason;
       Log.d(TAG, "Playback session restore already in flight, queued reason=" + pendingSessionRestoreReason);
+      return;
+    }
+
+    final long nowMs = SystemClock.elapsedRealtime();
+    final long minIntervalDelayMs =
+        Math.max(0L, CURRENT_SESSION_MIN_INTERVAL_MS - (nowMs - currentSessionLastRequestAtMs));
+    final long backoffDelayMs = Math.max(0L, currentSessionRetryBlockedUntilMs - nowMs);
+    final long delayMs = Math.max(minIntervalDelayMs, backoffDelayMs);
+    if (delayMs > 0L) {
+      pendingSessionRestoreReason = requestReason;
+      syncHandler.removeCallbacks(delayedCurrentSessionRestoreRunnable);
+      syncHandler.postDelayed(delayedCurrentSessionRestoreRunnable, delayMs);
+      Log.d(
+          TAG,
+          "Playback session restore delayed reason="
+              + requestReason
+              + " delayMs="
+              + delayMs);
       return;
     }
 
@@ -514,23 +552,37 @@ abstract class MainActivitySessionInfrastructureController extends MainActivityI
     final String requestDeviceId = deviceId;
     final int requestScreenNumber = activeScreenNumber;
     sessionRestoreInFlight = true;
+    currentSessionLastRequestAtMs = nowMs;
     new Thread(
             () -> {
+              boolean requestFailed = false;
               try {
                 TvScriptRepository.CurrentPlaybackSession result =
                     repository.loadCurrentPlaybackSession(
                         requestAccountNamespace, requestDeviceId, requestScreenNumber);
-                runOnUiThread(() -> applyCurrentPlaybackSession(result, reason));
+                runOnUiThread(() -> applyCurrentPlaybackSession(result, requestReason));
               } catch (Exception error) {
-                Log.d(TAG, "Current playback session unavailable reason=" + reason, error);
+                requestFailed = true;
+                Log.d(TAG, "Current playback session unavailable reason=" + requestReason, error);
               } finally {
-                sessionRestoreInFlight = false;
-                final String queuedReason = pendingSessionRestoreReason;
-                pendingSessionRestoreReason = "";
-                if (!TextUtils.isEmpty(queuedReason)) {
-                  runOnUiThread(
-                      () -> requestCurrentPlaybackSession(queuedReason + "_after_inflight"));
-                }
+                final boolean failed = requestFailed;
+                runOnUiThread(
+                    () -> {
+                      sessionRestoreInFlight = false;
+                      if (failed) {
+                        currentSessionRetryBlockedUntilMs =
+                            Math.max(
+                                currentSessionRetryBlockedUntilMs,
+                                SystemClock.elapsedRealtime() + CURRENT_SESSION_ERROR_BACKOFF_MS);
+                      } else {
+                        currentSessionRetryBlockedUntilMs = 0L;
+                      }
+                      final String queuedReason = pendingSessionRestoreReason;
+                      pendingSessionRestoreReason = "";
+                      if (!TextUtils.isEmpty(queuedReason)) {
+                        requestCurrentPlaybackSession(queuedReason + "_after_inflight");
+                      }
+                    });
               }
             })
         .start();
