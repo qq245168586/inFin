@@ -216,6 +216,12 @@ TV 使用场景：
 - heartbeat 发现本地 session 与服务端不一致。
 - 收到 `session_updated` MQTT 通知后拉取完整 session。
 
+Current session 选择规则：
+
+- `PREVIEW | SCHEDULED | RUNNING | PAUSED` active session 永远优先返回。
+- `ENDED | TERMINATED` terminal session 只在没有 active session 时，作为短 TTL fallback 返回给 TV，用于让慢屏幕收敛回课表。
+- 如果教练刚结束旧预览又立刻创建新预览，TV current 必须返回新的 `PREVIEW`，不能被旧 `TERMINATED` 覆盖。
+
 ## MQTT 通知
 
 服务端启动一个 MQTT client 负责发布 session 事件。

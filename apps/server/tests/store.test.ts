@@ -132,6 +132,40 @@ test("coach course package switch persists venue active package and filters TV b
   );
 });
 
+test("TV current session returns a new active preview before recent terminal fallback", async (t) => {
+  const store = await importStore(t);
+  const scheduleDate = nextMonday(1);
+  const schedule = store.saveSchedule({
+    courseId: 101,
+    coursePackageId: 1,
+    beginTime: shanghaiNoon(scheduleDate),
+    duration: 45
+  });
+
+  const firstPreview = store.createPreviewPlaybackSession(
+    { scheduleId: String(schedule.id), commandId: "preview-first" },
+    "venue-a"
+  );
+  store.updatePlaybackSessionState(
+    firstPreview.id,
+    "terminate",
+    { commandId: "terminate-first" },
+    "venue-a"
+  );
+  const secondPreview = store.createPreviewPlaybackSession(
+    { scheduleId: String(schedule.id), commandId: "preview-second" },
+    "venue-a"
+  );
+
+  const current = store.getCurrentPlaybackSessionForTv({
+    accountNamespace: "venue-a",
+    screenNumber: 1
+  });
+
+  assert.equal(current.id, secondPreview.id);
+  assert.equal(current.state, "PREVIEW");
+});
+
 test("lesson types are scoped to course packages and reused within the same package", async (t) => {
   const store = await importStore(t);
 

@@ -451,17 +451,7 @@ export function getCurrentPlaybackSessionForTv(payload = {}) {
   const screenSessionId = trimText(matchedScreen?.playbackSessionId);
 
   if (active) {
-    const activeState = normalizePlaybackState(active.state);
-    if (
-      activeState !== "PREVIEW"
-      || (
-        screenSessionId
-        && trimText(active.id) === screenSessionId
-        && Boolean(matchedScreen?.previewMode)
-      )
-    ) {
-      return serializePlaybackSession(active);
-    }
+    return serializePlaybackSession(active);
   }
 
   const screenSession = screenSessionId ? findPlaybackSessionById(screenSessionId, accountNamespace) : null;
