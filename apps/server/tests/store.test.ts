@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { test } from "vitest";
+import { test, vi } from "vitest";
 import { createMockCourseScript, createMockDatabaseState } from "./fixtures/mock-db.ts";
 import { addDays, importStore, nextMonday, shanghaiNoon } from "./helpers/store.ts";
 
@@ -164,6 +164,35 @@ test("TV current session returns a new active preview before recent terminal fal
 
   assert.equal(current.id, secondPreview.id);
   assert.equal(current.state, "PREVIEW");
+});
+
+test("preview session remains active after normal 10 minute setup window", async (t) => {
+  vi.useFakeTimers();
+  const baseTime = new Date("2026-07-04T01:10:00.000Z");
+  vi.setSystemTime(baseTime);
+  try {
+    const store = await importStore(t);
+    const scheduleDate = nextMonday(1);
+    const schedule = store.saveSchedule({
+      courseId: 101,
+      coursePackageId: 1,
+      beginTime: shanghaiNoon(scheduleDate),
+      duration: 45
+    });
+
+    const preview = store.createPreviewPlaybackSession(
+      { scheduleId: String(schedule.id), commandId: "preview-long-setup" },
+      "venue-a"
+    );
+    vi.setSystemTime(new Date(baseTime.getTime() + 11 * 60 * 1000));
+
+    const current = store.getActivePlaybackSession("venue-a");
+
+    assert.equal(current.id, preview.id);
+    assert.equal(current.state, "PREVIEW");
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 test("lesson types are scoped to course packages and reused within the same package", async (t) => {

@@ -55,6 +55,7 @@
 - `version` 每次状态变化递增。
 - `serverStartAtMs` 一旦进入 `RUNNING` 不可修改。
 - `pausedAccumulatedMs` 只能在 resume 时增加。
+- `PREVIEW` 允许教练长时间停留做现场准备，不能用 10 分钟这类短 TTL 自动结束；服务端只保留长 TTL 安全清理，避免永久僵尸 session。
 
 ## 时间计算
 
@@ -221,6 +222,7 @@ Current session 选择规则：
 - `PREVIEW | SCHEDULED | RUNNING | PAUSED` active session 永远优先返回。
 - `ENDED | TERMINATED` terminal session 只在没有 active session 时，作为短 TTL fallback 返回给 TV，用于让慢屏幕收敛回课表。
 - 如果教练刚结束旧预览又立刻创建新预览，TV current 必须返回新的 `PREVIEW`，不能被旧 `TERMINATED` 覆盖。
+- 如果 coach 退出预览时服务端已经没有 active preview，coach 端必须清理本地预览态，避免下一次进入预览还携带旧 session。
 
 ## MQTT 通知
 

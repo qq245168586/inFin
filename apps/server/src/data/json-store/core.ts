@@ -28,7 +28,8 @@ export const REFRESH_TOKEN_TTL_SECONDS = 15 * 24 * 60 * 60;
 export const TV_SCREEN_COUNT = 5;
 export const TV_ONLINE_THRESHOLD_MS = 35 * 1000;
 export const DB_BACKUP_RETENTION = 120;
-export const PLAYBACK_PREVIEW_TTL_MS = 10 * 60 * 1000;
+// Preview may stay open while coaches prepare the room; this is a safety cleanup, not a class-flow timeout.
+export const PLAYBACK_PREVIEW_TTL_MS = 2 * 60 * 60 * 1000;
 export const PLAYBACK_TERMINAL_CURRENT_TTL_MS = 15 * 60 * 1000;
 export const PLAYBACK_ACTIVE_STATES = new Set(["PREVIEW", "SCHEDULED", "RUNNING", "PAUSED"]);
 export const PLAYBACK_TERMINAL_STATES = new Set(["ENDED", "TERMINATED"]);
