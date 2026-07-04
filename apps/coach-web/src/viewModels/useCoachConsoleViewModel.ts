@@ -290,12 +290,27 @@ export function useCoachConsoleViewModel({
       return null;
     }
     setSelectedScheduleId(String(schedule.id));
-    if (!playbackSession?.id || String(playbackSession.scheduleId) !== String(schedule.id) || sessionState !== "PREVIEW") {
+    let targetSession: PlaybackSession | null =
+      playbackSession?.id && String(playbackSession.scheduleId) === String(schedule.id) && sessionState === "PREVIEW"
+        ? playbackSession
+        : null;
+    if (!targetSession) {
+      const current = await fetchCurrentPlaybackSession(false);
+      targetSession =
+        current?.id && String(current.scheduleId) === String(schedule.id) && activeSessionState(current.state) === "PREVIEW"
+          ? current
+          : null;
+    }
+    if (!targetSession) {
+      applyPlaybackSession(null);
+      setSelectedScheduleId(String(schedule.id));
+      setPreviewIndex(0);
+      onNotice(t("已退出预览，TV 端已回到课表页。"));
       return null;
     }
     const session = await requestSession(
-      `/api/tv/playback-sessions/${encodeURIComponent(playbackSession.id)}/terminate`,
-      venueBody(authSession, isSuperAdmin, { commandId: createCommandId() }, schedule, playbackSession),
+      `/api/tv/playback-sessions/${encodeURIComponent(targetSession.id)}/terminate`,
+      venueBody(authSession, isSuperAdmin, { commandId: createCommandId() }, schedule, targetSession),
       t("正在退出课程预览..."),
       t("退出预览失败。")
     );
