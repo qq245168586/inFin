@@ -199,6 +199,8 @@ export async function publishTvSessionEvent(session, accountNamespace = "") {
     sessionId: String(session?.id || "").trim(),
     version: Number(session?.version) || 0,
     state: String(session?.state || "").trim().toUpperCase(),
+    commandId: String(session?.lastCommandId || "").trim(),
+    lastCommandId: String(session?.lastCommandId || "").trim(),
     scheduleId: String(session?.scheduleId || "").trim(),
     courseId: Number(session?.courseId) || 0,
     bundleChecksum: String(session?.bundleChecksum || "").trim(),

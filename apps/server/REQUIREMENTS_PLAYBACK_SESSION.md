@@ -223,6 +223,7 @@ Current session 选择规则：
 - `ENDED | TERMINATED` terminal session 只在没有 active session 时，作为短 TTL fallback 返回给 TV，用于让慢屏幕收敛回课表。
 - 如果教练刚结束旧预览又立刻创建新预览，TV current 必须返回新的 `PREVIEW`，不能被旧 `TERMINATED` 覆盖。
 - 如果 coach 退出预览时服务端已经没有 active preview，coach 端必须清理本地预览态，避免下一次进入预览还携带旧 session。
+- 如果 coach 重复点击同一节课的预览，服务端可以复用同一条 `PREVIEW` session，但必须推进 session `version` 并更新 `lastCommandId`，确保 TV 和 heartbeat 能识别这是新的控制意图。
 
 ## MQTT 通知
 
@@ -254,7 +255,8 @@ infini/tv/session/{accountNamespace}
 - 不依赖 retained 作为权威状态。
 - 可选 retain 最新事件，但 TV 仍必须 HTTP 拉完整 session 校验。
 - TV 收到旧 `version` 必须忽略。
-- 同一 session 每次状态变化只发布一次事件；发布失败不回滚 DB，但要记录错误并允许重试/由 heartbeat 补偿。
+- 同一 session 每次状态变化或新的控制意图都发布事件；即使状态仍是 `PREVIEW`，只要 coach 新发起一次预览，服务端也必须发 MQTT。
+- 发布失败不回滚 DB，但要记录错误并允许重试/由 heartbeat 补偿。
 
 ## Heartbeat 变更
 
@@ -310,6 +312,12 @@ infini/tv/session/{accountNamespace}
 ```
 
 后续新增字段只能追加，不能改名或改变语义。
+
+Heartbeat 收敛规则：
+
+- server current 是 `PREVIEW` 时，如果 TV heartbeat 上报 `playbackState !== PREVIEW` 或 `previewMode=false`，即使 session id/version 看起来一致，也必须返回 `sessionOutdated=true`。
+- server current 是 active session 时，如果 TV heartbeat 上报的 `playbackSessionId` 不一致或 `sessionVersion` 落后，也必须返回 `sessionOutdated=true`。
+- TV 收到 `sessionOutdated=true` 后继续通过 `/api/tv/playback-sessions/current` 拉取权威 session，再由 TV 根据自己的真实 UI 状态决定是否重新进入预览或课程。
 
 ## 验收标准
 

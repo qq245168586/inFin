@@ -195,6 +195,62 @@ test("preview session remains active after normal 10 minute setup window", async
   }
 });
 
+test("repeated preview command advances session revision for TV resync", async (t) => {
+  const store = await importStore(t);
+  const scheduleDate = nextMonday(1);
+  const schedule = store.saveSchedule({
+    courseId: 101,
+    coursePackageId: 1,
+    beginTime: shanghaiNoon(scheduleDate),
+    duration: 45
+  });
+
+  const first = store.createPreviewPlaybackSession(
+    { scheduleId: String(schedule.id), commandId: "preview-repeat-1" },
+    "venue-a"
+  );
+  const second = store.createPreviewPlaybackSession(
+    { scheduleId: String(schedule.id), commandId: "preview-repeat-2" },
+    "venue-a"
+  );
+
+  assert.equal(second.id, first.id);
+  assert.equal(second.state, "PREVIEW");
+  assert.equal(second.version, first.version + 1);
+  assert.equal(second.lastCommandId, "preview-repeat-2");
+});
+
+test("TV heartbeat marks preview screens outdated when local state fell back to idle", async (t) => {
+  const store = await importStore(t);
+  const scheduleDate = nextMonday(1);
+  const schedule = store.saveSchedule({
+    courseId: 101,
+    coursePackageId: 1,
+    beginTime: shanghaiNoon(scheduleDate),
+    duration: 45
+  });
+  const preview = store.createPreviewPlaybackSession(
+    { scheduleId: String(schedule.id), commandId: "preview-heartbeat" },
+    "venue-a"
+  );
+
+  const heartbeat = store.heartbeatTvScreen(
+    {
+      deviceId: "TV-001",
+      screenNumber: 1,
+      playbackState: "IDLE",
+      previewMode: false,
+      playbackSessionId: preview.id,
+      sessionVersion: preview.version
+    },
+    "venue-a"
+  );
+
+  assert.equal(heartbeat.sessionOutdated, true);
+  assert.equal(heartbeat.session.id, preview.id);
+  assert.equal(heartbeat.session.state, "PREVIEW");
+});
+
 test("lesson types are scoped to course packages and reused within the same package", async (t) => {
   const store = await importStore(t);
 

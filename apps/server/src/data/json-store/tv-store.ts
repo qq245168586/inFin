@@ -507,6 +507,11 @@ export function createPreviewPlaybackSession(payload = {}, accountNamespace = ""
       const commandResult = recordPlaybackCommand(active, "preview", commandId);
 
       if (!commandResult.duplicate) {
+        active.version = Math.max(1, safeNumber(active.version, 1)) + 1;
+        if (commandResult.command) {
+          commandResult.command.version = active.version;
+          commandResult.command.resultVersion = active.version;
+        }
         active.updatedAtMs = Date.now();
         active.updateTime = nowIso();
       }
@@ -767,11 +772,19 @@ export function heartbeatTvScreen(payload = {}, accountNamespace = "") {
   const activeSession = getActivePlaybackSessionEntry(screen?.accountNamespace || payload.accountNamespace || accountNamespace);
   const reportedSessionId = trimText(payload.playbackSessionId);
   const reportedVersion = safeNumber(payload.sessionVersion, safeNumber(payload.playbackSessionVersion));
+  const activeState = normalizePlaybackState(activeSession?.state);
+  const reportedPlaybackState = normalizeTvPlaybackState(payload.playbackState || screen?.playbackState);
+  const reportedPreviewMode =
+    typeof payload.previewMode === "boolean" ? payload.previewMode : Boolean(screen?.previewMode);
+  const previewStateMismatch =
+    activeState === "PREVIEW"
+    && (reportedPlaybackState !== "PREVIEW" || !reportedPreviewMode);
   const sessionOutdated =
     Boolean(activeSession)
     && (
       reportedSessionId !== trimText(activeSession.id)
       || reportedVersion < safeNumber(activeSession.version)
+      || previewStateMismatch
     );
 
   return {
