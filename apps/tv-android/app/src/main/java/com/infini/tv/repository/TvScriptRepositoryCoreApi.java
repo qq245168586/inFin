@@ -83,11 +83,15 @@ abstract class TvScriptRepositoryCoreApi extends TvScriptRepositoryBase {
   }
 
   public SyncResult syncTodayBundle(SyncProgressListener listener) throws IOException {
-    return syncTodayBundle(listener, true);
+    return syncTodayBundle(listener, MediaResourcePolicy.CACHE_REQUIRED);
   }
 
-  public SyncResult syncTodayBundle(SyncProgressListener listener, boolean cacheResources)
+  public SyncResult syncTodayBundle(
+      SyncProgressListener listener, MediaResourcePolicy mediaResourcePolicy)
       throws IOException {
+    MediaResourcePolicy resolvedPolicy =
+        mediaResourcePolicy == null ? MediaResourcePolicy.CACHE_REQUIRED : mediaResourcePolicy;
+    boolean cacheResources = resolvedPolicy.shouldCacheResources();
     String today = LocalDate.now(COURSE_ZONE).format(DATE_FORMATTER);
     JSONObject payload =
         requestJson(
@@ -110,7 +114,7 @@ abstract class TvScriptRepositoryCoreApi extends TvScriptRepositoryBase {
         resourcesCached = false;
         Log.w(
             TAG,
-            "Daily bundle resources cache failed; applying schedule with remote media fallback date="
+            "Daily bundle resources cache failed; applying schedule without unavailable videos date="
                 + payload.optString("date", today)
                 + " checksum="
                 + payload.optString("checksum", "")
@@ -210,6 +214,11 @@ abstract class TvScriptRepositoryCoreApi extends TvScriptRepositoryBase {
   }
 
   public TvScheduleItem loadScheduleById(String scheduleId) throws IOException {
+    return loadScheduleById(scheduleId, MediaResourcePolicy.CACHE_REQUIRED);
+  }
+
+  public TvScheduleItem loadScheduleById(
+      String scheduleId, MediaResourcePolicy mediaResourcePolicy) throws IOException {
     JSONObject payload =
         requestJson("/tv/schedule-bundle?scheduleId=" + encode(scheduleId == null ? "" : scheduleId));
 
@@ -222,7 +231,12 @@ abstract class TvScriptRepositoryCoreApi extends TvScriptRepositoryBase {
     scheduleArray.put(scheduleObject);
     List<CachedResource> resources = parseResources(payload.optJSONArray("resources"));
     resources.addAll(parseLogoResources(scheduleArray));
-    Map<String, String> localMediaMap = ensureResourcesCached(resources, null);
+    MediaResourcePolicy resolvedPolicy =
+        mediaResourcePolicy == null ? MediaResourcePolicy.CACHE_REQUIRED : mediaResourcePolicy;
+    Map<String, String> localMediaMap =
+        resolvedPolicy.shouldCacheResources()
+            ? ensureResourcesCached(resources, null)
+            : new HashMap<>();
     return parseScheduleItem(scheduleObject, localMediaMap, false);
   }
 

@@ -52,12 +52,16 @@ abstract class TvScriptRepositoryCoreContract extends TvScriptRepositoryTypes {
 
   public abstract SyncResult syncTodayBundle(SyncProgressListener listener) throws IOException;
 
-  public abstract SyncResult syncTodayBundle(SyncProgressListener listener, boolean cacheResources)
+  public abstract SyncResult syncTodayBundle(
+      SyncProgressListener listener, MediaResourcePolicy mediaResourcePolicy)
       throws IOException;
 
   public abstract DailyChecksum loadTodayChecksum() throws IOException;
 
   public abstract TvScheduleItem loadScheduleById(String scheduleId) throws IOException;
+
+  public abstract TvScheduleItem loadScheduleById(
+      String scheduleId, MediaResourcePolicy mediaResourcePolicy) throws IOException;
 
   public abstract CurrentPlaybackSession loadCurrentPlaybackSession(
       String accountNamespace, String deviceId, int screenNumber) throws IOException;

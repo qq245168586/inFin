@@ -11,6 +11,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.VideoView;
 import com.infini.tv.model.CourseScript;
+import com.infini.tv.util.LocalVideoPlaybackPolicy;
 import com.infini.tv.util.TrainingLayoutCalculator;
 import java.util.List;
 
@@ -272,9 +273,10 @@ abstract class MainActivityTrainingCardRendererController extends MainActivityTr
   }
 
   protected void bindTrainingPreview(FrameLayout preview, CourseScript.VideoCard card) {
-    boolean hasMedia = card != null && card.mediaUrl != null && !card.mediaUrl.trim().isEmpty();
+    String localMediaPath =
+        LocalVideoPlaybackPolicy.resolvePlayablePath(card == null ? null : card.mediaUrl);
+    boolean hasMedia = !localMediaPath.isEmpty();
     if (hasMedia) {
-      String mediaUrl = card.mediaUrl;
       VideoView videoView = new VideoView(this);
       videoView.setLayoutParams(
           new FrameLayout.LayoutParams(
@@ -291,24 +293,18 @@ abstract class MainActivityTrainingCardRendererController extends MainActivityTr
       videoView.setOnCompletionListener(mediaPlayer -> restartLoopingVideoFromStart(videoView));
       videoView.setOnErrorListener(
           (mediaPlayer, what, extra) -> {
-            Log.w(TAG, "Training video playback failed url=" + mediaUrl + " what=" + what + " extra=" + extra);
-            videoView.postDelayed(
-                () -> {
-                  if (videoView.getVisibility() != View.VISIBLE) {
-                    return;
-                  }
-                  try {
-                    videoView.stopPlayback();
-                    videoView.setVideoPath(mediaUrl);
-                    videoView.start();
-                  } catch (Exception ignored) {
-                    // Ignore transient player state while rebinding a failed video.
-                  }
-                },
-                300L);
+            Log.w(
+                TAG,
+                "Training video playback failed url="
+                    + localMediaPath
+                    + " what="
+                    + what
+                    + " extra="
+                    + extra);
+            videoView.setVisibility(View.GONE);
             return true;
           });
-      videoView.setVideoPath(mediaUrl);
+      videoView.setVideoPath(localMediaPath);
       videoView.start();
       preview.post(() -> startVideoViewIfNeeded(videoView));
     } else {

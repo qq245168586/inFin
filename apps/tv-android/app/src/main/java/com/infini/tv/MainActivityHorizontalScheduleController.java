@@ -44,6 +44,7 @@ import com.infini.tv.model.CourseScript;
 import com.infini.tv.model.TvScheduleItem;
 import com.infini.tv.mqtt.TvMqttManager;
 import com.infini.tv.repository.ServerConfig;
+import com.infini.tv.repository.MediaResourcePolicy;
 import com.infini.tv.repository.TvScriptRepository;
 import com.infini.tv.service.ImageLoader;
 import com.google.zxing.BarcodeFormat;
@@ -158,7 +159,8 @@ abstract class MainActivityHorizontalScheduleController extends MainActivitySche
     }
 
     setScheduleSyncState(true, false);
-    boolean cacheResources = shouldCacheHorizontalResources(screenNumber);
+    MediaResourcePolicy mediaResourcePolicy = resolveMediaResourcePolicy(screenNumber);
+    boolean cacheResources = mediaResourcePolicy.shouldCacheResources();
     if (horizontalLoadingText != null) {
       horizontalLoadingText.setVisibility(View.VISIBLE);
       if (cacheResources) {
@@ -191,7 +193,7 @@ abstract class MainActivityHorizontalScheduleController extends MainActivitySche
                                     horizontalLoadingText.setText(buildSyncMessage(message, completed, total));
                                   }
                                 }),
-                        cacheResources);
+                        mediaResourcePolicy);
 
                 runOnUiThread(
                     () -> {
@@ -240,10 +242,6 @@ abstract class MainActivityHorizontalScheduleController extends MainActivitySche
               }
             })
         .start();
-  }
-
-  protected boolean shouldCacheHorizontalResources(int screenNumber) {
-    return screenNumber != 2 && screenNumber != 4;
   }
 
   protected void bindHorizontalSchedule(List<TvScheduleItem> scheduleItems) {

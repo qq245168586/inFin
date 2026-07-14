@@ -45,7 +45,9 @@ import com.infini.tv.model.TvScheduleItem;
 import com.infini.tv.mvi.TvIntent;
 import com.infini.tv.mqtt.TvMqttManager;
 import com.infini.tv.repository.ServerConfig;
+import com.infini.tv.repository.MediaResourcePolicy;
 import com.infini.tv.repository.TvScriptRepository;
+import com.infini.tv.util.ScreenMediaResourcePolicy;
 import com.infini.tv.service.ImageLoader;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.EncodeHintType;
@@ -294,6 +296,10 @@ abstract class MainActivityScreenPlaybackController extends MainActivitySessionI
 
   protected boolean isHorizontalInfoScreen(int screenNumber) {
     return screenNumber == 2 || screenNumber == 4;
+  }
+
+  protected MediaResourcePolicy resolveMediaResourcePolicy(int screenNumber) {
+    return ScreenMediaResourcePolicy.forScreen(screenNumber);
   }
 
   protected void applyScreenOrientation(int screenNumber) {

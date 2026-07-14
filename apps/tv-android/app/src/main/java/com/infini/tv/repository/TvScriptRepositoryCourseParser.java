@@ -210,7 +210,7 @@ abstract class TvScriptRepositoryCourseParser extends TvScriptRepositoryHttpTran
           new CourseScript.WaterfallItem(
               item.actionId,
               item.actionName,
-              localMediaMap.getOrDefault(item.mediaUrl, item.mediaUrl),
+              resolveLocalVideoPath(item.mediaUrl, localMediaMap),
               item.seconds,
               item.cue));
     }
@@ -233,7 +233,7 @@ abstract class TvScriptRepositoryCourseParser extends TvScriptRepositoryHttpTran
               new CourseScript.VideoCard(
                   card.actionId,
                   card.actionName,
-                  localMediaMap.getOrDefault(card.mediaUrl, card.mediaUrl),
+                  resolveLocalVideoPath(card.mediaUrl, localMediaMap),
                   card.stationNumber,
                   card.target));
         }
@@ -245,6 +245,19 @@ abstract class TvScriptRepositoryCourseParser extends TvScriptRepositoryHttpTran
     }
 
     return groups;
+  }
+
+  /** Keeps local paths while preventing unresolved server URLs from reaching VideoView. */
+  private String resolveLocalVideoPath(String source, Map<String, String> localMediaMap) {
+    if (source == null || source.trim().isEmpty()) {
+      return "";
+    }
+    String cachedPath = localMediaMap == null ? null : localMediaMap.get(source);
+    if (cachedPath != null && !cachedPath.trim().isEmpty()) {
+      return cachedPath;
+    }
+    String normalized = source.trim().toLowerCase(Locale.US);
+    return normalized.startsWith("http://") || normalized.startsWith("https://") ? "" : source;
   }
 
   protected CourseScript.WaterfallSection parseWaterfallSection(JSONObject sectionObject, String fallbackTitle) {

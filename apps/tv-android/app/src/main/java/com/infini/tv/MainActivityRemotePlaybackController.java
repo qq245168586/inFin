@@ -282,7 +282,9 @@ abstract class MainActivityRemotePlaybackController extends MainActivityScreenPl
     new Thread(
             () -> {
               try {
-                TvScheduleItem remoteItem = repository.loadScheduleById(scheduleId);
+                TvScheduleItem remoteItem =
+                    repository.loadScheduleById(
+                        scheduleId, resolveMediaResourcePolicy(activeScreenNumber));
                 if (remoteItem == null) {
                   Log.w(TAG, "Remote schedule resolve returned empty scheduleId=" + scheduleId);
                   return;
@@ -442,7 +444,8 @@ abstract class MainActivityRemotePlaybackController extends MainActivityScreenPl
                                   }
                                   scheduleStateText.setVisibility(View.VISIBLE);
                                   scheduleStateText.setText(buildSyncMessage(message, completed, total));
-                                }));
+                                }),
+                        resolveMediaResourcePolicy(screenNumber));
 
                 runOnUiThread(
                     () -> {

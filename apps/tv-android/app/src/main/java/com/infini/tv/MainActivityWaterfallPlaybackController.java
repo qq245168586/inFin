@@ -47,6 +47,7 @@ import com.infini.tv.mqtt.TvMqttManager;
 import com.infini.tv.repository.ServerConfig;
 import com.infini.tv.repository.TvScriptRepository;
 import com.infini.tv.service.ImageLoader;
+import com.infini.tv.util.LocalVideoPlaybackPolicy;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.EncodeHintType;
 import com.google.zxing.WriterException;
@@ -328,19 +329,20 @@ abstract class MainActivityWaterfallPlaybackController extends MainActivityHoriz
       return;
     }
 
-    if (mediaUrl == null || mediaUrl.trim().isEmpty()) {
+    String localMediaPath = LocalVideoPlaybackPolicy.resolvePlayablePath(mediaUrl);
+    if (localMediaPath.isEmpty()) {
       stopWaterfallVideo(row);
       return;
     }
 
-    if (mediaUrl.equals(row.boundUrl)) {
+    if (localMediaPath.equals(row.boundUrl)) {
       if (!row.videoView.isPlaying()) {
         row.videoView.start();
       }
       return;
     }
 
-    row.boundUrl = mediaUrl;
+    row.boundUrl = localMediaPath;
     row.placeholderText.setVisibility(View.GONE);
     row.videoView.setVisibility(View.VISIBLE);
     try {
@@ -357,11 +359,11 @@ abstract class MainActivityWaterfallPlaybackController extends MainActivityHoriz
     row.videoView.setOnCompletionListener(mediaPlayer -> restartLoopingVideoFromStart(row.videoView));
     row.videoView.setOnErrorListener(
         (mediaPlayer, what, extra) -> {
-          Log.w(TAG, "Waterfall video playback failed url=" + mediaUrl + " what=" + what + " extra=" + extra);
+          Log.w(TAG, "Waterfall video playback failed url=" + localMediaPath + " what=" + what + " extra=" + extra);
           stopWaterfallVideo(row);
           return true;
         });
-    row.videoView.setVideoPath(mediaUrl);
+    row.videoView.setVideoPath(localMediaPath);
     row.videoView.start();
   }
 
