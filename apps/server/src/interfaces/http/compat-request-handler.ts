@@ -86,6 +86,7 @@ import {
 } from "../../data/store.js";
 import { buildStorageKey, getMediaStorageMode, uploadBufferToOss } from "../../services/media-storage.js";
 import { getOrCreateActionThumbnailFile } from "../../services/media-thumbnails.js";
+import { resolveSafeMediaFile, sendMediaFile } from "../../services/media-delivery.js";
 import { getTvControlConfig, publishTvControl, publishTvSessionEvent } from "../../services/tv-control.js";
 import { readOpsEvents, startOpsMqttSubscriber, subscribeOpsEvents } from "../../services/mqtt-ops-log.js";
 import { readJsonBody, readRequestBuffer, sendFile, sendJson, sendNoContent } from "../../utils/http.js";
@@ -2467,16 +2468,27 @@ export async function handleCompatRequest(request, response) {
     }
 
     if ((request.method === "GET" || request.method === "HEAD") && url.pathname.startsWith("/api/media/")) {
-      const filename = decodeURIComponent(url.pathname.replace("/api/media/", ""));
+      let filename = "";
+      try {
+        filename = decodeURIComponent(url.pathname.replace("/api/media/", ""));
+      } catch {
+        sendJson(response, 404, { message: "媒体文件不存在。" });
+        return;
+      }
       const media = getMediaRecord(filename);
-      const filePath = path.join(getMediaRoot(), filename);
+      const filePath = resolveSafeMediaFile(getMediaRoot(), filename);
 
-      if (!media || !fs.existsSync(filePath)) {
+      if (!media || !filePath || !fs.existsSync(filePath)) {
         sendJson(response, 404, { message: "媒体文件不存在。" });
         return;
       }
 
-      sendFile(request, response, filePath, media.type || guessMimeType(filename));
+      sendMediaFile(request, response, {
+        filePath,
+        filename,
+        contentType: media.type || guessMimeType(filename),
+        checksum: media.checksum || ""
+      });
       return;
     }
 

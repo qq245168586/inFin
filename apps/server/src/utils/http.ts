@@ -39,6 +39,14 @@ function corsHeaders(extra = {}) {
 }
 
 /**
+ * 写入无响应体的状态和响应头，供缓存协商、重定向等场景复用。
+ */
+export function sendEmpty(response, statusCode, headers = {}) {
+  response.writeHead(statusCode, corsHeaders(headers));
+  response.end();
+}
+
+/**
  * 写入 json 响应，统一 HTTP 状态和响应头。
  */
 export function sendJson(response, statusCode, payload) {
@@ -76,10 +84,17 @@ export function sendBuffer(response, statusCode, buffer, contentType = "applicat
 /**
  * 写入 file 响应，统一 HTTP 状态和响应头。
  */
-export function sendFile(request, response, filePath, contentType = "application/octet-stream") {
+export function sendFile(
+  request,
+  response,
+  filePath,
+  contentType = "application/octet-stream",
+  options: { headers?: Record<string, string | number> } = {}
+) {
   const stats = fs.statSync(filePath);
   const totalSize = stats.size;
   const rangeHeader = request.headers.range;
+  const extraHeaders = options.headers || {};
 
   if (rangeHeader) {
     const match = /bytes=(\d*)-(\d*)/.exec(rangeHeader);
@@ -90,6 +105,7 @@ export function sendFile(request, response, filePath, contentType = "application
       response.writeHead(
         416,
         corsHeaders({
+          ...extraHeaders,
           "Content-Range": `bytes */${totalSize}`
         })
       );
@@ -100,6 +116,7 @@ export function sendFile(request, response, filePath, contentType = "application
     response.writeHead(
       206,
       corsHeaders({
+        ...extraHeaders,
         "Content-Type": contentType,
         "Accept-Ranges": "bytes",
         "Content-Length": end - start + 1,
@@ -119,6 +136,7 @@ export function sendFile(request, response, filePath, contentType = "application
   response.writeHead(
     200,
     corsHeaders({
+      ...extraHeaders,
       "Content-Type": contentType,
       "Accept-Ranges": "bytes",
       "Content-Length": totalSize
