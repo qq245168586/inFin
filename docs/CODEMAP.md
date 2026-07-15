@@ -41,7 +41,8 @@ flowchart LR
 - `src/data/json-store/media-app-store.ts`：媒体文件和 TV app package 上传、登记、下载。
 - `src/services/media-thumbnails.ts`：动作视频服务端缩略图派生缓存，按 action/media 版本生成 JPG，不写入 DB。
 - `src/services/media-delivery.ts`：校验本地媒体路径、生成 immutable/ETag/Last-Modified 响应并在配置开启时通过 `X-Accel-Redirect` 把文件发送交给 Nginx；未开启时回退到 Node Range 流。
-- `scripts/nginx-infini-media-*.conf`：Nginx http/server 两层媒体配置；用设备 ID + 屏幕号 + URI 识别同资源并发，静态 `sendfile` 传输和独立 JSON access log 都只作用于 TV 媒体内部 location。
+- `scripts/nginx-infini-media-*.conf`：Nginx http/server 两层媒体配置；通过 `/srv/infini-media` bind mount 读取应用媒体，不放宽 home 权限；用设备 ID + 屏幕号 + URI 识别同资源并发，静态 `sendfile` 和独立 JSON access log 只作用于 TV 媒体内部 location。
+- `scripts/deploy-remote.sh`：识别线上 `infini-platform.service` 并通过 systemd 重启，写入媒体 X-Accel drop-in 后轮询健康检查；仅在没有 systemd unit 的环境回退到独立 Node 进程。
 - `src/data/json-store/admin-store.ts`：用户、场馆、课程包、管理端元数据。
 - `src/data/json-store/content-store.ts`：动作、动作类型、课程、课程模板。
 - `src/data/json-store/schedule-store.ts`：排课、复制排课、未来无效排课清理。

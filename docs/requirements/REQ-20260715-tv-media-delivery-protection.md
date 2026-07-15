@@ -106,6 +106,7 @@ http context:
   write JSON access log with identity/status/bytes/duration
 
 server context internal media location:
+  bind mount INFINI_DATA_ROOT/media at /srv/infini-media
   internal + alias media root
   sendfile on
   limit same key to one active transfer
@@ -132,14 +133,14 @@ else:
 - TV boundary: only course media cache downloads; app package downloads and JSON API requests keep their current retry policy.
 - Screen boundary: screen `2/4` remains `METADATA_ONLY` and should not issue MP4 requests; headers/reties apply to video screens `1/3/5` when a cache download is actually needed.
 - Failure boundary: if Nginx internal location is not installed, do not set `INFINI_MEDIA_X_ACCEL_PREFIX`; Server continues Node streaming.
-- Configuration boundary: future deployment reads `/home/REDACTED_CONFIGURE_LOCALLY/infini-media-delivery.conf`; the example remains disabled until both Nginx snippets pass `nginx -t`.
+- Configuration boundary: future deployment reads `/home/REDACTED_CONFIGURE_LOCALLY/infini-media-delivery.conf`; the example remains disabled until `/srv/infini-media` is mounted and both Nginx snippets pass `nginx -t`.
 - Data boundary: no DB writes and no media filename rewrite.
 
 ## Risks
 
 | Risk | Mitigation |
 | --- | --- |
-| X-Accel prefix enabled before Nginx location exists | Prefix is opt-in and empty by default; install/test Nginx location before enabling environment variable. |
+| X-Accel prefix enabled before Nginx location or media mount exists | Prefix is opt-in and empty by default; mount `/srv/infini-media`, install/test Nginx, then enable the environment variable. |
 | Path traversal exposes files outside media root | Reject slash/backslash/NUL and verify resolved path remains under media root before sending redirect. |
 | Same venue NAT is incorrectly rate limited | Nginx key uses TV device + physical screen + URI, not client IP. |
 | Old TV lacks identity headers | Empty key is not counted; old clients still download and remain visible in access logs without device identity. |
@@ -198,10 +199,10 @@ Expected:
 ## Deployment / Rollback
 
 - Build order: Server tests/build -> TV unit tests/build.
-- Deploy order for a future release: install Nginx http map/zone -> install Nginx internal media location -> `nginx -t` and reload -> enable Server X-Accel env -> deploy Server -> publish TV.
-- Version bump: none in this commit; TV version bump happens only when publishing.
+- Deploy order for a future release: bind mount `INFINI_DATA_ROOT/media` to `/srv/infini-media` and persist it in `fstab` -> install Nginx http map/zone -> install Nginx internal media location -> `nginx -t` and reload -> enable Server X-Accel systemd env -> deploy Server -> publish TV.
+- Published TV package: `1.0.69`, package ID `87`; the package is available on the Server but no global MQTT update command was sent.
 - Rollback: clear `INFINI_MEDIA_X_ACCEL_PREFIX` and restart Server to restore Node streaming; Nginx snippets can remain unused. TV headers are additive and harmless against old Server.
-- Current task: commit only, do not deploy or publish.
+- Production status: Server, Nginx media delivery and TV package are published. Verified health, `200`/`206`/`304` media responses and duplicate-transfer `429` behavior.
 
 ## Documentation Updates
 
