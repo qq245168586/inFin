@@ -1,8 +1,10 @@
 package com.infini.tv.repository;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Environment;
 import android.util.Log;
+import com.infini.tv.BuildConfig;
 import com.infini.tv.model.CourseScript;
 import com.infini.tv.model.TvScheduleItem;
 import java.io.BufferedOutputStream;
@@ -48,11 +50,15 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 abstract class TvScriptRepositoryMediaCache extends TvScriptRepositoryAppPackages {
+  private static final String APP_PREFS_NAME = "infini_tv_app";
+  private static final String PREF_DEVICE_ID = "device_id";
+  private static final String PREF_SCREEN_NUMBER = "screen_number";
+
   protected TvScriptRepositoryMediaCache(Context context) {
     super(context);
   }
 
-  protected Map<String, String> ensureResourcesCached(
+  protected synchronized Map<String, String> ensureResourcesCached(
       List<CachedResource> resources, SyncProgressListener listener) throws IOException {
     Map<String, String> localMediaMap = new HashMap<>();
     int total = resources.size();
@@ -85,7 +91,7 @@ abstract class TvScriptRepositoryMediaCache extends TvScriptRepositoryAppPackage
             total);
       }
 
-      downloadToFile(resource.url, targetFile);
+      downloadToFile(resource, targetFile);
       if (!isCachedResourceValid(resource, targetFile)) {
         targetFile.delete();
         throw new IOException("课程资源校验失败，请重新同步课程资源。");
@@ -137,42 +143,86 @@ abstract class TvScriptRepositoryMediaCache extends TvScriptRepositoryAppPackage
     }
   }
 
-  protected void downloadToFile(String remoteUrl, File targetFile) throws IOException {
+  protected void downloadToFile(CachedResource resource, File targetFile) throws IOException {
     if (targetFile.getParentFile() != null && !targetFile.getParentFile().exists()) {
       targetFile.getParentFile().mkdirs();
     }
 
     File tempFile = new File(targetFile.getAbsolutePath() + ".download");
     IOException lastError = null;
-    for (String candidateUrl : resolveMediaUrlCandidates(remoteUrl)) {
-      if (tempFile.exists()) {
-        tempFile.delete();
-      }
-      Request request = new Request.Builder().url(candidateUrl).get().build();
-      try (Response response = DOWNLOAD_HTTP_CLIENT.newCall(request).execute()) {
-        if (!response.isSuccessful()) {
-          throw new IOException("下载视频资源失败，状态码 " + response.code());
+    SharedPreferences preferences = context.getSharedPreferences(APP_PREFS_NAME, Context.MODE_PRIVATE);
+    Map<String, String> requestHeaders =
+        MediaDownloadRequestHeaders.create(
+            preferences.getString(PREF_DEVICE_ID, ""),
+            Math.max(preferences.getInt(PREF_SCREEN_NUMBER, 0), 0),
+            resource.checksum,
+            BuildConfig.VERSION_NAME);
+
+    for (String candidateUrl : resolveMediaUrlCandidates(resource.url)) {
+      for (int attempt = 1; attempt <= MediaDownloadRetryPolicy.MAX_ATTEMPTS_PER_URL; attempt += 1) {
+        if (tempFile.exists()) {
+          tempFile.delete();
+        }
+        Request.Builder requestBuilder = new Request.Builder().url(candidateUrl).get();
+        for (Map.Entry<String, String> header : requestHeaders.entrySet()) {
+          requestBuilder.header(header.getKey(), header.getValue());
         }
 
-        ResponseBody responseBody = response.body();
-        if (responseBody == null) {
-          throw new IOException("下载视频资源失败，响应体为空。");
-        }
-
-        try (InputStream inputStream = new BufferedInputStream(responseBody.byteStream());
-            FileOutputStream outputStream = new FileOutputStream(tempFile)) {
-          byte[] buffer = new byte[16 * 1024];
-          int read;
-          while ((read = inputStream.read(buffer)) != -1) {
-            outputStream.write(buffer, 0, read);
+        try (Response response = DOWNLOAD_HTTP_CLIENT.newCall(requestBuilder.build()).execute()) {
+          if (!response.isSuccessful()) {
+            boolean retryableStatus = MediaDownloadRetryPolicy.isRetryableStatus(response.code());
+            IOException statusError =
+                new MediaDownloadHttpStatusException(
+                    "下载视频资源失败，状态码 " + response.code(), retryableStatus);
+            if (
+                retryableStatus
+                    && attempt < MediaDownloadRetryPolicy.MAX_ATTEMPTS_PER_URL) {
+              lastError = statusError;
+              waitBeforeMediaRetry(
+                  candidateUrl,
+                  attempt,
+                  MediaDownloadRetryPolicy.delayMs(attempt, response.header("Retry-After")),
+                  statusError);
+              continue;
+            }
+            throw statusError;
           }
-          outputStream.flush();
+
+          ResponseBody responseBody = response.body();
+          if (responseBody == null) {
+            throw new IOException("下载视频资源失败，响应体为空。");
+          }
+
+          try (InputStream inputStream = new BufferedInputStream(responseBody.byteStream());
+              FileOutputStream outputStream = new FileOutputStream(tempFile)) {
+            byte[] buffer = new byte[16 * 1024];
+            int read;
+            while ((read = inputStream.read(buffer)) != -1) {
+              outputStream.write(buffer, 0, read);
+            }
+            outputStream.flush();
+          }
+          lastError = null;
+          break;
+        } catch (IOException error) {
+          lastError = error;
+          boolean retryable =
+              !(error instanceof MediaDownloadHttpStatusException)
+                  || ((MediaDownloadHttpStatusException) error).retryable;
+          if (retryable && attempt < MediaDownloadRetryPolicy.MAX_ATTEMPTS_PER_URL) {
+            waitBeforeMediaRetry(
+                candidateUrl,
+                attempt,
+                MediaDownloadRetryPolicy.delayMs(attempt, ""),
+                error);
+            continue;
+          }
+          Log.w(TAG, "Media download failed via " + candidateUrl, error);
+          break;
         }
-        lastError = null;
+      }
+      if (lastError == null) {
         break;
-      } catch (IOException error) {
-        lastError = error;
-        Log.w(TAG, "Media download failed via " + candidateUrl, error);
       }
     }
 
@@ -185,6 +235,34 @@ abstract class TvScriptRepositoryMediaCache extends TvScriptRepositoryAppPackage
     }
     if (!tempFile.renameTo(targetFile)) {
       throw new IOException("课程资源写入本地缓存失败。");
+    }
+  }
+
+  private void waitBeforeMediaRetry(
+      String candidateUrl, int failedAttempt, long delayMs, IOException error) throws IOException {
+    Log.w(
+        TAG,
+        "Media download retry url="
+            + candidateUrl
+            + " attempt="
+            + failedAttempt
+            + " delayMs="
+            + delayMs,
+        error);
+    try {
+      Thread.sleep(delayMs);
+    } catch (InterruptedException interrupted) {
+      Thread.currentThread().interrupt();
+      throw new IOException("课程资源下载重试被中断。", interrupted);
+    }
+  }
+
+  private static final class MediaDownloadHttpStatusException extends IOException {
+    final boolean retryable;
+
+    MediaDownloadHttpStatusException(String message, boolean retryable) {
+      super(message);
+      this.retryable = retryable;
     }
   }
 

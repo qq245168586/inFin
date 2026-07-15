@@ -139,7 +139,7 @@ abstract class TvScriptRepositoryCoreContract extends TvScriptRepositoryTypes {
 
   protected abstract void cleanupTemporaryDownloads();
 
-  protected abstract void downloadToFile(String remoteUrl, File targetFile) throws IOException;
+  protected abstract void downloadToFile(CachedResource resource, File targetFile) throws IOException;
 
   protected abstract File resolveCacheFile(CachedResource resource);
 
