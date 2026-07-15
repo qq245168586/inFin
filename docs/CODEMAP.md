@@ -40,6 +40,8 @@ flowchart LR
 - `src/data/json-store/core.ts`：共享 JSON DB state、storage root、备份、normalize/derive/scope helper。
 - `src/data/json-store/media-app-store.ts`：媒体文件和 TV app package 上传、登记、下载。
 - `src/services/media-thumbnails.ts`：动作视频服务端缩略图派生缓存，按 action/media 版本生成 JPG，不写入 DB。
+- `src/services/media-delivery.ts`：校验本地媒体路径、生成 immutable/ETag/Last-Modified 响应并在配置开启时通过 `X-Accel-Redirect` 把文件发送交给 Nginx；未开启时回退到 Node Range 流。
+- `scripts/nginx-infini-media-*.conf`：Nginx http/server 两层媒体配置；用设备 ID + 屏幕号 + URI 识别同资源并发，静态 `sendfile` 传输和独立 JSON access log 都只作用于 TV 媒体内部 location。
 - `src/data/json-store/admin-store.ts`：用户、场馆、课程包、管理端元数据。
 - `src/data/json-store/content-store.ts`：动作、动作类型、课程、课程模板。
 - `src/data/json-store/schedule-store.ts`：排课、复制排课、未来无效排课清理。
@@ -103,6 +105,9 @@ Android TV 客户端：
 - MQTT 控制指令只作为通知；实际预览/开始/结束状态以 `/api/tv/playback-sessions/current` 为唯一状态源。
 - 课程资源同步中收到 preview/start 会记录 pending apply，同步完成后重新拉 current 再应用；TERMINATED/ENDED 优先取消 pending，避免慢屏幕补执行过期指令。
 - 竖屏训练物理屏幕 1/3/5 对应课程脚本逻辑屏幕 1/2/3，物理屏幕 4 当前不参与训练视频。
+- 物理屏幕 1/3/5 使用 `CACHE_REQUIRED` 缓存课程视频；横屏信息屏 2/4 使用 `METADATA_ONLY`，包括按 schedule 兜底加载时也不下载 MP4。
+- TV 媒体缓存请求携带 device/screen/checksum/app-version header；遇到 `429`、临时 `5xx` 或网络错误只做有限指数退避，下载完成后仍以 size/checksum 校验为准。
+- 训练卡片和 warm up/cool down 的 `VideoView` 只接受存在、可读、非空的本地文件；远程 URL 或缺失缓存显示占位，不进行远程串流和无限播放重试。
 - RUNNING 进度使用服务端 `serverNowMs/serverStartAtMs` 和请求 RTT 修正，避免不同盒子本机时间差导致 1/3/5 屏不同步。
 - 横屏进度条下方正式训练时间仅对 `venue-432a10d5` 测试场馆显示，口径对齐编课端 `trainingSeconds`：包含正式 pod 内部训练时间，排除 warm up、cool down 和 pod ending hydrate/move zone。
 - 播放竖屏/横屏不同 UI。
