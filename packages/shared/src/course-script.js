@@ -404,8 +404,7 @@ export function podScreenTotal(screenRule, videoCards = [], layout = SECTION_LAY
       const groupRestSeconds = index < setConfigs.length - 1 ? nonNegativeSeconds(setConfig.restSeconds, 0) : 0;
       return total + workSeconds * 2 + stationRestSeconds + groupRestSeconds;
     }, 0);
-    const pairRounds = pairCount * loopCount;
-    return pairRounds * perPairSeconds + Math.max(pairRounds - 1, 0) * stationRestSeconds;
+    return loopCount * perPairSeconds + Math.max(loopCount - 1, 0) * stationRestSeconds;
   }
 
   const transitionSeconds =

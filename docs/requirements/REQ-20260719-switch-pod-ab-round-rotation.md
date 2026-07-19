@@ -7,7 +7,7 @@
 - Created: 2026-07-19
 - Updated: 2026-07-19
 - Related docs: [Pod 独立补水与换区时长](REQ-20260719-pod-ending-duration.md)
-- Related code map sections: `apps/course-web`, `apps/tv-android`
+- Related code map sections: `packages/shared`, `apps/server`, `apps/course-web`, `apps/admin-web`, `apps/tv-android`, `apps/websimulator`
 
 ## Requirement Summary
 
@@ -32,7 +32,7 @@ SWITCH Pod 中的视频按相邻两个动作组成 AB 对，例如四个动作�
 ## Non-goals
 
 - 不新增或迁移数据库字段。
-- 不修改 Server API、课程脚本结构或 MQTT 协议。
+- 不修改 Server API、课程脚本结构、数据库字段或 MQTT 协议。
 - 不改变 NORMAL Pod、瀑布流、Pod ending 的现有行为。
 
 ## Related Existing Requirements
@@ -47,7 +47,10 @@ SWITCH Pod 中的视频按相邻两个动作组成 AB 对，例如四个动作�
 | App | Change Type | Notes |
 | --- | --- | --- |
 | `apps/course-web` | Course timing / editor summary | 修正 SWITCH 总时长与说明文案。 |
+| `apps/admin-web` | Admin timing / editor summary | 与 Course 使用相同的 AB 轮次口径。 |
+| `packages/shared` / `apps/server` | Course summary / playback duration | Server 生成课程摘要和 session 预估时长时不再乘以 AB 对数量。 |
 | `apps/tv-android` | Playback timeline / progress | 修正竖屏状态、横屏进度、正式训练时长及离线时间线。 |
+| `apps/websimulator` | Simulator timeline / progress | 模拟器使用相同轮次顺序和过渡节点。 |
 
 ## Data And API Impact
 
@@ -62,11 +65,11 @@ SWITCH Pod 中的视频按相邻两个动作组成 AB 对，例如四个动作�
 
 | Endpoint | Change | Compatibility |
 | --- | --- | --- |
-| 无 | 无 | 完全兼容现有课程脚本。 |
+| 现有课程与播放接口 | 响应结构不变；派生时长按统一 SWITCH 规则重新计算 | 完全兼容现有课程脚本，无需客户端新增字段。 |
 
 ## Implementation Sketch
 
-### Course
+### Course / Server Shared Timing
 
 ```pseudo
 pairCount = floor(videoCards.length / 2)
@@ -123,10 +126,10 @@ Expected:
 
 ## Deployment / Rollback
 
-- Build order: Course tests/build -> TV unit tests/build。
-- Deploy order: Course Web -> TV APK。
+- Build order: Shared/Server tests/build -> Course tests/build -> Simulator typecheck/build -> TV unit tests/build。
+- Deploy order: Server -> Course Web -> Simulator -> TV APK。
 - Version bump: TV 发布时按当前线上版本递增。
-- Rollback: 回滚 Course/TV 代码即可；无数据库回滚。
+- Rollback: 回滚 Shared/Server、Course、Simulator、TV 的对应提交即可；无数据库回滚。
 
 ## Documentation Updates
 
