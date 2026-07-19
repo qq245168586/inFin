@@ -45,6 +45,7 @@ flowchart LR
 - `scripts/deploy-remote.sh`：识别线上 `infini-platform.service` 并通过 systemd 重启，写入媒体 X-Accel drop-in 后轮询健康检查；仅在没有 systemd unit 的环境回退到独立 Node 进程。
 - `src/data/json-store/admin-store.ts`：用户、场馆、课程包、管理端元数据。
 - `src/data/json-store/content-store.ts`：动作、动作类型、课程、课程模板。
+- 课程包 `accessScope=GLOBAL` 是测试包的显式全局读写能力；Server scope helper 负责统一放宽动作、类型、课程、模板和跨包排课引用，普通课程包仍为 `PACKAGE_ONLY`。
 - `src/data/json-store/schedule-store.ts`：排课、复制排课、未来无效排课清理。
 - `GET /api/schedules/week`：Course 首页使用的轻量周课表读取接口，按 `date` 所在周和 `coursePackageId` 过滤，只返回 schedule basics，不携带课程脚本。
 - `GET /api/meta`：默认兼容返回课程 summary、actions、templates；`includeSchedules=0` 可关闭课表，`includeActions=0` / `includeTemplates=0` 可关闭编辑重集合；`courseDetail=full&courseId=ID` 只返回单课程 full；无 `courseId` 的 `courseDetail=full` 仅作为兼容兜底。
@@ -78,6 +79,7 @@ flowchart LR
 
 - 编课人员和超级管理员使用。
 - 按课程包隔离动作、课程、模板、排课。
+- 当前课程包为 `GLOBAL` 测试包时，列表可直接读写所有课程包资源；跨包资源显示来源课程包，已有资源保存时保持原归属，新建资源归属测试包。
 - 管理动作视频、动作分类、课程脚本、课程计划。
 - 首页课表不从 meta 读取 full course/schedules/actions/templates；先拉轻量 meta，再通过 `/api/schedules/week` 按周读取课表。
 - 课程列表使用 course summary；进入课程编辑器或从已有课程生成整课模板时，才通过 `/api/courses/:id` 拉单课程完整脚本。
