@@ -111,6 +111,8 @@ Android TV 客户端：
 - 训练卡片和 warm up/cool down 的 `VideoView` 只接受存在、可读、非空的本地文件；远程 URL 或缺失缓存显示占位，不进行远程串流和无限播放重试。
 - RUNNING 进度使用服务端 `serverNowMs/serverStartAtMs` 和请求 RTT 修正，避免不同盒子本机时间差导致 1/3/5 屏不同步。
 - 横屏进度条下方正式训练时间仅对 `venue-432a10d5` 测试场馆显示，口径对齐编课端 `trainingSeconds`：包含正式 pod 内部训练时间，排除 warm up、cool down 和 pod ending hydrate/move zone。
+- Pod 结束过渡时长由 `script.training.pods[].endingSeconds` 独立控制；历史课程缺失时回退 `script.metadata.defaultHydrateSeconds`。Shared summary、Course editor 与 TV timeline 必须保持同一口径。
+- `script.metadata.stationRules`（Set / Work / Rest / Switch）属于课程展示元数据，不参与 Pod work/rest/循环、课程时序或 TV 播放计算。
 - 播放竖屏/横屏不同 UI。
 - 支持课程同步、暂停、结束、计划展示、静默更新。
 

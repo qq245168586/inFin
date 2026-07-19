@@ -197,6 +197,7 @@ export function createPod(overrides = {}) {
     name: "新 Pod",
     videoGroupId: "",
     ending: POD_ENDING.HYDRATE,
+    endingSeconds: nonNegativeSeconds(overrides.endingSeconds, 30),
     stationFlow: POD_STATION_FLOW.NORMAL,
     screens: Array.from({ length: screenCount }, (_, index) =>
       createPodScreenRule(index + 1)
@@ -441,7 +442,9 @@ export function summarizeCourseScript(courseScript) {
   const transitionSeconds = courseScript.training.pods.reduce(
     (total, pod) =>
       total +
-      (pod.ending === POD_ENDING.FINISH ? 0 : seconds(courseScript.metadata.defaultHydrateSeconds)),
+      (pod.ending === POD_ENDING.FINISH
+        ? 0
+        : nonNegativeSeconds(pod.endingSeconds, courseScript.metadata.defaultHydrateSeconds)),
     0
   );
 
@@ -461,6 +464,7 @@ export function legacyCourseToScript(legacyCourse = {}, options = {}) {
   if (legacyCourse?.sections && legacyCourse?.training) {
     const cloned = cloneCourseScript(legacyCourse);
     const groups = Array.isArray(cloned?.training?.videoGroups) ? cloned.training.videoGroups : [];
+    const defaultHydrateSeconds = positiveSeconds(cloned.metadata?.defaultHydrateSeconds, 30);
     cloned.training = {
       ...cloned.training,
       videoGroups: groups.map((group) => ({
@@ -499,6 +503,7 @@ export function legacyCourseToScript(legacyCourse = {}, options = {}) {
           id: pod.id || uid("pod"),
           name: pod.name || `Pod ${podIndex + 1}`,
           ending: Object.values(POD_ENDING).includes(pod.ending) ? pod.ending : POD_ENDING.HYDRATE,
+          endingSeconds: nonNegativeSeconds(pod.endingSeconds, defaultHydrateSeconds),
           stationFlow: pod.stationFlow === POD_STATION_FLOW.SWITCH ? POD_STATION_FLOW.SWITCH : POD_STATION_FLOW.NORMAL,
           videoGroupId: pod.videoGroupId || linkedGroup.id,
           screens: normalizePodScreens(linkedGroup, pod)
@@ -513,7 +518,7 @@ export function legacyCourseToScript(legacyCourse = {}, options = {}) {
       rotationType: Object.values(COURSE_ROTATION_TYPE).includes(cloned.metadata?.rotationType)
         ? cloned.metadata.rotationType
         : COURSE_ROTATION_TYPE.REGION,
-      defaultHydrateSeconds: positiveSeconds(cloned.metadata?.defaultHydrateSeconds, 30),
+      defaultHydrateSeconds,
       readyDurations: createReadyDurations(cloned.metadata?.readyDurations),
       trainingPanel: createTrainingPanel(cloned.metadata?.trainingPanel)
     };
@@ -648,16 +653,12 @@ export function validateCourseScript(courseScript) {
   const metadata = courseScript?.metadata || {};
   const sections = courseScript?.sections || {};
   const training = courseScript?.training || { videoGroups: [], pods: [] };
-  const needsTransitionDuration = (training?.pods || []).some((pod) => pod?.ending !== POD_ENDING.FINISH);
 
   if (!metadata.name?.trim()) {
     issues.push("课程名称不能为空。");
   }
   if (!metadata.version?.trim()) {
     issues.push("课程版本不能为空。");
-  }
-  if (needsTransitionDuration && seconds(metadata?.defaultHydrateSeconds) <= 0) {
-    issues.push("当前课程包含补水或换区 Pod，请填写补水 / 换区时长。");
   }
   if (seconds(metadata?.trainingPanel?.workSeconds) <= 0) {
     issues.push("TV 横屏显示的 work 时间必须大于 0。");
@@ -754,6 +755,12 @@ export function validateCourseScript(courseScript) {
 
     if (!Object.values(POD_ENDING).includes(pod.ending)) {
       issues.push(`Pod ${pod.name} 的结束方式必须是补水、换区或课程结束。`);
+    }
+    if (
+      pod.ending !== POD_ENDING.FINISH
+      && nonNegativeSeconds(pod.endingSeconds, metadata?.defaultHydrateSeconds) <= 0
+    ) {
+      issues.push(`Pod ${pod.name} 的补水 / 换区时长必须大于 0。`);
     }
     if (![POD_STATION_FLOW.NORMAL, POD_STATION_FLOW.SWITCH, undefined].includes(pod.stationFlow)) {
       issues.push(`Pod ${pod.name} 的站点流转方式无效。`);

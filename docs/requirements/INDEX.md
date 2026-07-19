@@ -8,6 +8,7 @@
 
 | ID | Title | Status | Apps | Owner Notes |
 | --- | --- | --- | --- | --- |
+| [REQ-20260719-pod-ending-duration](REQ-20260719-pod-ending-duration.md) | Pod 独立补水与换区时长 | Ready for QA | `shared`, `server`, `course-web`, `tv-android` | 每个 Pod 独立保存 endingSeconds；旧课程回退全局默认值；Set/Work/Rest/Switch 仅用于展示。 |
 | [REQ-20260715-tv-media-delivery-protection](REQ-20260715-tv-media-delivery-protection.md) | TV 媒体传输卸载与重复下载保护 | Implemented, not deployed | `server`, `tv-android` | `/api/media` 支持 immutable/304 与可选 X-Accel；TV 下载携带设备身份并有限退避，Nginx 按设备+屏幕+资源精准限制重复并发。 |
 | [REQ-20260714-tv-local-video-only-playback](REQ-20260714-tv-local-video-only-playback.md) | TV 本地视频播放与信息屏资源隔离 | Ready for QA | `tv-android` | 屏幕 2/4 不下载 MP4；所有 VideoView 仅播放已校验存在的本地视频，startCourse 重渲染不重复下载。 |
 | [REQ-20260619-coach-course-package-switch-settings](REQ-20260619-coach-course-package-switch-settings.md) | Coach 设置中切换场馆课程包 | Ready for QA | `coach-web`, `server`, `tv-android`, `mqtt-client` | 设置中显示场馆已绑定课程包，持久化当前启用课程包后通知 TV 刷新课表。 |
