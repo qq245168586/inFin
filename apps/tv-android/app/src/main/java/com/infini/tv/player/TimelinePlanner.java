@@ -2,6 +2,7 @@ package com.infini.tv.player;
 
 import com.infini.tv.model.CourseScript;
 import com.infini.tv.model.PlaybackStep;
+import com.infini.tv.util.SwitchPodSequence;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -171,13 +172,13 @@ public class TimelinePlanner {
       int courseOffsetSeconds) {
     int screenOffsetSeconds = 0;
     int safeLoops = Math.max(effectiveScreen.rule.loopCount, 1);
-    int pairCount = effectiveScreen.videoCards.size() / 2;
+    int pairCount = SwitchPodSequence.getPairCount(effectiveScreen.videoCards.size());
     if (pairCount <= 0) {
       return 0;
     }
 
     for (int loopIndex = 0; loopIndex < safeLoops; loopIndex += 1) {
-      for (int pairIndex = 0; pairIndex < pairCount; pairIndex += 1) {
+      int pairIndex = SwitchPodSequence.getPairIndexForRound(loopIndex, pairCount);
       CourseScript.VideoCard cardA = effectiveScreen.videoCards.get(pairIndex * 2);
       CourseScript.VideoCard cardB = effectiveScreen.videoCards.get(pairIndex * 2 + 1);
 
@@ -226,20 +227,20 @@ public class TimelinePlanner {
           steps.add(
               new PlaybackStep(
                   "POD_REST",
-                  pod.name + " / SWITCH B TO A",
+                  pod.name + " / REST",
                   courseOffsetSeconds + screenOffsetSeconds,
                   setConfig.restSeconds,
                   effectiveScreen.displayScreenIndex,
                   cardA.stationNumber,
                   cardA.actionName,
-                  "SWITCH"));
+                  "REST"));
           screenOffsetSeconds += setConfig.restSeconds;
         }
       }
 
-      boolean hasNextPairRound = pairIndex < pairCount - 1 || loopIndex < safeLoops - 1;
+      boolean hasNextPairRound = loopIndex < safeLoops - 1;
       if (hasNextPairRound && effectiveScreen.rule.stationRestSeconds > 0) {
-        int nextPairIndex = pairIndex < pairCount - 1 ? pairIndex + 1 : 0;
+        int nextPairIndex = SwitchPodSequence.getPairIndexForRound(loopIndex + 1, pairCount);
         CourseScript.VideoCard nextCardA = effectiveScreen.videoCards.get(nextPairIndex * 2);
         steps.add(
             new PlaybackStep(
@@ -250,9 +251,8 @@ public class TimelinePlanner {
                 effectiveScreen.displayScreenIndex,
                 nextCardA.stationNumber,
                 nextCardA.actionName,
-                "SWITCH"));
+                "MOVE_STATION"));
         screenOffsetSeconds += effectiveScreen.rule.stationRestSeconds;
-      }
       }
     }
 

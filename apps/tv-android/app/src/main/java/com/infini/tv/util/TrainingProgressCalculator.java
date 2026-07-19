@@ -217,13 +217,12 @@ public final class TrainingProgressCalculator {
       int workOffsetSeconds) {
     int screenOffsetSeconds = 0;
     int safeLoops = Math.max(effectiveScreen.rule.loopCount, 1);
-    int pairCount = effectiveScreen.videoCards.size() / 2;
+    int pairCount = SwitchPodSequence.getPairCount(effectiveScreen.videoCards.size());
     if (pairCount <= 0) {
       return workOffsetSeconds;
     }
 
     for (int loopIndex = 0; loopIndex < safeLoops; loopIndex += 1) {
-      for (int pairIndex = 0; pairIndex < pairCount; pairIndex += 1) {
         for (int setIndex = 0; setIndex < effectiveScreen.rule.setConfigs.size(); setIndex += 1) {
           CourseScript.PodSetConfig setConfig = effectiveScreen.rule.setConfigs.get(setIndex);
           int workSeconds = Math.max(setConfig == null ? 0 : setConfig.workSeconds, 0);
@@ -249,11 +248,10 @@ public final class TrainingProgressCalculator {
           }
         }
 
-        boolean hasNextPairRound = pairIndex < pairCount - 1 || loopIndex < safeLoops - 1;
+        boolean hasNextPairRound = loopIndex < safeLoops - 1;
         if (hasNextPairRound && effectiveScreen.rule.stationRestSeconds > 0) {
           screenOffsetSeconds += effectiveScreen.rule.stationRestSeconds;
         }
-      }
     }
     return workOffsetSeconds;
   }
@@ -269,13 +267,12 @@ public final class TrainingProgressCalculator {
 
     if (!effectiveScreen.waterfallLayout) {
       if (isSwitchPod(pod)) {
-        int pairCount = effectiveScreen.videoCards.size() / 2;
+        int pairCount = SwitchPodSequence.getPairCount(effectiveScreen.videoCards.size());
         if (pairCount <= 0) {
           return 0;
         }
         int stationRestSeconds = Math.max(effectiveScreen.rule.stationRestSeconds, 0);
         for (int loopIndex = 0; loopIndex < loopCount; loopIndex += 1) {
-          for (int pairIndex = 0; pairIndex < pairCount; pairIndex += 1) {
             for (int setIndex = 0; setIndex < setConfigs.size(); setIndex += 1) {
               CourseScript.PodSetConfig setConfig = setConfigs.get(setIndex);
               duration += Math.max(setConfig.workSeconds, 0) * 2;
@@ -284,11 +281,10 @@ public final class TrainingProgressCalculator {
                 duration += Math.max(setConfig.restSeconds, 0);
               }
             }
-            boolean hasNextPairRound = pairIndex < pairCount - 1 || loopIndex < loopCount - 1;
+            boolean hasNextPairRound = loopIndex < loopCount - 1;
             if (hasNextPairRound) {
               duration += stationRestSeconds;
             }
-          }
         }
         return duration;
       }
@@ -447,8 +443,7 @@ public final class TrainingProgressCalculator {
 
     int safeLoops = Math.max(effectiveScreen.rule.loopCount, 1);
     if ("SWITCH".equals(pod.stationFlow) && effectiveScreen.videoCards.size() >= 2) {
-      int pairCount = effectiveScreen.videoCards.size() / 2;
-      return pairCount * safeLoops * positiveWorkSetCount * 2;
+      return safeLoops * positiveWorkSetCount * 2;
     }
     if (effectiveScreen.waterfallLayout) {
       return effectiveScreen.videoCards.size() * safeLoops * positiveWorkSetCount;

@@ -82,6 +82,29 @@ public class TrainingProgressCalculatorTest {
     assertEquals(Arrays.asList(0, 34), realStarts);
   }
 
+  @Test
+  public void buildHorizontalWorkTimings_switchRoundsDoNotMultiplyByPairCount() {
+    CourseScript course = CourseScriptFixtures.switchRotationCourse();
+    List<TrainingProgressCalculator.WorkTiming> timings =
+        TrainingProgressCalculator.buildHorizontalWorkTimings(course);
+
+    assertEquals(8, timings.size());
+    assertEquals(
+        Arrays.asList(0, 34, 68, 102, 136, 170, 204, 238),
+        Arrays.asList(
+            timings.get(0).realStartSeconds,
+            timings.get(1).realStartSeconds,
+            timings.get(2).realStartSeconds,
+            timings.get(3).realStartSeconds,
+            timings.get(4).realStartSeconds,
+            timings.get(5).realStartSeconds,
+            timings.get(6).realStartSeconds,
+            timings.get(7).realStartSeconds));
+    assertEquals(240, TrainingProgressCalculator.getWorkTotalSeconds(
+        TrainingProgressCalculator.buildHorizontalWorkTimeline(course)));
+    assertEquals(268, TrainingProgressCalculator.getTrainingTotalSeconds(course));
+  }
+
   private static void assertSegment(
       TrainingProgressCalculator.WorkSegment segment,
       int startOffsetSeconds,

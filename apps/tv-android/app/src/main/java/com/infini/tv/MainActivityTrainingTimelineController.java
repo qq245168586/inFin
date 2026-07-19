@@ -46,6 +46,7 @@ import com.infini.tv.mqtt.TvMqttManager;
 import com.infini.tv.repository.ServerConfig;
 import com.infini.tv.repository.TvScriptRepository;
 import com.infini.tv.service.ImageLoader;
+import com.infini.tv.util.SwitchPodSequence;
 import com.infini.tv.util.TrainingLayoutCalculator;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.EncodeHintType;
@@ -82,13 +83,13 @@ abstract class MainActivityTrainingTimelineController extends MainActivityTraini
     List<Integer> rowLayouts = getRowLayoutsForScreen(effectiveScreen);
     List<CourseScript.PodSetConfig> setConfigs = getEffectiveSetConfigs(effectiveScreen.rule);
     int safeLoops = Math.max(effectiveScreen.rule.loopCount, 1);
-    int pairCount = baseCards.size() / 2;
+    int pairCount = SwitchPodSequence.getPairCount(baseCards.size());
     int totalSwitchDots = 0;
     int cursor = 0;
     int stationRestSeconds = Math.max(effectiveScreen.rule.stationRestSeconds, 0);
 
     for (int loopIndex = 0; loopIndex < safeLoops; loopIndex += 1) {
-      for (int pairIndex = 0; pairIndex < pairCount; pairIndex += 1) {
+      int pairIndex = SwitchPodSequence.getPairIndexForRound(loopIndex, pairCount);
       int cardAIndex = pairIndex * 2;
       int cardBIndex = cardAIndex + 1;
       CourseScript.VideoCard cardA = baseCards.get(cardAIndex);
@@ -173,16 +174,16 @@ abstract class MainActivityTrainingTimelineController extends MainActivityTraini
           return new TrainingPlaybackState(
               pod.name + "|switch-set-rest|" + loopIndex + "|" + pairIndex + "|" + setIndex,
               "REMAINING",
-              "SWITCH",
+              "REST",
               "",
               remainingSeconds,
               baseCards,
-              cardAIndex,
+              -1,
               false,
               false,
               false,
               fullScreenTransition,
-              "SWITCH",
+              "REST",
               "",
               Math.min(setIndex * 2 + 2, totalSwitchDots),
               totalSwitchDots,
@@ -193,16 +194,16 @@ abstract class MainActivityTrainingTimelineController extends MainActivityTraini
         }
       }
 
-      boolean hasNextPairRound = pairIndex < pairCount - 1 || loopIndex < safeLoops - 1;
+      boolean hasNextPairRound = loopIndex < safeLoops - 1;
       if (hasNextPairRound && stationRestSeconds > 0 && podElapsedSeconds < cursor + stationRestSeconds) {
-        int nextPairIndex = pairIndex < pairCount - 1 ? pairIndex + 1 : 0;
+        int nextPairIndex = SwitchPodSequence.getPairIndexForRound(loopIndex + 1, pairCount);
         int nextCardAIndex = nextPairIndex * 2;
         int remainingSeconds = Math.max(cursor + stationRestSeconds - podElapsedSeconds, 0);
         boolean fullScreenTransition = isInFirstTransitionThird(remainingSeconds, stationRestSeconds);
         return new TrainingPlaybackState(
             pod.name + "|switch-next-station|" + loopIndex + "|" + pairIndex,
             "REMAINING",
-            "SWITCH",
+            "MOVE STATION",
             "",
             remainingSeconds,
             baseCards,
@@ -211,7 +212,7 @@ abstract class MainActivityTrainingTimelineController extends MainActivityTraini
             false,
             false,
             fullScreenTransition,
-            "SWITCH",
+            "MOVE_STATION",
             "",
             totalSwitchDots,
             totalSwitchDots,
@@ -219,7 +220,6 @@ abstract class MainActivityTrainingTimelineController extends MainActivityTraini
       }
       if (hasNextPairRound) {
         cursor += stationRestSeconds;
-      }
       }
     }
 

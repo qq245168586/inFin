@@ -47,6 +47,7 @@ import com.infini.tv.repository.ServerConfig;
 import com.infini.tv.repository.TvScriptRepository;
 import com.infini.tv.service.ImageLoader;
 import com.infini.tv.util.DisplayUtil;
+import com.infini.tv.util.SwitchPodSequence;
 import com.infini.tv.util.TrainingLayoutCalculator;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.EncodeHintType;
@@ -194,13 +195,12 @@ abstract class MainActivityTrainingLayoutController extends MainActivityTraining
 
     if (!effectiveScreen.waterfallLayout) {
       if (isSwitchPod(pod)) {
-        int pairCount = effectiveScreen.videoCards.size() / 2;
+        int pairCount = SwitchPodSequence.getPairCount(effectiveScreen.videoCards.size());
         if (pairCount <= 0) {
           return 0;
         }
         int stationRestSeconds = Math.max(effectiveScreen.rule.stationRestSeconds, 0);
         for (int loopIndex = 0; loopIndex < loopCount; loopIndex += 1) {
-          for (int pairIndex = 0; pairIndex < pairCount; pairIndex += 1) {
             for (int setIndex = 0; setIndex < setConfigs.size(); setIndex += 1) {
               CourseScript.PodSetConfig setConfig = setConfigs.get(setIndex);
               duration += Math.max(setConfig.workSeconds, 0) * 2;
@@ -209,11 +209,10 @@ abstract class MainActivityTrainingLayoutController extends MainActivityTraining
                 duration += Math.max(setConfig.restSeconds, 0);
               }
             }
-            boolean hasNextPairRound = pairIndex < pairCount - 1 || loopIndex < loopCount - 1;
+            boolean hasNextPairRound = loopIndex < loopCount - 1;
             if (hasNextPairRound) {
               duration += stationRestSeconds;
             }
-          }
         }
         return duration;
       }

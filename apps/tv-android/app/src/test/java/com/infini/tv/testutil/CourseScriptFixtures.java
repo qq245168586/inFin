@@ -83,6 +83,46 @@ public final class CourseScriptFixtures {
         emptyPlan());
   }
 
+  public static CourseScript switchRotationCourse() {
+    CourseScript.VideoGroup group =
+        new CourseScript.VideoGroup(
+            "group-switch-rotation",
+            "Switch Rotation",
+            2,
+            Collections.singletonList(
+                new CourseScript.VideoGroupScreen(
+                    1,
+                    "Pairs",
+                    Arrays.asList(2, 2),
+                    Arrays.asList(
+                        card("ski", "Ski Erg", "A1"),
+                        card("sled", "Sled Push", "B1"),
+                        card("row", "Row", "A2"),
+                        card("burpee", "Burpee", "B2")))));
+
+    CourseScript.Pod pod =
+        new CourseScript.Pod(
+            "Switch Rotation Pod",
+            "group-switch-rotation",
+            "FINISH",
+            0,
+            "SWITCH",
+            Collections.singletonList(
+                new CourseScript.PodScreen(
+                    1,
+                    4,
+                    4,
+                    Collections.singletonList(new CourseScript.PodSetConfig(30, 0)))));
+
+    return new CourseScript(
+        metadata(0),
+        waterfall("Warmup"),
+        waterfall("Cooldown"),
+        Collections.singletonList(group),
+        Collections.singletonList(pod),
+        emptyPlan());
+  }
+
   public static CourseScript.VideoCard card(String id, String name, String stationNumber) {
     return new CourseScript.VideoCard(id, name, "https://cdn.example.test/" + id + ".mp4", stationNumber, "");
   }

@@ -2,6 +2,7 @@ package com.infini.tv;
 
 import com.infini.tv.component.horizontal.HorizontalProgressBarComponent;
 import com.infini.tv.model.CourseScript;
+import com.infini.tv.util.SwitchPodSequence;
 import com.infini.tv.util.TrainingProgressCalculator;
 import java.util.ArrayList;
 import java.util.List;
@@ -207,13 +208,12 @@ abstract class MainActivityHorizontalWorkTimelineController extends MainActivity
       int workOffsetSeconds) {
     int screenOffsetSeconds = 0;
     int safeLoops = Math.max(effectiveScreen.rule.loopCount, 1);
-    int pairCount = effectiveScreen.videoCards.size() / 2;
+    int pairCount = SwitchPodSequence.getPairCount(effectiveScreen.videoCards.size());
     if (pairCount <= 0) {
       return workOffsetSeconds;
     }
 
     for (int loopIndex = 0; loopIndex < safeLoops; loopIndex += 1) {
-      for (int pairIndex = 0; pairIndex < pairCount; pairIndex += 1) {
         for (int setIndex = 0; setIndex < effectiveScreen.rule.setConfigs.size(); setIndex += 1) {
           CourseScript.PodSetConfig setConfig = effectiveScreen.rule.setConfigs.get(setIndex);
           int workSeconds = Math.max(setConfig == null ? 0 : setConfig.workSeconds, 0);
@@ -247,11 +247,10 @@ abstract class MainActivityHorizontalWorkTimelineController extends MainActivity
           }
         }
 
-        boolean hasNextPairRound = pairIndex < pairCount - 1 || loopIndex < safeLoops - 1;
+        boolean hasNextPairRound = loopIndex < safeLoops - 1;
         if (hasNextPairRound && effectiveScreen.rule.stationRestSeconds > 0) {
           screenOffsetSeconds += effectiveScreen.rule.stationRestSeconds;
         }
-      }
     }
     return workOffsetSeconds;
   }
@@ -305,8 +304,7 @@ abstract class MainActivityHorizontalWorkTimelineController extends MainActivity
 
     int safeLoops = Math.max(effectiveScreen.rule.loopCount, 1);
     if ("SWITCH".equals(pod.stationFlow) && effectiveScreen.videoCards.size() >= 2) {
-      int pairCount = effectiveScreen.videoCards.size() / 2;
-      return pairCount * safeLoops * positiveWorkSetCount * 2;
+      return safeLoops * positiveWorkSetCount * 2;
     }
     if (effectiveScreen.waterfallLayout) {
       return effectiveScreen.videoCards.size() * safeLoops * positiveWorkSetCount;

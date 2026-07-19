@@ -73,4 +73,27 @@ public class TimelinePlannerTest {
 
     assertEquals(8, hydrate.durationSeconds);
   }
+
+  @Test
+  public void build_switchRoundsRotatePairsAndMoveStationBetweenRounds() {
+    CourseScript course = CourseScriptFixtures.switchRotationCourse();
+    List<String> workActions = new ArrayList<>();
+    List<String> transitions = new ArrayList<>();
+
+    for (PlaybackStep step : new TimelinePlanner().build(course)) {
+      if ("POD_WORK".equals(step.stage)) {
+        workActions.add(step.actionName);
+      }
+      if ("POD_REST".equals(step.stage) && step.overlayText != null && !step.overlayText.isEmpty()) {
+        transitions.add(step.overlayText);
+      }
+    }
+
+    assertEquals(
+        Arrays.asList("Ski Erg", "Sled Push", "Row", "Burpee", "Ski Erg", "Sled Push", "Row", "Burpee"),
+        workActions);
+    assertEquals(
+        Arrays.asList("SWITCH", "MOVE_STATION", "SWITCH", "MOVE_STATION", "SWITCH", "MOVE_STATION", "SWITCH"),
+        transitions);
+  }
 }
