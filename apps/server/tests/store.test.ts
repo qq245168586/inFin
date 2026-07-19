@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test, vi } from "vitest";
 import { createMockCourseScript, createMockDatabaseState } from "./fixtures/mock-db.ts";
 import { addDays, importStore, nextMonday, shanghaiNoon } from "./helpers/store.ts";
-import { summarizeCourseScript } from "../../../packages/shared/src/course-script.js";
+import { podScreenTotal, summarizeCourseScript } from "../../../packages/shared/src/course-script.js";
 
 function createGlobalCoursePackageState() {
   const state = createMockDatabaseState();
@@ -318,6 +318,27 @@ test("course save preserves independent pod ending durations and ignores display
   assert.deepEqual(after, before);
   assert.deepEqual(saved.script.training.pods.map((pod: any) => pod.endingSeconds), [30, 90, 0]);
   assert.equal(saved.summary.hydrateSeconds, 120);
+});
+
+test("SWITCH duration treats loopCount as AB rounds independent of video count", () => {
+  const duration = podScreenTotal(
+    {
+      loopCount: 2,
+      stationRestSeconds: 5,
+      setConfigs: [{ workSeconds: 5, restSeconds: 0 }]
+    },
+    [
+      { actionId: "a1", actionName: "A1" },
+      { actionId: "b1", actionName: "B1" },
+      { actionId: "a2", actionName: "A2" },
+      { actionId: "b2", actionName: "B2" }
+    ],
+    "STATIONS",
+    "SWITCH"
+  );
+
+  // A1 work -> switch -> B1 work -> move station -> A2 work -> switch -> B2 work.
+  assert.equal(duration, 35);
 });
 
 test("saveCourse rejects duplicate name and version regardless of whitespace and case", async (t) => {

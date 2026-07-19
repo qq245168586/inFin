@@ -3037,7 +3037,9 @@ export function serializeCourse(course) {
     metadata,
     stationRules,
     script,
-    summary: course.summary || courseSummaryFromScript(script)
+    // Summary is derived data. Recompute it so historical SWITCH courses adopt
+    // the current loopCount semantics without mutating their stored scripts.
+    summary: courseSummaryFromScript(script)
   };
 }
 
