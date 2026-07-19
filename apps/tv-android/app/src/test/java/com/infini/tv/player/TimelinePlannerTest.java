@@ -96,4 +96,18 @@ public class TimelinePlannerTest {
         Arrays.asList("SWITCH", "MOVE_STATION", "SWITCH", "MOVE_STATION", "SWITCH", "MOVE_STATION", "SWITCH"),
         transitions);
   }
+
+  @Test
+  public void build_switchPodDisplaysSetRestAsSwitch() {
+    CourseScript course = CourseScriptFixtures.switchPairMultiSetCourse();
+    List<String> transitions = new ArrayList<>();
+
+    for (PlaybackStep step : new TimelinePlanner().build(course)) {
+      if ("POD_REST".equals(step.stage) && step.overlayText != null && !step.overlayText.isEmpty()) {
+        transitions.add(step.overlayText);
+      }
+    }
+
+    assertEquals(Arrays.asList("SWITCH", "SWITCH", "SWITCH"), transitions);
+  }
 }

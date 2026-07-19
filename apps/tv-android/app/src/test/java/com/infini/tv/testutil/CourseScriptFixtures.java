@@ -3,6 +3,7 @@ package com.infini.tv.testutil;
 import com.infini.tv.model.CourseScript;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 public final class CourseScriptFixtures {
   private CourseScriptFixtures() {}
@@ -48,6 +49,19 @@ public final class CourseScriptFixtures {
   }
 
   public static CourseScript switchPairCourse() {
+    return switchPairCourseWithSetConfigs(
+        Collections.singletonList(new CourseScript.PodSetConfig(30, 5)));
+  }
+
+  public static CourseScript switchPairMultiSetCourse() {
+    return switchPairCourseWithSetConfigs(
+        Arrays.asList(
+            new CourseScript.PodSetConfig(30, 5),
+            new CourseScript.PodSetConfig(30, 0)));
+  }
+
+  private static CourseScript switchPairCourseWithSetConfigs(
+      List<CourseScript.PodSetConfig> setConfigs) {
     CourseScript.VideoGroup group =
         new CourseScript.VideoGroup(
             "group-switch",
@@ -72,7 +86,7 @@ public final class CourseScriptFixtures {
                     1,
                     1,
                     4,
-                    Collections.singletonList(new CourseScript.PodSetConfig(30, 5)))));
+                    setConfigs)));
 
     return new CourseScript(
         metadata(0),

@@ -227,13 +227,13 @@ public class TimelinePlanner {
           steps.add(
               new PlaybackStep(
                   "POD_REST",
-                  pod.name + " / REST",
+                  pod.name + " / SWITCH",
                   courseOffsetSeconds + screenOffsetSeconds,
                   setConfig.restSeconds,
                   effectiveScreen.displayScreenIndex,
                   cardA.stationNumber,
                   cardA.actionName,
-                  "REST"));
+                  "SWITCH"));
           screenOffsetSeconds += setConfig.restSeconds;
         }
       }

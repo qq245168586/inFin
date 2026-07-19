@@ -174,7 +174,7 @@ abstract class MainActivityTrainingTimelineController extends MainActivityTraini
           return new TrainingPlaybackState(
               pod.name + "|switch-set-rest|" + loopIndex + "|" + pairIndex + "|" + setIndex,
               "REMAINING",
-              "REST",
+              "SWITCH",
               "",
               remainingSeconds,
               baseCards,
@@ -183,7 +183,7 @@ abstract class MainActivityTrainingTimelineController extends MainActivityTraini
               false,
               false,
               fullScreenTransition,
-              "REST",
+              "SWITCH",
               "",
               Math.min(setIndex * 2 + 2, totalSwitchDots),
               totalSwitchDots,
