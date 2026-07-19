@@ -31,6 +31,7 @@ function createCopiedPodFromPrevious(previousPod: Pod, basePod: Pod, targetGroup
     videoGroupId: previousPod.videoGroupId || basePod.videoGroupId,
     stationFlow: canUseSwitchFlow ? previousPod.stationFlow : "NORMAL",
     ending: previousPod.ending === "FINISH" ? "HYDRATE" : previousPod.ending,
+    endingSeconds: previousPod.endingSeconds,
     screens: basePod.screens.map((targetScreen) => {
       const sourceScreen = sourceIsSingleScreenRule
         ? previousPod.screens[0]

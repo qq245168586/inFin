@@ -74,6 +74,7 @@ export function createPod(group?: VideoGroup): Pod {
     videoGroupId: resolvedGroup.id,
     stationFlow: "NORMAL",
     ending: "HYDRATE",
+    endingSeconds: 0,
     screens: createPodScreensFromGroup(resolvedGroup)
   };
 }

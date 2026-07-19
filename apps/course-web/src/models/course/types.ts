@@ -106,6 +106,7 @@ export interface Pod {
   videoGroupId: string;
   stationFlow: PodStationFlow;
   ending: PodEnding;
+  endingSeconds: number;
   screens: PodScreen[];
 }
 

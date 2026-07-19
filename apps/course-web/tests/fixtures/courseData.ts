@@ -214,6 +214,7 @@ export function createCourseDraft(overrides: Partial<CourseDraft["script"]> = {}
           videoGroupId: group.id,
           stationFlow: "NORMAL",
           ending: "FINISH",
+          endingSeconds: 0,
           screens: group.screens.map((screen) => ({
             id: `pod-screen-${screen.screenIndex}`,
             screenIndex: screen.screenIndex,

@@ -91,6 +91,58 @@ describe("course package filtering", () => {
   });
 });
 
+describe("pod ending duration", () => {
+  test("normalizes legacy pod duration from the course fallback without linking pods", () => {
+    const draft = createCourseDraft();
+    draft.script.metadata.defaultHydrateSeconds = 60;
+    draft.script.training.pods = [
+      {
+        ...draft.script.training.pods[0],
+        id: "pod-hydrate",
+        name: "Hydrate Pod",
+        ending: "HYDRATE",
+        endingSeconds: undefined as unknown as number
+      },
+      {
+        ...draft.script.training.pods[0],
+        id: "pod-finish",
+        name: "Finish Pod",
+        ending: "FINISH",
+        endingSeconds: 0
+      }
+    ];
+
+    const normalized = normalizeCourseScriptLocal(draft.script);
+    normalized.training.pods[0].endingSeconds = 30;
+
+    assert.equal(normalized.training.pods[0].endingSeconds, 30);
+    assert.equal(normalized.training.pods[1].endingSeconds, 0);
+    assert.equal(draft.script.metadata.defaultHydrateSeconds, 60);
+  });
+
+  test("validates each non-finish pod duration independently", () => {
+    const draft = createCourseDraft();
+    draft.script.training.pods = [
+      {
+        ...draft.script.training.pods[0],
+        id: "pod-invalid",
+        name: "Pod A",
+        ending: "HYDRATE",
+        endingSeconds: 0
+      },
+      {
+        ...draft.script.training.pods[0],
+        id: "pod-finish",
+        name: "Pod B",
+        ending: "FINISH",
+        endingSeconds: 0
+      }
+    ];
+
+    assert.ok(getCourseDraftIssues(draft).some((issue) => issue.includes("Pod A") && issue.includes("时长")));
+  });
+});
+
 describe("week schedules api", () => {
   test("fetches lightweight meta without schedules by default for course home", async () => {
     const fetchMock = vi.fn(async () => ({

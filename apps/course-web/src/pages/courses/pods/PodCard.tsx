@@ -189,14 +189,16 @@ export default function PodCard({
           <label className="field">
             <span>{pod.ending === "HYDRATE" ? "补水时长（秒）" : "换区时长（秒）"}</span>
             <DraftNumberInput
-              value={script.metadata.defaultHydrateSeconds}
+              value={pod.endingSeconds}
               minValue={0}
               onValueChange={(value) =>
                 onUpdateScript((current) => ({
                   ...current,
-                  metadata: {
-                    ...current.metadata,
-                    defaultHydrateSeconds: value
+                  training: {
+                    ...current.training,
+                    pods: current.training.pods.map((entry) =>
+                      entry.id === pod.id ? { ...entry, endingSeconds: value } : entry
+                    )
                   }
                 }))
               }

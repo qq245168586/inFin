@@ -226,6 +226,7 @@ export function normalizeCourseScriptLocal(script: CourseScript): CourseScript {
       videoGroupId: pod.videoGroupId || linkedGroup.id,
       stationFlow: (pod.stationFlow === "SWITCH" ? "SWITCH" : "NORMAL") as PodStationFlow,
       ending: pod.ending === "MOVE_ZONE" || pod.ending === "FINISH" || pod.ending === "HYDRATE" ? pod.ending : "HYDRATE",
+      endingSeconds: readNonNegativeNumber(pod.endingSeconds, readNonNegativeNumber(cloned.metadata?.defaultHydrateSeconds, 0)),
       screens: createPodScreensFromGroup(
         linkedGroup,
         ((pod.screens as Array<Partial<PodScreen> & { segments?: Array<{ workSeconds?: number; restSeconds?: number }> }>) || [])

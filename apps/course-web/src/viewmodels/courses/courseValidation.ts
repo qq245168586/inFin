@@ -8,7 +8,6 @@ import { createTrainingSnapshot } from "./courseEditorFactories.ts";
 export function getCourseDraftIssues(draft: CourseDraft): string[] {
   const issues: string[] = [];
   const script = draft.script;
-  const needsTransitionDuration = script.training.pods.some((pod) => pod.ending !== "FINISH");
 
   if (!script.metadata.name.trim()) {
     issues.push("课程名称不能为空。");
@@ -18,9 +17,6 @@ export function getCourseDraftIssues(draft: CourseDraft): string[] {
   }
   if (!script.metadata.version.trim()) {
     issues.push("课程版本不能为空。");
-  }
-  if (needsTransitionDuration && Number(script.metadata.defaultHydrateSeconds) <= 0) {
-    issues.push("当前课程包含补水或换区 Pod，请填写补水 / 换区时长。");
   }
   if (Number(script.metadata.trainingPanel.restSeconds) < 0) {
     issues.push("TV 横屏的 rest 时间不能小于 0。");
@@ -90,6 +86,9 @@ export function getCourseDraftIssues(draft: CourseDraft): string[] {
   }
 
   script.training.pods.forEach((pod, podIndex) => {
+    if (pod.ending !== "FINISH" && Number(pod.endingSeconds) <= 0) {
+      issues.push(`Pod ${pod.name || podIndex + 1} 的补水 / 换区时长必须大于 0。`);
+    }
     const linkedGroup = script.training.videoGroups.find((group) => group.id === pod.videoGroupId);
     if (!linkedGroup) {
       issues.push(`Pod ${pod.name || podIndex + 1} 没有关联到有效的视频组。`);
