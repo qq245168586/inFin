@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import EmptyBlock from "../../components/EmptyBlock.tsx";
 import InnerTabs from "../../components/InnerTabs.tsx";
 import { formatDate } from "../../utils/datetime.ts";
@@ -21,7 +22,8 @@ import { getErrorMessage } from "../../utils/errors.ts";
 import {
   filterActionTypesByCoursePackage,
   filterActionsByCoursePackage,
-  filterTemplateCollectionsByCoursePackage
+  filterTemplateCollectionsByCoursePackage,
+  getCrossPackageSourceLabel
 } from "../../utils/coursePackageScope.ts";
 
 export default function TemplatesPage({
@@ -41,7 +43,7 @@ export default function TemplatesPage({
   selectedCoursePackage: CoursePackageRecord | null;
   courses: CourseRecord[];
   coursePackages: CoursePackageRecord[];
-  lessonTypes: Array<{ id: number; name: string }>;
+  lessonTypes: TypeOption[];
   actions: ActionRecord[];
   actionTypes: TypeOption[];
   onAddLessonType: () => void;
@@ -56,6 +58,31 @@ export default function TemplatesPage({
   );
   const scopedActions = filterActionsByCoursePackage(actions, selectedCoursePackage);
   const scopedActionTypes = filterActionTypesByCoursePackage(actionTypes, selectedCoursePackage);
+  const actionTypesForDisplay = useMemo(
+    () =>
+      scopedActionTypes.map((type) => ({
+        ...type,
+        sourceLabel: getCrossPackageSourceLabel(type, selectedCoursePackage, coursePackages)
+      })),
+    [coursePackages, scopedActionTypes, selectedCoursePackage]
+  );
+  const templateSourceLabelById = useMemo(() => {
+    const labels = new Map<number, string>();
+    Object.values(scopedTemplateCollections).forEach((templates) => {
+      templates.forEach((template) => {
+        labels.set(template.id, getCrossPackageSourceLabel(template, selectedCoursePackage, coursePackages));
+      });
+    });
+    return labels;
+  }, [coursePackages, scopedTemplateCollections, selectedCoursePackage]);
+  const lessonTypesForDisplay = useMemo(
+    () =>
+      lessonTypes.map((type) => ({
+        ...type,
+        sourceLabel: getCrossPackageSourceLabel(type, selectedCoursePackage, coursePackages)
+      })),
+    [coursePackages, lessonTypes, selectedCoursePackage]
+  );
   const vm = useTemplatesVm({
     templateCollections: scopedTemplateCollections,
     selectedCoursePackageId: selectedCoursePackage?.id || null,
@@ -74,7 +101,7 @@ export default function TemplatesPage({
 
     onBusyTextChange("正在加载课程内容...");
     try {
-      return await fetchCourseDetail(course.id, authHeader);
+      return await fetchCourseDetail(course.id, authHeader, selectedCoursePackage?.id);
     } catch (error) {
       onNotice(getErrorMessage(error), "error");
       return null;
@@ -119,22 +146,22 @@ export default function TemplatesPage({
             <TrainingTemplateEditor
               draft={vm.templateEditor}
               actions={scopedActions}
-              actionTypes={scopedActionTypes}
+              actionTypes={actionTypesForDisplay}
               onUpdateDraft={vm.updateTemplateEditor}
             />
             <WaterfallTemplateEditor
               draft={vm.templateEditor}
               actions={scopedActions}
-              actionTypes={scopedActionTypes}
+              actionTypes={actionTypesForDisplay}
               onUpdateDraft={vm.updateTemplateEditor}
             />
             <CourseTemplateEditor
               draft={vm.templateEditor}
               courses={courses}
               coursePackages={coursePackages}
-              lessonTypes={lessonTypes}
+              lessonTypes={lessonTypesForDisplay}
               actions={scopedActions}
-              actionTypes={scopedActionTypes}
+              actionTypes={actionTypesForDisplay}
               onAddLessonType={onAddLessonType}
               onLoadCourseDetail={loadCourseDetail}
               templateCollections={scopedTemplateCollections}
@@ -196,7 +223,14 @@ export default function TemplatesPage({
                 {vm.activeTemplateList.length ? (
                   vm.activeTemplateList.map((template: TemplateRecord) => (
                     <tr key={template.id}>
-                      <td>{template.name}</td>
+                      <td>
+                        <div className="course-cell-title">
+                          <strong>{template.name}</strong>
+                          {templateSourceLabelById.get(template.id) ? (
+                            <span className="source-package-label">来源：{templateSourceLabelById.get(template.id)}</span>
+                          ) : null}
+                        </div>
+                      </td>
                       <td>{getTemplateKindLabel(template.kind)}</td>
                       <td>{formatTemplateSummary(template)}</td>
                       <td>{formatDate(template.updateTime)}</td>

@@ -2,8 +2,11 @@ import { cloneDeep } from "../../utils/cloneDeep.ts";
 import { getErrorMessage } from "../../utils/errors.ts";
 import { readNonNegativeNumber } from "../../utils/number.ts";
 import { requestJson } from "../../services/requestJson.ts";
+import { buildCoursePackageRequestHeaders } from "../../services/api/coursePackageContext.ts";
 import { uploadBinary } from "../../services/uploadBinary.ts";
 import type { CourseRecord } from "../../models/course/types.ts";
+import type { CoursePackageRecord } from "../../pages/venues/types.ts";
+import { getResourceCoursePackageIds } from "../../utils/coursePackageScope.ts";
 import type { CourseDraft } from "./types.ts";
 import { getCourseDraftIssues } from "./courseValidation.ts";
 import { normalizeCourseScriptLocal } from "./courseScriptNormalize.ts";
@@ -19,7 +22,9 @@ export default function useCourseCrudVm({
   authHeader,
   courseEditor,
   coursePackageId,
+  requestCoursePackageId,
   existingCourses = [],
+  coursePackages = [],
   onBusyText,
   onNotice,
   onReloadMeta,
@@ -29,7 +34,9 @@ export default function useCourseCrudVm({
   authHeader: string;
   courseEditor: CourseDraft | null;
   coursePackageId?: number | null;
+  requestCoursePackageId?: number | null;
   existingCourses?: CourseRecord[];
+  coursePackages?: CoursePackageRecord[];
   onBusyText: (value: string) => void;
   onNotice: (message: string, tone?: NoticeTone) => void;
   onReloadMeta: () => Promise<void>;
@@ -49,6 +56,12 @@ export default function useCourseCrudVm({
     const courseVersion = courseEditor.script.metadata.version.trim().toLocaleLowerCase();
     const hasSameNameAndVersion = existingCourses.some((course) => {
       if (Number(course.id) === Number(courseEditor.id)) return false;
+      if (
+        coursePackageId &&
+        !getResourceCoursePackageIds(course, coursePackages).includes(Number(coursePackageId))
+      ) {
+        return false;
+      }
       return (
         course.name.trim().toLocaleLowerCase() === courseName &&
         course.version.trim().toLocaleLowerCase() === courseVersion
@@ -93,14 +106,14 @@ export default function useCourseCrudVm({
       if (courseEditor.id) {
         const response = await requestJson<ApiResponse<CourseRecord>>(`/api/courses/${courseEditor.id}`, {
           method: "PUT",
-          headers: authHeader ? { Authorization: authHeader } : {},
+          headers: buildCoursePackageRequestHeaders(authHeader, requestCoursePackageId),
           body: JSON.stringify(payload)
         });
         savedCourse = response.data;
       } else {
         const response = await requestJson<ApiResponse<CourseRecord>>("/api/courses", {
           method: "POST",
-          headers: authHeader ? { Authorization: authHeader } : {},
+          headers: buildCoursePackageRequestHeaders(authHeader, requestCoursePackageId),
           body: JSON.stringify(payload)
         });
         savedCourse = response.data;
@@ -120,7 +133,10 @@ export default function useCourseCrudVm({
     if (!window.confirm("确认删除这个课程吗？")) return;
     onBusyText("正在删除课程...");
     try {
-      await requestJson(`/api/courses/${courseId}`, { method: "DELETE", headers: authHeader ? { Authorization: authHeader } : {} });
+      await requestJson(`/api/courses/${courseId}`, {
+        method: "DELETE",
+        headers: buildCoursePackageRequestHeaders(authHeader, requestCoursePackageId)
+      });
       onDeletedCourse(courseId);
       await onReloadMeta();
       onNotice("课程已删除。");

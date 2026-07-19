@@ -3,6 +3,7 @@ import { displayTypeName } from "../utils/typeNames.ts";
 export interface ChipOption {
   id: number;
   name: string;
+  sourceLabel?: string;
 }
 
 export interface FilterChipsProps {
@@ -24,6 +25,7 @@ export default function FilterChips({ options, selectedIds, onToggle, onAdd, add
           onClick={() => onToggle(item.id)}
         >
           {displayTypeName(item.name)}
+          {item.sourceLabel ? <span className="filter-chip-source">{item.sourceLabel}</span> : null}
         </button>
       ))}
       {onAdd ? (

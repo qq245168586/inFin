@@ -3,6 +3,7 @@ import type { TemplateCollections, TemplateDraft, TemplateKind, TemplateRecord }
 import { createTemplateCollections, createTemplateDraft, getTemplateKindLabel } from "../../models/templates.ts";
 import { cloneCourseScriptWithFreshIds } from "../../models/course/factories.ts";
 import { requestJson } from "../../services/requestJson.ts";
+import { buildCoursePackageRequestHeaders } from "../../services/api/coursePackageContext.ts";
 import { uploadBinary } from "../../services/uploadBinary.ts";
 import { getErrorMessage } from "../../utils/errors.ts";
 import { getCourseDraftIssues } from "../courses/courseValidation.ts";
@@ -127,13 +128,13 @@ export function useTemplatesVm({
     if (templateEditor.id) {
         await requestJson<ApiResponse<TemplateRecord>>(`/api/templates/${templateEditor.id}`, {
           method: "PUT",
-          headers: authHeader ? { Authorization: authHeader } : {},
+          headers: buildCoursePackageRequestHeaders(authHeader, selectedCoursePackageId),
           body: JSON.stringify(payload)
         });
       } else {
         await requestJson<ApiResponse<TemplateRecord>>("/api/templates", {
           method: "POST",
-          headers: authHeader ? { Authorization: authHeader } : {},
+          headers: buildCoursePackageRequestHeaders(authHeader, selectedCoursePackageId),
           body: JSON.stringify(payload)
         });
       }
@@ -152,7 +153,10 @@ export function useTemplatesVm({
     if (!window.confirm(`确认删除模板“${template.name}”吗？`)) return;
     onBusyText("正在删除模板...");
     try {
-      await requestJson(`/api/templates/${template.id}`, { method: "DELETE", headers: authHeader ? { Authorization: authHeader } : {} });
+      await requestJson(`/api/templates/${template.id}`, {
+        method: "DELETE",
+        headers: buildCoursePackageRequestHeaders(authHeader, selectedCoursePackageId)
+      });
       await onReloadMeta();
       if (templateEditor?.id === template.id) {
         setTemplateEditor(null);

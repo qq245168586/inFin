@@ -61,12 +61,13 @@ export default function CourseLibrary({
   filteredCourses,
   courseTemplates,
   coursePackageName,
+  courseSourceLabelById,
   onOpenCourseEditor,
   onOpenCourseSimulator,
   onOpenCourseTemplateDialog,
   onRemoveCourse
 }: {
-  lessonTypes: Array<{ id: number; name: string }>;
+  lessonTypes: Array<{ id: number; name: string; sourceLabel?: string }>;
   lessonTypeNameById: Map<number, string>;
   courseFiltersDraft: CourseFilterState;
   onCourseFiltersDraftChange: (updater: (current: CourseFilterState) => CourseFilterState) => void;
@@ -75,6 +76,7 @@ export default function CourseLibrary({
   filteredCourses: CourseRecord[];
   courseTemplates: CourseTemplateRecord[];
   coursePackageName: string;
+  courseSourceLabelById: Map<number, string>;
   onOpenCourseEditor: (course?: CourseRecord) => void;
   onOpenCourseSimulator: (course: CourseRecord) => void;
   onOpenCourseTemplateDialog: () => void;
@@ -88,13 +90,17 @@ export default function CourseLibrary({
     });
     return lessonTypes.filter((type) => availableTypeIds.has(Number(type.id)));
   }, [courses, lessonTypes]);
-  const courseGroups = useMemo(() => groupCoursesByName(filteredCourses), [filteredCourses]);
+  const courseGroups = useMemo(
+    () => groupCoursesByName(filteredCourses, courseSourceLabelById),
+    [courseSourceLabelById, filteredCourses]
+  );
   const activeCourseSeries = activeCourseSeriesName ? courseGroups[activeCourseSeriesName] || [] : [];
   const isSeriesView = Boolean(activeCourseSeriesName && activeCourseSeries.length);
   const libraryRows = useMemo(
     () =>
-      Object.entries(courseGroups).map(([name, courses]) => ({
-        name,
+      Object.entries(courseGroups).map(([key, courses]) => ({
+        key,
+        name: courses[0]?.name || key,
         courses,
         representative: latestCourseInGroup(courses),
         isSeries: courses.length > 1
@@ -121,6 +127,9 @@ export default function CourseLibrary({
             <div className="course-cell-title">
               <strong>{course.name}</strong>
               <span className="course-inline-version">Version {course.version || "--"}</span>
+              {courseSourceLabelById.get(course.id) ? (
+                <span className="source-package-label">来源：{courseSourceLabelById.get(course.id)}</span>
+              ) : null}
             </div>
             <span>
               {getWarmupCount(course)} 热身 / {getTrainingCardCount(course)} 训练动作 / {getPodCount(course)} Pod
@@ -170,14 +179,14 @@ export default function CourseLibrary({
     );
   }
 
-  function renderSeriesRow(row: { name: string; courses: CourseRecord[]; representative: CourseRecord; isSeries: boolean }) {
+  function renderSeriesRow(row: { key: string; name: string; courses: CourseRecord[]; representative: CourseRecord; isSeries: boolean }) {
     if (!row.isSeries) {
       return renderCourseRow(row.representative);
     }
     const course = row.representative;
     const versions = row.courses.map((item) => item.version || "--");
     return (
-      <tr key={`series-${row.name}`} className="course-series-row">
+      <tr key={`series-${row.key}`} className="course-series-row">
         <td>
           <span className="course-series-count">{row.courses.length}</span>
         </td>
@@ -189,6 +198,9 @@ export default function CourseLibrary({
             <div className="course-cell-title">
               <strong>{row.name}</strong>
               <span className="course-inline-version">Latest Version {course.version || "--"}</span>
+              {courseSourceLabelById.get(course.id) ? (
+                <span className="source-package-label">来源：{courseSourceLabelById.get(course.id)}</span>
+              ) : null}
             </div>
             <span>
               同名课程系列 · {versions.slice(0, 4).join(" / ")}
@@ -218,7 +230,7 @@ export default function CourseLibrary({
         </td>
         <td className="cell-nowrap">{formatDate(course.updateTime)}</td>
         <td>
-          <button type="button" className="primary-button small course-series-expand-button" onClick={() => setActiveCourseSeriesName(row.name)}>
+          <button type="button" className="primary-button small course-series-expand-button" onClick={() => setActiveCourseSeriesName(row.key)}>
             展开 {row.courses.length} 个版本
           </button>
         </td>
@@ -304,7 +316,7 @@ export default function CourseLibrary({
               ← 返回全部课程
             </button>
             <div>
-              <strong>{activeCourseSeriesName}</strong>
+              <strong>{activeCourseSeries[0]?.name || activeCourseSeriesName}</strong>
               <span>{activeCourseSeries.length} 个版本</span>
             </div>
           </>

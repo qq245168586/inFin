@@ -24,6 +24,16 @@ export const coursePackages = {
     courseCount: 1,
     createTime: "2026-01-01T00:00:00+08:00",
     updateTime: "2026-01-01T00:00:00+08:00"
+  } as CoursePackageRecord,
+  testGlobal: {
+    id: 3,
+    name: "测试课程包",
+    description: "",
+    courseIds: [],
+    courseCount: 0,
+    accessScope: "GLOBAL",
+    createTime: "2026-01-01T00:00:00+08:00",
+    updateTime: "2026-01-01T00:00:00+08:00"
   } as CoursePackageRecord
 };
 

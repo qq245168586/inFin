@@ -2183,6 +2183,28 @@ button.cached-video-thumbnail {
   background: rgba(122, 70, 255, 0.12);
 }
 
+.source-package-label,
+.filter-chip-source {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  color: #6d39d8;
+  background: rgba(122, 70, 255, 0.1);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.filter-chip-source {
+  margin-left: 6px;
+  color: inherit;
+  background: rgba(122, 70, 255, 0.12);
+}
+
 .course-cell {
   display: grid;
   gap: 6px;

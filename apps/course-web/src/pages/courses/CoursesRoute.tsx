@@ -30,7 +30,10 @@ import {
   filterActionTypesByCoursePackage,
   filterActionsByCoursePackage,
   filterCoursesByCoursePackage,
-  filterTemplateCollectionsByCoursePackage
+  filterTemplateCollectionsByCoursePackage,
+  getCrossPackageSourceLabel,
+  getResourceCoursePackageIds,
+  resolveExistingCoursePackageId
 } from "../../utils/coursePackageScope.ts";
 import { displayTypeName } from "../../utils/typeNames.ts";
 
@@ -47,6 +50,7 @@ export default function CoursesRoute({
   const { setBusyText } = useBusy();
   const { pushNotice } = useNotice();
   const { appData, reloadMeta } = useMeta();
+  const coursePackages = appData?.coursePackages || [];
 
   const courses = filterCoursesByCoursePackage(appData?.courses || [], selectedCoursePackage);
   const lessonTypes = useMemo(
@@ -64,6 +68,24 @@ export default function CoursesRoute({
   const lessonTypeMap = useMemo(
     () => new Map(lessonTypes.map((item) => [item.id, displayTypeName(item.name)])),
     [lessonTypes]
+  );
+  const lessonTypesForDisplay = useMemo(
+    () =>
+      lessonTypes.map((type) => ({
+        ...type,
+        sourceLabel: getCrossPackageSourceLabel(type, selectedCoursePackage, coursePackages)
+      })),
+    [coursePackages, lessonTypes, selectedCoursePackage]
+  );
+  const courseSourceLabelById = useMemo(
+    () =>
+      new Map(
+        courses.map((course) => [
+          course.id,
+          getCrossPackageSourceLabel(course, selectedCoursePackage, coursePackages)
+        ])
+      ),
+    [coursePackages, courses, selectedCoursePackage]
   );
   const rawTemplateCollections = appData?.templates || { warmup: [], cooldown: [], training: [], course: [] };
   const templateCollections = useMemo(
@@ -91,7 +113,9 @@ export default function CoursesRoute({
     authHeader,
     courseEditor,
     coursePackageId: activeCourseEditorTab?.coursePackageId || selectedCoursePackage?.id || null,
+    requestCoursePackageId: selectedCoursePackage?.id || null,
     existingCourses: appData?.courses || [],
+    coursePackages,
     onBusyText: setBusyText,
     onNotice: (message, tone) => pushNotice(message, tone === "error" ? "error" : undefined),
     onReloadMeta: reloadMeta,
@@ -116,7 +140,7 @@ export default function CoursesRoute({
 
     setBusyText("正在加载课程内容...");
     try {
-      return await fetchCourseDetail(course.id, authHeader);
+      return await fetchCourseDetail(course.id, authHeader, selectedCoursePackage?.id);
     } catch (error) {
       pushNotice(getErrorMessage(error), "error");
       return null;
@@ -135,7 +159,11 @@ export default function CoursesRoute({
     if (course?.id && !courseDetail) {
       return;
     }
-    tabsVm.openCourseEditor(courseDetail, selectedCoursePackage.id, currentAuthorName);
+    tabsVm.openCourseEditor(
+      courseDetail,
+      resolveExistingCoursePackageId(courseDetail?.coursePackageId ?? course?.coursePackageId, selectedCoursePackage.id),
+      currentAuthorName
+    );
   }
 
   function openCourseSimulator(course: { id?: number | string } | null) {
@@ -166,7 +194,11 @@ export default function CoursesRoute({
       if (!courseDetail) {
         return;
       }
-      tabsVm.openCourseEditor(courseDetail, selectedCoursePackage?.id || targetCourse.coursePackageId || null, currentAuthorName);
+      tabsVm.openCourseEditor(
+        courseDetail,
+        resolveExistingCoursePackageId(courseDetail.coursePackageId ?? targetCourse.coursePackageId, selectedCoursePackage?.id),
+        currentAuthorName
+      );
     })();
   }, [courseEditRequest, courses, currentAuthorName, pushNotice, selectedCoursePackage?.id, tabsVm]);
 
@@ -178,8 +210,15 @@ export default function CoursesRoute({
     if (!courseEditor) return;
     const courseName = normalizeCourseIdentity(courseEditor.script.metadata.name);
     const courseVersion = normalizeCourseIdentity(courseEditor.script.metadata.version);
+    const targetCoursePackageId = activeCourseEditorTab?.coursePackageId || selectedCoursePackage?.id || null;
     const hasSameNameAndVersion = (appData?.courses || []).some((course) => {
       if (Number(course.id) === Number(courseEditor.id)) return false;
+      if (
+        targetCoursePackageId &&
+        !getResourceCoursePackageIds(course, coursePackages).includes(Number(targetCoursePackageId))
+      ) {
+        return false;
+      }
       return (
         normalizeCourseIdentity(course.name) === courseName &&
         normalizeCourseIdentity(course.version) === courseVersion
@@ -475,7 +514,7 @@ export default function CoursesRoute({
                 : selectedCoursePackage?.name || ""
             }
             courseEditor={courseEditor}
-            lessonTypes={lessonTypes}
+            lessonTypes={lessonTypesForDisplay}
             actions={packageActions}
             actionTypes={packageActionTypes}
             onAddLessonType={onAddLessonType}
@@ -502,7 +541,7 @@ export default function CoursesRoute({
           />
         ) : (
           <CourseLibrary
-            lessonTypes={lessonTypes}
+            lessonTypes={lessonTypesForDisplay}
             lessonTypeNameById={lessonTypeMap}
             courseFiltersDraft={courseFiltersVm.draft}
             onCourseFiltersDraftChange={(updater) => courseFiltersVm.setDraft((current) => updater(current))}
@@ -511,6 +550,7 @@ export default function CoursesRoute({
             filteredCourses={courseFiltersVm.filteredCourses}
             courseTemplates={courseTemplates}
             coursePackageName={selectedCoursePackage?.name || ""}
+            courseSourceLabelById={courseSourceLabelById}
             onOpenCourseEditor={(course) => void openCourseEditorForCurrentPackage(course ?? null)}
             onOpenCourseSimulator={openCourseSimulator}
             onOpenCourseTemplateDialog={openCourseTemplateDialog}

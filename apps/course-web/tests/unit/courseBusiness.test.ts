@@ -5,7 +5,10 @@ import {
   filterActionsByCoursePackage,
   filterActionTypesByCoursePackage,
   filterCoursesByCoursePackage,
-  filterTemplateCollectionsByCoursePackage
+  filterTemplateCollectionsByCoursePackage,
+  getCrossPackageSourceLabel,
+  resolveActionWriteCoursePackageIds,
+  resolveExistingCoursePackageId
 } from "../../src/utils/coursePackageScope.ts";
 import { matchesTypeFilter } from "../../src/viewmodels/courses/courseEditorGuards.ts";
 import { getCourseDraftIssues } from "../../src/viewmodels/courses/courseValidation.ts";
@@ -13,12 +16,14 @@ import { normalizeCourseScriptLocal } from "../../src/viewmodels/courses/courseS
 import { rebalancePodEndings } from "../../src/viewmodels/courses/podGraph.ts";
 import { getPodScreenTotal, getSwitchPodScreenTotal } from "../../src/viewmodels/courses/podTiming.ts";
 import { buildVideoRows, normalizeVideoRowLayouts } from "../../src/models/course/videoRows.ts";
+import { groupCoursesByName } from "../../src/models/course/groupCoursesByName.ts";
 import {
   buildCopyWeekSchedulesPayload,
   createCopyWeekSchedulesDraft
 } from "../../src/viewmodels/home/copyWeekSchedules.ts";
 import { fetchMeta } from "../../src/services/api/meta.ts";
 import { fetchWeekSchedules } from "../../src/services/api/schedules.ts";
+import { buildCoursePackageRequestHeaders } from "../../src/services/api/coursePackageContext.ts";
 import {
   buildVideoThumbnailCacheKey,
   selectVideoThumbnailKeysToDelete
@@ -37,6 +42,16 @@ import {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+describe("course package request context", () => {
+  test("keeps resource ownership separate from the selected workspace header", () => {
+    assert.deepEqual(buildCoursePackageRequestHeaders("Bearer token", 3), {
+      Authorization: "Bearer token",
+      "X-Course-Package-Id": "3"
+    });
+    assert.deepEqual(buildCoursePackageRequestHeaders("", null), {});
+  });
 });
 
 describe("course package filtering", () => {
@@ -88,6 +103,52 @@ describe("course package filtering", () => {
       [2]
     );
     assert.deepEqual(result.cooldown, []);
+  });
+
+  test("trusts server results when the selected course package has GLOBAL access", () => {
+    assert.deepEqual(
+      filterCoursesByCoursePackage(packageScopedCourses, coursePackages.testGlobal).map((course) => course.id),
+      [101, 102, 103]
+    );
+    assert.deepEqual(
+      filterActionsByCoursePackage(packageScopedActions, coursePackages.testGlobal).map((action) => action.id),
+      [1, 2]
+    );
+    assert.deepEqual(
+      filterActionTypesByCoursePackage(packageScopedActionTypes, coursePackages.testGlobal).map((type) => type.id),
+      [10, 11]
+    );
+    assert.equal(filterTemplateCollectionsByCoursePackage(packageScopedTemplates, coursePackages.testGlobal).warmup.length, 2);
+  });
+
+  test("labels cross-package resources only inside a GLOBAL package", () => {
+    const packages = [coursePackages.default, coursePackages.strength, coursePackages.testGlobal];
+
+    assert.equal(
+      getCrossPackageSourceLabel(packageScopedActions[1], coursePackages.testGlobal, packages),
+      "力量课程包"
+    );
+    assert.equal(
+      getCrossPackageSourceLabel(packageScopedActions[1], coursePackages.strength, packages),
+      ""
+    );
+  });
+
+  test("keeps existing ownership while assigning new resources to the selected package", () => {
+    assert.equal(resolveExistingCoursePackageId(2, 3), 2);
+    assert.equal(resolveExistingCoursePackageId(null, 3), 3);
+    assert.deepEqual(resolveActionWriteCoursePackageIds([2], true, 3), [2]);
+    assert.deepEqual(resolveActionWriteCoursePackageIds([], false, 3), [3]);
+  });
+
+  test("does not collapse same-name courses from different source packages", () => {
+    const courses = [
+      { ...packageScopedCourses[0], id: 201, name: "Shared Name" },
+      { ...packageScopedCourses[1], id: 202, name: "Shared Name" }
+    ];
+    const groups = groupCoursesByName(courses, new Map([[201, "默认课程包"], [202, "力量课程包"]]));
+
+    assert.equal(Object.keys(groups).length, 2);
   });
 });
 

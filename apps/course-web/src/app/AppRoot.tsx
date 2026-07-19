@@ -12,6 +12,7 @@ import { useBusy } from "../providers/BusyProvider.tsx";
 import { useMeta } from "../providers/MetaProvider.tsx";
 import { useNotice } from "../providers/NoticeProvider.tsx";
 import { requestJson } from "../services/requestJson.ts";
+import { buildCoursePackageRequestHeaders } from "../services/api/coursePackageContext.ts";
 import { getErrorMessage } from "../utils/errors.ts";
 import { stripMediaSuffix } from "../utils/typeNames.ts";
 
@@ -130,6 +131,7 @@ export default function AppRoot() {
         typeDialog.kind === "action" ? "/api/action-types" : "/api/lesson-types",
         {
           method: "POST",
+          headers: buildCoursePackageRequestHeaders("", selectedCoursePackage?.id),
           body: JSON.stringify({
             name: cleanedTypeName,
             coursePackageIds: selectedCoursePackage ? [Number(selectedCoursePackage.id)] : []

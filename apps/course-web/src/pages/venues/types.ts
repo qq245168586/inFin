@@ -27,6 +27,7 @@ export interface CoursePackageRecord {
   description: string;
   courseIds: number[];
   courseCount: number;
+  accessScope?: "PACKAGE_ONLY" | "GLOBAL";
   isDefault?: boolean;
   createTime: string;
   updateTime: string;

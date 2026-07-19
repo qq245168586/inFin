@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import ActionsPage from "../ActionsPage.tsx";
 import type { ActionRecord, TypeOption } from "../../services/api/meta.ts";
 import { requestJson } from "../../services/requestJson.ts";
+import { buildCoursePackageRequestHeaders } from "../../services/api/coursePackageContext.ts";
 import { uploadBinary } from "../../services/uploadBinary.ts";
 import { triggerFileInput } from "../../utils/dom.ts";
 import { getErrorMessage } from "../../utils/errors.ts";
@@ -12,7 +13,14 @@ import { useBusy } from "../../providers/BusyProvider.tsx";
 import { useNotice } from "../../providers/NoticeProvider.tsx";
 import { useAuth } from "../../providers/AuthProvider.tsx";
 import type { CoursePackageRecord } from "../venues/types.ts";
-import { filterActionsByCoursePackage, filterActionTypesByCoursePackage } from "../../utils/coursePackageScope.ts";
+import {
+  filterActionsByCoursePackage,
+  filterActionTypesByCoursePackage,
+  getCrossPackageSourceLabel,
+  getResourceCoursePackageIds,
+  recordMatchesCoursePackageIds,
+  resolveActionWriteCoursePackageIds
+} from "../../utils/coursePackageScope.ts";
 
 interface FilterState {
   search: string;
@@ -202,6 +210,7 @@ export default function ActionsRoute({
   const { pushNotice } = useNotice();
   const actions = (appData?.actions || []) as ActionRecord[];
   const actionTypes = (appData?.actionTypes || []) as TypeOption[];
+  const coursePackages = appData?.coursePackages || [];
   const selectedCoursePackageId = Number(selectedCoursePackage?.id) || 0;
   const selectedCoursePackageTag = selectedCoursePackage ? normalizeCoursePackageTag(selectedCoursePackage.name) : "";
   const packageActionTypes = useMemo(
@@ -211,6 +220,33 @@ export default function ActionsRoute({
   const scopedActions = useMemo(
     () => filterActionsByCoursePackage(actions, selectedCoursePackage),
     [actions, selectedCoursePackage]
+  );
+  const actionTypesForDisplay = useMemo(
+    () =>
+      packageActionTypes.map((type) => ({
+        ...type,
+        sourceLabel: getCrossPackageSourceLabel(type, selectedCoursePackage, coursePackages)
+      })),
+    [coursePackages, packageActionTypes, selectedCoursePackage]
+  );
+  const actionSourceLabelById = useMemo(
+    () =>
+      new Map(
+        scopedActions.map((action) => [
+          action.id,
+          getCrossPackageSourceLabel(action, selectedCoursePackage, coursePackages)
+        ])
+      ),
+    [coursePackages, scopedActions, selectedCoursePackage]
+  );
+  const newActionScopeActions = useMemo(
+    () =>
+      selectedCoursePackageId
+        ? scopedActions.filter((action) =>
+            recordMatchesCoursePackageIds(action, [selectedCoursePackageId], coursePackages)
+          )
+        : scopedActions,
+    [coursePackages, scopedActions, selectedCoursePackageId]
   );
   const packageActionTypeIds = useMemo(
     () => new Set(packageActionTypes.map((type) => Number(type.id))),
@@ -258,7 +294,7 @@ export default function ActionsRoute({
 
     const items = annotateBatchUploadDuplicates(
       pickedFiles.map((file) => createBatchUploadItem(file, packageActionTypes)),
-      scopedActions
+      newActionScopeActions
     );
     setActionBatchDialog({ items });
   }
@@ -282,7 +318,17 @@ export default function ActionsRoute({
       return;
     }
 
-    const duplicate = findExistingActionByName(scopedActions, actionEditor.name, actionEditor.id);
+    const targetCoursePackageIds = actionEditor.id
+      ? getResourceCoursePackageIds(actionEditor, coursePackages)
+      : selectedCoursePackageId
+        ? [selectedCoursePackageId]
+        : [];
+    const duplicateCandidates = targetCoursePackageIds.length
+      ? scopedActions.filter((action) =>
+          recordMatchesCoursePackageIds(action, targetCoursePackageIds, coursePackages)
+        )
+      : scopedActions;
+    const duplicate = findExistingActionByName(duplicateCandidates, actionEditor.name, actionEditor.id);
     if (duplicate) {
       pushNotice(`当前工作空间已存在同名动作：${duplicate.name}。`, "error");
       return;
@@ -302,26 +348,27 @@ export default function ActionsRoute({
         name: actionEditor.name.trim(),
         description: actionEditor.description.trim(),
         typeIds: actionEditor.typeIds.filter((typeId) => packageActionTypeIds.has(Number(typeId))),
-        courseTags: [...new Set([...actionEditor.courseTags, selectedCoursePackageTag].filter(Boolean))],
-        coursePackageIds: [
-          ...new Set([
-            ...actionEditor.coursePackageIds.map(Number).filter(Boolean),
-            selectedCoursePackageId
-          ].filter(Boolean))
-        ],
+        courseTags: actionEditor.id
+          ? [...new Set(actionEditor.courseTags.filter(Boolean))]
+          : [...new Set([...actionEditor.courseTags, selectedCoursePackageTag].filter(Boolean))],
+        coursePackageIds: resolveActionWriteCoursePackageIds(
+          actionEditor.coursePackageIds,
+          Boolean(actionEditor.id),
+          selectedCoursePackageId
+        ),
         media
       };
 
       if (actionEditor.id) {
         await requestJson(`/api/actions/${actionEditor.id}`, {
           method: "PUT",
-          headers: authHeader ? { Authorization: authHeader } : {},
+          headers: buildCoursePackageRequestHeaders(authHeader, selectedCoursePackageId),
           body: JSON.stringify(payload)
         });
       } else {
         await requestJson("/api/actions", {
           method: "POST",
-          headers: authHeader ? { Authorization: authHeader } : {},
+          headers: buildCoursePackageRequestHeaders(authHeader, selectedCoursePackageId),
           body: JSON.stringify(payload)
         });
       }
@@ -348,7 +395,7 @@ export default function ActionsRoute({
     try {
       const response = await requestJson<{ data: TypeOption }>("/api/action-types", {
         method: "POST",
-        headers: authHeader ? { Authorization: authHeader } : {},
+        headers: buildCoursePackageRequestHeaders(authHeader, selectedCoursePackageId),
         body: JSON.stringify({
           name: cleanedName,
           coursePackageIds: selectedCoursePackageId ? [selectedCoursePackageId] : []
@@ -376,7 +423,7 @@ export default function ActionsRoute({
     try {
       await requestJson(`/api/actions/${actionId}`, {
         method: "DELETE",
-        headers: authHeader ? { Authorization: authHeader } : {}
+        headers: buildCoursePackageRequestHeaders(authHeader, selectedCoursePackageId)
       });
       await reloadMeta();
       pushNotice("动作已删除。");
@@ -400,7 +447,7 @@ export default function ActionsRoute({
       return;
     }
 
-    const checkedItems = annotateBatchUploadDuplicates(batchItems, scopedActions);
+    const checkedItems = annotateBatchUploadDuplicates(batchItems, newActionScopeActions);
     const duplicateItem = checkedItems.find((item) => item.status === "invalid" && item.message.includes("动作名重复"));
     if (duplicateItem) {
       setActionBatchDialog({ items: checkedItems });
@@ -411,7 +458,7 @@ export default function ActionsRoute({
     batchUploadingRef.current = true;
     setBatchUploading(true);
     const workingTypes = [...packageActionTypes];
-    const workingPackageActions = [...scopedActions];
+    const workingPackageActions = [...newActionScopeActions];
     const typeLookup = buildActionTypeLookup(workingTypes);
     const createdTypeCache = new Map<string, TypeOption>();
     let createdCount = 0;
@@ -430,7 +477,7 @@ export default function ActionsRoute({
         if (!typeOption) {
           const created = await requestJson<{ data: TypeOption }>("/api/action-types", {
             method: "POST",
-            headers: authHeader ? { Authorization: authHeader } : {},
+            headers: buildCoursePackageRequestHeaders(authHeader, selectedCoursePackageId),
             body: JSON.stringify({
               name: item.resolvedTypeName,
               coursePackageIds: selectedCoursePackageId ? [selectedCoursePackageId] : []
@@ -459,7 +506,7 @@ export default function ActionsRoute({
 
         const response = await requestJson<{ data: ActionRecord }>("/api/actions", {
           method: "POST",
-          headers: authHeader ? { Authorization: authHeader } : {},
+          headers: buildCoursePackageRequestHeaders(authHeader, selectedCoursePackageId),
           body: JSON.stringify(payload)
         });
         workingPackageActions.push(response.data);
@@ -486,10 +533,11 @@ export default function ActionsRoute({
   return (
     <ActionsPage
       actionEditor={actionEditor}
-      actionTypes={packageActionTypes}
+      actionTypes={actionTypesForDisplay}
       filteredActions={filteredActions}
       actionScopeName={selectedCoursePackage?.name || ""}
       actionTypeNameById={actionTypeNameById}
+      actionSourceLabelById={actionSourceLabelById}
       actionFiltersDraft={actionFiltersDraft}
       onActionFiltersDraftChange={setActionFiltersDraft}
       onApplySearch={() => setActionFilters(actionFiltersDraft)}

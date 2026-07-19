@@ -4,7 +4,69 @@ import type { CoursePackageRecord } from "../pages/venues/types.ts";
 import type { ActionRecord, ScheduleRecord, TypeOption } from "../services/api/meta.ts";
 
 interface CoursePackageScopedRecord {
+  coursePackageId?: number | null;
   coursePackageIds?: number[];
+}
+
+export function isGlobalCoursePackage(coursePackage?: CoursePackageRecord | null): boolean {
+  return coursePackage?.accessScope === "GLOBAL";
+}
+
+export function getResourceCoursePackageIds(
+  record: CoursePackageScopedRecord,
+  coursePackages: CoursePackageRecord[]
+): number[] {
+  const explicitIds = (record.coursePackageIds || []).map(Number).filter(Boolean);
+  if (explicitIds.length) return [...new Set(explicitIds)];
+
+  const directId = Number(record.coursePackageId) || 0;
+  if (directId) return [directId];
+
+  const defaultPackageId = Number(coursePackages.find((item) => item.isDefault)?.id) || 0;
+  return defaultPackageId ? [defaultPackageId] : [];
+}
+
+export function getCrossPackageSourceLabel(
+  record: CoursePackageScopedRecord,
+  selectedCoursePackage: CoursePackageRecord | null | undefined,
+  coursePackages: CoursePackageRecord[]
+): string {
+  if (!isGlobalCoursePackage(selectedCoursePackage)) return "";
+
+  const ownerIds = getResourceCoursePackageIds(record, coursePackages);
+  if (!ownerIds.length || ownerIds.includes(Number(selectedCoursePackage?.id))) return "";
+
+  return ownerIds
+    .map((id) => coursePackages.find((item) => Number(item.id) === id)?.name || `课程包 ${id}`)
+    .join(" / ");
+}
+
+export function resolveExistingCoursePackageId(
+  resourceCoursePackageId: number | null | undefined,
+  selectedCoursePackageId: number | null | undefined
+): number | null {
+  return Number(resourceCoursePackageId) || Number(selectedCoursePackageId) || null;
+}
+
+export function resolveActionWriteCoursePackageIds(
+  existingCoursePackageIds: number[] | null | undefined,
+  isExisting: boolean,
+  selectedCoursePackageId: number | null | undefined
+): number[] {
+  if (isExisting) {
+    return [...new Set((existingCoursePackageIds || []).map(Number).filter(Boolean))];
+  }
+  const selectedId = Number(selectedCoursePackageId) || 0;
+  return selectedId ? [selectedId] : [];
+}
+
+export function recordMatchesCoursePackageIds(
+  record: CoursePackageScopedRecord,
+  targetCoursePackageIds: number[],
+  coursePackages: CoursePackageRecord[]
+): boolean {
+  const targets = new Set(targetCoursePackageIds.map(Number).filter(Boolean));
+  return getResourceCoursePackageIds(record, coursePackages).some((id) => targets.has(id));
 }
 
 export function filterCoursesByCoursePackage(
@@ -12,6 +74,7 @@ export function filterCoursesByCoursePackage(
   coursePackage?: CoursePackageRecord | null
 ): CourseRecord[] {
   if (!coursePackage) return courses;
+  if (isGlobalCoursePackage(coursePackage)) return courses;
 
   const courseIds = new Set((coursePackage.courseIds || []).map(Number));
 
@@ -35,6 +98,7 @@ export function recordBelongsToCoursePackage(
   coursePackage?: CoursePackageRecord | null
 ): boolean {
   if (!coursePackage) return true;
+  if (isGlobalCoursePackage(coursePackage)) return true;
 
   const coursePackageIds = (record.coursePackageIds || []).map(Number).filter(Boolean);
   if (!coursePackageIds.length) {
@@ -62,6 +126,7 @@ export function templateBelongsToCoursePackage(
   coursePackage?: CoursePackageRecord | null
 ): boolean {
   if (!coursePackage) return true;
+  if (isGlobalCoursePackage(coursePackage)) return true;
 
   const packageIds = template.coursePackageIds?.length
     ? template.coursePackageIds

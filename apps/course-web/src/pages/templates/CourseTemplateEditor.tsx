@@ -382,6 +382,9 @@ export default function CourseTemplateEditor({
                 {courses.map((course) => (
                   <option key={course.id} value={course.id}>
                     {course.name} · {course.version}
+                    {course.coursePackageId && Number(course.coursePackageId) !== Number(draft.coursePackageId)
+                      ? ` · ${coursePackages.find((item) => Number(item.id) === Number(course.coursePackageId))?.name || `课程包 ${course.coursePackageId}`}`
+                      : ""}
                   </option>
                 ))}
               </select>
@@ -391,6 +394,7 @@ export default function CourseTemplateEditor({
               <span>课程包归属</span>
               <select
                 value={draft.coursePackageId ? String(draft.coursePackageId) : ""}
+                disabled={Boolean(draft.id)}
                 onChange={(event) =>
                   onUpdateDraft((current) => ({
                     ...current,

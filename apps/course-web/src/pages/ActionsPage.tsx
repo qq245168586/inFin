@@ -62,6 +62,7 @@ export default function ActionsPage({
   filteredActions,
   actionScopeName,
   actionTypeNameById,
+  actionSourceLabelById,
   actionFiltersDraft,
   onActionFiltersDraftChange,
   onApplySearch,
@@ -92,6 +93,7 @@ export default function ActionsPage({
   filteredActions: ActionRecord[];
   actionScopeName: string;
   actionTypeNameById: Map<number, string>;
+  actionSourceLabelById: Map<number, string>;
   actionFiltersDraft: FilterState;
   onActionFiltersDraftChange: (next: FilterState) => void;
   onApplySearch: () => void;
@@ -337,7 +339,12 @@ export default function ActionsPage({
                       </td>
                       <td>
                         <div className="action-name-cell">
-                          <strong>{action.name}</strong>
+                          <div className="course-cell-title">
+                            <strong>{action.name}</strong>
+                            {actionSourceLabelById.get(action.id) ? (
+                              <span className="source-package-label">来源：{actionSourceLabelById.get(action.id)}</span>
+                            ) : null}
+                          </div>
                           {action.description ? <span>{action.description}</span> : null}
                         </div>
                       </td>
