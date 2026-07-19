@@ -138,6 +138,15 @@ export default function CoursesRoute({
     tabsVm.openCourseEditor(courseDetail, selectedCoursePackage.id, currentAuthorName);
   }
 
+  function openCourseSimulator(course: { id?: number | string } | null) {
+    const courseId = Number(course?.id || 0);
+    if (!Number.isFinite(courseId) || courseId <= 0) {
+      pushNotice("课程 ID 无效，无法打开模拟器。", "error");
+      return;
+    }
+    window.open(`/simulator/?courseId=${encodeURIComponent(String(courseId))}`, "_blank", "noopener,noreferrer");
+  }
+
   useEffect(() => {
     if (!courseEditRequest || handledCourseEditRequestIdRef.current === courseEditRequest.requestId) {
       return;
@@ -503,6 +512,7 @@ export default function CoursesRoute({
             courseTemplates={courseTemplates}
             coursePackageName={selectedCoursePackage?.name || ""}
             onOpenCourseEditor={(course) => void openCourseEditorForCurrentPackage(course ?? null)}
+            onOpenCourseSimulator={openCourseSimulator}
             onOpenCourseTemplateDialog={openCourseTemplateDialog}
             onRemoveCourse={(courseId) => void courseCrudVm.removeCourse(courseId)}
           />

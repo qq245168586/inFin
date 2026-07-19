@@ -62,6 +62,7 @@ export default function CourseLibrary({
   courseTemplates,
   coursePackageName,
   onOpenCourseEditor,
+  onOpenCourseSimulator,
   onOpenCourseTemplateDialog,
   onRemoveCourse
 }: {
@@ -75,6 +76,7 @@ export default function CourseLibrary({
   courseTemplates: CourseTemplateRecord[];
   coursePackageName: string;
   onOpenCourseEditor: (course?: CourseRecord) => void;
+  onOpenCourseSimulator: (course: CourseRecord) => void;
   onOpenCourseTemplateDialog: () => void;
   onRemoveCourse: (courseId: number) => void;
 }) {
@@ -154,6 +156,9 @@ export default function CourseLibrary({
         </td>
         <td className="cell-nowrap">{formatDate(course.updateTime)}</td>
         <td>
+          <button type="button" className="table-link" onClick={() => onOpenCourseSimulator(course)}>
+            模拟
+          </button>
           <button type="button" className="table-link" onClick={() => onOpenCourseEditor(course)}>
             编辑
           </button>
