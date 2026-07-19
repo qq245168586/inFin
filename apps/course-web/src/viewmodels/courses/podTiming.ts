@@ -47,14 +47,12 @@ export function getSwitchPodScreenTotal(screen: PodScreen, linkedScreen: VideoGr
   }
 
   const stationRestSeconds = Math.max(Number(screen.stationRestSeconds) || 0, 0);
-  const perPairSeconds = setConfigs.reduce((total, setConfig, index) => {
+  const perRoundSeconds = setConfigs.reduce((total, setConfig, index) => {
     const workSeconds = Math.max(Number(setConfig.workSeconds) || 0, 0);
     const groupRestSeconds = index < setConfigs.length - 1 ? Math.max(Number(setConfig.restSeconds) || 0, 0) : 0;
     return total + workSeconds * 2 + stationRestSeconds + groupRestSeconds;
   }, 0);
-  const pairRounds = pairCount * loopCount;
-
-  return pairRounds * perPairSeconds + Math.max(pairRounds - 1, 0) * stationRestSeconds;
+  return loopCount * perRoundSeconds + Math.max(loopCount - 1, 0) * stationRestSeconds;
 }
 
 export function getPodScreenTotalForFlow(pod: Pod, screen: PodScreen, linkedScreen: VideoGroupScreen | null): number {

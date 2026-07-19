@@ -461,7 +461,7 @@ describe("pod timing and endings", () => {
     assert.equal(total, 185);
   });
 
-  test("calculates switch-flow timing for every action pair in each loop", () => {
+  test("calculates one action pair per switch round and rotates through available pairs", () => {
     const linkedScreen = createScreen(1, [
       createVideoCard("card-1", "1A"),
       createVideoCard("card-2", "1B"),
@@ -500,7 +500,7 @@ describe("pod timing and endings", () => {
       linkedScreen
     );
 
-    assert.equal(total, 1840);
+    assert.equal(total, 910);
   });
 
   test("rebalancePodEndings reserves FINISH for the final pod", () => {

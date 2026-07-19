@@ -219,10 +219,10 @@ export default function PodCard({
       {pod.stationFlow === "SWITCH" ? (
         <div className="switch-rule-summary">
           <strong>
-            SWITCH 规则：{switchActionCount} 个动作 = {switchPairCount} 个 AB 素材；本 Pod 播放 {switchLoopCount} 个 AB 组合
+            SWITCH 规则：{switchActionCount} 个动作 = {switchPairCount} 个 AB 素材；本 Pod 播放 {switchLoopCount} 个 AB 轮次
           </strong>
           <span>组数控制同一个 AB 内做几组：每组都是 A → 换站休息 → B；多组时，组与组之间用组间休息。</span>
-          <span>循环次数控制连续播放几个 AB：做完当前 AB 后进入下一个 AB，直到 Pod 结束后再补水或换区。</span>
+          <span>AB 轮次数控制连续播放几个 AB：做完当前 AB 后显示 MOVE STATION，再进入下一个 AB，直到 Pod 结束。</span>
           <span>当前设置：每个 AB 内 {switchGroupCount} 组；播放顺序：{switchSequence}</span>
         </div>
       ) : null}

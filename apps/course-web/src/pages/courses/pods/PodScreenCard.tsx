@@ -64,7 +64,7 @@ export default function PodScreenCard({
 
       <div className={`form-row ${isSingleScreenRule ? "three" : "four"}`}>
         <label className="field">
-          <span>{isSwitchRule ? "AB 播放次数" : "循环次数"}</span>
+          <span>{isSwitchRule ? "AB 轮次数" : "循环次数"}</span>
           <input value={`${screen.loopCount} 次`} readOnly />
         </label>
 
