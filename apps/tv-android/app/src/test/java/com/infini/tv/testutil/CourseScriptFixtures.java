@@ -8,6 +8,10 @@ public final class CourseScriptFixtures {
   private CourseScriptFixtures() {}
 
   public static CourseScript singleScreenHydrateCourse() {
+    return singleScreenHydrateCourse(8);
+  }
+
+  public static CourseScript singleScreenHydrateCourse(int podEndingSeconds) {
     CourseScript.VideoGroup group =
         new CourseScript.VideoGroup(
             "group-single",
@@ -25,6 +29,7 @@ public final class CourseScriptFixtures {
             "Pod A",
             "group-single",
             "HYDRATE",
+            podEndingSeconds,
             "REGION",
             Collections.singletonList(
                 new CourseScript.PodScreen(
@@ -60,6 +65,7 @@ public final class CourseScriptFixtures {
             "Switch Pod",
             "group-switch",
             "FINISH",
+            0,
             "SWITCH",
             Collections.singletonList(
                 new CourseScript.PodScreen(

@@ -36,29 +36,31 @@ public class TimelinePlanner {
       }
 
       if ("HYDRATE".equals(pod.ending)) {
+        int endingSeconds = pod.resolveEndingSeconds(courseScript.metadata.defaultHydrateSeconds);
         steps.add(
             new PlaybackStep(
                 "POD_HYDRATE",
                 pod.name + " / BREAK",
                 courseOffsetSeconds + podDurationSeconds,
-                courseScript.metadata.defaultHydrateSeconds,
+                endingSeconds,
                 0,
                 "",
                 "",
                 "BREAK"));
-        courseOffsetSeconds += podDurationSeconds + courseScript.metadata.defaultHydrateSeconds;
+        courseOffsetSeconds += podDurationSeconds + endingSeconds;
       } else if ("MOVE_ZONE".equals(pod.ending)) {
+        int endingSeconds = pod.resolveEndingSeconds(courseScript.metadata.defaultHydrateSeconds);
         steps.add(
             new PlaybackStep(
                 "POD_MOVE_ZONE",
                 pod.name + " / MOVE ZONE",
                 courseOffsetSeconds + podDurationSeconds,
-                courseScript.metadata.defaultHydrateSeconds,
+                endingSeconds,
                 0,
                 "",
                 "",
                 "MOVE_ZONE"));
-        courseOffsetSeconds += podDurationSeconds + courseScript.metadata.defaultHydrateSeconds;
+        courseOffsetSeconds += podDurationSeconds + endingSeconds;
       } else {
         steps.add(
             new PlaybackStep(

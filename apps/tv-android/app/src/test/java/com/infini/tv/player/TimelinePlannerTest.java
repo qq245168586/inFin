@@ -43,4 +43,34 @@ public class TimelinePlannerTest {
     assertEquals(211, hydrate.startOffsetSeconds);
     assertEquals(8, hydrate.durationSeconds);
   }
+
+  @Test
+  public void build_usesPodEndingSecondsInsteadOfCourseDefault() {
+    CourseScript course = CourseScriptFixtures.singleScreenHydrateCourse(13);
+
+    PlaybackStep hydrate = null;
+    for (PlaybackStep step : new TimelinePlanner().build(course)) {
+      if ("POD_HYDRATE".equals(step.stage)) {
+        hydrate = step;
+        break;
+      }
+    }
+
+    assertEquals(13, hydrate.durationSeconds);
+  }
+
+  @Test
+  public void build_fallsBackToCourseDefaultForLegacyPod() {
+    CourseScript course = CourseScriptFixtures.singleScreenHydrateCourse(-1);
+
+    PlaybackStep hydrate = null;
+    for (PlaybackStep step : new TimelinePlanner().build(course)) {
+      if ("POD_HYDRATE".equals(step.stage)) {
+        hydrate = step;
+        break;
+      }
+    }
+
+    assertEquals(8, hydrate.durationSeconds);
+  }
 }

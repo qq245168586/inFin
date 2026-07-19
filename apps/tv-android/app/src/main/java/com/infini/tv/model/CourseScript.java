@@ -178,15 +178,30 @@ public class CourseScript {
     public final String name;
     public final String videoGroupId;
     public final String ending;
+    public final int endingSeconds;
     public final String stationFlow;
     public final List<PodScreen> screens;
 
-    public Pod(String name, String videoGroupId, String ending, String stationFlow, List<PodScreen> screens) {
+    public Pod(
+        String name,
+        String videoGroupId,
+        String ending,
+        int endingSeconds,
+        String stationFlow,
+        List<PodScreen> screens) {
       this.name = name;
       this.videoGroupId = videoGroupId;
       this.ending = ending;
+      this.endingSeconds = endingSeconds;
       this.stationFlow = stationFlow;
       this.screens = screens;
+    }
+
+    public int resolveEndingSeconds(int defaultHydrateSeconds) {
+      if (!"HYDRATE".equals(ending) && !"MOVE_ZONE".equals(ending)) {
+        return 0;
+      }
+      return endingSeconds >= 0 ? endingSeconds : Math.max(defaultHydrateSeconds, 0);
     }
   }
 

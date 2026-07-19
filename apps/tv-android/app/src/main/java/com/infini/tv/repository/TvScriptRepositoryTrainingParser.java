@@ -138,6 +138,7 @@ abstract class TvScriptRepositoryTrainingParser extends TvScriptRepositoryCourse
               podObject.optString("name"),
               podObject.optString("videoGroupId"),
               podObject.optString("ending"),
+              podObject.has("endingSeconds") ? Math.max(podObject.optInt("endingSeconds", 0), 0) : -1,
               podObject.optString("stationFlow", "NORMAL"),
               parsePodScreens(podObject.optJSONArray("screens"))));
     }

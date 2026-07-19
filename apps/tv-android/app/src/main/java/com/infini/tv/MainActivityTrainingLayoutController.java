@@ -254,7 +254,7 @@ abstract class MainActivityTrainingLayoutController extends MainActivityTraining
     }
 
     if ("HYDRATE".equals(pod.ending) || "MOVE_ZONE".equals(pod.ending)) {
-      return Math.max(course.metadata.defaultHydrateSeconds, 0);
+      return pod.resolveEndingSeconds(course.metadata.defaultHydrateSeconds);
     }
     return 0;
   }
