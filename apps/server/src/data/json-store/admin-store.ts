@@ -260,7 +260,7 @@ export function getMetaPayload(user = null, options = {}) {
   const coursePackageId = normalizeCoursePackageId(options?.coursePackageId || 0, 0);
   const courseId = Number(options?.courseId || 0);
   const scopeOptions = coursePackageId > 0 ? { coursePackageId } : {};
-  const courseSummaries = listCourseSummaries(user);
+  const courseSummaries = listCourseSummaries(user, scopeOptions);
   let courses = courseSummaries;
   let coursesMode = "summary";
 
@@ -272,7 +272,7 @@ export function getMetaPayload(user = null, options = {}) {
       : courseSummaries;
     coursesMode = canReadCourse ? "mixed" : "summary";
   } else if (includeFullCourses) {
-    courses = listCourses(user);
+    courses = listCourses(user, scopeOptions);
     coursesMode = "full";
   }
 
@@ -284,7 +284,7 @@ export function getMetaPayload(user = null, options = {}) {
     courses,
     coursesMode,
     templates: includeTemplates
-      ? listTemplates(user)
+      ? listTemplates(user, scopeOptions)
       : {
           warmup: [],
           cooldown: [],

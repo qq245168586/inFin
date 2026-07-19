@@ -245,7 +245,7 @@ export function listSchedulesByScope(scope = "CURRENTWEEK", options = {}) {
   const lastWeek = getCalendarWeekRange(-1);
 
   let list = state.schedules.map(attachCourseBasics);
-  const visiblePackageIds = getUserVisibleCoursePackageIdSet(options?.user || null);
+  const visiblePackageIds = getUserVisibleCoursePackageIdSet(options?.user || null, options?.coursePackageId);
 
   if (visiblePackageIds) {
     list = list.filter((item) => visiblePackageIds.has(normalizeCoursePackageId(item.coursePackageId)));
@@ -285,7 +285,7 @@ export function listSchedulesByWeekDate(dateText = "", options = {}) {
   const coursePackageId = normalizeCoursePackageId(options?.coursePackageId || 0, 0);
 
   let list = state.schedules.map(attachCourseBasics);
-  const visiblePackageIds = getUserVisibleCoursePackageIdSet(options?.user || null);
+  const visiblePackageIds = getUserVisibleCoursePackageIdSet(options?.user || null, options?.coursePackageId);
 
   if (visiblePackageIds) {
     list = list.filter((item) => visiblePackageIds.has(normalizeCoursePackageId(item.coursePackageId)));
@@ -310,7 +310,7 @@ export function listSchedulesByWeekDate(dateText = "", options = {}) {
 /**
  * 保存 schedule，并触发必要的归一化和持久化。
  */
-export function saveSchedule(payload, user = null) {
+export function saveSchedule(payload, user = null, options = {}) {
   const courseId = Number(payload.courseId);
   const course = getCourseById(courseId);
 
@@ -320,7 +320,13 @@ export function saveSchedule(payload, user = null) {
 
   const existing = payload.id ? state.schedules.find((item) => item.id === Number(payload.id)) ?? null : null;
   const requestedCoursePackageId = normalizeCoursePackageId(payload.coursePackageId || existing?.coursePackageId, 0);
-  const coursePackageId = resolveWriteCoursePackageId(user, requestedCoursePackageId || inferCoursePackageIdForCourse(courseId), existing?.coursePackageId);
+  const requestCoursePackageId = normalizeCoursePackageId(options?.coursePackageId || requestedCoursePackageId, 0);
+  const coursePackageId = resolveWriteCoursePackageId(
+    user,
+    requestedCoursePackageId || inferCoursePackageIdForCourse(courseId),
+    existing?.coursePackageId,
+    { coursePackageId: requestCoursePackageId }
+  );
 
   if (!coursePackageAllowsCourse(coursePackageId, courseId)) {
     throw new Error("该课程不属于当前课程包，不能排课。");
@@ -409,7 +415,12 @@ export function copyWeekSchedules(payload = {}, user = null, options = {}) {
     throw new Error("请选择课程包。");
   }
 
-  const targetCoursePackageId = resolveWriteCoursePackageId(user, requestedCoursePackageId, 0);
+  const targetCoursePackageId = resolveWriteCoursePackageId(
+    user,
+    requestedCoursePackageId,
+    0,
+    { coursePackageId: requestedCoursePackageId }
+  );
 
   if (!targetCoursePackageId) {
     throw new Error("请选择课程包。");

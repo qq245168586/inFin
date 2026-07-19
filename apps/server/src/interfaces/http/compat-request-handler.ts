@@ -164,6 +164,20 @@ function parseOptionalBooleanQuery(value, fallback = true) {
 }
 
 /**
+ * 解析编辑请求当前选中的课程包。GLOBAL 权限只由这个显式请求作用域激活。
+ */
+function resolveCoursePackageRequestOptions(request, url, payload = {}, fallbackCoursePackageId = 0) {
+  const rawValue =
+    url?.searchParams?.get("coursePackageId")
+    || request?.headers?.["x-course-package-id"]
+    || payload?.requestCoursePackageId
+    || payload?.currentCoursePackageId
+    || fallbackCoursePackageId;
+  const coursePackageId = Number(rawValue) || 0;
+  return coursePackageId > 0 ? { coursePackageId } : {};
+}
+
+/**
  * 读取 bearer token，并保持返回结构稳定。
  */
 function getBearerToken(request) {
@@ -2372,7 +2386,7 @@ export async function handleCompatRequest(request, response) {
 
     if (request.method === "GET" && url.pathname === "/api/action-types") {
       const user = getAuthorizedConsoleUser(request);
-      sendJson(response, 200, { data: listActionTypes(user, { coursePackageId: url.searchParams.get("coursePackageId") || "" }) });
+      sendJson(response, 200, { data: listActionTypes(user, resolveCoursePackageRequestOptions(request, url)) });
       return;
     }
 
@@ -2391,7 +2405,8 @@ export async function handleCompatRequest(request, response) {
       }
 
       try {
-        sendJson(response, 201, { data: addActionType(payload, user) });
+        const scopeOptions = resolveCoursePackageRequestOptions(request, url, payload, payload?.coursePackageIds?.[0]);
+        sendJson(response, 201, { data: addActionType(payload, user, scopeOptions) });
       } catch (error) {
         badRequest(response, error instanceof Error ? error.message : "保存动作分类失败。");
       }
@@ -2400,7 +2415,7 @@ export async function handleCompatRequest(request, response) {
 
     if (request.method === "GET" && url.pathname === "/api/lesson-types") {
       const user = getAuthorizedConsoleUser(request);
-      sendJson(response, 200, { data: listLessonTypes(user, { coursePackageId: url.searchParams.get("coursePackageId") || "" }) });
+      sendJson(response, 200, { data: listLessonTypes(user, resolveCoursePackageRequestOptions(request, url)) });
       return;
     }
 
@@ -2418,7 +2433,8 @@ export async function handleCompatRequest(request, response) {
         return;
       }
 
-      sendJson(response, 201, { data: addLessonType(payload, user) });
+      const scopeOptions = resolveCoursePackageRequestOptions(request, url, payload, payload?.coursePackageIds?.[0]);
+      sendJson(response, 201, { data: addLessonType(payload, user, scopeOptions) });
       return;
     }
 
@@ -2501,7 +2517,8 @@ export async function handleCompatRequest(request, response) {
       }
 
       const actionId = Number(actionThumbnailMatch[1]);
-      const action = listActions(user).find((item) => Number(item.id) === actionId) || null;
+      const action = listActions(user, resolveCoursePackageRequestOptions(request, url))
+        .find((item) => Number(item.id) === actionId) || null;
       if (!action?.media?.url) {
         sendJson(response, 404, { message: "动作视频不存在。" });
         return;
@@ -2527,7 +2544,7 @@ export async function handleCompatRequest(request, response) {
       if (!user) {
         return;
       }
-      sendJson(response, 200, { data: listActions(user, { coursePackageId: url.searchParams.get("coursePackageId") || "" }) });
+      sendJson(response, 200, { data: listActions(user, resolveCoursePackageRequestOptions(request, url)) });
       return;
     }
 
@@ -2545,7 +2562,8 @@ export async function handleCompatRequest(request, response) {
       }
 
       try {
-        sendJson(response, 201, { data: saveAction(payload, user) });
+        const scopeOptions = resolveCoursePackageRequestOptions(request, url, payload, payload?.coursePackageIds?.[0]);
+        sendJson(response, 201, { data: saveAction(payload, user, scopeOptions) });
       } catch (error) {
         badRequest(response, error instanceof Error ? error.message : "动作保存失败。");
       }
@@ -2561,7 +2579,8 @@ export async function handleCompatRequest(request, response) {
       const actionId = url.pathname.replace("/api/actions/", "");
       const action = getActionById(actionId);
 
-      if (!action || !listActions(user).some((item) => Number(item.id) === Number(action.id))) {
+      const scopeOptions = resolveCoursePackageRequestOptions(request, url);
+      if (!action || !listActions(user, scopeOptions).some((item) => Number(item.id) === Number(action.id))) {
         sendJson(response, 404, { message: "动作不存在。" });
         return;
       }
@@ -2586,7 +2605,8 @@ export async function handleCompatRequest(request, response) {
 
       const payload = await readJsonBody(request);
       try {
-        const next = saveAction({ ...payload, id: existing.id }, user);
+        const scopeOptions = resolveCoursePackageRequestOptions(request, url, payload, payload?.coursePackageIds?.[0]);
+        const next = saveAction({ ...payload, id: existing.id }, user, scopeOptions);
         sendJson(response, 200, { data: next });
       } catch (error) {
         badRequest(response, error instanceof Error ? error.message : "动作保存失败。");
@@ -2601,7 +2621,7 @@ export async function handleCompatRequest(request, response) {
         return;
       }
       const actionId = url.pathname.replace("/api/actions/", "");
-      const result = deleteAction(actionId, user);
+      const result = deleteAction(actionId, user, resolveCoursePackageRequestOptions(request, url));
 
       if (!result.ok) {
         sendJson(response, 409, result);
@@ -2620,10 +2640,11 @@ export async function handleCompatRequest(request, response) {
 
     if (request.method === "GET" && url.pathname === "/api/courses") {
       const user = getAuthorizedConsoleUser(request);
+      const scopeOptions = resolveCoursePackageRequestOptions(request, url);
       const courseDetail = String(url.searchParams.get("detail") || "").trim().toLowerCase();
       const includeFullCourses = ["full", "true", "1"].includes(courseDetail);
       sendJson(response, 200, {
-        data: includeFullCourses ? listCourses(user) : listCourseSummaries(user),
+        data: includeFullCourses ? listCourses(user, scopeOptions) : listCourseSummaries(user, scopeOptions),
         meta: {
           detail: includeFullCourses ? "full" : "summary"
         }
@@ -2645,7 +2666,8 @@ export async function handleCompatRequest(request, response) {
       }
 
       try {
-        sendJson(response, 201, { data: saveCourse(payload, user) });
+        const scopeOptions = resolveCoursePackageRequestOptions(request, url, payload, payload?.coursePackageId);
+        sendJson(response, 201, { data: saveCourse(payload, user, scopeOptions) });
       } catch (error) {
         badRequest(response, error instanceof Error ? error.message : "课程保存失败。");
       }
@@ -2660,8 +2682,9 @@ export async function handleCompatRequest(request, response) {
       }
       const courseId = url.pathname.replace("/api/courses/", "");
       const course = getCourseById(courseId);
+      const scopeOptions = resolveCoursePackageRequestOptions(request, url);
 
-      if (!course || !listCourseSummaries(user).some((item) => Number(item.id) === Number(course.id))) {
+      if (!course || !listCourseSummaries(user, scopeOptions).some((item) => Number(item.id) === Number(course.id))) {
         sendJson(response, 404, { message: "课程不存在。" });
         return;
       }
@@ -2687,7 +2710,8 @@ export async function handleCompatRequest(request, response) {
       const payload = await readJsonBody(request);
 
       try {
-        const next = saveCourse({ ...payload, id: existing.id }, user);
+        const scopeOptions = resolveCoursePackageRequestOptions(request, url, payload, payload?.coursePackageId);
+        const next = saveCourse({ ...payload, id: existing.id }, user, scopeOptions);
         sendJson(response, 200, { data: next });
       } catch (error) {
         badRequest(response, error instanceof Error ? error.message : "课程保存失败。");
@@ -2702,7 +2726,7 @@ export async function handleCompatRequest(request, response) {
         return;
       }
       const courseId = url.pathname.replace("/api/courses/", "");
-      const result = deleteCourse(courseId, user);
+      const result = deleteCourse(courseId, user, resolveCoursePackageRequestOptions(request, url));
 
       if (!result.ok) {
         sendJson(response, 409, result);
@@ -2715,7 +2739,7 @@ export async function handleCompatRequest(request, response) {
 
     if (request.method === "GET" && url.pathname === "/api/templates") {
       const user = getAuthorizedConsoleUser(request);
-      sendJson(response, 200, { data: listTemplates(user) });
+      sendJson(response, 200, { data: listTemplates(user, resolveCoursePackageRequestOptions(request, url)) });
       return;
     }
 
@@ -2724,7 +2748,9 @@ export async function handleCompatRequest(request, response) {
       const payload = await readJsonBody(request);
 
       try {
-        sendJson(response, 201, { data: saveTemplate(payload, user) });
+        const fallbackPackageId = payload?.coursePackageId || payload?.coursePackageIds?.[0];
+        const scopeOptions = resolveCoursePackageRequestOptions(request, url, payload, fallbackPackageId);
+        sendJson(response, 201, { data: saveTemplate(payload, user, scopeOptions) });
       } catch (error) {
         badRequest(response, error instanceof Error ? error.message : "模板保存失败。");
       }
@@ -2734,7 +2760,8 @@ export async function handleCompatRequest(request, response) {
     if (request.method === "GET" && url.pathname.startsWith("/api/templates/")) {
       const user = getAuthorizedConsoleUser(request);
       const templateId = url.pathname.replace("/api/templates/", "");
-      const template = getTemplateById(templateId, user);
+      const scopeOptions = resolveCoursePackageRequestOptions(request, url);
+      const template = getTemplateById(templateId, user, scopeOptions);
 
       if (!template) {
         sendJson(response, 404, { message: "模板不存在。" });
@@ -2748,7 +2775,8 @@ export async function handleCompatRequest(request, response) {
     if (request.method === "PUT" && url.pathname.startsWith("/api/templates/")) {
       const user = getAuthorizedConsoleUser(request);
       const templateId = url.pathname.replace("/api/templates/", "");
-      const existing = getTemplateById(templateId, user);
+      const preflightScopeOptions = resolveCoursePackageRequestOptions(request, url);
+      const existing = getTemplateById(templateId, user, preflightScopeOptions);
 
       if (!existing) {
         sendJson(response, 404, { message: "模板不存在。" });
@@ -2758,7 +2786,9 @@ export async function handleCompatRequest(request, response) {
       const payload = await readJsonBody(request);
 
       try {
-        sendJson(response, 200, { data: saveTemplate({ ...payload, id: existing.id }, user) });
+        const fallbackPackageId = payload?.coursePackageId || payload?.coursePackageIds?.[0];
+        const scopeOptions = resolveCoursePackageRequestOptions(request, url, payload, fallbackPackageId);
+        sendJson(response, 200, { data: saveTemplate({ ...payload, id: existing.id }, user, scopeOptions) });
       } catch (error) {
         badRequest(response, error instanceof Error ? error.message : "模板保存失败。");
       }
@@ -2768,7 +2798,7 @@ export async function handleCompatRequest(request, response) {
     if (request.method === "DELETE" && url.pathname.startsWith("/api/templates/")) {
       const user = getAuthorizedConsoleUser(request);
       const templateId = url.pathname.replace("/api/templates/", "");
-      const result = deleteTemplate(templateId, user);
+      const result = deleteTemplate(templateId, user, resolveCoursePackageRequestOptions(request, url));
 
       if (!result.ok) {
         sendJson(response, 404, result);
@@ -2817,7 +2847,8 @@ export async function handleCompatRequest(request, response) {
 
       let schedule = null;
       try {
-        schedule = saveSchedule(payload, user);
+        const scopeOptions = resolveCoursePackageRequestOptions(request, url, payload, payload?.coursePackageId);
+        schedule = saveSchedule(payload, user, scopeOptions);
       } catch (error) {
         badRequest(response, error instanceof Error ? error.message : "排课保存失败。");
         return;

@@ -38,6 +38,8 @@ export const PLAYBACK_TRAINING_READY_SECONDS = 15;
 export const PLAYBACK_COOLDOWN_READY_SECONDS = 10;
 export const DEFAULT_ACCOUNT_NAMESPACE = "13689547720";
 export const DEFAULT_COURSE_PACKAGE_NAME = "默认课程包";
+export const COURSE_PACKAGE_ACCESS_SCOPE_PACKAGE_ONLY = "PACKAGE_ONLY";
+export const COURSE_PACKAGE_ACCESS_SCOPE_GLOBAL = "GLOBAL";
 export const SUPERADMIN_USERNAMES = new Set(["13689547720", "zhiyou"]);
 export const CONSOLE_ACCOUNT_PRESETS = [
   {
@@ -399,6 +401,15 @@ export function normalizeCoursePackageId(value, fallback = 1) {
 }
 
 /**
+ * 规范化课程包访问范围。历史数据和非法值一律保持课程包隔离。
+ */
+export function normalizeCoursePackageAccessScope(value) {
+  return trimText(value).toUpperCase() === COURSE_PACKAGE_ACCESS_SCOPE_GLOBAL
+    ? COURSE_PACKAGE_ACCESS_SCOPE_GLOBAL
+    : COURSE_PACKAGE_ACCESS_SCOPE_PACKAGE_ONLY;
+}
+
+/**
  * 规范化 course package record，避免后续业务处理不同格式的输入。
  */
 export function normalizeCoursePackageRecord(entry = {}, fallbackCourseIds = []) {
@@ -409,6 +420,7 @@ export function normalizeCoursePackageRecord(entry = {}, fallbackCourseIds = [])
     name: trimText(raw.name) || DEFAULT_COURSE_PACKAGE_NAME,
     description: trimText(raw.description),
     courseIds: numberList(raw.courseIds ?? fallbackCourseIds),
+    accessScope: normalizeCoursePackageAccessScope(raw.accessScope),
     isDefault: Boolean(raw.isDefault),
     createTime: trimText(raw.createTime) || now,
     updateTime: trimText(raw.updateTime) || trimText(raw.createTime) || now
@@ -2440,12 +2452,12 @@ export function getCourseTemplatePackageIds(template = {}) {
 /**
  * 封装 template allows user 的业务步骤，避免调用方依赖内部实现细节。
  */
-export function templateAllowsUser(template = {}, user = null) {
+export function templateAllowsUser(template = {}, user = null, options = {}) {
   if (!user) {
     return false;
   }
 
-  const visiblePackageIds = getUserVisibleCoursePackageIdSet(user);
+  const visiblePackageIds = getUserVisibleCoursePackageIdSet(user, options?.coursePackageId);
 
   if (!visiblePackageIds) {
     return true;
@@ -2458,7 +2470,7 @@ export function templateAllowsUser(template = {}, user = null) {
 /**
  * 封装 assert can save template 的业务步骤，避免调用方依赖内部实现细节。
  */
-export function assertCanSaveTemplate(template = {}, user = null) {
+export function assertCanSaveTemplate(template = {}, user = null, options = {}) {
   if (!user) {
     throw new Error("登录后才能保存模板。");
   }
@@ -2471,7 +2483,7 @@ export function assertCanSaveTemplate(template = {}, user = null) {
     throw new Error("课程包不存在。");
   }
 
-  const visiblePackageIds = getUserVisibleCoursePackageIdSet(user);
+  const visiblePackageIds = getUserVisibleCoursePackageIdSet(user, options?.coursePackageId);
   if (visiblePackageIds && templatePackageIds.some((id) => !visiblePackageIds.has(id))) {
     throw new Error("当前账号不能保存其它课程包下的模板。");
   }
@@ -2507,9 +2519,9 @@ export function serializeTemplate(template) {
 /**
  * 读取 templates by kind 列表，并按业务规则过滤或排序。
  */
-export function listTemplatesByKind(kind, user = null) {
+export function listTemplatesByKind(kind, user = null, options = {}) {
   return sortByNewest(
-    state.templates.filter((item) => item.kind === kind && templateAllowsUser(item, user)),
+    state.templates.filter((item) => item.kind === kind && templateAllowsUser(item, user, options)),
     "updateTime"
   ).map(serializeTemplate);
 }
@@ -3312,8 +3324,8 @@ export function inRange(dateValue, from, to) {
   return target >= from.getTime() && target < to.getTime();
 }
 
-export function actionTypeAllowsUser(type = {}, user = null) {
-  const visiblePackageIds = getUserVisibleCoursePackageIdSet(user);
+export function actionTypeAllowsUser(type = {}, user = null, options = {}) {
+  const visiblePackageIds = getUserVisibleCoursePackageIdSet(user, options?.coursePackageId);
 
   if (!visiblePackageIds) {
     return true;
@@ -3337,6 +3349,10 @@ export function scopedRecordBelongsToCoursePackage(record = {}, coursePackageId 
     return true;
   }
 
+  if (coursePackageHasGlobalAccess(scopedPackageId)) {
+    return true;
+  }
+
   const packageIds = numberList(record.coursePackageIds);
 
   if (!packageIds.length) {
@@ -3355,8 +3371,8 @@ export function actionTypeMatchesCoursePackageScope(type = {}, options = {}) {
 /**
  * 封装 lesson type allows user 的业务步骤，避免调用方依赖内部实现细节。
  */
-export function lessonTypeAllowsUser(type = {}, user = null) {
-  return actionTypeAllowsUser(type, user);
+export function lessonTypeAllowsUser(type = {}, user = null, options = {}) {
+  return actionTypeAllowsUser(type, user, options);
 }
 
 /**
@@ -3624,6 +3640,33 @@ export function getCoursePackageByIdInternal(coursePackageId) {
 }
 
 /**
+ * 判断指定课程包是否显式启用了全局资源访问。
+ */
+export function coursePackageHasGlobalAccess(coursePackageId) {
+  const coursePackage = getCoursePackageByIdInternal(coursePackageId);
+  return normalizeCoursePackageAccessScope(coursePackage?.accessScope) === COURSE_PACKAGE_ACCESS_SCOPE_GLOBAL;
+}
+
+/**
+ * 判断用户是否能使用指定课程包作为本次请求作用域。
+ * 这里只校验绑定关系；是否启用 GLOBAL 必须继续由当前请求课程包判断。
+ */
+export function userCanAccessCoursePackage(user = null, coursePackageId = 0) {
+  const id = normalizeCoursePackageId(coursePackageId, 0);
+  if (!id) return false;
+  if (!user || isSuperAdminUser(user)) return true;
+  return normalizeUserPackageIds(user.coursePackageIds).includes(id);
+}
+
+/**
+ * 判断本次请求是否通过当前课程包显式启用了全局访问。
+ */
+export function requestUsesGlobalCoursePackage(user = null, coursePackageId = 0) {
+  const id = normalizeCoursePackageId(coursePackageId, 0);
+  return id > 0 && userCanAccessCoursePackage(user, id) && coursePackageHasGlobalAccess(id);
+}
+
+/**
  * 序列化 course package，控制对外暴露字段。
  */
 export function serializeCoursePackage(item) {
@@ -3648,6 +3691,10 @@ export function getCoursePackageCourseIdSet(coursePackageId = "") {
   if (!record) {
     return new Set();
   }
+
+  if (coursePackageHasGlobalAccess(id)) {
+    return new Set((state.courses || []).map((course) => Number(course.id)).filter(Boolean));
+  }
   const courseIds = new Set(numberList(record.courseIds));
 
   for (const course of state.courses || []) {
@@ -3662,6 +3709,9 @@ export function getCoursePackageCourseIdSet(coursePackageId = "") {
  * 封装 course package allows course 的业务步骤，避免调用方依赖内部实现细节。
  */
 export function coursePackageAllowsCourse(coursePackageId, courseId) {
+  if (coursePackageHasGlobalAccess(coursePackageId)) {
+    return Boolean((state.courses || []).some((course) => Number(course.id) === Number(courseId)));
+  }
   const allowedCourseIds = getCoursePackageCourseIdSet(coursePackageId);
 
   if (!allowedCourseIds) {
@@ -3673,18 +3723,34 @@ export function coursePackageAllowsCourse(coursePackageId, courseId) {
 /**
  * 读取 user visible course package id set，并保持返回结构稳定。
  */
-export function getUserVisibleCoursePackageIdSet(user = null) {
-  if (!user || isSuperAdminUser(user)) {
+export function getUserVisibleCoursePackageIdSet(user = null, requestedCoursePackageId = 0) {
+  if (!user) {
     return null;
   }
-  return new Set(normalizeUserPackageIds(user.coursePackageIds));
+  const requestedId = normalizeCoursePackageId(requestedCoursePackageId, 0);
+
+  if (requestedId) {
+    if (!userCanAccessCoursePackage(user, requestedId)) {
+      return new Set();
+    }
+    if (coursePackageHasGlobalAccess(requestedId)) {
+      return null;
+    }
+    return new Set([requestedId]);
+  }
+  if (isSuperAdminUser(user)) {
+    return null;
+  }
+  const visiblePackageIds = new Set(normalizeUserPackageIds(user.coursePackageIds));
+
+  return visiblePackageIds;
 }
 
 /**
  * 读取 user visible course id set，并保持返回结构稳定。
  */
-export function getUserVisibleCourseIdSet(user = null) {
-  const packageIds = getUserVisibleCoursePackageIdSet(user);
+export function getUserVisibleCourseIdSet(user = null, requestedCoursePackageId = 0) {
+  const packageIds = getUserVisibleCoursePackageIdSet(user, requestedCoursePackageId);
 
   if (!packageIds) {
     return null;
@@ -3692,8 +3758,7 @@ export function getUserVisibleCourseIdSet(user = null) {
   const courseIds = new Set();
 
   for (const packageId of packageIds) {
-    const pkg = getCoursePackageByIdInternal(packageId);
-    for (const courseId of numberList(pkg?.courseIds)) {
+    for (const courseId of getCoursePackageCourseIdSet(packageId) || []) {
       courseIds.add(courseId);
     }
   }
@@ -3725,10 +3790,27 @@ export function sanitizeCoursePackageIds(value) {
 /**
  * 解析 write course package ids，合并请求参数、上下文和默认值。
  */
-export function resolveWriteCoursePackageIds(user = null, requestedIds = [], existingIds = []) {
-  const visiblePackageIds = getUserVisibleCoursePackageIdSet(user);
+export function resolveWriteCoursePackageIds(user = null, requestedIds = [], existingIds = [], options = {}) {
+  const requestCoursePackageId = normalizeCoursePackageId(options?.coursePackageId, 0);
+  const visiblePackageIds = getUserVisibleCoursePackageIdSet(user, requestCoursePackageId);
   const requested = sanitizeCoursePackageIds(requestedIds);
   const existing = sanitizeCoursePackageIds(existingIds);
+
+  if (requestCoursePackageId > 0) {
+    if (!userCanAccessCoursePackage(user, requestCoursePackageId)) {
+      throw new Error("当前账号不能访问这个课程包。");
+    }
+    if (requestUsesGlobalCoursePackage(user, requestCoursePackageId)) {
+      return existing.length ? existing : [requestCoursePackageId];
+    }
+    if (existing.length) {
+      if (!existing.includes(requestCoursePackageId)) {
+        throw new Error("当前账号不能保存其它课程包的数据。");
+      }
+      return existing;
+    }
+    return [requestCoursePackageId];
+  }
 
   if (!visiblePackageIds) {
     if (requested.length) return requested;
@@ -3760,16 +3842,26 @@ export function resolveWriteCoursePackageIds(user = null, requestedIds = [], exi
 /**
  * 解析 write course package id，合并请求参数、上下文和默认值。
  */
-export function resolveWriteCoursePackageId(user = null, requestedId = 0, existingId = 0) {
-  return resolveWriteCoursePackageIds(user, [requestedId].filter(Boolean), [existingId].filter(Boolean))[0] || 0;
+export function resolveWriteCoursePackageId(user = null, requestedId = 0, existingId = 0, options = {}) {
+  return resolveWriteCoursePackageIds(
+    user,
+    [requestedId].filter(Boolean),
+    [existingId].filter(Boolean),
+    options
+  )[0] || 0;
 }
 
 /**
  * 封装 prepare action owner payload 的业务步骤，避免调用方依赖内部实现细节。
  */
-export function prepareActionOwnerPayload(payload = {}, existing = null, user = null) {
+export function prepareActionOwnerPayload(payload = {}, existing = null, user = null, options = {}) {
   const ownerUsername = userIdentityText(user) || trimText(existing?.ownerUsername || existing?.author);
-  const coursePackageIds = resolveWriteCoursePackageIds(user, payload.coursePackageIds, existing?.coursePackageIds);
+  const coursePackageIds = resolveWriteCoursePackageIds(
+    user,
+    payload.coursePackageIds,
+    existing?.coursePackageIds,
+    options
+  );
   return {
     ...payload,
     coursePackageIds,
@@ -3795,8 +3887,8 @@ export function prepareCourseOwnerPayload(payload = {}, existing = null, user = 
 /**
  * 封装 action allows user 的业务步骤，避免调用方依赖内部实现细节。
  */
-export function actionAllowsUser(action = {}, user = null) {
-  const visiblePackageIds = getUserVisibleCoursePackageIdSet(user);
+export function actionAllowsUser(action = {}, user = null, options = {}) {
+  const visiblePackageIds = getUserVisibleCoursePackageIdSet(user, options?.coursePackageId);
 
   if (!visiblePackageIds) {
     return true;
@@ -3813,8 +3905,8 @@ export function actionAllowsUser(action = {}, user = null) {
 /**
  * 封装 course allows user 的业务步骤，避免调用方依赖内部实现细节。
  */
-export function courseAllowsUser(course = {}, user = null) {
-  const visiblePackageIds = getUserVisibleCoursePackageIdSet(user);
+export function courseAllowsUser(course = {}, user = null, options = {}) {
+  const visiblePackageIds = getUserVisibleCoursePackageIdSet(user, options?.coursePackageId);
 
   if (!visiblePackageIds) {
     return true;

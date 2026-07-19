@@ -245,7 +245,7 @@ export function listActionTypes(user = null, options = {}) {
   return clone(
     state.actionTypes
       .map(normalizeActionTypeRecord)
-      .filter((type) => actionTypeAllowsUser(type, user))
+      .filter((type) => actionTypeAllowsUser(type, user, options))
       .filter((type) => actionTypeMatchesCoursePackageScope(type, options))
   );
 }
@@ -253,11 +253,11 @@ export function listActionTypes(user = null, options = {}) {
 /**
  * 封装 add action type 的业务步骤，避免调用方依赖内部实现细节。
  */
-export function addActionType(payload, user = null) {
+export function addActionType(payload, user = null, options = {}) {
   const source = typeof payload === "string" ? { name: payload } : payload || {};
   const name = stripMediaSuffix(source.name);
   const requestedPackageIds = numberList(source.coursePackageIds);
-  const packageIds = resolveWriteCoursePackageIds(user, requestedPackageIds, []);
+  const packageIds = resolveWriteCoursePackageIds(user, requestedPackageIds, [], options);
   const existing = state.actionTypes
     .map(normalizeActionTypeRecord)
     .find((type) => {
@@ -285,7 +285,7 @@ export function listLessonTypes(user = null, options = {}) {
   return clone(
     state.lessonTypes
       .map(normalizeActionTypeRecord)
-      .filter((type) => lessonTypeAllowsUser(type, user))
+      .filter((type) => lessonTypeAllowsUser(type, user, options))
       .filter((type) => lessonTypeMatchesCoursePackageScope(type, options))
   );
 }
@@ -293,11 +293,11 @@ export function listLessonTypes(user = null, options = {}) {
 /**
  * 封装 add lesson type 的业务步骤，避免调用方依赖内部实现细节。
  */
-export function addLessonType(payload, user = null) {
+export function addLessonType(payload, user = null, options = {}) {
   const source = typeof payload === "string" ? { name: payload } : payload || {};
   const name = stripMediaSuffix(source.name);
   const requestedPackageIds = numberList(source.coursePackageIds);
-  const packageIds = resolveWriteCoursePackageIds(user, requestedPackageIds, []);
+  const packageIds = resolveWriteCoursePackageIds(user, requestedPackageIds, [], options);
   const existing = state.lessonTypes
     .map(normalizeActionTypeRecord)
     .find((type) => {
@@ -325,7 +325,7 @@ export function listActions(user = null, options = {}) {
   return sortByNewest(
     state.actions
       .map(normalizeActionRecord)
-      .filter((action) => actionAllowsUser(action, user))
+      .filter((action) => actionAllowsUser(action, user, options))
       .filter((action) => actionMatchesCoursePackageScope(action, options)),
     "updateTime"
   );
@@ -342,12 +342,12 @@ export function getActionById(actionId) {
 /**
  * 保存 action，并触发必要的归一化和持久化。
  */
-export function saveAction(payload, user = null) {
+export function saveAction(payload, user = null, options = {}) {
   const existing = payload.id ? getActionById(payload.id) : null;
-  if (existing && !actionAllowsUser(existing, user)) {
+  if (existing && !actionAllowsUser(existing, user, options)) {
     throw new Error("当前账号不能修改其它课程包下的动作。");
   }
-  const next = normalizeActionPayload(prepareActionOwnerPayload(payload, existing, user), existing);
+  const next = normalizeActionPayload(prepareActionOwnerPayload(payload, existing, user, options), existing);
   const index = state.actions.findIndex((item) => item.id === next.id);
 
   if (index >= 0) {
@@ -363,10 +363,10 @@ export function saveAction(payload, user = null) {
 /**
  * 删除 action，同时遵守课程和排课的保护规则。
  */
-export function deleteAction(actionId, user = null) {
+export function deleteAction(actionId, user = null, options = {}) {
   const numericId = Number(actionId);
   const existing = getActionById(numericId);
-  if (!existing || !actionAllowsUser(existing, user)) {
+  if (!existing || !actionAllowsUser(existing, user, options)) {
     return { ok: false, message: "动作不存在。" };
   }
   const usedByCourse = state.courses.some(
@@ -385,8 +385,8 @@ export function deleteAction(actionId, user = null) {
 /**
  * 读取 courses 列表，并按业务规则过滤或排序。
  */
-export function listCourses(user = null) {
-  const allowedCourseIds = getUserVisibleCourseIdSet(user);
+export function listCourses(user = null, options = {}) {
+  const allowedCourseIds = getUserVisibleCourseIdSet(user, options?.coursePackageId);
   return sortByNewest(state.courses, "updateTime")
     .filter((course) => !allowedCourseIds || allowedCourseIds.has(Number(course.id)))
     .map(serializeCourse);
@@ -395,8 +395,8 @@ export function listCourses(user = null) {
 /**
  * 读取 course summaries 列表，并按业务规则过滤或排序。
  */
-export function listCourseSummaries(user = null) {
-  const allowedCourseIds = getUserVisibleCourseIdSet(user);
+export function listCourseSummaries(user = null, options = {}) {
+  const allowedCourseIds = getUserVisibleCourseIdSet(user, options?.coursePackageId);
   return sortByNewest(state.courses, "updateTime")
     .filter((course) => !allowedCourseIds || allowedCourseIds.has(Number(course.id)))
     .map(serializeCourseSummary);
@@ -413,12 +413,17 @@ export function getCourseById(courseId) {
 /**
  * 保存 course，并触发必要的归一化和持久化。
  */
-export function saveCourse(payload, user = null) {
+export function saveCourse(payload, user = null, options = {}) {
   const existing = payload.id ? getCourseById(payload.id) : null;
-  if (existing && !courseAllowsUser(existing, user)) {
+  if (existing && !courseAllowsUser(existing, user, options)) {
     throw new Error("当前账号不能修改其它课程包下的课程。");
   }
-  const targetCoursePackageId = resolveWriteCoursePackageId(user, payload?.coursePackageId, existing?.coursePackageId);
+  const targetCoursePackageId = resolveWriteCoursePackageId(
+    user,
+    payload?.coursePackageId,
+    existing?.coursePackageId,
+    options
+  );
   const next = normalizeCoursePayload(prepareCourseOwnerPayload({ ...payload, coursePackageId: targetCoursePackageId }, existing, user), existing);
   const index = state.courses.findIndex((item) => item.id === next.id);
   const targetCoursePackage =
@@ -491,11 +496,11 @@ export function saveCourse(payload, user = null) {
 /**
  * 删除 course，同时遵守课程和排课的保护规则。
  */
-export function deleteCourse(courseId, user = null) {
+export function deleteCourse(courseId, user = null, options = {}) {
   const numericId = Number(courseId);
   const existing = state.courses.find((item) => Number(item.id) === numericId) ?? null;
 
-  if (!existing || !courseAllowsUser(existing, user)) {
+  if (!existing || !courseAllowsUser(existing, user, options)) {
     return { ok: false, message: "课程不存在。" };
   }
 
@@ -525,21 +530,21 @@ export function deleteCourse(courseId, user = null) {
 /**
  * 读取 templates 列表，并按业务规则过滤或排序。
  */
-export function listTemplates(user = null) {
+export function listTemplates(user = null, options = {}) {
   return {
-    warmup: listTemplatesByKind("warmup", user),
-    cooldown: listTemplatesByKind("cooldown", user),
-    training: listTemplatesByKind("training", user),
-    course: listTemplatesByKind("course", user)
+    warmup: listTemplatesByKind("warmup", user, options),
+    cooldown: listTemplatesByKind("cooldown", user, options),
+    training: listTemplatesByKind("training", user, options),
+    course: listTemplatesByKind("course", user, options)
   };
 }
 
 /**
  * 读取 template by id，并保持返回结构稳定。
  */
-export function getTemplateById(templateId, user = null) {
+export function getTemplateById(templateId, user = null, options = {}) {
   const template = state.templates.find((item) => item.id === Number(templateId)) ?? null;
-  if (!template || !templateAllowsUser(template, user)) {
+  if (!template || !templateAllowsUser(template, user, options)) {
     return null;
   }
   return template ? serializeTemplate(template) : null;
@@ -548,16 +553,21 @@ export function getTemplateById(templateId, user = null) {
 /**
  * 保存 template，并触发必要的归一化和持久化。
  */
-export function saveTemplate(payload, user = null) {
-  const existing = payload.id ? getTemplateById(payload.id, user) : null;
+export function saveTemplate(payload, user = null, options = {}) {
+  const existing = payload.id ? getTemplateById(payload.id, user, options) : null;
   const next = normalizeTemplatePayload(payload, existing);
   const requestedPackageIds = normalizeTemplateCoursePackageIds(payload);
 
   if (requestedPackageIds.length) {
-    assertCanSaveTemplate({ ...next, coursePackageIds: requestedPackageIds }, user);
+    assertCanSaveTemplate({ ...next, coursePackageIds: requestedPackageIds }, user, options);
   }
-  next.coursePackageIds = resolveWriteCoursePackageIds(user, next.coursePackageIds, existing?.coursePackageIds);
-  assertCanSaveTemplate(next, user);
+  next.coursePackageIds = resolveWriteCoursePackageIds(
+    user,
+    next.coursePackageIds,
+    existing?.coursePackageIds,
+    options
+  );
+  assertCanSaveTemplate(next, user, options);
   const index = state.templates.findIndex((item) => item.id === next.id);
 
   if (index >= 0) {
@@ -573,10 +583,10 @@ export function saveTemplate(payload, user = null) {
 /**
  * 删除 template，同时遵守课程和排课的保护规则。
  */
-export function deleteTemplate(templateId, user = null) {
+export function deleteTemplate(templateId, user = null, options = {}) {
   const numericId = Number(templateId);
   const existing = state.templates.find((item) => item.id === numericId) ?? null;
-  if (!existing || !templateAllowsUser(existing, user)) {
+  if (!existing || !templateAllowsUser(existing, user, options)) {
     return { ok: false, message: "模板不存在。" };
   }
   state.templates = state.templates.filter((item) => item.id !== numericId);
@@ -589,7 +599,7 @@ export function deleteTemplate(templateId, user = null) {
  */
 export function listCourseOptions(coursePackageId = "", user = null) {
   const packageCourseIds = getCoursePackageCourseIdSet(coursePackageId);
-  const userCourseIds = getUserVisibleCourseIdSet(user);
+  const userCourseIds = getUserVisibleCourseIdSet(user, coursePackageId);
   return sortByNewest(state.courses, "updateTime")
     .filter((course) => !packageCourseIds || packageCourseIds.has(Number(course.id)))
     .filter((course) => !userCourseIds || userCourseIds.has(Number(course.id)))

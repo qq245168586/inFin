@@ -4,6 +4,287 @@ import { createMockCourseScript, createMockDatabaseState } from "./fixtures/mock
 import { addDays, importStore, nextMonday, shanghaiNoon } from "./helpers/store.ts";
 import { summarizeCourseScript } from "../../../packages/shared/src/course-script.js";
 
+function createGlobalCoursePackageState() {
+  const state = createMockDatabaseState();
+  const globalPackageCourseScript = createMockCourseScript({
+    metadata: {
+      id: "global-package-course",
+      name: "Global Package Course",
+      version: "2026.06"
+    }
+  });
+  state.coursePackages = state.coursePackages.map((coursePackage: any) =>
+    Number(coursePackage.id) === 2
+      ? { ...coursePackage, accessScope: "GLOBAL", courseIds: [202] }
+      : coursePackage
+  );
+  state.users = state.users.map((user: any) =>
+    user.username === "coach"
+      ? { ...user, coursePackageIds: [1, 2] }
+      : user
+  );
+  state.actionTypes.push({ id: 3, name: "Global Package Type", coursePackageIds: [2] });
+  state.lessonTypes = state.lessonTypes.map((type: any) => ({ ...type, coursePackageIds: [1] }));
+  state.lessonTypes.push({ id: 3, name: "Global Package Lesson", coursePackageIds: [2] });
+  state.actions.push({
+    id: 4,
+    name: "Global Package Action",
+    description: "",
+    typeIds: [3],
+    media: null,
+    courseTags: [],
+    coursePackageIds: [2],
+    author: "coach",
+    ownerUsername: "coach",
+    createTime: "2026-06-01T00:00:00.000Z",
+    updateTime: "2026-06-01T00:00:00.000Z"
+  });
+  state.courses.push({
+    ...state.courses[0],
+    id: 202,
+    name: "Global Package Course",
+    version: "2026.06",
+    coursePackageId: 2,
+    typeIds: [3],
+    metadata: globalPackageCourseScript.metadata,
+    script: globalPackageCourseScript
+  });
+  state.templates = [
+    {
+      id: 1,
+      kind: "warmup",
+      name: "Default Warmup",
+      coursePackageIds: [1],
+      section: {
+        id: "warmup-section",
+        title: "热身",
+        layout: "WATERFALL",
+        items: [
+          {
+            id: "warmup-action",
+            actionId: "1",
+            actionName: "Air Squat",
+            seconds: 20,
+            cue: ""
+          }
+        ]
+      },
+      createTime: "2026-06-01T00:00:00.000Z",
+      updateTime: "2026-06-01T00:00:00.000Z"
+    },
+    {
+      id: 2,
+      kind: "warmup",
+      name: "Global Package Warmup",
+      coursePackageIds: [2],
+      section: {
+        id: "global-warmup-section",
+        title: "热身",
+        layout: "WATERFALL",
+        items: [
+          {
+            id: "global-warmup-action",
+            actionId: "4",
+            actionName: "Global Package Action",
+            seconds: 20,
+            cue: ""
+          }
+        ]
+      },
+      createTime: "2026-06-01T00:00:00.000Z",
+      updateTime: "2026-06-01T00:00:00.000Z"
+    }
+  ];
+  return state;
+}
+
+test("GLOBAL course package reads actions, types, courses and templates across packages", async (t) => {
+  const store = await importStore(t, createGlobalCoursePackageState());
+  const user = store.getUserByUsername("coach");
+
+  assert.equal(store.getCoursePackageById(2).accessScope, "GLOBAL");
+  assert.deepEqual(
+    store.listActions(user, { coursePackageId: 2 }).map((item: any) => item.id).sort(),
+    [1, 2, 3, 4]
+  );
+  assert.deepEqual(
+    store.listActions(user, { coursePackageId: 1 }).map((item: any) => item.id).sort(),
+    [1, 2, 3]
+  );
+  assert.deepEqual(
+    store.listActionTypes(user, { coursePackageId: 2 }).map((item: any) => item.id).sort(),
+    [1, 2, 3]
+  );
+  assert.deepEqual(
+    store.listLessonTypes(user, { coursePackageId: 2 }).map((item: any) => item.id).sort(),
+    [1, 2, 3]
+  );
+  assert.deepEqual(store.listCourses(user, { coursePackageId: 1 }).map((item: any) => item.id), [101]);
+  assert.deepEqual(store.listCourses(user, { coursePackageId: 2 }).map((item: any) => item.id).sort(), [101, 202]);
+  assert.deepEqual(store.listCourseOptions(2, user).map((item: any) => item.id).sort(), [101, 202]);
+  assert.deepEqual(store.listTemplates(user, { coursePackageId: 1 }).warmup.map((item: any) => item.id), [1]);
+  assert.deepEqual(store.listTemplates(user, { coursePackageId: 2 }).warmup.map((item: any) => item.id).sort(), [1, 2]);
+});
+
+test("explicit PACKAGE_ONLY scope also isolates super administrators", async (t) => {
+  const store = await importStore(t, createGlobalCoursePackageState());
+  const user = store.getUserByUsername("13689547720");
+
+  assert.ok(user);
+  assert.deepEqual(
+    store.listActions(user, { coursePackageId: 1 }).map((item: any) => item.id).sort(),
+    [1, 2, 3]
+  );
+  assert.deepEqual(
+    store.listActions(user, { coursePackageId: 2 }).map((item: any) => item.id).sort(),
+    [1, 2, 3, 4]
+  );
+});
+
+test("GLOBAL cross-package edits preserve the existing resource ownership", async (t) => {
+  const store = await importStore(t, createGlobalCoursePackageState());
+  const user = store.getUserByUsername("coach");
+  const action = store.getActionById(2);
+  const course = store.getCourseById(101);
+  const template = store.getTemplateById(1, user, { coursePackageId: 2 });
+
+  const savedAction = store.saveAction(
+    { ...action, name: "Stretch Updated", coursePackageIds: [2] },
+    user,
+    { coursePackageId: 2 }
+  );
+  const savedCourse = store.saveCourse(
+    { ...course, description: "Updated from global package", coursePackageId: 2 },
+    user,
+    { coursePackageId: 2 }
+  );
+  const savedTemplate = store.saveTemplate(
+    { ...template, name: "Default Warmup Updated", coursePackageIds: [2] },
+    user,
+    { coursePackageId: 2 }
+  );
+
+  assert.deepEqual(savedAction.coursePackageIds, [1]);
+  assert.equal(savedCourse.coursePackageId, 1);
+  assert.deepEqual(savedTemplate.coursePackageIds, [1]);
+  assert.equal(store.getCoursePackageById(1).courseIds.includes(101), true);
+  assert.equal(store.getCoursePackageById(2).courseIds.includes(101), false);
+});
+
+test("GLOBAL new records belong to the requested test package", async (t) => {
+  const store = await importStore(t, createGlobalCoursePackageState());
+  const user = store.getUserByUsername("coach");
+  const script = createMockCourseScript({
+    metadata: {
+      id: "global-test-course",
+      name: "Global Test Course",
+      version: "2026.07"
+    }
+  });
+
+  const scopeOptions = { coursePackageId: 2 };
+  const actionType = store.addActionType({ name: "Global Test Action Type", coursePackageIds: [2] }, user, scopeOptions);
+  const lessonType = store.addLessonType({ name: "Global Test Lesson Type", coursePackageIds: [2] }, user, scopeOptions);
+  const action = store.saveAction(
+    { name: "Global Test Action", typeIds: [actionType.id], coursePackageIds: [2] },
+    user,
+    scopeOptions
+  );
+  const course = store.saveCourse(
+    {
+      name: "Global Test Course",
+      creator: "Coach",
+      version: "2026.07",
+      coursePackageId: 2,
+      typeIds: [lessonType.id],
+      script
+    },
+    user,
+    scopeOptions
+  );
+  const template = store.saveTemplate(
+    {
+      kind: "warmup",
+      name: "Global Test Warmup",
+      coursePackageIds: [2],
+      section: {
+        items: [{ actionId: String(action.id), actionName: action.name, seconds: 15 }]
+      }
+    },
+    user,
+    scopeOptions
+  );
+
+  assert.deepEqual(actionType.coursePackageIds, [2]);
+  assert.deepEqual(lessonType.coursePackageIds, [2]);
+  assert.deepEqual(action.coursePackageIds, [2]);
+  assert.equal(course.coursePackageId, 2);
+  assert.deepEqual(template.coursePackageIds, [2]);
+});
+
+test("GLOBAL schedule may reference another package course but keeps requested ownership", async (t) => {
+  const store = await importStore(t, createGlobalCoursePackageState());
+  const user = store.getUserByUsername("coach");
+  const schedule = store.saveSchedule(
+    {
+      courseId: 101,
+      coursePackageId: 2,
+      beginTime: shanghaiNoon(nextMonday(1)),
+      duration: 45
+    },
+    user,
+    { coursePackageId: 2 }
+  );
+
+  assert.equal(schedule.courseId, 101);
+  assert.equal(schedule.coursePackageId, 2);
+  assert.deepEqual(
+    store.listSchedulesByScope("HISTORY", { user, coursePackageId: 2 }).map((item: any) => item.id),
+    [schedule.id]
+  );
+});
+
+test("PACKAGE_ONLY keeps resource and schedule isolation", async (t) => {
+  const state = createGlobalCoursePackageState();
+  state.coursePackages = state.coursePackages.map((coursePackage: any) =>
+    Number(coursePackage.id) === 2
+      ? { ...coursePackage, accessScope: "not-valid" }
+      : coursePackage
+  );
+  const store = await importStore(t, state);
+  const user = store.getUserByUsername("coach");
+
+  assert.equal(store.getCoursePackageById(2).accessScope, "PACKAGE_ONLY");
+  assert.deepEqual(
+    store.listActions(user, { coursePackageId: 2 }).map((item: any) => item.id).sort(),
+    [1, 4]
+  );
+  assert.deepEqual(store.listCourses(user, { coursePackageId: 1 }).map((item: any) => item.id), [101]);
+  assert.deepEqual(store.listCourses(user, { coursePackageId: 2 }).map((item: any) => item.id), [202]);
+  assert.throws(
+    () => store.saveAction(
+      { ...store.getActionById(2), name: "Forbidden edit" },
+      user,
+      { coursePackageId: 2 }
+    ),
+    /不能修改其它课程包/
+  );
+  assert.throws(
+    () =>
+      store.saveSchedule(
+        {
+          courseId: 101,
+          coursePackageId: 2,
+          beginTime: shanghaiNoon(nextMonday(1)),
+          duration: 45
+        },
+        user,
+        { coursePackageId: 2 }
+      ),
+    /不属于当前课程包/
+  );
+});
+
 test("course save preserves independent pod ending durations and ignores display station rules", async (t) => {
   const store = await importStore(t);
   const script = createMockCourseScript();
