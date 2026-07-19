@@ -2,6 +2,42 @@ import assert from "node:assert/strict";
 import { test, vi } from "vitest";
 import { createMockCourseScript, createMockDatabaseState } from "./fixtures/mock-db.ts";
 import { addDays, importStore, nextMonday, shanghaiNoon } from "./helpers/store.ts";
+import { summarizeCourseScript } from "../../../packages/shared/src/course-script.js";
+
+test("course save preserves independent pod ending durations and ignores display station rules", async (t) => {
+  const store = await importStore(t);
+  const script = createMockCourseScript();
+  script.metadata.name = "Independent Pod Breaks";
+  script.metadata.version = "2026.07";
+  const basePod = script.training.pods[0];
+  script.training.pods = [
+    { ...basePod, id: "pod-1", name: "Pod 1", ending: "HYDRATE", endingSeconds: 30 },
+    { ...basePod, id: "pod-2", name: "Pod 2", ending: "MOVE_ZONE", endingSeconds: 90 },
+    { ...basePod, id: "pod-3", name: "Pod 3", ending: "FINISH", endingSeconds: 0 }
+  ];
+
+  const before = summarizeCourseScript(script);
+  script.metadata.stationRules = {
+    set: "999",
+    work: "display only",
+    rest: "display only",
+    switch: "follow the leader"
+  };
+  const after = summarizeCourseScript(script);
+  const saved = store.saveCourse({
+    name: script.metadata.name,
+    creator: script.metadata.creator,
+    version: script.metadata.version,
+    coursePackageId: 1,
+    typeIds: [1],
+    script
+  });
+
+  assert.equal(before.hydrateSeconds, 120);
+  assert.deepEqual(after, before);
+  assert.deepEqual(saved.script.training.pods.map((pod: any) => pod.endingSeconds), [30, 90, 0]);
+  assert.equal(saved.summary.hydrateSeconds, 120);
+});
 
 test("saveCourse rejects duplicate name and version regardless of whitespace and case", async (t) => {
   const store = await importStore(t);
