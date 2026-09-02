@@ -45,4 +45,11 @@ Authenticated business pages were reviewed by the implementation workers against
 
 ## Deployment Verification
 
-Pending production deployment and HTTPS smoke checks.
+| Target | Result | Production artifact |
+| --- | --- | --- |
+| Course | Pass | `admin-C756o4mt.css`, `admin-YpRTbV0U.js` |
+| Admin | Pass | `admin-DJk4TOot.css`, `admin-CGSE4e_1.js` |
+| Coach | Pass | `coach-DLjv9DKI.css`, `coach-CENFYI0A.js` |
+| TV package registry | Pass | `1.0.74`, package `91`, 6,185,491 bytes |
+
+All three production domains returned the new assets over HTTPS. Browser checks reported the expected dark body colors, no horizontal overflow and no console errors. The downloaded TV APK matched local SHA-256 `21bab6db550c8db2c28d7945c4e1ada5da015d03344a5c1ae9b58a21a314c1c1`.

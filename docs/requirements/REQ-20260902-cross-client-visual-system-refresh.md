@@ -2,7 +2,7 @@
 
 ## Status
 
-- Status: Ready for Release
+- Status: Shipped
 - Owner: Course Web / Coach Web / Admin Web / TV Android
 - Created: 2026-09-02
 - Updated: 2026-09-02
@@ -138,9 +138,17 @@ Expected:
 ## Deployment / Rollback
 
 - Build order: Course、Coach、Admin 并行；TV 审计和构建独立进行。
-- Deploy order: Course -> Admin -> Coach；TV 仅在产生视觉补丁且设备验证通过后发布新 APK。
-- Version bump: Web 使用新构建产物；TV 如需发布则递增 `versionCode/versionName`。
+- Deploy order: Course -> Admin -> Coach；TV APK 最后上传到版本服务器。
+- Version bump: Web 使用新构建产物；TV `1.0.73` -> `1.0.74` (`versionCode 74`)。
 - Rollback: 各 Web 恢复上一版静态目录；TV 恢复上一 APK。无 DB 回滚。
+
+Production release completed on 2026-09-02:
+
+- Course assets: `admin-C756o4mt.css`, `admin-YpRTbV0U.js`
+- Admin assets: `admin-DJk4TOot.css`, `admin-CGSE4e_1.js`
+- Coach assets: `coach-DLjv9DKI.css`, `coach-CENFYI0A.js`
+- TV: `1.0.74`, package ID `91`, SHA-256 `21bab6db550c8db2c28d7945c4e1ada5da015d03344a5c1ae9b58a21a314c1c1`
+- TV package is available on the production version server; no forced venue installation was sent as part of this release.
 
 ## Documentation Updates
 
@@ -148,4 +156,4 @@ Expected:
 - [x] Update [Requirements Index](INDEX.md).
 - [x] Update [Code Map](../CODEMAP.md) with final visual ownership paths.
 - [x] Record automated and manual verification results in `docs/testing/cross-client-visual-system-refresh-20260902.md`.
-- [ ] Mark deployment status after production verification.
+- [x] Mark deployment status after production verification.

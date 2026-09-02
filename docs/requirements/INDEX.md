@@ -8,7 +8,6 @@
 
 | ID | Title | Status | Apps | Owner Notes |
 | --- | --- | --- | --- | --- |
-| [REQ-20260902-cross-client-visual-system-refresh](REQ-20260902-cross-client-visual-system-refresh.md) | 全客户端视觉系统升级 | Ready for Release | `course-web`, `coach-web`, `admin-web`, `tv-android` | 四端实现、单测、类型检查、构建和本地视觉验收完成；等待生产静态包和 TV 1.0.74 发布。 |
 | [REQ-20260826-tv-diagnostic-log-upload](REQ-20260826-tv-diagnostic-log-upload.md) | TV 错误文件回传、分类查询与 10 天保留 | Ready for QA | `tv-android`, `server`, `ops-web` | 本地实现和回归通过；Ops 可按六类、日期、场馆、设备、屏幕和错误码只读查询；不改 DB 或课程控制。 |
 | [REQ-20260719-switch-pod-ab-round-rotation](REQ-20260719-switch-pod-ab-round-rotation.md) | SWITCH Pod AB 轮转与换站 | Ready for QA | `course-web`, `tv-android` | loopCount 统一为 AB 轮次数；A→B 显示 SWITCH，轮次之间显示 MOVE STATION，Course/TV 时长与进度统一。 |
 | [REQ-20260719-test-package-global-access](REQ-20260719-test-package-global-access.md) | 测试课程包全局读写 | Ready for QA | `server`, `course-web` | 测试课程包通过 accessScope=GLOBAL 直接读写全部课程包资源；不批量迁移归属，新建资源和测试排课仍归属测试包。 |
@@ -30,6 +29,7 @@
 
 | ID | Title | Status | Apps | Release Notes |
 | --- | --- | --- | --- | --- |
+| [REQ-20260902-cross-client-visual-system-refresh](REQ-20260902-cross-client-visual-system-refresh.md) | 全客户端视觉系统升级 | Shipped | `course-web`, `coach-web`, `admin-web`, `tv-android` | 三个 Web 新版已部署并通过 HTTPS/资源/浏览器检查；TV `1.0.74` 已登记为 package `91`，未强制安装到场馆。 |
 | [REQ-20260902-tv-visual-system-refresh](REQ-20260902-tv-visual-system-refresh.md) | TV 全界面视觉系统升级 | Shipped | `tv-android` | TV `1.0.73` 已上传为 package `90` 并推送至 3 个场馆共 12 台在线设备；全部心跳确认升级完成。 |
 | [REQ-20260730-oss-access-log-retention](REQ-20260730-oss-access-log-retention.md) | OSS 访问日志与 30 天保留 | Shipped | `ops`, `oss` | 生产 Bucket 开启访问日志，写入 `oss-access-logs/`，并仅对该前缀应用 30 天自动清理。 |
 | [REQ-20260621-course-schedule-i18n-today-button](REQ-20260621-course-schedule-i18n-today-button.md) | Course 课表俄语文案与今天跳转 | Shipped | `course-web` | 修复课表页俄语下仍显示中文按钮的问题，并新增“今天”按钮回到当前周与当天。 |
