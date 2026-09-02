@@ -1,0 +1,53 @@
+/* Visual refresh foundations and interactive control tokens. */
+
+/* Admin operations theme -------------------------------------------------- */
+
+body {
+  color: var(--text-main);
+  background: #0e1013;
+}
+
+button,
+input,
+select,
+textarea {
+  letter-spacing: 0;
+}
+
+button {
+  transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease, opacity 140ms ease;
+}
+
+button:hover:not(:disabled) {
+  transform: none;
+}
+
+input,
+select,
+textarea,
+.venue-search,
+.device-bind-row select,
+.venue-package-select select,
+.toolbar-field select,
+.login-password-row input {
+  color: var(--text-main);
+  background: #111419;
+  border-color: var(--line);
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+input::placeholder,
+textarea::placeholder,
+.venue-search::placeholder {
+  color: #68717d;
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+.device-bind-row select:focus,
+.toolbar-field select:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 2px rgba(47, 125, 244, 0.2);
+}

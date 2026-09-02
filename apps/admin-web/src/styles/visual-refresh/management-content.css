@@ -1,0 +1,357 @@
+/* Visual refresh for management pages, cards, forms, and editors. */
+
+.venue-shell,
+.device-shell,
+.versions-page,
+.coach-page {
+  gap: 12px;
+}
+
+.venue-top,
+.page-card,
+.versions-summary-card,
+.versions-upload-card,
+.versions-list-card,
+.coach-screen-update-bar {
+  color: var(--text-main);
+  background: #15181d;
+  border: 1px solid #2c323a;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.venue-top {
+  align-items: center;
+  padding: 16px 18px;
+}
+
+.venue-top-title h2,
+.page-card-head h1,
+.section-head h2,
+.editor-header h2 {
+  color: #f4f6f8;
+  font-size: 20px;
+}
+
+.venue-top-title p {
+  margin-top: 3px;
+  color: var(--text-subtle);
+}
+
+.venue-grid {
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.account-management-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.venue-panel,
+.device-card,
+.section-card,
+.course-plan-section-card,
+.script-summary-card,
+.waterfall-row,
+.card-row,
+.module-card,
+.screen-card,
+.coach-schedule-panel,
+.coach-preview-panel,
+.coach-schedule-card,
+.table-card {
+  color: var(--text-main);
+  background: #171a1f;
+  border: 1px solid #30363f;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.venue-panel {
+  overflow: hidden;
+}
+
+.venue-panel-head,
+.device-card-head,
+.section-card-head,
+.module-card-head,
+.screen-card-head,
+.coach-panel-head,
+.coach-preview-head {
+  border-color: #30363f;
+}
+
+.venue-panel-head {
+  min-height: 52px;
+  padding: 12px 14px;
+  background: #1b1f25;
+  border-bottom: 1px solid #30363f;
+}
+
+.venue-panel-head > div:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.venue-detail-body {
+  padding: 12px;
+  gap: 12px;
+}
+
+.venue-card,
+.device-toolbar {
+  padding: 13px;
+  color: var(--text-main);
+  background: #13161a;
+  border: 1px solid #292f37;
+  border-radius: 6px;
+}
+
+.venue-panel .venue-card {
+  padding: 10px 2px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.venue-panel .venue-card + .venue-card {
+  padding-top: 16px;
+  border-top: 1px solid #292f37;
+}
+
+.device-check {
+  min-height: 38px;
+  padding: 0 11px;
+  color: #d3d8df;
+  background: #20242a;
+  border: 1px solid #3a414b;
+  border-radius: 6px;
+}
+
+.device-check input {
+  width: 16px;
+  min-height: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.venue-list-items {
+  padding: 6px;
+  gap: 3px;
+}
+
+.venue-list-item {
+  padding: 10px 11px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: var(--text-main);
+  background: transparent;
+}
+
+.venue-list-item:hover {
+  background: #20242a;
+}
+
+.venue-list-item.is-active {
+  color: #ffffff;
+  background: #1c2d47;
+  border-color: #2d5f9e;
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+
+.venue-course-package,
+.course-package-course,
+.venue-user,
+.venue-screen,
+.device-meta div,
+.copy-screen-option,
+.pod-segment-row {
+  color: var(--text-main);
+  background: #1b1f25;
+  border-color: #30363f;
+  border-radius: 6px;
+}
+
+.venue-course-package.is-active,
+.course-package-course.is-selected,
+.copy-screen-option.is-selected {
+  background: #1c2d47;
+  border-color: #2f6caf;
+  box-shadow: none;
+}
+
+.venue-muted,
+.venue-list-sub,
+.section-copy,
+.action-media-preview-copy span,
+.module-card-head span,
+.screen-card-head > div span,
+.versions-upload-actions span,
+.coach-screen-update-copy span {
+  color: var(--text-subtle);
+}
+
+.venue-badge,
+.venue-pill,
+.table-tag,
+.batch-upload-summary span,
+.section-inline-summary span,
+.account-password-row,
+.account-package-chip {
+  color: var(--gold);
+  background: var(--gold-soft);
+  border-color: rgba(217, 173, 85, 0.32);
+}
+
+.venue-badge.is-online,
+.venue-dot.is-on {
+  color: var(--success);
+  background: rgba(62, 207, 142, 0.1);
+  border-color: rgba(62, 207, 142, 0.28);
+}
+
+.account-package-chip.is-selected,
+.filter-chip.is-active,
+.tab-button.is-active,
+.inner-tab.is-active {
+  color: #dbeafe;
+  background: #1d3150;
+  border-color: #2f6caf;
+}
+
+.account-password-row code {
+  color: #f1d18e;
+}
+
+.primary-button,
+.ghost-button,
+.danger-button,
+.tab-button,
+.filter-chip,
+.inner-tab,
+.venue-screen-command,
+.calendar-date-pill,
+.coach-action-button {
+  min-height: 36px;
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+.primary-button {
+  color: #ffffff;
+  background: #2f7df4;
+  border: 1px solid #4b8df5;
+}
+
+.primary-button:hover:not(:disabled) {
+  background: #3f89f6;
+  filter: none;
+}
+
+.ghost-button,
+.tab-button,
+.filter-chip,
+.inner-tab {
+  color: #d3d8df;
+  background: #20242a;
+  border: 1px solid #3a414b;
+}
+
+.ghost-button:hover:not(:disabled),
+.tab-button:hover:not(:disabled),
+.filter-chip:hover:not(:disabled),
+.inner-tab:hover:not(:disabled) {
+  color: #ffffff;
+  background: #292e36;
+  border-color: #4a535f;
+}
+
+.danger-button,
+.danger-link,
+.table-link.danger,
+.calendar-event-delete {
+  color: #ff837a;
+}
+
+.danger-button {
+  background: rgba(240, 100, 90, 0.08);
+  border-color: rgba(240, 100, 90, 0.35);
+}
+
+.page-card {
+  min-height: calc(100vh - 118px);
+  overflow: hidden;
+}
+
+.page-card-head,
+.page-section,
+.page-content,
+.editor-layout,
+.editor-form {
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+.divider {
+  height: 1px;
+  background: #30363f;
+}
+
+.inner-tabs {
+  background: #111419;
+  border-color: #30363f;
+}
+
+.editor-layout,
+.editor-form,
+.course-plan-editor,
+.module-card.is-pod {
+  background: #15181d;
+}
+
+.editor-divider,
+.section-card-footer,
+.screen-card-footer,
+.pod-rule-grid.secondary {
+  border-color: #30363f;
+}
+
+.asset-panel,
+.logo-panel {
+  background: #13161a;
+  border-color: #30363f;
+  border-radius: 6px;
+}
+
+.video-preview,
+.logo-preview,
+.action-media-preview-frame {
+  background: #090b0e;
+  border-color: #30363f;
+  border-radius: 6px;
+}
+
+.action-media-preview-copy strong {
+  color: var(--text-main);
+  font-size: 17px;
+}
+
+.course-plan-empty,
+.screen-empty,
+.empty-block,
+.venue-empty,
+.calendar-empty-state {
+  color: var(--text-subtle);
+  background: #111419;
+  border-color: #39414b;
+  border-radius: 6px;
+}
+
+.inline-warning,
+.switch-rule-summary,
+.batch-upload-note {
+  color: #f1d18e;
+  background: #2a2418;
+  border-color: #5c4c29;
+  border-radius: 6px;
+}

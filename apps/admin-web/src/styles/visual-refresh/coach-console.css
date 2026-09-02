@@ -1,0 +1,323 @@
+/* Shared coach-console presentation retained by the admin bundle. */
+
+.coach-page {
+  min-height: calc(100vh - 116px);
+}
+
+.coach-page-head {
+  padding-bottom: 10px;
+}
+
+.coach-console {
+  padding: 0 28px 28px;
+  display: grid;
+  gap: 20px;
+}
+
+.coach-week-strip {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.coach-day-pill {
+  min-height: 88px;
+  border-radius: 18px;
+  padding: 14px 12px;
+  color: var(--text-subtle);
+  background: #f5f7fb;
+  border: 1px solid #eceff6;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, color 180ms ease;
+}
+
+.coach-day-pill strong {
+  font-size: 28px;
+  line-height: 1;
+  color: var(--text-main);
+}
+
+.coach-day-pill.is-active {
+  color: #ffffff;
+  border-color: transparent;
+  background: linear-gradient(180deg, #2f7df4 0%, #2f7df4 100%);
+  box-shadow: 0 18px 36px rgba(47, 125, 244, 0.24);
+}
+
+.coach-day-pill.is-active strong {
+  color: #ffffff;
+}
+
+.coach-console-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.coach-schedule-panel,
+.coach-preview-panel {
+  min-height: 640px;
+  border-radius: 26px;
+  border: 1px solid #ececf3;
+  background: #ffffff;
+  box-shadow: 0 20px 44px rgba(18, 24, 38, 0.08);
+}
+
+.coach-schedule-panel {
+  padding: 22px;
+  display: grid;
+  gap: 18px;
+}
+
+.coach-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.coach-panel-head h2,
+.coach-preview-head h2 {
+  margin: 0;
+  font-size: 30px;
+  line-height: 1.1;
+}
+
+.coach-panel-head span,
+.coach-preview-head p {
+  margin: 0;
+  color: var(--text-subtle);
+  font-size: 15px;
+}
+
+.coach-schedule-list {
+  display: grid;
+  gap: 14px;
+  max-height: 560px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.coach-schedule-card {
+  width: 100%;
+  min-height: 98px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid #ececf3;
+  background: #ffffff;
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.coach-schedule-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(47, 125, 244, 0.24);
+  box-shadow: 0 14px 24px rgba(23, 28, 42, 0.08);
+}
+
+.coach-schedule-card.is-selected {
+  border-color: rgba(47, 125, 244, 0.3);
+  box-shadow: 0 18px 30px rgba(47, 125, 244, 0.12);
+}
+
+.coach-schedule-logo {
+  width: 58px;
+  height: 58px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #161824 0%, #2b2f42 100%);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.coach-schedule-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.coach-schedule-copy strong {
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.coach-schedule-copy span {
+  color: var(--text-subtle);
+  font-size: 14px;
+}
+
+.coach-schedule-badge,
+.coach-preview-state {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.coach-schedule-badge.is-preview,
+.coach-preview-state.is-preview {
+  color: #151924;
+  background: #ffffff;
+  border: 1px solid #151924;
+}
+
+.coach-schedule-badge.is-live,
+.coach-preview-state.is-running {
+  color: #ffffff;
+  background: linear-gradient(90deg, #2f7df4 0%, #2f7df4 100%);
+}
+
+.coach-schedule-badge.is-paused,
+.coach-preview-state.is-paused {
+  color: #ffffff;
+  background: #6b7280;
+}
+
+.coach-schedule-badge.is-ended {
+  color: #7f8692;
+  background: #f1f3f7;
+}
+
+.coach-schedule-badge.is-idle {
+  color: #2f7df4;
+  background: rgba(47, 125, 244, 0.12);
+}
+
+.coach-preview-panel {
+  padding: 24px;
+  display: grid;
+  gap: 20px;
+}
+
+.coach-preview-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.coach-preview-frame {
+  position: relative;
+  min-height: 520px;
+  border-radius: 28px;
+  background: #101114;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.coach-preview-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #101114;
+}
+
+.coach-preview-empty,
+.coach-empty-block {
+  width: 100%;
+  min-height: 180px;
+  border-radius: 24px;
+  color: var(--text-subtle);
+  background: #f6f8fb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  line-height: 1.7;
+}
+
+.coach-empty-block.is-large {
+  min-height: 100%;
+}
+
+.coach-preview-empty {
+  min-height: 100%;
+  border-radius: 0;
+  background: #101114;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.coach-preview-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  color: #151924;
+  background: rgba(255, 255, 255, 0.9);
+  font-size: 28px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.coach-preview-nav.is-prev {
+  left: 16px;
+}
+
+.coach-preview-nav.is-next {
+  right: 16px;
+}
+
+.coach-preview-nav:disabled {
+  opacity: 0.36;
+}
+
+.coach-preview-dots {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.coach-preview-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  padding: 0;
+  background: rgba(21, 25, 36, 0.16);
+}
+
+.coach-preview-dot.is-active {
+  width: 28px;
+  background: linear-gradient(90deg, #2f7df4 0%, #2f7df4 100%);
+}
+
+.coach-preview-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.coach-primary-button,
+.coach-terminate-button {
+  flex: 1;
+  min-height: 52px;
+}
+
+.coach-terminate-button.is-enabled {
+  color: #ffffff;
+  border-color: transparent;
+  background: linear-gradient(90deg, #2f7df4 0%, #2f7df4 100%);
+  box-shadow: 0 12px 24px rgba(47, 125, 244, 0.18);
+}

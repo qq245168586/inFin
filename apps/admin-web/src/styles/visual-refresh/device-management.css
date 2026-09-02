@@ -1,0 +1,306 @@
+/* Device management cards, controls, and venue modals. */
+
+.device-shell {
+  display: grid;
+  gap: 18px;
+}
+
+.device-toolbar {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.device-check {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border: 1px solid rgba(222, 226, 234, 0.9);
+  border-radius: 10px;
+  background: #ffffff;
+  color: var(--text-main);
+  font-weight: 800;
+}
+
+.device-check input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--brand);
+}
+
+.device-summary {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.device-list {
+  display: grid;
+  gap: 14px;
+}
+
+.device-card {
+  border: 1px solid rgba(222, 226, 234, 0.9);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.96);
+  padding: 18px;
+  box-shadow: 0 14px 34px rgba(20, 22, 34, 0.05);
+}
+
+.device-card.is-unbound {
+  border-color: rgba(47, 125, 244, 0.26);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(47, 125, 244, 0.05));
+}
+
+.device-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.device-card-head strong {
+  display: block;
+  margin-top: 4px;
+  font-size: clamp(20px, 2.6vw, 30px);
+  line-height: 1.1;
+}
+
+.device-meta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.device-meta div {
+  min-width: 0;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(247, 248, 252, 0.92);
+}
+
+.device-meta span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.device-meta strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--text-main);
+  font-size: 15px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.device-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.device-bind-row {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 140px auto;
+  gap: 10px;
+}
+
+.device-bind-row select {
+  min-height: 40px;
+  border: 1px solid rgba(222, 226, 234, 0.9);
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 0 12px;
+  color: var(--text-main);
+  font-weight: 800;
+  outline: none;
+}
+
+.device-bind-row select:focus {
+  border-color: var(--brand-line);
+  box-shadow: 0 0 0 3px rgba(47, 125, 244, 0.14);
+}
+
+.danger-button {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  background: rgba(237, 69, 46, 0.1);
+  border: 1px solid rgba(237, 69, 46, 0.35);
+  color: rgba(237, 69, 46, 0.92);
+}
+
+.danger-button:hover {
+  filter: brightness(1.02);
+}
+
+.danger-link {
+  color: var(--danger);
+  background: transparent;
+  border: 0;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.venue-picker {
+  margin-top: 4px;
+  border-radius: 16px;
+  border: 1px solid rgba(222, 226, 234, 0.9);
+  background: #ffffff;
+  overflow: hidden;
+  max-height: min(320px, 50vh);
+  overflow-y: auto;
+}
+
+.venue-picker-item {
+  width: 100%;
+  text-align: left;
+  padding: 12px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid rgba(222, 226, 234, 0.75);
+  background: #ffffff;
+}
+
+.venue-picker-item:last-child {
+  border-bottom: 0;
+}
+
+.venue-picker-item.is-selected {
+  background: rgba(47, 125, 244, 0.08);
+  box-shadow: inset 0 0 0 2px rgba(47, 125, 244, 0.18);
+}
+
+.venue-search {
+  width: min(360px, 60vw);
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(120, 120, 140, 0.28);
+  background: rgba(16, 16, 20, 0.35);
+  color: rgba(245, 245, 250, 0.92);
+  outline: none;
+}
+
+.venue-search::placeholder {
+  color: rgba(210, 210, 220, 0.6);
+}
+
+.venue-empty {
+  padding: 18px;
+  color: var(--text-subtle);
+  font-size: 14px;
+}
+
+.venue-modal-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  background: rgba(16, 18, 26, 0.48);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+
+.venue-modal {
+  width: min(560px, 100%);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(222, 226, 234, 0.9);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+}
+
+.venue-modal-head {
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid rgba(222, 226, 234, 0.9);
+}
+
+.venue-form {
+  padding: 16px 16px 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.venue-form label span {
+  display: block;
+  font-size: 13px;
+  font-weight: 800;
+  margin-bottom: 6px;
+  color: #3a3f4c;
+}
+
+.venue-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+@media (max-width: 980px) {
+  .venue-top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .venue-grid {
+    grid-template-columns: 1fr;
+  }
+  .account-management-grid,
+  .venue-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .course-package-grid,
+  .venue-bind-package {
+    grid-template-columns: 1fr;
+  }
+  .venue-list-items {
+    max-height: none;
+  }
+  .venue-screen-meta {
+    grid-template-columns: 1fr;
+  }
+  .device-meta,
+  .device-bind-row {
+    grid-template-columns: 1fr;
+  }
+  .device-card-head,
+  .device-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .device-summary {
+    margin-left: 0;
+  }
+  .venue-card-actions,
+  .venue-screen-top-actions {
+    justify-content: flex-start;
+  }
+  .venue-package-select {
+    width: 100%;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .venue-package-select select {
+    width: 100%;
+  }
+}
