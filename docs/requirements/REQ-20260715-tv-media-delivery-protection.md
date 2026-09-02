@@ -129,7 +129,7 @@ else:
 ## Impact Boundary
 
 - Server route boundary: only local-storage `/api/media/*`; OSS URLs remain direct OSS requests.
-- Nginx boundary: only internal `/_infini_media/` location; external clients cannot access the alias directly.
+- Nginx boundary: only internal `/_infini_media/` location; external clients cannot access the alias directly. Every public virtual host that proxies `/api/media/*` must include this location because `X-Accel-Redirect` is resolved inside the original virtual host.
 - TV boundary: only course media cache downloads; app package downloads and JSON API requests keep their current retry policy.
 - Screen boundary: screen `2/4` remains `METADATA_ONLY` and should not issue MP4 requests; headers/reties apply to video screens `1/3/5` when a cache download is actually needed.
 - Failure boundary: if Nginx internal location is not installed, do not set `INFINI_MEDIA_X_ACCEL_PREFIX`; Server continues Node streaming.
@@ -151,7 +151,7 @@ else:
 
 ### Happy Flow: Nginx Offload
 
-1. Install the Nginx http/server snippets and enable `INFINI_MEDIA_X_ACCEL_PREFIX=/_infini_media/`.
+1. Install the Nginx http snippet and include the server snippet in every virtual host that exposes `/api/media/*`, then enable `INFINI_MEDIA_X_ACCEL_PREFIX=/_infini_media/`.
 2. Download one MP4 from a video screen.
 3. Inspect Server and Nginx logs.
 

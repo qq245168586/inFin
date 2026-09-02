@@ -1,0 +1,26 @@
+flowchart LR
+  Admin["Admin Web\n场馆/账号/设备/版本管理"]
+  Course["Course Web\n动作库/编课/模板/排课"]
+  Coach["Coach Web\n课表/预览/控课/屏幕绑定"]
+  Ops["Ops Web\n运维日志/设备状态"]
+  Sim["Web Simulator\n课程时序模拟"]
+  API["Server API\n权限/课程/排课/媒体/Session"]
+  Store["Data Store\nJSON DB / Files / Media"]
+  MqttGateway["MQTT Client Gateway\nHTTP -> MQTT"]
+  Emqx["EMQX MQTT Broker"]
+  TV["Android TV App\n多屏播放/缓存/心跳/更新"]
+  Download["Download Web\nTV APK 下载"]
+
+  Admin --> API
+  Course --> API
+  Coach --> API
+  Ops --> API
+  Sim --> API
+  API --> Store
+  API --> MqttGateway
+  MqttGateway --> Emqx
+  Emqx --> TV
+  TV --> API
+  TV --> Store
+  Download --> API
+

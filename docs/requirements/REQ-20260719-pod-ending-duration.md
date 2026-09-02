@@ -49,6 +49,7 @@
 | `apps/server` | compatibility / summary | 保存新增字段并对旧数据回退，不改数据库结构。 |
 | `apps/course-web` | editor / local normalization | 每个 Pod 输入只更新自身字段。 |
 | `apps/tv-android` | parser / timeline | 解析并播放 Pod 独立时长，旧脚本回退全局默认值。 |
+| `apps/websimulator` | local timeline | 与 TV 使用相同的 Pod 独立 ending 时长和旧课程回退口径。 |
 
 ## Data And API Impact
 
@@ -96,6 +97,10 @@ duration = pod.endingSeconds >= 0
   ? pod.endingSeconds
   : course.metadata.defaultHydrateSeconds
 ```
+
+### Web Simulator
+
+Simulator 的课程总时长、横屏进度、正式训练 elapsed 和 transition state 统一调用 `getPodEndingDurationSeconds()`，其解析顺序与 TV 一致：非 `FINISH` Pod 优先使用自身 `endingSeconds`，字段缺失时回退课程级默认值。
 
 ## Risks
 

@@ -1,0 +1,21 @@
+flowchart TD
+  A["上传动作视频"] --> B["建立动作库与动作分类"]
+  B --> C["创建课程"]
+  C --> D["编辑 Warm Up"]
+  C --> E["编辑 Training Pods"]
+  C --> F["编辑 Cool Down"]
+  E --> G["配置视频组/站点/Work Rest Switch"]
+  D --> H["保存课程脚本"]
+  G --> H
+  F --> H
+  H --> I["加入课程包"]
+  I --> J["按课程包排课"]
+  J --> K["场馆绑定课程包"]
+  K --> L["Coach 查看今日课表"]
+  L --> M["Coach 预览/开始课程"]
+  M --> N["Server 创建 Playback Session"]
+  N --> O["MQTT 通知 TV"]
+  O --> P["TV 拉取权威 Session 与 Daily Bundle"]
+  P --> Q["TV 校验并缓存媒体"]
+  Q --> R["多屏同步播放"]
+

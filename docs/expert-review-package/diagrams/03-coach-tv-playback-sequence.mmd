@@ -1,0 +1,47 @@
+sequenceDiagram
+  autonumber
+  participant Coach as Coach Web
+  participant API as Server API
+  participant Store as Store
+  participant MQTT as MQTT Gateway
+  participant EMQX as EMQX Broker
+  participant TV1 as TV Screen 1
+  participant TV3 as TV Screen 3
+  participant TV5 as TV Screen 5
+
+  Coach->>API: POST /api/tv/playback-sessions/preview
+  API->>API: 校验账号与场馆权限
+  API->>Store: 创建 PREVIEW session
+  Store-->>API: sessionId + accountNamespace
+  API->>MQTT: publish session_updated
+  API->>MQTT: publish preview_course
+  MQTT->>EMQX: infini/tv/session/{namespace}
+  MQTT->>EMQX: infini/tv/control/{namespace}
+  EMQX-->>TV1: preview_course
+  EMQX-->>TV3: preview_course
+  EMQX-->>TV5: preview_course
+  TV1->>API: GET current session / daily bundle if needed
+  TV3->>API: GET current session / daily bundle if needed
+  TV5->>API: GET current session / daily bundle if needed
+  TV1-->>TV1: 显示预览，不开始计时
+  TV3-->>TV3: 显示预览，不开始计时
+  TV5-->>TV5: 显示预览，不开始计时
+
+  Coach->>API: POST /api/tv/playback-sessions/{id}/start
+  API->>Store: 写入 SCHEDULED/RUNNING + playbackStartAtMs
+  Store-->>API: authoritative session
+  API->>MQTT: publish session_updated + start_course
+  MQTT->>EMQX: publish to namespace
+  EMQX-->>TV1: start_course
+  EMQX-->>TV3: start_course
+  EMQX-->>TV5: start_course
+  TV1->>API: 拉取权威 session
+  TV3->>API: 拉取权威 session
+  TV5->>API: 拉取权威 session
+  TV1-->>TV1: 等待 playbackStartAtMs
+  TV3-->>TV3: 等待 playbackStartAtMs
+  TV5-->>TV5: 等待 playbackStartAtMs
+  TV1-->>TV1: 按 serverStartAtMs 计算 offset
+  TV3-->>TV3: 按 serverStartAtMs 计算 offset
+  TV5-->>TV5: 按 serverStartAtMs 计算 offset
+

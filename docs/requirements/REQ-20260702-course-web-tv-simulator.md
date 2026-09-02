@@ -5,7 +5,7 @@
 - Status: Ready for QA
 - Owner: Course playback simulation
 - Created: 2026-07-02
-- Updated: 2026-07-03
+- Updated: 2026-07-19
 - Related docs:
   - [COACH_TV_SCHEDULE_AND_START_SEQUENCE](../COACH_TV_SCHEDULE_AND_START_SEQUENCE.md)
   - [REQ-20260702-tv-horizontal-formal-training-time](REQ-20260702-tv-horizontal-formal-training-time.md)
@@ -14,7 +14,7 @@
 
 ## Requirement Summary
 
-编课者需要在课程编辑端直接模拟 TV 跑课效果，用于检查课程内容、屏幕编排、正式组计时和课程计划展示。为了不污染 Course Web 的路由和代码复杂度，新增独立前端子项目 `apps/websimulator`，部署在 Course 域名的 `/simulator/` 子路径。Course Web 只在课程列表 item 上增加一个播放入口，新页面通过 `courseId` 查询课程数据并在浏览器内本地模拟 TV 端 Preview / Start / Pause / Resume / Plan 行为，不使用 MQTT，不写真实 playback session。Simulator 进入页面后会先准备本课程所有视频资源：同源或允许 CORS 的资源缓存为浏览器 Blob URL；跨域且不允许 `fetch` 的 OSS 资源退到 `<video preload>` 可播放性预加载。资源准备完成前禁用预览、开始课程、暂停/继续、计划、结束和重置按钮。
+编课者需要在课程编辑端直接模拟 TV 跑课效果，用于检查课程内容、屏幕编排、正式组计时和课程计划展示。为了不污染 Course Web 的路由和代码复杂度，新增独立前端子项目 `apps/websimulator`，部署在 Course 域名的 `/simulator/` 子路径。Course Web 只在课程列表 item 上增加一个播放入口，新页面通过 `courseId` 查询课程数据并在浏览器内本地模拟 TV 端 Preview / Start / Pause / Resume / Plan 行为，不使用 MQTT，不写真实 playback session。Simulator 进入页面后会完整下载本课程所有视频资源并缓存为浏览器 Blob URL；本地媒体由 Course 域名内的 Nginx X-Accel location 直出，既有上海 OSS 资源由 simulator 专用同源代理下载。所有资源完成并通过体积、类型和文件头校验前，预览、开始课程、暂停/继续、计划、结束和重置按钮保持禁用。
 
 ## Feasibility Check
 
@@ -25,7 +25,7 @@
 - Course 列表入口只有 `courseId`，而现有 TV 完整资源接口 `/api/tv/schedule-bundle` 需要 `scheduleId`。因此 simulator 不应强依赖 TV schedule/session API，而应通过 `/api/courses/{courseId}` 或 `/api/meta?courseId=...` 读取课程与动作媒体，再在前端补齐 `mediaUrl`，对齐 server 里的 `resolveScriptMediaUrls()` 口径。
 - 不能调用 `/api/tv/playback-sessions/*` 和 `/api/tv/control` 来模拟播放，否则会创建真实场馆 session 或发布 MQTT，影响现场 TV。
 - Web 端可以做到行为和视觉约束 1:1 对齐，但不能完全复用 Android View 代码。需要把 TV 的播放时间线、正式训练时长、screen materialize、row layout 等逻辑用 TypeScript 复刻，并用测试对齐 Android 端样例。
-- 浏览器视频自动播放策略和 Android TV 不完全一致，simulator 视频默认应 `muted`、`playsInline`、本地循环播放；页面加载阶段优先把课程视频下载成 session-scoped Blob URL，避免跑课中边播边拉资源导致卡住。若外部 OSS 没有 CORS，浏览器不允许 JS 读取 Blob，只能用 video preload 预热和验证可播放性。该缓存只在当前浏览器页面生命周期内有效，不做 TV 端那种持久化磁盘缓存。
+- 浏览器视频自动播放策略和 Android TV 不完全一致，simulator 视频默认应 `muted`、`playsInline`、本地循环播放；页面加载阶段把课程视频完整下载成 session-scoped Blob URL，避免跑课中边播边拉资源导致卡住。外部 OSS 没有 CORS 时必须通过限定来源的同源 Nginx 代理下载，不能用 `loadeddata` 或 `canplay` 代替完整缓存。该缓存只在当前浏览器页面生命周期内有效，不做 TV 端那种持久化磁盘缓存。
 
 ## Background
 
@@ -39,6 +39,7 @@
   - `MainActivityTrainingTimelineController` 负责正式组状态。
   - `MainActivityCoursePlanController` 负责课程计划面板。
 - `apps/server` 已有课程详情、TV daily bundle、TV schedule bundle 和 playback session API。这个需求原则上不改 server 接口。
+- Pod ending 时长与 TV 使用相同口径：`HYDRATE/MOVE_ZONE` 优先读取 `pods[].endingSeconds`，历史课程缺少该字段时回退 `metadata.defaultHydrateSeconds`，`FINISH` 为 0。
 
 ## Goals
 
@@ -187,14 +188,12 @@ on app mount:
 
   for resource in resources with concurrency=4:
     try:
-      blob = fetch(resource.mediaUrl)
+      downloadUrl = sameOriginOrWhitelistedOssProxy(resource.mediaUrl)
+      blob = fetch(downloadUrl)
+      validate size, response type and video file signature
       blobUrl = URL.createObjectURL(blob)
       replace source mediaUrl with blobUrl
       log success(status, bytes, duration, speed)
-    if resource is cross-origin:
-      videoPreload(resource.mediaUrl)
-      keep source mediaUrl
-      log fallback(origin, duration)
 
   preparedCourse = resolvedCourse with cacheable mediaUrl replaced by blobUrl
   localSession = createIdleSession(preparedCourse)
@@ -222,7 +221,7 @@ for training video card:
   card.mediaUrl = actionMediaMap[card.actionId] || card.mediaUrl || ""
 ```
 
-`cacheCourseMedia()` 当前采用浏览器内存 Blob URL 缓存，而不是 IndexedDB 或持久化磁盘缓存。原因是 simulator 的目标是让一次预览/跑课过程稳定，不把额外缓存生命周期引入 Course Web；刷新页面会重新准备本课程视频。跨域资源默认不做 Blob fetch，避免 Chrome Network 出现 CORS 失败请求；当前用 hidden video preload 作为降级路径，并在 `window.__infiniSimulatorMediaLog` 和页面诊断日志里标记 `fallback | video-preload`。
+`cacheCourseMedia()` 当前采用浏览器内存 Blob URL 缓存，而不是 IndexedDB 或持久化磁盘缓存。原因是 simulator 的目标是让一次预览/跑课过程稳定，不把额外缓存生命周期引入 Course Web；刷新页面会重新准备本课程视频。`/api/media/*` 由 Course 域名的内部 Nginx location 完成 X-Accel 直出，`console-background.oss-cn-shanghai.aliyuncs.com` 经 `/simulator-media/oss-shanghai/*` 同源代理下载。其他外域资源只有允许 CORS、能够读取完整 Blob 时才可通过；否则整门课保持不可开始。下载结果必须至少 1 KiB，且 MP4/MOV/WebM 文件头正确，避免 SPA fallback HTML 被误判为视频。
 
 ## Local Playback State
 
@@ -479,7 +478,8 @@ Manual browser QA:
 | `/simulator/` 被 Course Web SPA fallback 吃掉 | 当前部署为 Course 静态根目录下的真实 `/simulator/` 子目录，配合 Vite `base=/simulator/`；如未来迁出再加独立 nginx location。 |
 | 浏览器自动播放限制导致视频黑屏 | 视频默认 muted/playsInline/preload；进入页面后先准备视频，再开始本地播放。 |
 | 浏览器 Blob 缓存占用内存 | 缓存只在当前页面生命周期内存在；切换课程、重新加载或离开 simulator 时 revoke Object URL。大课程仍需要关注 Safari/移动浏览器内存上限。 |
-| 视频源不允许浏览器 fetch | 同源或有 CORS 的资源走 Blob 缓存；无 CORS 的跨域 OSS 资源走 video preload 降级，并在诊断日志里记录 fallback。若未来需要真正全量 Blob 缓存，需要在 OSS 补 CORS 或提供同源代理。 |
+| 视频源不允许浏览器 fetch | 已知上海 OSS 走 simulator 专用同源 Nginx 代理；其他外域资源必须配置 CORS 或新增受限代理，否则缓存失败且控制按钮保持 disabled。 |
+| X-Accel 只在 API 域名配置内部 location | Course 域名也包含同一个 `internal` media location；否则 `/api/media/*` 的内部跳转会落到 Course SPA fallback，并返回 `index.html`。 |
 | 串行下载导致进入页面慢 | 当前最多 4 个资源并发准备，保留进度和逐资源诊断，避免 25 个小视频逐个等待。 |
 | 1:1 视觉范围过大 | 第一版优先保证时间线、屏幕映射、布局约束、计划/控制行为；视觉细节按 TV controller 分阶段补齐。 |
 
@@ -503,7 +503,7 @@ Expected:
 
 - Course Web 原页面路由不变化。
 - Simulator 页面不触发真实 TV、不创建真实 session、不发 MQTT。
-- 预览和开始课程优先使用 Blob URL 缓存后的课程视频；跨域无 CORS 资源使用已预加载验证的原始视频 URL，并在诊断日志中显示 fallback。
+- 预览和开始课程只使用完整下载并校验后的 Blob URL；运行期间不再使用原始网络视频 URL。
 - 三个竖屏按 TV 物理映射渲染内容：物理屏 1/3/5 对应脚本屏 1/2/3；单屏视频组会 materialize 到三个竖屏。
 - 暂停期间倒计时和 elapsed 冻结，继续后恢复。
 - 横屏正式组时间总时长与编课端 summary 的 trainingSeconds 口径一致。
@@ -513,7 +513,7 @@ Expected:
 1. 未登录状态直接打开 `/simulator/?courseId=1`。
 2. 打开不存在或无权限的 `courseId`。
 3. 打开缺少视频 URL 的课程。
-4. 打开视频 URL 下载失败、返回空文件或跨域预加载失败的课程。
+4. 打开视频 URL 下载失败、返回空文件、返回 SPA HTML 或跨域 Blob 下载失败的课程。
 5. 浏览器宽度小于四屏总宽。
 
 Expected:
@@ -521,7 +521,7 @@ Expected:
 - 未登录提示先回 Course Web 登录，不显示空白页。
 - 无权限/不存在课程显示错误，不进入播放器。
 - 缺少视频 URL 时对应卡片显示占位，其他计时逻辑仍可跑。
-- 视频下载失败、返回空文件或跨域预加载失败时显示缓存失败，控制按钮保持 disabled，不进入播放器。
+- 视频下载失败、返回空文件、文件头无效或跨域 Blob 下载失败时显示缓存失败，控制按钮保持 disabled，不进入播放器。
 - 页面出现横向/纵向滚动或自动换行，但单个屏幕内部不被压坏。
 
 ## Deployment / Rollback
@@ -531,8 +531,9 @@ Expected:
   2. `apps/websimulator npm run build`
   3. `apps/course-web npm run build` 仅在课程列表入口按钮改动时需要。
 - Deploy order:
-  1. 发布 simulator 静态产物到 `/var/www/infini-course/simulator`。
-  2. 发布 Course Web 的播放入口按钮；后续 simulator-only 修复不需要重发 Course Web。
+  1. Course Nginx server block 引入 `infini-media-location.conf`，并配置限定来源的 `/simulator-media/oss-shanghai/` 代理；`nginx -t` 后 reload。
+  2. 发布 simulator 静态产物到 `/var/www/infini-course/simulator`。
+  3. 发布 Course Web 的播放入口按钮；后续 simulator-only 修复不需要重发 Course Web。
 - Rollback:
   - 先回滚 Course Web 按钮，用户不再进入 simulator。
   - 保留或删除 `/simulator/` 静态目录均不影响 Course Web。

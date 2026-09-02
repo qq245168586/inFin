@@ -1,0 +1,28 @@
+sequenceDiagram
+  autonumber
+  participant TV as Unbound TV
+  participant Coach as Coach Web
+  participant API as Server API
+  participant Store as Store
+  participant MQTT as MQTT Gateway
+  participant EMQX as EMQX Broker
+
+  TV->>TV: 生成 deviceId + pairToken
+  TV-->>Coach: 展示二维码
+  TV->>API: POST heartbeat / pairing presence
+  Coach->>API: 扫码提交 deviceId + screenNumber
+  API->>API: 校验 Coach 场馆权限
+  API->>Store: bind deviceId -> venue namespace + screenNumber
+  Store-->>API: bound tvScreen
+  API->>MQTT: publish assign_screen to __unbound__
+  MQTT->>EMQX: infini/tv/control/__unbound__
+  EMQX-->>TV: assign_screen
+  TV->>TV: 保存 accountNamespace + screenNumber
+  TV->>EMQX: 订阅 infini/tv/control/{namespace}
+  TV->>API: GET daily-checksum
+  API-->>TV: checksum + schedules summary
+  TV->>API: GET daily-bundle if changed
+  API-->>TV: schedules + resources
+  TV->>TV: 下载/校验媒体缓存
+  TV-->>TV: 进入今日课表
+

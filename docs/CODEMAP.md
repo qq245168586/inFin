@@ -41,7 +41,12 @@ flowchart LR
 - `src/data/json-store/media-app-store.ts`：媒体文件和 TV app package 上传、登记、下载。
 - `src/services/media-thumbnails.ts`：动作视频服务端缩略图派生缓存，按 action/media 版本生成 JPG，不写入 DB。
 - `src/services/media-delivery.ts`：校验本地媒体路径、生成 immutable/ETag/Last-Modified 响应并在配置开启时通过 `X-Accel-Redirect` 把文件发送交给 Nginx；未开启时回退到 Node Range 流。
+- `src/interfaces/http/tv-diagnostic-upload.ts`：`POST /api/tv/diagnostics` 接收有大小/超时限制的 JSONL 文件；通过 `tv-store.authenticateTvDiagnosticUpload` 只读验证设备私有绑定，不暴露 pair token、不写 DB。
+- `src/services/tv-diagnostic-schema.ts`：错误类型/code/message/时间 schema、context 白名单、敏感信息脱敏及设备身份校验。
+- `src/services/tv-diagnostic-files.ts`：诊断文件落入 `INFINI_DATA_ROOT/tv-diagnostics`，以北京时间/场馆/设备分目录，带屏幕和版本文件名；原子写入、幂等、限流/额度、32 个待处理操作上限，启动与每小时清理接收时间满 10 天的日志；为 Ops 提供有文件数/字节上限的只读分类查询，不返回路径和校验摘要。
+- `src/interfaces/http/compat-request-handler.ts`：`GET /api/ops/tv-diagnostics` 仅允许 super admin，按日期、场馆、设备、屏幕、六类错误和错误码过滤脱敏记录。
 - `scripts/nginx-infini-media-*.conf`：Nginx http/server 两层媒体配置；通过 `/srv/infini-media` bind mount 读取应用媒体，不放宽 home 权限；用设备 ID + 屏幕号 + URI 识别同资源并发，静态 `sendfile` 和独立 JSON access log 只作用于 TV 媒体内部 location。
+- 生产 OSS Bucket 的对象访问由 OSS 服务端访问日志记录到 `oss-access-logs/`；生命周期规则 `expire-infini-oss-access-logs-30d` 只清理该前缀下超过 30 天的日志，不影响媒体对象。计量与费用仍以 OSS 监控和账单为准。
 - `scripts/deploy-remote.sh`：识别线上 `infini-platform.service` 并通过 systemd 重启，写入媒体 X-Accel drop-in 后轮询健康检查；仅在没有 systemd unit 的环境回退到独立 Node 进程。
 - `src/data/json-store/admin-store.ts`：用户、场馆、课程包、管理端元数据。
 - `src/data/json-store/content-store.ts`：动作、动作类型、课程、课程模板。
@@ -111,6 +116,9 @@ Android TV 客户端：
 - 物理屏幕 1/3/5 使用 `CACHE_REQUIRED` 缓存课程视频；横屏信息屏 2/4 使用 `METADATA_ONLY`，包括按 schedule 兜底加载时也不下载 MP4。
 - TV 媒体缓存请求携带 device/screen/checksum/app-version header；遇到 `429`、临时 `5xx` 或网络错误只做有限指数退避，下载完成后仍以 size/checksum 校验为准。
 - 训练卡片和 warm up/cool down 的 `VideoView` 只接受存在、可读、非空的本地文件；远程 URL 或缺失缓存显示占位，不进行远程串流和无限播放重试。
+- `InfiniApplication` 初始化 `diagnostics/TvDiagnostics`；`DiagnosticEvent` 统一事件与脱敏，`DiagnosticOutbox` 负责本地限额文件，`DiagnosticUploadPump` 负责后台补传/退避。Java crash 先同步落盘再交给 Android 原 handler，下次启动补传。
+- `diagnostics/DiagnosticHttpEvents` 接入公共 OkHttp 客户端，统一记录 API/下载 HTTP 错误及网络失败；`PlayerDiagnostics` 接入训练和热身/冷身 VideoView，记录本地媒体错误码且保留原恢复行为；媒体缓存入口单独记录最终下载/校验失败。
+- `repository/DiagnosticUploadClient` 通过 `ApiClient.requestFile` 复用请求封装与兼容地址选择，但独立 fallback 计数、15 秒超时、禁用自身错误上报，避免递归日志和影响课程请求。日志不通过 MQTT，也不进入视频缓存或 OSS。
 - RUNNING 进度使用服务端 `serverNowMs/serverStartAtMs` 和请求 RTT 修正，避免不同盒子本机时间差导致 1/3/5 屏不同步。
 - 横屏进度条下方正式训练时间仅对 `venue-432a10d5` 测试场馆显示，口径对齐编课端 `trainingSeconds`：包含正式 pod 内部训练时间，排除 warm up、cool down 和 pod ending hydrate/move zone。
 - Pod 结束过渡时长由 `script.training.pods[].endingSeconds` 独立控制；历史课程缺失时回退 `script.metadata.defaultHydrateSeconds`。Shared summary、Course editor 与 TV timeline 必须保持同一口径。
@@ -118,6 +126,7 @@ Android TV 客户端：
 - SWITCH Pod 的 `loopCount` 表示 AB 轮次数，独立于视频卡和 AB 对数量；第 n 轮按视频卡相邻配对循环取 AB。A→B 使用 SWITCH，同一 AB 多组间使用 REST，AB 轮次之间使用 MOVE STATION；Shared/Server 摘要与 session 时长、Course/Admin 计时、Web Simulator 以及 TV 竖屏/横屏时间线必须保持一致。
 - 播放竖屏/横屏不同 UI。
 - 支持课程同步、暂停、结束、计划展示、静默更新。
+- TV 视觉资源集中在 `app/src/main/res/values/colors.xml`、`themes.xml` 与 `res/drawable`，主界面结构集中在 `res/layout/activity_main.xml`；Java 动态生成的课表、训练卡、课程计划和设置项必须复用同一视觉资源。视觉调整不得改变现有 View ID、MVI surface、屏幕映射或点击/播放行为。
 
 ### `apps/download-web`
 
@@ -131,7 +140,8 @@ TV APK 下载页：
 
 运维调试页面：
 
-- 用于查看 MQTT/TV 日志。
+- `src/OpsWebApp.tsx` 默认提供 TV 错误日志视图，按播放、下载、网络、API、MQTT、崩溃六类统计和筛选，列表选择后显示 message/context/stack trace。
+- 保留 MQTT 与设备总览视图，通过顶部切换进入。
 - 帮助排查同步、下发指令、设备在线等问题。
 - 不面向普通教练和编课人员。
 

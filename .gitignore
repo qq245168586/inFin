@@ -26,3 +26,5 @@
 !apps/ops-web
 !apps/server
 !apps/tv-android
+!apps/websimulator
+!apps/websimulator/**

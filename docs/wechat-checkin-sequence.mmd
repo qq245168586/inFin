@@ -7,6 +7,18 @@ sequenceDiagram
     participant TV as TV 签课屏
     participant Coach as Coach 端
 
+    Member->>Mini: 首次打开小程序
+    Mini->>Server: POST /api/mini/auth/wechat-login wx.login code
+    Server->>Store: 换取并保存 openId / unionId / 登录态
+    Store-->>Server: member profile
+    Server-->>Mini: 自定义登录态 + 会员状态
+
+    Member->>Mini: 同意手机号授权
+    Mini->>Server: POST /api/mini/auth/bind-phone getPhoneNumber code
+    Server->>Store: 换取手机号并绑定会员档案
+    Store-->>Server: member updated
+    Server-->>Mini: 绑定成功
+
     Member->>Mini: 打开今日课程
     Mini->>Server: GET /api/mini/courses?date=...
     Server->>Store: 查询场馆可预约场次

@@ -1,0 +1,91 @@
+erDiagram
+  USER ||--o{ VENUE_USER : binds
+  VENUE ||--o{ VENUE_USER : has
+  VENUE ||--o{ TV_SCREEN : owns
+  VENUE ||--o{ PLAYBACK_SESSION : runs
+  VENUE }o--o{ COURSE_PACKAGE : binds
+  COURSE_PACKAGE ||--o{ SCHEDULE : contains
+  COURSE_PACKAGE }o--o{ COURSE : includes
+  COURSE ||--o{ SCHEDULE : scheduled_as
+  COURSE ||--o{ COURSE_SCRIPT : has
+  COURSE_SCRIPT ||--o{ VIDEO_GROUP : uses
+  COURSE_SCRIPT ||--o{ POD : contains
+  VIDEO_GROUP ||--o{ VIDEO_GROUP_SCREEN : contains
+  VIDEO_GROUP_SCREEN ||--o{ VIDEO_CARD : contains
+  ACTION ||--o{ VIDEO_CARD : referenced_by
+  ACTION_TYPE ||--o{ ACTION : classifies
+  MEDIA ||--o{ ACTION : stores_video
+  TEMPLATE }o--o{ COURSE_PACKAGE : scoped_to
+  PLAYBACK_SESSION }o--|| SCHEDULE : for
+  PLAYBACK_SESSION }o--|| COURSE : plays
+
+  USER {
+    string id
+    string account
+    string role
+    string venueId
+    boolean enabled
+  }
+
+  VENUE {
+    string id
+    string name
+    string accountNamespace
+    number activeCoursePackageId
+  }
+
+  COURSE_PACKAGE {
+    number id
+    string name
+    string description
+    boolean isDefault
+  }
+
+  COURSE {
+    number id
+    string name
+    string version
+    string creator
+  }
+
+  SCHEDULE {
+    number id
+    number courseId
+    number coursePackageId
+    string beginTime
+    number duration
+  }
+
+  TV_SCREEN {
+    string deviceId
+    number screenNumber
+    string accountNamespace
+    string appVersion
+    string playbackState
+    string lastSeenAt
+  }
+
+  PLAYBACK_SESSION {
+    string id
+    string accountNamespace
+    number scheduleId
+    number courseId
+    string state
+    number serverStartAtMs
+    number playbackStartAtMs
+  }
+
+  ACTION {
+    number id
+    string name
+    number actionTypeId
+    string mediaId
+  }
+
+  MEDIA {
+    string id
+    string filename
+    string checksum
+    number size
+  }
+
