@@ -1,0 +1,89 @@
+/* Constrain decorative rounding across operational surfaces. */
+.venue-top,
+.venue-panel,
+.venue-card,
+.venue-screen,
+.venue-user,
+.venue-course-package,
+.course-package-course,
+.page-card,
+.section-card,
+.module-card,
+.screen-card,
+.screen-video-row,
+.screen-video-slot-card,
+.screen-video-edit-card,
+.action-picker-search-card,
+.action-picker-preview-card,
+.dialog-card,
+.table-wrap,
+.table-card,
+.calendar-date-picker-pill,
+.calendar-date-pill,
+.schedule-day-section,
+.schedule-list-card,
+.course-plan-section-card,
+.ready-duration-panel,
+.waterfall-row,
+.card-row,
+.asset-panel,
+.versions-summary-card,
+.versions-upload-card,
+.versions-list-card {
+  border-radius: 8px;
+}
+
+@media (max-width: 1280px) {
+  .course-topbar {
+    padding: 10px 18px 0;
+  }
+
+  .course-topbar-main {
+    width: 100%;
+  }
+
+  .top-nav-tabs {
+    order: 3;
+    max-width: none;
+    border-top: 1px solid #252c34;
+  }
+
+  .top-nav-tab {
+    min-height: 54px;
+  }
+}
+
+@media (max-width: 720px) {
+  .login-shell {
+    padding: 12px;
+  }
+
+  .login-stage {
+    min-height: calc(100vh - 24px);
+  }
+
+  .login-stage::before {
+    display: none;
+  }
+
+  .login-panel {
+    width: 100%;
+    padding: 30px 22px;
+    border-left: 0;
+    border-top: 1px solid #252c34;
+  }
+
+  .course-topbar-main,
+  .course-shell .workspace-body {
+    width: 100%;
+  }
+
+  .course-shell .workspace-body {
+    padding: 12px;
+  }
+
+  .course-shell .page-card {
+    border-radius: 8px;
+  }
+}
+

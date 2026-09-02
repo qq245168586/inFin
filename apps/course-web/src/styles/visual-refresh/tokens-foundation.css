@@ -1,0 +1,52 @@
+/* Course Studio workstation theme */
+:root {
+  color-scheme: dark;
+  --bg-dark: #0a0c0f;
+  --bg-dark-soft: #0f1216;
+  --bg-panel: #12161b;
+  --bg-line: #252c34;
+  --text-main: #f4f7fb;
+  --text-subtle: #a6b0bc;
+  --text-faint: #77828f;
+  --line: #2a323c;
+  --brand: #2d7dff;
+  --brand-soft: rgba(45, 125, 255, 0.14);
+  --brand-line: rgba(73, 145, 255, 0.46);
+  --accent-gold: #d9bc72;
+  --accent-gold-soft: rgba(217, 188, 114, 0.12);
+  --success: #35c889;
+  --danger: #ff6259;
+  --shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  background: #0a0c0f;
+}
+
+body {
+  background: #0a0c0f;
+  color: var(--text-main);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #5a9aff;
+  outline-offset: 2px;
+}
+
+button {
+  color: inherit;
+}
+

@@ -35,9 +35,7 @@ body,
 body {
   margin: 0;
   min-width: 1100px;
-  background:
-    radial-gradient(circle at top left, rgba(29, 111, 255, 0.16), transparent 26%),
-    linear-gradient(180deg, #f1f7ff 0%, #ffffff 56%, #f7fbff 100%);
+  background: #0a0c0f;
   color: var(--text-main);
 }
 
@@ -149,9 +147,9 @@ body {
 }
 
 .venue-list-item.is-active {
-  border-color: rgba(148, 28, 255, 0.65);
-  box-shadow: 0 0 0 3px rgba(148, 28, 255, 0.12);
-  background: rgba(148, 28, 255, 0.1);
+  border-color: rgba(45, 125, 255, 0.65);
+  box-shadow: 0 0 0 3px rgba(45, 125, 255, 0.12);
+  background: rgba(45, 125, 255, 0.1);
 }
 
 .venue-detail-body {
@@ -201,8 +199,8 @@ body {
 
 .venue-course-package.is-active,
 .course-package-course.is-selected {
-  border-color: rgba(148, 28, 255, 0.45);
-  background: rgba(148, 28, 255, 0.08);
+  border-color: rgba(45, 125, 255, 0.45);
+  background: rgba(45, 125, 255, 0.08);
 }
 
 .venue-bind-package {
@@ -241,7 +239,7 @@ body {
   width: 28px;
   height: 28px;
   border-radius: 8px;
-  border: 1px solid rgba(148, 28, 255, 0.42);
+  border: 1px solid rgba(45, 125, 255, 0.42);
   color: var(--brand);
   display: inline-flex;
   align-items: center;
@@ -285,8 +283,8 @@ body {
 }
 
 .account-package-chip.is-selected {
-  border-color: rgba(148, 28, 255, 0.42);
-  background: rgba(148, 28, 255, 0.1);
+  border-color: rgba(45, 125, 255, 0.42);
+  background: rgba(45, 125, 255, 0.1);
   color: var(--brand);
 }
 
@@ -297,9 +295,9 @@ body {
 .venue-pill {
   padding: 6px 10px;
   border-radius: 999px;
-  border: 1px solid rgba(148, 28, 255, 0.3);
+  border: 1px solid rgba(45, 125, 255, 0.3);
   color: var(--brand);
-  background: rgba(148, 28, 255, 0.08);
+  background: rgba(45, 125, 255, 0.08);
   font-weight: 700;
   font-size: 12px;
 }
@@ -359,10 +357,10 @@ body {
 .venue-screen-command {
   min-height: 34px;
   padding: 0 12px;
-  border: 1px solid rgba(148, 28, 255, 0.24);
+  border: 1px solid rgba(45, 125, 255, 0.24);
   border-radius: 999px;
-  background: rgba(148, 28, 255, 0.08);
-  color: rgba(148, 28, 255, 0.92);
+  background: rgba(45, 125, 255, 0.08);
+  color: rgba(45, 125, 255, 0.92);
   font-size: 12px;
   font-weight: 900;
 }
@@ -377,9 +375,9 @@ body {
   border-radius: 999px;
   font-size: 12px;
   font-weight: 800;
-  border: 1px solid rgba(148, 28, 255, 0.2);
-  color: rgba(148, 28, 255, 0.8);
-  background: rgba(148, 28, 255, 0.08);
+  border: 1px solid rgba(45, 125, 255, 0.2);
+  color: rgba(45, 125, 255, 0.8);
+  background: rgba(45, 125, 255, 0.08);
 }
 
 .venue-dot.is-on {
@@ -416,9 +414,9 @@ body {
 .venue-badge {
   padding: 6px 10px;
   border-radius: 999px;
-  background: rgba(148, 28, 255, 0.08);
-  border: 1px solid rgba(148, 28, 255, 0.2);
-  color: rgba(148, 28, 255, 0.85);
+  background: rgba(45, 125, 255, 0.08);
+  border: 1px solid rgba(45, 125, 255, 0.2);
+  color: rgba(45, 125, 255, 0.85);
   font-size: 12px;
   font-weight: 800;
 }
@@ -481,8 +479,8 @@ body {
 }
 
 .venue-picker-item.is-selected {
-  background: rgba(148, 28, 255, 0.08);
-  box-shadow: inset 0 0 0 2px rgba(148, 28, 255, 0.18);
+  background: rgba(45, 125, 255, 0.08);
+  box-shadow: inset 0 0 0 2px rgba(45, 125, 255, 0.18);
 }
 
 .venue-search {
@@ -604,7 +602,7 @@ body {
   box-shadow: var(--shadow);
   background:
     linear-gradient(90deg, rgba(24, 26, 38, 0.98) 0, rgba(24, 26, 38, 0.98) 320px, rgba(255, 255, 255, 0.96) 320px),
-    linear-gradient(140deg, rgba(148, 28, 255, 0.12), rgba(255, 255, 255, 0.96) 40%);
+    linear-gradient(140deg, rgba(45, 125, 255, 0.12), rgba(255, 255, 255, 0.96) 40%);
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr);
 }
@@ -1023,7 +1021,7 @@ textarea.is-invalid:focus {
   border-radius: 14px;
   color: var(--brand);
   background: #ffffff;
-  border: 1px solid rgba(148, 28, 255, 0.12);
+  border: 1px solid rgba(45, 125, 255, 0.12);
   box-shadow: 0 12px 24px rgba(15, 19, 34, 0.12);
   display: inline-flex;
   align-items: center;
@@ -1113,8 +1111,8 @@ textarea.is-invalid:focus {
 
 .nav-item.is-active {
   color: #ffffff;
-  background: linear-gradient(90deg, #8511ff 0%, #b51cff 100%);
-  box-shadow: 0 18px 40px rgba(148, 28, 255, 0.3);
+  background: linear-gradient(90deg, #276fdf 0%, #4b91ff 100%);
+  box-shadow: 0 18px 40px rgba(45, 125, 255, 0.3);
 }
 
 .nav-icon {
@@ -1196,7 +1194,7 @@ textarea.is-invalid:focus {
   padding: 12px 14px;
   border-radius: 14px;
   color: rgba(255, 255, 255, 0.86);
-  background: rgba(148, 28, 255, 0.16);
+  background: rgba(45, 125, 255, 0.16);
   border: 1px solid rgba(168, 85, 247, 0.28);
   display: grid;
   gap: 4px;
@@ -1362,7 +1360,7 @@ textarea.is-invalid:focus {
 
 .toolbar-field select:focus {
   border-color: var(--brand-line);
-  box-shadow: 0 0 0 3px rgba(148, 28, 255, 0.14);
+  box-shadow: 0 0 0 3px rgba(45, 125, 255, 0.14);
 }
 
 .primary-button,
@@ -1379,8 +1377,8 @@ textarea.is-invalid:focus {
 
 .primary-button {
   color: #ffffff;
-  background: linear-gradient(90deg, #8f18ff 0%, #b91dff 100%);
-  box-shadow: 0 12px 24px rgba(148, 28, 255, 0.24);
+  background: linear-gradient(90deg, #2d7dff 0%, #4b91ff 100%);
+  box-shadow: 0 12px 24px rgba(45, 125, 255, 0.24);
 }
 
 .primary-button.small {
@@ -1529,7 +1527,7 @@ textarea.is-invalid:focus {
   color: var(--brand);
   border-color: var(--brand);
   background: var(--brand-soft);
-  box-shadow: 0 12px 24px rgba(148, 28, 255, 0.12);
+  box-shadow: 0 12px 24px rgba(45, 125, 255, 0.12);
 }
 
 .calendar-date-pill.has-schedules {
@@ -1645,7 +1643,7 @@ textarea.is-invalid:focus {
   min-height: calc(58px * 24);
   border-right: 1px solid var(--line);
   background:
-    linear-gradient(180deg, rgba(148, 28, 255, 0.025), rgba(148, 28, 255, 0.012)),
+    linear-gradient(180deg, rgba(45, 125, 255, 0.025), rgba(45, 125, 255, 0.012)),
     #ffffff;
 }
 
@@ -1672,7 +1670,7 @@ textarea.is-invalid:focus {
 
 .calendar-event.tone-0 {
   background: #f7edff;
-  border-left-color: #941cff;
+  border-left-color: #2d7dff;
 }
 
 .calendar-event.tone-1 {
@@ -1812,7 +1810,7 @@ textarea.is-invalid:focus {
 
 .schedule-list-card.tone-0 {
   background: #f7edff;
-  border-left-color: #941cff;
+  border-left-color: #2d7dff;
 }
 
 .schedule-list-card.tone-1 {
@@ -1931,8 +1929,8 @@ textarea.is-invalid:focus {
   padding: 0 12px;
   border-radius: 999px;
   color: #ffffff;
-  background: linear-gradient(90deg, #8f18ff 0%, #b91dff 100%);
-  box-shadow: 0 10px 22px rgba(148, 28, 255, 0.22);
+  background: linear-gradient(90deg, #2d7dff 0%, #4b91ff 100%);
+  box-shadow: 0 10px 22px rgba(45, 125, 255, 0.22);
   font-size: 13px;
   font-weight: 900;
   white-space: nowrap;
@@ -1991,7 +1989,7 @@ textarea.is-invalid:focus {
 }
 
 .data-table tbody tr:hover td {
-  background: rgba(148, 28, 255, 0.02);
+  background: rgba(45, 125, 255, 0.02);
 }
 
 .data-table tbody tr.is-past td {
@@ -2179,7 +2177,7 @@ button.cached-video-thumbnail {
 }
 
 .table-tag.is-pending {
-  color: #7a46ff;
+  color: #4b91ff;
   background: rgba(122, 70, 255, 0.12);
 }
 
@@ -2191,7 +2189,7 @@ button.cached-video-thumbnail {
   min-height: 20px;
   padding: 0 7px;
   border-radius: 999px;
-  color: #6d39d8;
+  color: #4b91ff;
   background: rgba(122, 70, 255, 0.1);
   font-size: 10px;
   font-weight: 800;
@@ -2256,9 +2254,9 @@ button.cached-video-thumbnail {
   gap: 16px;
   margin: 0 0 14px;
   padding: 14px 16px;
-  border: 1px solid rgba(148, 28, 255, 0.16);
+  border: 1px solid rgba(45, 125, 255, 0.16);
   border-radius: 16px;
-  background: linear-gradient(135deg, rgba(148, 28, 255, 0.08), rgba(255, 223, 90, 0.12));
+  background: linear-gradient(135deg, rgba(45, 125, 255, 0.08), rgba(255, 223, 90, 0.12));
 }
 
 .course-list-nav > div {
@@ -2533,13 +2531,13 @@ button.cached-video-thumbnail {
 .filter-chip.is-active {
   color: var(--brand);
   border-color: var(--brand);
-  background: rgba(148, 28, 255, 0.05);
+  background: rgba(45, 125, 255, 0.05);
 }
 
 .filter-chip.is-add {
   color: #ffffff;
   border-color: transparent;
-  background: linear-gradient(90deg, #8f18ff 0%, #b91dff 100%);
+  background: linear-gradient(90deg, #2d7dff 0%, #4b91ff 100%);
 }
 
 .type-filter-summary {
@@ -2864,7 +2862,7 @@ button.cached-video-thumbnail {
   color: var(--text-main);
   font-size: 12px;
   font-weight: 700;
-  background: rgba(143, 24, 255, 0.08);
+  background: rgba(45, 125, 255, 0.08);
 }
 
 .switch-rule-summary {
@@ -2873,7 +2871,7 @@ button.cached-video-thumbnail {
   padding: 12px 14px;
   border-radius: 12px;
   border: 1px solid rgba(89, 80, 255, 0.18);
-  background: rgba(143, 24, 255, 0.06);
+  background: rgba(45, 125, 255, 0.06);
   color: var(--text-main);
   font-size: 13px;
   line-height: 1.55;
@@ -2933,10 +2931,10 @@ button.cached-video-thumbnail {
 
 .course-plan-empty {
   padding: 22px;
-  border: 1px dashed rgba(143, 24, 255, 0.24);
+  border: 1px dashed rgba(45, 125, 255, 0.24);
   border-radius: 16px;
   color: var(--text-muted);
-  background: rgba(143, 24, 255, 0.05);
+  background: rgba(45, 125, 255, 0.05);
   line-height: 1.65;
 }
 
@@ -2976,7 +2974,7 @@ button.cached-video-thumbnail {
 .script-summary-card {
   padding: 18px;
   border-radius: 18px;
-  border: 1px solid rgba(148, 28, 255, 0.14);
+  border: 1px solid rgba(45, 125, 255, 0.14);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 242, 255, 0.98));
   display: grid;
   gap: 8px;
@@ -3669,8 +3667,8 @@ button.cached-video-thumbnail {
 }
 
 .copy-screen-option.is-selected {
-  border-color: rgba(143, 24, 255, 0.36);
-  box-shadow: 0 0 0 3px rgba(143, 24, 255, 0.08);
+  border-color: rgba(45, 125, 255, 0.36);
+  box-shadow: 0 0 0 3px rgba(45, 125, 255, 0.08);
   background: rgba(248, 242, 255, 0.96);
 }
 
@@ -3855,7 +3853,7 @@ button.cached-video-thumbnail {
   padding: 16px 18px;
   border-radius: 14px;
   background: #f7f2ff;
-  border: 1px solid rgba(148, 28, 255, 0.12);
+  border: 1px solid rgba(45, 125, 255, 0.12);
 }
 
 .batch-upload-note strong {
@@ -3980,9 +3978,7 @@ button.cached-video-thumbnail {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background:
-    radial-gradient(circle at 12% 0%, rgba(29, 111, 255, 0.16), transparent 28%),
-    linear-gradient(180deg, #f4f9ff 0%, #ffffff 56%, #f8fbff 100%);
+  background: #0a0c0f;
 }
 
 .course-shell .workspace {
@@ -4433,8 +4429,8 @@ button.cached-video-thumbnail {
 .coach-day-pill.is-active {
   color: #ffffff;
   border-color: transparent;
-  background: linear-gradient(180deg, #8d18ff 0%, #6616f8 100%);
-  box-shadow: 0 18px 36px rgba(148, 28, 255, 0.24);
+  background: linear-gradient(180deg, #2d7dff 0%, #1959bd 100%);
+  box-shadow: 0 18px 36px rgba(45, 125, 255, 0.24);
 }
 
 .coach-day-pill.is-active strong {
@@ -4509,13 +4505,13 @@ button.cached-video-thumbnail {
 
 .coach-schedule-card:hover {
   transform: translateY(-1px);
-  border-color: rgba(148, 28, 255, 0.24);
+  border-color: rgba(45, 125, 255, 0.24);
   box-shadow: 0 14px 24px rgba(23, 28, 42, 0.08);
 }
 
 .coach-schedule-card.is-selected {
-  border-color: rgba(148, 28, 255, 0.3);
-  box-shadow: 0 18px 30px rgba(148, 28, 255, 0.12);
+  border-color: rgba(45, 125, 255, 0.3);
+  box-shadow: 0 18px 30px rgba(45, 125, 255, 0.12);
 }
 
 .coach-schedule-logo {
@@ -4571,7 +4567,7 @@ button.cached-video-thumbnail {
 .coach-schedule-badge.is-live,
 .coach-preview-state.is-running {
   color: #ffffff;
-  background: linear-gradient(90deg, #7d11ff 0%, #b91dff 100%);
+  background: linear-gradient(90deg, #2d7dff 0%, #4b91ff 100%);
 }
 
 .coach-schedule-badge.is-paused,
@@ -4586,8 +4582,8 @@ button.cached-video-thumbnail {
 }
 
 .coach-schedule-badge.is-idle {
-  color: #7d11ff;
-  background: rgba(148, 28, 255, 0.12);
+  color: #2d7dff;
+  background: rgba(45, 125, 255, 0.12);
 }
 
 .coach-preview-panel {
@@ -4692,7 +4688,7 @@ button.cached-video-thumbnail {
 
 .coach-preview-dot.is-active {
   width: 28px;
-  background: linear-gradient(90deg, #7d11ff 0%, #b91dff 100%);
+  background: linear-gradient(90deg, #2d7dff 0%, #4b91ff 100%);
 }
 
 .coach-preview-actions {
@@ -4709,8 +4705,8 @@ button.cached-video-thumbnail {
 .coach-terminate-button.is-enabled {
   color: #ffffff;
   border-color: transparent;
-  background: linear-gradient(90deg, #7d11ff 0%, #b91dff 100%);
-  box-shadow: 0 12px 24px rgba(148, 28, 255, 0.18);
+  background: linear-gradient(90deg, #2d7dff 0%, #4b91ff 100%);
+  box-shadow: 0 12px 24px rgba(45, 125, 255, 0.18);
 }
 
 .versions-page {

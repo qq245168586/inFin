@@ -36,7 +36,7 @@ export default function LoginPage({
 
         <div className="login-panel">
           <div className="login-panel-copy">
-            <p className="workspace-kicker">Infini Admin</p>
+            <p className="workspace-kicker">Infini Course Studio</p>
             <h1>欢迎登录</h1>
             <p>输入账号和密码后进入后台。</p>
           </div>
@@ -85,7 +85,7 @@ export default function LoginPage({
           </div>
 
           <div className="login-panel-foot">
-            <div className="login-mark">INFINI ADMIN</div>
+            <div className="login-mark">INFINI COURSE</div>
           </div>
         </div>
       </section>

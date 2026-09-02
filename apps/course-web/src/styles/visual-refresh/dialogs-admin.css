@@ -1,0 +1,202 @@
+/* Action and type pickers */
+.action-picker-trigger {
+  border-color: #323b46;
+  border-radius: 6px;
+  color: #dbe2e9;
+  background: #0d1116;
+}
+
+.action-picker-trigger.has-value,
+.action-picker-trigger:hover,
+.action-picker-trigger:focus {
+  border-color: #4b91ff;
+  background: #121922;
+}
+
+.action-picker-modal,
+.video-slot-modal {
+  gap: 12px;
+}
+
+.action-picker-search-card,
+.action-picker-preview-card,
+.type-filter-dialog,
+.action-type-select-dialog {
+  border: 1px solid #2b343e;
+  border-radius: 8px;
+  background: #12171c;
+  box-shadow: none;
+}
+
+.action-picker-preview-card {
+  background: #0e1216;
+}
+
+.action-picker-option {
+  border-color: #2c3540;
+  border-radius: 6px;
+  color: #c6cfd8;
+  background: #151a20;
+}
+
+.action-picker-option:hover,
+.action-picker-option.is-selected {
+  border-color: #4b91ff;
+  color: #fff;
+  background: rgba(45, 125, 255, 0.14);
+}
+
+.action-picker-option span,
+.action-picker-preview-card p {
+  color: #818c98;
+}
+
+/* Dialogs and feedback */
+.dialog-mask,
+.venue-modal-mask {
+  background: rgba(0, 0, 0, 0.74);
+  backdrop-filter: blur(4px);
+}
+
+.dialog-card,
+.venue-modal {
+  border: 1px solid #333c47;
+  border-radius: 8px;
+  color: var(--text-main);
+  background: #13181e;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.55);
+}
+
+.dialog-head,
+.venue-modal-head {
+  border-bottom-color: #2a323c;
+  background: #171c22;
+}
+
+.dialog-head h3,
+.venue-modal-head h3 {
+  color: #f4f7fb;
+}
+
+.dialog-close {
+  border: 1px solid #333c47;
+  border-radius: 5px;
+  color: #aeb8c2;
+  background: #20262e;
+}
+
+.dialog-body,
+.dialog-foot {
+  background: #13181e;
+}
+
+.dialog-foot {
+  border-top: 1px solid #252d36;
+  padding-top: 16px;
+}
+
+.notice {
+  border: 1px solid rgba(53, 200, 137, 0.42);
+  border-radius: 7px;
+  color: #d9f9e9;
+  background: #153c2d;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+}
+
+.notice.is-error {
+  border-color: rgba(255, 98, 89, 0.46);
+  color: #ffe5e3;
+  background: #4b2424;
+}
+
+.busy-mask {
+  color: #f4f7fb;
+  background: rgba(5, 7, 9, 0.78);
+  backdrop-filter: blur(5px);
+}
+
+/* Venue, account, package and version administration */
+.venue-top,
+.venue-panel,
+.venue-card,
+.venue-screen,
+.venue-user,
+.venue-course-package,
+.course-package-course,
+.versions-summary-card,
+.versions-upload-card,
+.versions-list-card,
+.coach-screen-update-bar {
+  border: 1px solid #29313a;
+  border-radius: 8px;
+  color: var(--text-main);
+  background: #12171c;
+  box-shadow: none;
+}
+
+.venue-panel-head,
+.venue-card-head {
+  border-bottom-color: #29313a;
+}
+
+.venue-list-item {
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: #c4cdd6;
+  background: #14191f;
+}
+
+.venue-picker,
+.venue-picker-item {
+  border-color: #29313a;
+  border-radius: 6px;
+  color: #c5ced7;
+  background: #12171c;
+}
+
+.venue-picker-item:hover,
+.venue-picker-item.is-selected {
+  color: #fff;
+  background: rgba(45, 125, 255, 0.14);
+}
+
+.venue-list-item:hover {
+  border-color: #38434f;
+  background: #192028;
+}
+
+.venue-list-item.is-active,
+.course-shell .venue-list-item.is-active,
+.venue-course-package.is-active,
+.course-package-course.is-selected,
+.account-package-chip.is-selected {
+  border-color: #4b91ff;
+  color: #fff;
+  background: rgba(45, 125, 255, 0.15);
+  box-shadow: none;
+}
+
+.venue-dot {
+  color: #98a3af;
+  background: #20262d;
+}
+
+.venue-dot.is-on,
+.venue-badge.is-online {
+  color: #b8f6d8;
+  background: rgba(53, 200, 137, 0.16);
+}
+
+.versions-summary-card strong,
+.coach-screen-update-copy strong {
+  color: var(--accent-gold);
+}
+
+.versions-summary-card span,
+.versions-upload-actions span,
+.versions-update-select,
+.versions-update-select span,
+.coach-screen-update-copy span {
+  color: #87929e;
+}
+
