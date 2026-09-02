@@ -8,6 +8,7 @@
 
 | ID | Title | Status | Apps | Owner Notes |
 | --- | --- | --- | --- | --- |
+| [REQ-20260902-cross-client-visual-system-refresh](REQ-20260902-cross-client-visual-system-refresh.md) | 全客户端视觉系统升级 | Ready for Release | `course-web`, `coach-web`, `admin-web`, `tv-android` | 四端实现、单测、类型检查、构建和本地视觉验收完成；等待生产静态包和 TV 1.0.74 发布。 |
 | [REQ-20260826-tv-diagnostic-log-upload](REQ-20260826-tv-diagnostic-log-upload.md) | TV 错误文件回传、分类查询与 10 天保留 | Ready for QA | `tv-android`, `server`, `ops-web` | 本地实现和回归通过；Ops 可按六类、日期、场馆、设备、屏幕和错误码只读查询；不改 DB 或课程控制。 |
 | [REQ-20260719-switch-pod-ab-round-rotation](REQ-20260719-switch-pod-ab-round-rotation.md) | SWITCH Pod AB 轮转与换站 | Ready for QA | `course-web`, `tv-android` | loopCount 统一为 AB 轮次数；A→B 显示 SWITCH，轮次之间显示 MOVE STATION，Course/TV 时长与进度统一。 |
 | [REQ-20260719-test-package-global-access](REQ-20260719-test-package-global-access.md) | 测试课程包全局读写 | Ready for QA | `server`, `course-web` | 测试课程包通过 accessScope=GLOBAL 直接读写全部课程包资源；不批量迁移归属，新建资源和测试排课仍归属测试包。 |
