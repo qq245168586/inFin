@@ -21,9 +21,9 @@ public class RingProgressView extends View {
 
   private float progress = 0f; // 0..1
   private float strokeWidthPx = 56f;
-  private int backgroundColor = 0x66ffffff;
-  private int progressColor = 0xff23aef4;
-  private int thumbColor = 0xffffffff;
+  private int backgroundColor = 0xff343b48;
+  private int progressColor = 0xff236ee8;
+  private int thumbColor = 0xfff1d06f;
   private boolean drawThumb = false;
 
   public RingProgressView(Context context) {

@@ -21,8 +21,6 @@
   <color name="tv_outline">#343B48</color>
   <color name="tv_screen_chip_fill">#181D27</color>
   <color name="tv_logo_fill">#131722</color>
-  <color name="tv_accent_purple">#7B4DFF</color>
-  <color name="tv_accent_purple_dark">#24183D</color>
   <color name="tv_accent_gold">#D8B85A</color>
   <color name="tv_accent_gold_bright">#F1D06F</color>
   <color name="tv_accent_gold_dark">#7B6324</color>
@@ -32,8 +30,6 @@
   <color name="tv_playback_ready">#E45245</color>
   <color name="tv_playback_move_station">#2CBE78</color>
   <color name="tv_playback_move_zone">#131722</color>
-  <color name="tv_playback_purple">#7B4DFF</color>
-  <color name="tv_playback_purple_dark">#24183D</color>
   <color name="tv_horizontal_progress_active">#236EE8</color>
   <color name="tv_horizontal_progress_inactive">#343B48</color>
   <color name="tv_horizontal_marker_done">#53B7D1</color>
