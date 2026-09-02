@@ -91,10 +91,20 @@ abstract class TvScriptRepositoryMediaCache extends TvScriptRepositoryAppPackage
             total);
       }
 
-      downloadToFile(resource, targetFile);
-      if (!isCachedResourceValid(resource, targetFile)) {
-        targetFile.delete();
-        throw new IOException("课程资源校验失败，请重新同步课程资源。");
+      String failureCode = "DOWNLOAD_FAILED";
+      try {
+        downloadToFile(resource, targetFile);
+        failureCode = "CHECKSUM_MISMATCH";
+        if (!isCachedResourceValid(resource, targetFile)) {
+          targetFile.delete();
+          throw new IOException("课程资源校验失败，请重新同步课程资源。");
+        }
+      } catch (IOException error) {
+        com.infini.tv.diagnostics.TvDiagnostics.report(
+            com.infini.tv.diagnostics.DiagnosticEvent.Type.DOWNLOAD_ERROR,
+            failureCode, "Course media cache failed", error,
+            java.util.Collections.singletonMap("mediaFile", targetFile.getName()));
+        throw error;
       }
       localMediaMap.put(resource.url, targetFile.getAbsolutePath());
 

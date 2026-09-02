@@ -1,5 +1,7 @@
 package com.infini.tv;
 
+import com.infini.tv.diagnostics.PlayerDiagnostics;
+
 import android.content.ComponentName;
 import android.content.ClipData;
 import android.content.Intent;
@@ -331,6 +333,7 @@ abstract class MainActivityWaterfallPlaybackController extends MainActivityHoriz
 
     String localMediaPath = LocalVideoPlaybackPolicy.resolvePlayablePath(mediaUrl);
     if (localMediaPath.isEmpty()) {
+      PlayerDiagnostics.missingLocalMedia("waterfall", mediaUrl);
       stopWaterfallVideo(row);
       return;
     }
@@ -358,11 +361,7 @@ abstract class MainActivityWaterfallPlaybackController extends MainActivityHoriz
         });
     row.videoView.setOnCompletionListener(mediaPlayer -> restartLoopingVideoFromStart(row.videoView));
     row.videoView.setOnErrorListener(
-        (mediaPlayer, what, extra) -> {
-          Log.w(TAG, "Waterfall video playback failed url=" + localMediaPath + " what=" + what + " extra=" + extra);
-          stopWaterfallVideo(row);
-          return true;
-        });
+        PlayerDiagnostics.errorListener("waterfall", localMediaPath, "", "", () -> stopWaterfallVideo(row)));
     row.videoView.setVideoPath(localMediaPath);
     row.videoView.start();
   }

@@ -1,5 +1,8 @@
 package com.infini.tv.mqtt;
 
+import com.infini.tv.diagnostics.DiagnosticEvent;
+import com.infini.tv.diagnostics.TvDiagnostics;
+
 import android.util.Log;
 import com.infini.tv.repository.ServerConfig;
 import java.nio.charset.StandardCharsets;
@@ -157,6 +160,8 @@ abstract class TvMqttClient extends TvMqttManagerBase {
                         @Override
                         public void connectionLost(Throwable cause) {
                           Log.w(TAG, "MQTT connection lost clientId=" + clientId, cause);
+                          TvDiagnostics.report(DiagnosticEvent.Type.MQTT_ERROR, "CONNECTION_LOST",
+                              "MQTT connection lost", cause, null);
                         }
 
                         @Override
@@ -201,6 +206,8 @@ abstract class TvMqttClient extends TvMqttManagerBase {
               } catch (Exception error) {
                 if (!isConnectAlreadyInProgress(error)) {
                   recordSecureMqttFailure();
+                  TvDiagnostics.report(DiagnosticEvent.Type.MQTT_ERROR, "CONNECT_FAILED",
+                      "MQTT connection failed", error, null);
                 }
                 Log.w(TAG, "MQTT connect failed", error);
               } finally {

@@ -353,7 +353,9 @@ abstract class MainActivitySettingsPlanController extends MainActivityCoursePlan
     row.setOrientation(LinearLayout.VERTICAL);
     row.setClickable(true);
     row.setFocusable(true);
-    row.setBackground(createCoursePlanCardBackground(0xCC120A24, 0x33F6D77A));
+    row.setBackground(
+        createCoursePlanCardBackground(
+            getColor(R.color.tv_schedule_card), getColor(R.color.tv_outline)));
     row.setPadding(dp(22), dp(18), dp(22), dp(18));
     row.setOnClickListener(listener);
     LinearLayout.LayoutParams params =

@@ -1,5 +1,7 @@
 package com.infini.tv;
 
+import com.infini.tv.diagnostics.PlayerDiagnostics;
+
 import android.graphics.Color;
 import android.text.TextUtils;
 import android.util.Log;
@@ -292,22 +294,13 @@ abstract class MainActivityTrainingCardRendererController extends MainActivityTr
           });
       videoView.setOnCompletionListener(mediaPlayer -> restartLoopingVideoFromStart(videoView));
       videoView.setOnErrorListener(
-          (mediaPlayer, what, extra) -> {
-            Log.w(
-                TAG,
-                "Training video playback failed url="
-                    + localMediaPath
-                    + " what="
-                    + what
-                    + " extra="
-                    + extra);
-            videoView.setVisibility(View.GONE);
-            return true;
-          });
+          PlayerDiagnostics.errorListener("training", localMediaPath, card.actionId,
+              card.stationNumber, () -> videoView.setVisibility(View.GONE)));
       videoView.setVideoPath(localMediaPath);
       videoView.start();
       preview.post(() -> startVideoViewIfNeeded(videoView));
     } else {
+      PlayerDiagnostics.missingLocalMedia("training", card == null ? null : card.mediaUrl);
       View dim = new View(this);
       dim.setLayoutParams(
           new FrameLayout.LayoutParams(

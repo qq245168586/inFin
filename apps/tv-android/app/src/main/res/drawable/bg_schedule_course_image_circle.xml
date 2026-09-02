@@ -1,11 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
-  <gradient
-    android:type="radial"
-    android:gradientRadius="46dp"
-    android:startColor="@color/tv_accent_gold_bright"
-    android:endColor="@color/tv_accent_gold" />
+  <solid android:color="@color/tv_accent_gold_bright" />
   <stroke
     android:width="2dp"
-    android:color="#FFF2C98F" />
+    android:color="@color/tv_accent_gold" />
 </shape>

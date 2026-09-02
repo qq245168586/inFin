@@ -150,8 +150,8 @@ abstract class MainActivityCoursePlanController extends MainActivityTrainingLayo
         new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
-    TextView eyebrow = createCoursePlanText("COURSE PLAN", 0x99f5d56e, true);
-    eyebrow.setLetterSpacing(0.20f);
+    TextView eyebrow =
+        createCoursePlanText("COURSE PLAN", getColor(R.color.tv_accent_gold_bright), true);
     eyebrow.setTextSize(
         TypedValue.COMPLEX_UNIT_PX,
         landscape ? clampPx(shortSide * 0.036f, sp(18), sp(30)) : clampPx(shortSide * 0.038f, sp(16), sp(28)));
@@ -246,7 +246,9 @@ abstract class MainActivityCoursePlanController extends MainActivityTrainingLayo
         TypedValue.COMPLEX_UNIT_PX,
         landscape ? clampPx(getResources().getDisplayMetrics().heightPixels * 0.07f, sp(30), sp(52))
             : clampPx(getResources().getDisplayMetrics().widthPixels * 0.065f, sp(22), sp(36)));
-    empty.setBackground(createCoursePlanCardBackground(0x5513091f, 0x664b1f7c));
+    empty.setBackground(
+        createCoursePlanCardBackground(
+            getColor(R.color.tv_playback_surface), getColor(R.color.tv_outline)));
     empty.setPadding(dp(24), dp(42), dp(24), dp(42));
     return empty;
   }
@@ -261,7 +263,9 @@ abstract class MainActivityCoursePlanController extends MainActivityTrainingLayo
         landscape ? dp(12) : dp(18),
         landscape ? dp(16) : dp(20),
         landscape ? dp(12) : dp(20));
-    card.setBackground(createCoursePlanCardBackground(0xaa13091f, 0x884b1f7c));
+    card.setBackground(
+        createCoursePlanCardBackground(
+            getColor(R.color.tv_playback_surface), getColor(R.color.tv_outline)));
     LinearLayout.LayoutParams cardParams =
         new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
@@ -324,7 +328,7 @@ abstract class MainActivityCoursePlanController extends MainActivityTrainingLayo
       return;
     }
     view.setAutoSizeTextTypeUniformWithConfiguration(minSp, maxSp, 1, TypedValue.COMPLEX_UNIT_SP);
-    view.setBreakStrategy(android.text.Layout.BREAK_STRATEGY_BALANCED);
+    view.setBreakStrategy(android.graphics.text.LineBreaker.BREAK_STRATEGY_BALANCED);
     view.setHyphenationFrequency(android.text.Layout.HYPHENATION_FREQUENCY_NONE);
   }
 
@@ -345,8 +349,8 @@ abstract class MainActivityCoursePlanController extends MainActivityTrainingLayo
         new android.graphics.drawable.GradientDrawable();
     drawable.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
     drawable.setColor(fillColor);
-    drawable.setCornerRadius(dp(22));
-    drawable.setStroke(dp(2), strokeColor);
+    drawable.setCornerRadius(dp(8));
+    drawable.setStroke(dp(1), strokeColor);
     return drawable;
   }
 }

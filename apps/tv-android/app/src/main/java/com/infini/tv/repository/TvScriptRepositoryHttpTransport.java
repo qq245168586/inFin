@@ -72,6 +72,7 @@ abstract class TvScriptRepositoryHttpTransport extends TvScriptRepositoryMediaCa
       String updateMessage)
       throws IOException {
     CacheStats cacheStats = getCacheStats();
+    com.infini.tv.diagnostics.TvDiagnostics.updatePlayback(activeScheduleId, playbackSessionId, playbackState, sessionVersion);
     try {
       return new JSONObject()
           .put(

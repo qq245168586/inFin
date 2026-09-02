@@ -1,5 +1,8 @@
 package com.infini.tv;
 
+import com.infini.tv.diagnostics.PlayerDiagnostics;
+import com.infini.tv.diagnostics.TvDiagnostics;
+
 import android.content.ComponentName;
 import android.content.ClipData;
 import android.content.Intent;
@@ -248,6 +251,7 @@ abstract class MainActivityScreenPlaybackController extends MainActivitySessionI
   }
 
   protected void applyPlaybackSessionFields(TvScriptRepository.PlaybackSessionSnapshot session) {
+    TvDiagnostics.updatePlayback(session.scheduleId, session.id, session.state, session.version);
     activePlaybackSessionId = session.id;
     activePlaybackSessionVersion = Math.max(session.version, 0);
     activePlaybackSessionState = session.state == null ? "" : session.state.toUpperCase(Locale.US);
@@ -538,8 +542,8 @@ abstract class MainActivityScreenPlaybackController extends MainActivitySessionI
     }
     try {
       videoView.seekTo(0);
-    } catch (Exception ignored) {
-      // Some box decoders throw while the surface is being recreated.
+    } catch (Exception error) {
+      PlayerDiagnostics.exception("seekTo during loop restart", error);
     }
     videoView.postDelayed(
         () -> {
@@ -548,8 +552,8 @@ abstract class MainActivityScreenPlaybackController extends MainActivitySessionI
           }
           try {
             videoView.start();
-          } catch (Exception ignored) {
-            // Ignore transient player state while Android prepares/recreates the video surface.
+          } catch (Exception error) {
+            PlayerDiagnostics.exception("start after loop restart", error);
           }
         },
         80L);
@@ -567,8 +571,8 @@ abstract class MainActivityScreenPlaybackController extends MainActivitySessionI
         return;
       }
       videoView.start();
-    } catch (Exception ignored) {
-      // Ignore transient player state while Android prepares/recreates the video surface.
+    } catch (Exception error) {
+      PlayerDiagnostics.exception("start looping video", error);
     }
   }
 

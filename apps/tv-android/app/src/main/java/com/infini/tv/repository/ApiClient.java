@@ -2,6 +2,11 @@ package com.infini.tv.repository;
 
 import android.util.Log;
 import com.infini.tv.BuildConfig;
+import com.infini.tv.diagnostics.DiagnosticEvent;
+import com.infini.tv.diagnostics.TvDiagnostics;
+import java.io.File;
+import java.util.Collections;
+import java.util.Map;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -28,17 +33,31 @@ final class ApiClient {
   }
 
   JSONObject requestJson(String relativePath, String method, JSONObject body) throws IOException {
+    return withFallback(relativePath, base -> requestJsonWithBase(base, relativePath, method, body), true);
+  }
+
+  /** Streams a retryable file through the same URL/fallback policy as ordinary API requests. */
+  JSONObject requestFile(String relativePath, File file, Map<String, String> headers) throws IOException {
+    return withFallback(relativePath, base -> requestWithBase(base, relativePath, "POST",
+        RequestBody.create(file, MediaType.get("application/x-ndjson; charset=utf-8")), headers), false);
+  }
+
+  private interface Attempt { JSONObject run(String base) throws IOException; }
+
+  /** Keeps all production/backup selection in the transport boundary. */
+  private JSONObject withFallback(String relativePath, Attempt attempt, boolean retryHttpErrors) throws IOException {
     IOException lastError = null;
     List<String> candidates = apiBaseUrlCandidates();
     for (int index = 0; index < candidates.size(); index += 1) {
       String apiBaseUrl = candidates.get(index);
       try {
-        JSONObject result = requestJsonWithBase(apiBaseUrl, relativePath, method, body);
+        JSONObject result = attempt.run(apiBaseUrl);
         if (isPrimaryApiBaseUrl(apiBaseUrl)) {
           resetSecureApiFailures();
         }
         return result;
       } catch (IOException error) {
+        if (!retryHttpErrors && error instanceof HttpFailure) throw error;
         lastError = error;
         Log.w(TAG, "API request failed via " + apiBaseUrl + relativePath, error);
         if (isPrimaryApiBaseUrl(apiBaseUrl)) {
@@ -54,17 +73,26 @@ final class ApiClient {
 
   JSONObject requestJsonWithBase(String apiBaseUrl, String relativePath, String method, JSONObject body)
       throws IOException {
+    return requestWithBase(apiBaseUrl, relativePath, method,
+        body == null ? null : RequestBody.create(body.toString().getBytes(StandardCharsets.UTF_8), JSON_MEDIA_TYPE),
+        Collections.emptyMap());
+  }
+
+  /** Shared headers, response parsing and error classification for JSON and file uploads. */
+  private JSONObject requestWithBase(String apiBaseUrl, String relativePath, String method,
+      RequestBody body, Map<String, String> headers) throws IOException {
     Request.Builder requestBuilder =
         new Request.Builder()
             .url(apiBaseUrl + relativePath)
             .header("Accept", "application/json")
             .header("X-Infini-Client", "tv-android")
             .header("X-Infini-App-Version", BuildConfig.VERSION_NAME);
+    for (Map.Entry<String, String> header : headers.entrySet()) {
+      requestBuilder.header(header.getKey(), header.getValue());
+    }
     String normalizedMethod = method == null ? "GET" : method.toUpperCase(Locale.US);
     if (body != null) {
-      requestBuilder.method(
-          normalizedMethod,
-          RequestBody.create(body.toString().getBytes(StandardCharsets.UTF_8), JSON_MEDIA_TYPE));
+      requestBuilder.method(normalizedMethod, body);
     } else if ("GET".equals(normalizedMethod)) {
       requestBuilder.get();
     } else {
@@ -87,7 +115,7 @@ final class ApiClient {
       }
 
       if (!response.isSuccessful()) {
-        throw new IOException(
+        throw new HttpFailure(response.code(),
             "TV 接口请求失败 ("
                 + response.code()
                 + ") "
@@ -98,8 +126,18 @@ final class ApiClient {
     try {
       return new JSONObject(builder.toString());
     } catch (JSONException error) {
+      if (!relativePath.startsWith("/tv/diagnostics")) {
+        TvDiagnostics.report(DiagnosticEvent.Type.API_ERROR, "INVALID_JSON", "API returned invalid JSON", error,
+            Collections.singletonMap("endpoint", apiBaseUrl + relativePath));
+      }
       throw new IOException("TV 端解析课程数据失败。", error);
     }
+  }
+
+  /** Exposes HTTP status to the diagnostic retry policy without parsing exception messages. */
+  static final class HttpFailure extends IOException {
+    final int status;
+    HttpFailure(int status, String message) { super(message); this.status = status; }
   }
 
   List<String> apiBaseUrlCandidates() {

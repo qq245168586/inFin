@@ -1,7 +1,4 @@
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
   <corners android:radius="4dp" />
-  <gradient
-    android:angle="0"
-    android:startColor="#88C1D1"
-    android:endColor="@color/tv_playback_hydrate" />
+  <solid android:color="@color/tv_playback_hydrate" />
 </shape>

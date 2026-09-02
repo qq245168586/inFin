@@ -21,8 +21,8 @@ android {
     applicationId "com.infini.tv"
     minSdk 26
     targetSdk 34
-        versionCode 72
-        versionName "1.0.72"
+        versionCode 73
+        versionName "1.0.73"
     buildConfigField "String", "INFINI_ENV", "\"${infiniEnv}\""
     buildConfigField "String", "INFINI_BASE_URL", "\"${infiniBaseUrl}\""
     buildConfigField "String", "INFINI_BACKUP_BASE_URL", "\"${infiniBackupBaseUrl}\""
@@ -92,6 +92,7 @@ tasks.register("jacocoDebugUnitTestReport", JacocoReport) {
       'com/infini/tv/SilentInstallResult*.class',
       'com/infini/tv/TrainingPlaybackState*.class',
       'com/infini/tv/model/**/*.class',
+      'com/infini/tv/diagnostics/**/*.class',
       'com/infini/tv/mqtt/**/*.class',
       'com/infini/tv/mvi/**/*.class',
       'com/infini/tv/player/**/*.class',

@@ -65,6 +65,7 @@ abstract class TvScriptRepositoryCoreApi extends TvScriptRepositoryBase {
 
   protected static final OkHttpClient API_HTTP_CLIENT =
       new OkHttpClient.Builder()
+          .eventListenerFactory(call -> new com.infini.tv.diagnostics.DiagnosticHttpEvents())
           .connectTimeout(8, TimeUnit.SECONDS)
           .readTimeout(20, TimeUnit.SECONDS)
           .writeTimeout(20, TimeUnit.SECONDS)
