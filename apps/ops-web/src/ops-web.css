@@ -327,6 +327,257 @@ body {
   font-size: 12px;
 }
 
+.ops-view-tabs {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.ops-view-tabs button {
+  height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.ops-view-tabs button.active {
+  background: rgba(183, 92, 255, 0.22);
+  color: #fff;
+}
+
+.ops-view-tabs .ops-view-logout {
+  margin-left: auto;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.ops-view-content {
+  display: none;
+}
+
+.ops-view-content.active {
+  display: grid;
+  gap: 14px;
+}
+
+.ops-diagnostic-filter-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1.1fr 0.9fr 0.7fr 1.1fr 0.65fr;
+  gap: 10px;
+}
+
+.ops-diagnostic-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.ops-diagnostic-summary > div {
+  min-height: 82px;
+  padding: 14px;
+  background: rgba(12, 12, 16, 0.96);
+}
+
+.ops-diagnostic-summary span,
+.ops-diagnostic-summary strong {
+  display: block;
+}
+
+.ops-diagnostic-summary span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.ops-diagnostic-summary strong {
+  margin-top: 8px;
+  font-size: 24px;
+}
+
+.ops-diagnostic-summary .small-value {
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.ops-diagnostic-types {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ops-diagnostic-types button {
+  min-height: 58px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.24);
+  color: var(--muted);
+  cursor: pointer;
+  text-align: left;
+}
+
+.ops-diagnostic-types button span,
+.ops-diagnostic-types button b {
+  display: block;
+}
+
+.ops-diagnostic-types button b {
+  margin-top: 4px;
+  color: #fff;
+  font-size: 18px;
+}
+
+.ops-diagnostic-types button.active {
+  border-color: rgba(183, 92, 255, 0.85);
+  background: rgba(138, 43, 226, 0.22);
+  color: #fff;
+}
+
+.ops-diagnostic-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 370px;
+  gap: 14px;
+  align-items: start;
+}
+
+.ops-diagnostic-table {
+  min-width: 850px;
+}
+
+.ops-diagnostic-table tbody tr {
+  cursor: pointer;
+}
+
+.ops-diagnostic-table tbody tr:hover,
+.ops-diagnostic-table tbody tr.selected {
+  background: rgba(138, 43, 226, 0.12);
+}
+
+.ops-error-type {
+  display: inline-flex;
+  align-items: center;
+  min-height: 25px;
+  padding: 3px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 5px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.ops-error-type.type-playback_error { border-color: rgba(255, 93, 93, 0.55); color: #ff8989; }
+.ops-error-type.type-download_error { border-color: rgba(255, 183, 77, 0.55); color: #ffc875; }
+.ops-error-type.type-network_error { border-color: rgba(77, 145, 255, 0.6); color: #8bb6ff; }
+.ops-error-type.type-api_error { border-color: rgba(45, 205, 173, 0.55); color: #65e0c6; }
+.ops-error-type.type-mqtt_error { border-color: rgba(183, 92, 255, 0.6); color: #cf98ff; }
+.ops-error-type.type-crash { border-color: rgba(255, 93, 151, 0.65); color: #ff91bd; }
+
+.ops-table-sub {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.ops-message-cell {
+  max-width: 300px;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.76);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ops-empty-state {
+  padding: 24px !important;
+  color: var(--muted);
+  text-align: center;
+}
+
+.ops-diagnostic-detail {
+  position: sticky;
+  top: 14px;
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+}
+
+.ops-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.ops-detail-header b {
+  min-width: 0;
+  overflow: hidden;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ops-detail-grid {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 9px;
+  margin: 0 0 16px;
+  font-size: 11px;
+}
+
+.ops-detail-grid dt {
+  color: var(--muted);
+}
+
+.ops-detail-grid dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.ops-detail-label {
+  margin: 13px 0 7px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.ops-detail-message {
+  padding: 10px;
+  border-left: 3px solid var(--danger);
+  background: rgba(255, 93, 93, 0.09);
+  font-size: 12px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.ops-detail-code {
+  max-height: 260px;
+  margin: 0;
+  padding: 10px;
+  overflow: auto;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.35);
+  color: rgba(255, 255, 255, 0.78);
+  font: 10px/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 1180px) {
   .ops-metric-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -335,6 +586,23 @@ body {
   .ops-screen-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .ops-diagnostic-filter-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .ops-diagnostic-types {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .ops-diagnostic-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .ops-diagnostic-detail {
+    position: static;
+    max-height: none;
+  }
 }
 
 @media (max-width: 780px) {
@@ -342,5 +610,20 @@ body {
   .ops-dashboard-grid,
   .ops-screen-grid {
     grid-template-columns: 1fr;
+  }
+
+  .ops-diagnostic-filter-grid,
+  .ops-diagnostic-summary,
+  .ops-diagnostic-types {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .ops-view-tabs {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ops-view-tabs .ops-view-logout {
+    margin-left: 0;
   }
 }

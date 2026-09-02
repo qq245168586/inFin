@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import OpsWebApp from "./OpsWebApp.tsx";
+import OpsWebApp from "./OpsWebApp";
 import "./ops-web.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
@@ -8,4 +8,3 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <OpsWebApp />
   </React.StrictMode>
 );
-

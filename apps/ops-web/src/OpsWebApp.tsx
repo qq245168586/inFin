@@ -42,6 +42,39 @@ interface OpsEvent {
   payload: unknown;
 }
 
+type DiagnosticType = "PLAYBACK_ERROR" | "NETWORK_ERROR" | "API_ERROR" | "DOWNLOAD_ERROR" | "CRASH" | "MQTT_ERROR";
+
+interface TvDiagnosticEvent {
+  id: string;
+  occurredAt: string;
+  receivedAt: string;
+  type: DiagnosticType;
+  code: string;
+  message: string;
+  stackTrace: string;
+  context: Record<string, string | number | boolean>;
+  deviceId: string;
+  accountNamespace: string;
+  screenNumber: number;
+  appVersion: string;
+  logId: string;
+}
+
+interface TvDiagnosticPayload {
+  items: TvDiagnosticEvent[];
+  summary: {
+    total: number;
+    filteredTotal: number;
+    uniqueDevices: number;
+    latestAt: string;
+    types: Record<DiagnosticType, number>;
+    retentionDays: number;
+    scannedFiles: number;
+    scannedBytes: number;
+    truncated: boolean;
+  };
+}
+
 interface CountItem {
   name: string;
   count: number;
@@ -111,6 +144,29 @@ interface OpsOverview {
 
 const AUTH_STORAGE_KEY = "infini-ops-web-auth";
 const LEGACY_BASIC_AUTH = "Basic REDACTED_CONFIGURE_LOCALLY";
+const DIAGNOSTIC_TYPES: Array<{ value: DiagnosticType; label: string }> = [
+  { value: "PLAYBACK_ERROR", label: "播放" },
+  { value: "DOWNLOAD_ERROR", label: "下载" },
+  { value: "NETWORK_ERROR", label: "网络" },
+  { value: "API_ERROR", label: "接口" },
+  { value: "MQTT_ERROR", label: "MQTT" },
+  { value: "CRASH", label: "崩溃" }
+];
+
+function currentBeijingDate(): string {
+  const parts = new Intl.DateTimeFormat("en", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(new Date());
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
+}
+
+function diagnosticTypeLabel(type: string): string {
+  return DIAGNOSTIC_TYPES.find((item) => item.value === type)?.label || type || "未知";
+}
 
 function readStorageJson<T>(key: string): T | null {
   try {
@@ -210,8 +266,37 @@ function buildFilterParams({
   return params;
 }
 
+function buildDiagnosticParams({
+  namespace,
+  deviceId,
+  date,
+  screenNumber,
+  type,
+  code,
+  limit
+}: {
+  namespace: string;
+  deviceId: string;
+  date: string;
+  screenNumber: string;
+  type: string;
+  code: string;
+  limit: number;
+}) {
+  const params = new URLSearchParams();
+  if (namespace.trim()) params.set("namespace", namespace.trim());
+  if (deviceId.trim()) params.set("deviceId", deviceId.trim());
+  if (date.trim()) params.set("date", date.trim());
+  if (screenNumber) params.set("screenNumber", screenNumber);
+  if (type) params.set("type", type);
+  if (code.trim()) params.set("code", code.trim());
+  params.set("limit", String(Math.max(10, Math.min(limit || 200, 1000))));
+  return params;
+}
+
 export default function OpsWebApp() {
   const noticeTimerRef = useRef<number | null>(null);
+  const diagnosticRequestRef = useRef(0);
   const [authReady, setAuthReady] = useState(false);
   const [authSession, setAuthSession] = useState<AuthSession | null>(null);
   const [busyText, setBusyText] = useState("");
@@ -232,6 +317,22 @@ export default function OpsWebApp() {
   const [streaming, setStreaming] = useState(false);
   const streamRef = useRef<EventSource | null>(null);
 
+  const [activeView, setActiveView] = useState<"overview" | "diagnostics">("diagnostics");
+  const [diagnosticNamespace, setDiagnosticNamespace] = useState("");
+  const [diagnosticDeviceId, setDiagnosticDeviceId] = useState("");
+  const [diagnosticDate, setDiagnosticDate] = useState(currentBeijingDate);
+  const [diagnosticScreen, setDiagnosticScreen] = useState("");
+  const [diagnosticType, setDiagnosticType] = useState("");
+  const [diagnosticCode, setDiagnosticCode] = useState("");
+  const [diagnosticLimit, setDiagnosticLimit] = useState(200);
+  const [diagnostics, setDiagnostics] = useState<TvDiagnosticPayload | null>(null);
+  const [selectedDiagnosticId, setSelectedDiagnosticId] = useState("");
+
+  const selectedDiagnostic = useMemo(
+    () => diagnostics?.items.find((item) => item.id === selectedDiagnosticId) || diagnostics?.items[0] || null,
+    [diagnostics, selectedDiagnosticId]
+  );
+
   const authHeader = useMemo(() => {
     if (!authSession) return "";
     return `${authSession.token_type} ${authSession.access_token}`;
@@ -246,10 +347,13 @@ export default function OpsWebApp() {
   }, []);
 
   const handleSessionExpired = useCallback((message = "登录已失效，请重新登录。") => {
+    diagnosticRequestRef.current++;
     removeStorageItem(AUTH_STORAGE_KEY);
     setAuthSession(null);
     setOverview(null);
     setEvents([]);
+    setDiagnostics(null);
+    setSelectedDiagnosticId("");
     setBusyText("");
     pushNotice(message, "error");
   }, [pushNotice]);
@@ -351,11 +455,14 @@ export default function OpsWebApp() {
   }
 
   function handleLogout() {
+    diagnosticRequestRef.current++;
     removeStorageItem(AUTH_STORAGE_KEY);
     setAuthSession(null);
     stopStream();
     setOverview(null);
     setEvents([]);
+    setDiagnostics(null);
+    setSelectedDiagnosticId("");
     pushNotice("已退出登录。");
   }
 
@@ -407,6 +514,42 @@ export default function OpsWebApp() {
     }
   }
 
+  async function fetchDiagnostics({ silent = false } = {}) {
+    if (!authSession) return;
+    const requestId = ++diagnosticRequestRef.current;
+    if (!silent) setBusyText("正在加载 TV 错误日志...");
+    try {
+      const params = buildDiagnosticParams({
+        namespace: diagnosticNamespace,
+        deviceId: diagnosticDeviceId,
+        date: diagnosticDate,
+        screenNumber: diagnosticScreen,
+        type: diagnosticType,
+        code: diagnosticCode,
+        limit: diagnosticLimit
+      });
+      const payload = await requestJson<{ data: TvDiagnosticPayload }>(`/api/ops/tv-diagnostics?${params.toString()}`, {
+        headers: { Authorization: authHeader }
+      });
+      if (requestId !== diagnosticRequestRef.current) return;
+      setDiagnostics(payload.data);
+      setSelectedDiagnosticId((current) =>
+        payload.data.items.some((item) => item.id === current) ? current : (payload.data.items[0]?.id || "")
+      );
+      if (!silent) pushNotice("TV 错误日志已加载。");
+    } catch (error) {
+      if (requestId !== diagnosticRequestRef.current) return;
+      const message = getErrorMessage(error);
+      if (isAuthExpiredMessage(message)) {
+        handleSessionExpired(message);
+        return;
+      }
+      if (!silent) pushNotice(message, "error");
+    } finally {
+      if (!silent && requestId === diagnosticRequestRef.current) setBusyText("");
+    }
+  }
+
   function stopStream() {
     if (streamRef.current) {
       streamRef.current.close();
@@ -454,8 +597,14 @@ export default function OpsWebApp() {
 
   useEffect(() => {
     if (!authSession) return;
-    void fetchOverview({ silent: true });
-  }, [authSession?.access_token]);
+    if (activeView === "diagnostics") void fetchDiagnostics({ silent: true });
+    else void fetchOverview({ silent: true });
+  }, [authSession?.access_token, activeView]);
+
+  useEffect(() => {
+    if (!authSession || activeView !== "diagnostics" || !diagnostics) return;
+    void fetchDiagnostics({ silent: true });
+  }, [diagnosticType]);
 
   if (!authReady) {
     return (
@@ -528,11 +677,30 @@ export default function OpsWebApp() {
         <div className="ops-topbar">
           <div className="ops-title">Infini Ops Console</div>
           <div className="ops-subtitle">
-            登录账号：{authSession.username}（{authSession.role || "unknown"}） | 仅用于排查 MQTT 指令下发与 TV 同步问题
+            登录账号：{authSession.username}（{authSession.role || "unknown"}） | MQTT、TV 同步与设备错误排查
           </div>
         </div>
 
         <div className="ops-body">
+          <div className="ops-view-tabs" role="tablist" aria-label="运维视图">
+            <button
+              type="button"
+              className={activeView === "diagnostics" ? "active" : ""}
+              onClick={() => setActiveView("diagnostics")}
+            >
+              TV 错误日志
+            </button>
+            <button
+              type="button"
+              className={activeView === "overview" ? "active" : ""}
+              onClick={() => setActiveView("overview")}
+            >
+              MQTT 与设备总览
+            </button>
+            <button type="button" className="ops-view-logout" onClick={handleLogout}>退出</button>
+          </div>
+
+          <div className={`ops-view-content ${activeView === "overview" ? "active" : ""}`}>
           <div className="ops-panel">
             <div className="ops-section-title">查询条件</div>
             <div className="ops-row ops-row-four">
@@ -584,9 +752,6 @@ export default function OpsWebApp() {
               </button>
               <button className="ops-btn" onClick={() => setEvents([])}>
                 清空
-              </button>
-              <button className="ops-btn" onClick={handleLogout}>
-                退出
               </button>
               {busyText ? <span className="ops-subtitle">{busyText}</span> : null}
               {notice ? (
@@ -722,6 +887,185 @@ export default function OpsWebApp() {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+          </div>
+
+          <div className={`ops-view-content ${activeView === "diagnostics" ? "active" : ""}`}>
+            <div className="ops-panel">
+              <div className="ops-section-title">TV 错误日志查询</div>
+              <div className="ops-diagnostic-filter-grid">
+                <div className="ops-field">
+                  <label>场馆 Namespace</label>
+                  <input
+                    value={diagnosticNamespace}
+                    onChange={(event) => setDiagnosticNamespace(event.target.value)}
+                    placeholder="全部场馆"
+                  />
+                </div>
+                <div className="ops-field">
+                  <label>设备 ID</label>
+                  <input
+                    value={diagnosticDeviceId}
+                    onChange={(event) => setDiagnosticDeviceId(event.target.value)}
+                    placeholder="全部设备"
+                  />
+                </div>
+                <div className="ops-field">
+                  <label>日期</label>
+                  <input value={diagnosticDate} onChange={(event) => setDiagnosticDate(event.target.value)} type="date" />
+                </div>
+                <div className="ops-field">
+                  <label>屏幕</label>
+                  <select value={diagnosticScreen} onChange={(event) => setDiagnosticScreen(event.target.value)}>
+                    <option value="">全部屏幕</option>
+                    {[1, 2, 3, 4, 5].map((screen) => <option value={screen} key={screen}>屏幕 {screen}</option>)}
+                  </select>
+                </div>
+                <div className="ops-field">
+                  <label>错误码包含</label>
+                  <input
+                    value={diagnosticCode}
+                    onChange={(event) => setDiagnosticCode(event.target.value)}
+                    placeholder="例如 MEDIA / HTTP_503"
+                  />
+                </div>
+                <div className="ops-field">
+                  <label>日志条数</label>
+                  <input
+                    value={diagnosticLimit}
+                    onChange={(event) => setDiagnosticLimit(Number(event.target.value) || 200)}
+                    type="number"
+                    min={10}
+                    max={1000}
+                  />
+                </div>
+              </div>
+              <div className="ops-actions">
+                <button className="ops-btn primary" onClick={() => fetchDiagnostics()} disabled={Boolean(busyText)}>
+                  查询日志
+                </button>
+                <button
+                  className="ops-btn"
+                  onClick={() => {
+                    setDiagnosticNamespace("");
+                    setDiagnosticDeviceId("");
+                    setDiagnosticDate(currentBeijingDate());
+                    setDiagnosticScreen("");
+                    setDiagnosticType("");
+                    setDiagnosticCode("");
+                  }}
+                  disabled={Boolean(busyText)}
+                >
+                  重置条件
+                </button>
+                {busyText ? <span className="ops-subtitle">{busyText}</span> : null}
+                {notice ? (
+                  <span className={notice.tone === "error" ? "ops-pill err" : "ops-pill ok"}>{notice.message}</span>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="ops-diagnostic-summary">
+              <div><span>匹配日志</span><strong>{diagnostics?.summary.filteredTotal ?? "--"}</strong></div>
+              <div><span>涉及设备</span><strong>{diagnostics?.summary.uniqueDevices ?? "--"}</strong></div>
+              <div><span>最近发生</span><strong className="small-value">{formatDateTime(diagnostics?.summary.latestAt)}</strong></div>
+              <div><span>读取数据</span><strong>{formatBytes(diagnostics?.summary.scannedBytes)}</strong></div>
+            </div>
+
+            <div className="ops-panel">
+              <div className="ops-section-title">错误分类</div>
+              <div className="ops-diagnostic-types">
+                <button
+                  type="button"
+                  className={!diagnosticType ? "active" : ""}
+                  onClick={() => setDiagnosticType("")}
+                >
+                  <span>全部</span><b>{diagnostics?.summary.total ?? 0}</b>
+                </button>
+                {DIAGNOSTIC_TYPES.map((item) => (
+                  <button
+                    type="button"
+                    className={diagnosticType === item.value ? `active type-${item.value.toLowerCase()}` : `type-${item.value.toLowerCase()}`}
+                    onClick={() => setDiagnosticType(item.value)}
+                    key={item.value}
+                  >
+                    <span>{item.label}</span><b>{diagnostics?.summary.types?.[item.value] ?? 0}</b>
+                  </button>
+                ))}
+              </div>
+              <div className="ops-subtitle" style={{ marginTop: 10 }}>
+                分类切换后点击“查询日志”应用筛选。日志按服务端接收时间保留 {diagnostics?.summary.retentionDays ?? 10} 天。
+                {diagnostics?.summary.truncated ? " 本次数据达到安全扫描上限，请缩小查询范围。" : ""}
+              </div>
+            </div>
+
+            <div className="ops-diagnostic-layout">
+              <div className="ops-panel">
+                <div className="ops-section-title">错误明细</div>
+                <div className="ops-table-wrap">
+                  <table className="ops-table ops-diagnostic-table">
+                    <thead>
+                      <tr>
+                        <th>发生时间</th>
+                        <th>分类</th>
+                        <th>设备</th>
+                        <th>错误码</th>
+                        <th>消息</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {diagnostics?.items.length ? diagnostics.items.map((item) => (
+                        <tr
+                          className={selectedDiagnostic?.id === item.id ? "selected" : ""}
+                          onClick={() => setSelectedDiagnosticId(item.id)}
+                          key={`${item.logId}-${item.id}`}
+                        >
+                          <td className="ops-mono">{formatDateTime(item.occurredAt)}</td>
+                          <td><span className={`ops-error-type type-${item.type.toLowerCase()}`}>{diagnosticTypeLabel(item.type)}</span></td>
+                          <td><b>屏幕 {item.screenNumber}</b><span className="ops-table-sub">{item.deviceId}</span></td>
+                          <td className="ops-mono">{item.code}</td>
+                          <td className="ops-message-cell">{item.message}</td>
+                        </tr>
+                      )) : (
+                        <tr><td colSpan={5} className="ops-empty-state">当前条件下没有 TV 错误日志。</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <aside className="ops-panel ops-diagnostic-detail">
+                <div className="ops-section-title">日志详情</div>
+                {selectedDiagnostic ? (
+                  <>
+                    <div className="ops-detail-header">
+                      <span className={`ops-error-type type-${selectedDiagnostic.type.toLowerCase()}`}>
+                        {diagnosticTypeLabel(selectedDiagnostic.type)}
+                      </span>
+                      <b>{selectedDiagnostic.code}</b>
+                    </div>
+                    <dl className="ops-detail-grid">
+                      <dt>发生时间</dt><dd>{formatDateTime(selectedDiagnostic.occurredAt)}</dd>
+                      <dt>接收时间</dt><dd>{formatDateTime(selectedDiagnostic.receivedAt)}</dd>
+                      <dt>场馆</dt><dd className="ops-mono">{selectedDiagnostic.accountNamespace}</dd>
+                      <dt>设备</dt><dd className="ops-mono">{selectedDiagnostic.deviceId} / 屏幕 {selectedDiagnostic.screenNumber}</dd>
+                      <dt>APP</dt><dd>{selectedDiagnostic.appVersion}</dd>
+                      <dt>日志 ID</dt><dd className="ops-mono">{selectedDiagnostic.logId}</dd>
+                    </dl>
+                    <div className="ops-detail-label">错误消息</div>
+                    <div className="ops-detail-message">{selectedDiagnostic.message}</div>
+                    <div className="ops-detail-label">上下文</div>
+                    <pre className="ops-detail-code">{formatJson(selectedDiagnostic.context)}</pre>
+                    {selectedDiagnostic.stackTrace ? (
+                      <>
+                        <div className="ops-detail-label">堆栈</div>
+                        <pre className="ops-detail-code">{selectedDiagnostic.stackTrace}</pre>
+                      </>
+                    ) : null}
+                  </>
+                ) : <div className="ops-empty-state">选择一条日志查看详情。</div>}
+              </aside>
             </div>
           </div>
         </div>
