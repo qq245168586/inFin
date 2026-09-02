@@ -72,6 +72,7 @@ import {
   listSchedulesByScope,
   listSchedulesByWeekDate,
   listTvDevices,
+  authenticateTvDiagnosticUpload,
   listTvScreens,
   loginConsoleUser,
   refreshConsoleUser,
@@ -90,6 +91,9 @@ import { resolveSafeMediaFile, sendMediaFile } from "../../services/media-delive
 import { getTvControlConfig, publishTvControl, publishTvSessionEvent } from "../../services/tv-control.js";
 import { readOpsEvents, startOpsMqttSubscriber, subscribeOpsEvents } from "../../services/mqtt-ops-log.js";
 import { readJsonBody, readRequestBuffer, sendFile, sendJson, sendNoContent } from "../../utils/http.js";
+import { handleTvDiagnosticUpload } from "./tv-diagnostic-upload.js";
+import { startTvDiagnosticRetention, tvDiagnosticFiles } from "../../services/tv-diagnostic-files.js";
+import { DiagnosticError } from "../../services/tv-diagnostic-schema.js";
 
 const host = process.env.HOST || "127.0.0.1";
 const port = Number(process.env.PORT || 3100);
@@ -740,6 +744,10 @@ export async function handleCompatRequest(request, response) {
   }
 
   try {
+    if (request.method === "POST" && url.pathname === "/api/tv/diagnostics") {
+      await handleTvDiagnosticUpload(request, response, () => authenticateTvDiagnosticUpload(request.headers));
+      return;
+    }
     if (request.method === "GET" && url.pathname === "/api/health") {
       sendJson(response, 200, {
         ok: true,
@@ -810,6 +818,30 @@ export async function handleCompatRequest(request, response) {
         limit: url.searchParams.get("limit") || "200"
       });
       sendJson(response, 200, { data: { items } });
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/ops/tv-diagnostics") {
+      const user = requireSuperAdmin(request, response);
+      if (!user) return;
+      try {
+        const data = await tvDiagnosticFiles.query({
+          namespace: url.searchParams.get("namespace") || "",
+          deviceId: url.searchParams.get("deviceId") || "",
+          date: url.searchParams.get("date") || "",
+          screenNumber: url.searchParams.get("screenNumber") || "",
+          type: url.searchParams.get("type") || "",
+          code: url.searchParams.get("code") || "",
+          limit: url.searchParams.get("limit") || "200"
+        });
+        sendJson(response, 200, { data });
+      } catch (error) {
+        if (error instanceof DiagnosticError) {
+          sendJson(response, error.status, { code: error.code, message: error.message });
+          return;
+        }
+        throw error;
+      }
       return;
     }
 
@@ -2926,4 +2958,5 @@ export function startCompatRequestServices() {
   compatRequestServicesStarted = true;
   startOpsMqttSubscriber();
   startPlaybackSessionSweeper();
+  startTvDiagnosticRetention();
 }

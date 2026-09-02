@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { authenticateDiagnosticDevice } from "../../services/tv-diagnostic-schema.js";
 import {
   ACCESS_TOKEN_TTL_SECONDS,
   CONSOLE_ACCOUNT_PRESETS,
@@ -971,6 +972,11 @@ export function listTvDevices(filters = {}) {
     generatedAt: nowIso(),
     devices
   };
+}
+
+/** Verifies a diagnostic upload against private binding data without exposing tokens or writing state. */
+export function authenticateTvDiagnosticUpload(headers) {
+  return authenticateDiagnosticDevice(headers, state.tvScreens || []);
 }
 
 /**

@@ -3,6 +3,8 @@ import { StoreGateway } from "./store-gateway.js";
 const storeGateway = new StoreGateway();
 const storeModule = storeGateway.raw();
 
+export const authenticateTvDiagnosticUpload = storeModule.authenticateTvDiagnosticUpload as (...args: any[]) => any;
+
 export const createMediaFilename = storeModule.createMediaFilename as (...args: any[]) => any;
 export const getDatabaseStatus = storeModule.getDatabaseStatus as (...args: any[]) => any;
 export const getMediaRoot = storeModule.getMediaRoot as (...args: any[]) => any;
