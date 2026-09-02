@@ -139,7 +139,7 @@ Expected:
 
 - Build order: Course、Coach、Admin 并行；TV 审计和构建独立进行。
 - Deploy order: Course -> Admin -> Coach；TV APK 最后上传到版本服务器。
-- Version bump: Web 使用新构建产物；TV `1.0.73` -> `1.0.74` (`versionCode 74`)。
+- Version bump: Web 使用新构建产物；TV 结构修正版为 `1.0.75` (`versionCode 75`)。
 - Rollback: 各 Web 恢复上一版静态目录；TV 恢复上一 APK。无 DB 回滚。
 
 Production release completed on 2026-09-02:
@@ -149,6 +149,8 @@ Production release completed on 2026-09-02:
 - Coach assets: `coach-DLjv9DKI.css`, `coach-CENFYI0A.js`
 - TV: `1.0.74`, package ID `91`, SHA-256 `21bab6db550c8db2c28d7945c4e1ada5da015d03344a5c1ae9b58a21a314c1c1`
 - TV package is available on the production version server; no forced venue installation was sent as part of this release.
+
+TV `1.0.74` retained too much of the old playback composition. The corrective `1.0.75` release, package ID `92`, replaces the large ring/segmented progress composition with the approved compact playback status band and persistent action captions; it remains selectable rather than force-pushed pending visual acceptance.
 
 ## Documentation Updates
 

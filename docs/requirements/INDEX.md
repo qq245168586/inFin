@@ -29,7 +29,7 @@
 
 | ID | Title | Status | Apps | Release Notes |
 | --- | --- | --- | --- | --- |
-| [REQ-20260902-cross-client-visual-system-refresh](REQ-20260902-cross-client-visual-system-refresh.md) | 全客户端视觉系统升级 | Shipped | `course-web`, `coach-web`, `admin-web`, `tv-android` | 三个 Web 新版已部署并通过 HTTPS/资源/浏览器检查；TV `1.0.74` 已登记为 package `91`，未强制安装到场馆。 |
-| [REQ-20260902-tv-visual-system-refresh](REQ-20260902-tv-visual-system-refresh.md) | TV 全界面视觉系统升级 | Shipped | `tv-android` | TV `1.0.73` 已上传为 package `90` 并推送至 3 个场馆共 12 台在线设备；全部心跳确认升级完成。 |
+| [REQ-20260902-cross-client-visual-system-refresh](REQ-20260902-cross-client-visual-system-refresh.md) | 全客户端视觉系统升级 | Ready for QA | `course-web`, `coach-web`, `admin-web`, `tv-android` | 三个 Web 新版已部署；TV 结构修正版 `1.0.75` 已登记为 package `92`，等待现场视觉验收。 |
+| [REQ-20260902-tv-visual-system-refresh](REQ-20260902-tv-visual-system-refresh.md) | TV 全界面视觉系统升级 | Ready for QA | `tv-android` | `1.0.73/1.0.74` 仅完成主题级改造；`1.0.75` package `92` 已补齐顶栏、紧凑状态带、动作名称和单条进度线，未强制推送场馆。 |
 | [REQ-20260730-oss-access-log-retention](REQ-20260730-oss-access-log-retention.md) | OSS 访问日志与 30 天保留 | Shipped | `ops`, `oss` | 生产 Bucket 开启访问日志，写入 `oss-access-logs/`，并仅对该前缀应用 30 天自动清理。 |
 | [REQ-20260621-course-schedule-i18n-today-button](REQ-20260621-course-schedule-i18n-today-button.md) | Course 课表俄语文案与今天跳转 | Shipped | `course-web` | 修复课表页俄语下仍显示中文按钮的问题，并新增“今天”按钮回到当前周与当天。 |

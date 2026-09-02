@@ -129,7 +129,7 @@ Android TV 客户端：
 - SWITCH Pod 的 `loopCount` 表示 AB 轮次数，独立于视频卡和 AB 对数量；第 n 轮按视频卡相邻配对循环取 AB。A→B 使用 SWITCH，同一 AB 多组间使用 REST，AB 轮次之间使用 MOVE STATION；Shared/Server 摘要与 session 时长、Course/Admin 计时、Web Simulator 以及 TV 竖屏/横屏时间线必须保持一致。
 - 播放竖屏/横屏不同 UI。
 - 支持课程同步、暂停、结束、计划展示、静默更新。
-- TV 视觉资源集中在 `app/src/main/res/values/colors.xml`、`themes.xml` 与 `res/drawable`，主界面结构集中在 `res/layout/activity_main.xml`；Java 动态生成的课表、训练卡、课程计划和设置项必须复用同一视觉资源。视觉调整不得改变现有 View ID、MVI surface、屏幕映射或点击/播放行为。
+- TV 视觉资源集中在 `app/src/main/res/values/colors.xml`、`themes.xml` 与 `res/drawable`，主界面结构集中在 `res/layout/activity_main.xml`；`MainActivityReadyResponsiveController` 负责竖/横屏状态带尺寸，`MainActivityTrainingCardRendererController` 与 `MainActivityWaterfallPlaybackController` 负责动作名称覆盖层，`HorizontalProgressBarComponent` 只绘制横屏单条训练进度。Java 动态生成的课表、训练卡、课程计划和设置项必须复用同一视觉资源。视觉调整不得改变现有 View ID、MVI surface、屏幕映射或点击/播放行为。
 
 ### `apps/download-web`
 
