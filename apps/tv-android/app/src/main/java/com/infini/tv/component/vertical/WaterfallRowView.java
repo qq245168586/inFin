@@ -71,15 +71,21 @@ public class WaterfallRowView {
   public final VideoView videoView;
   public final TextView placeholderText;
   public final View dimOverlay;
+  public final TextView captionText;
   public String boundUrl = "";
   public CourseScript.WaterfallItem item;
   public int itemIndex = -1;
 
   public WaterfallRowView(
-      FrameLayout container, VideoView videoView, TextView placeholderText, View dimOverlay) {
+      FrameLayout container,
+      VideoView videoView,
+      TextView placeholderText,
+      View dimOverlay,
+      TextView captionText) {
     this.container = container;
     this.videoView = videoView;
     this.placeholderText = placeholderText;
     this.dimOverlay = dimOverlay;
+    this.captionText = captionText;
   }
 }

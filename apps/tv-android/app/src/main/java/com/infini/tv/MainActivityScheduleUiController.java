@@ -169,7 +169,7 @@ abstract class MainActivityScheduleUiController extends MainActivityRemotePlayba
     if (contentPanel != null) {
       contentPanel.setPadding(0, 0, 0, 0);
     }
-    contentTopBar.setVisibility(View.GONE);
+    contentTopBar.setVisibility(View.VISIBLE);
     pageTitle.setVisibility(View.GONE);
     pageSubtitle.setVisibility(View.GONE);
     pageDividerRow.setVisibility(View.GONE);
@@ -182,7 +182,7 @@ abstract class MainActivityScheduleUiController extends MainActivityRemotePlayba
   }
 
   protected void showPlaybackChrome(boolean showCountdown, boolean showHint) {
-    contentTopBar.setVisibility(View.GONE);
+    contentTopBar.setVisibility(View.VISIBLE);
     pageTitle.setVisibility(View.GONE);
     pageSubtitle.setVisibility(View.GONE);
     pageDividerRow.setVisibility(View.GONE);

@@ -156,7 +156,7 @@ abstract class MainActivityTrainingStateController extends MainActivityReadyResp
       } else {
         playbackStageSecondary.setVisibility(View.VISIBLE);
         playbackStageSecondary.setText(secondaryText);
-        playbackStageSecondary.setGravity(android.view.Gravity.CENTER);
+        playbackStageSecondary.setGravity(android.view.Gravity.START);
       }
     }
 
@@ -206,11 +206,11 @@ abstract class MainActivityTrainingStateController extends MainActivityReadyResp
     }
 
     applyPlaybackTheme(getThemeForState(state));
-    playbackCountdownText.setText(formatCountdownSeconds(state.remainingSeconds));
+    playbackCountdownText.setText(formatHeaderCountdown(state.remainingSeconds));
     playbackStageLabel.setText(state.stageLabel);
-    playbackStageLabel.setGravity(android.view.Gravity.CENTER);
+    playbackStageLabel.setGravity(android.view.Gravity.START);
     playbackStageProgress.setText(state.stageProgress);
-    playbackStageProgress.setGravity(android.view.Gravity.CENTER);
+    playbackStageProgress.setGravity(android.view.Gravity.START | android.view.Gravity.CENTER_VERTICAL);
     renderStageMeta(state.stageSecondaryText, state.completedDots, state.totalDots);
     playbackHint.setText("");
     playbackHint.setVisibility(View.GONE);
@@ -456,7 +456,10 @@ abstract class MainActivityTrainingStateController extends MainActivityReadyResp
             true,
             false,
             false,
-            "");
+            "",
+            buildPlaybackContext(pod, 0, 0, currentCard),
+            0,
+            0);
       }
       cursor += workSeconds;
 
@@ -483,7 +486,10 @@ abstract class MainActivityTrainingStateController extends MainActivityReadyResp
             true,
             false,
             false,
-            "");
+            "",
+            buildPlaybackContext(pod, 0, 0, nextCard),
+            0,
+            0);
       }
       if (hasNextAction) {
         cursor += stationRestSeconds;
@@ -503,5 +509,51 @@ abstract class MainActivityTrainingStateController extends MainActivityReadyResp
         false,
         false,
         "");
+  }
+
+  /** Builds the compact playback subtitle shared by portrait and landscape status headers. */
+  protected String buildPlaybackContext(
+      CourseScript.Pod pod,
+      int setIndex,
+      int totalSets,
+      CourseScript.VideoCard... cards) {
+    StringBuilder context = new StringBuilder();
+    if (setIndex > 0) {
+      context.append("SET ").append(setIndex);
+      if (totalSets > 0) {
+        context.append('/').append(totalSets);
+      }
+    }
+
+    String podName = pod == null || pod.name == null ? "" : pod.name.trim();
+    if (!podName.isEmpty()) {
+      if (context.length() > 0) {
+        context.append(" · ");
+      }
+      context.append(podName.toUpperCase(Locale.US));
+    }
+
+    List<String> stations = new ArrayList<>();
+    if (cards != null) {
+      for (CourseScript.VideoCard card : cards) {
+        String station = card == null || card.stationNumber == null ? "" : card.stationNumber.trim();
+        if (!station.isEmpty() && !stations.contains(station)) {
+          stations.add(station);
+        }
+      }
+    }
+    if (!stations.isEmpty()) {
+      if (context.length() > 0) {
+        context.append(" · ");
+      }
+      context.append("站点 ");
+      for (int index = 0; index < stations.size(); index += 1) {
+        if (index > 0) {
+          context.append(" / ");
+        }
+        context.append(stations.get(index));
+      }
+    }
+    return context.toString();
   }
 }

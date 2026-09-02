@@ -293,6 +293,7 @@ abstract class MainActivityLifecycleController extends MainActivityBase {
     settingsPanel = findViewById(R.id.settingsPanel);
     updateCard = findViewById(R.id.updateCard);
     playbackTimerCard = findViewById(R.id.playbackTimerCard);
+    playbackTimerRing = findViewById(R.id.playbackTimerRing);
     playbackStageCard = findViewById(R.id.playbackStageCard);
     scheduleScrollView = findViewById(R.id.scheduleScrollView);
     playbackScrollView = findViewById(R.id.playbackScrollView);

@@ -358,7 +358,7 @@ abstract class MainActivityTrainingLayoutController extends MainActivityTraining
     showPlaybackChrome(true, true);
     hideFinishPanel();
     showPlaybackScroller();
-    playbackCountdownText.setText(formatCountdownSeconds(parseSafeInt(countdown)));
+    playbackCountdownText.setText(formatHeaderCountdown(parseSafeInt(countdown)));
     playbackStageLabel.setText(stageLabel);
     playbackStageProgress.setText("");
     renderStageMeta("", 0, 0);

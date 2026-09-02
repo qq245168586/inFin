@@ -161,7 +161,16 @@ abstract class MainActivityPairingAndUpdateController extends MainActivityLifecy
       selectorPairCodeText.setText(currentPairToken.isEmpty() ? "--" : currentPairToken);
     }
     if (screenDeviceMetaText != null) {
-      screenDeviceMetaText.setText(deviceId + "  ·  v" + (appVersion == null || appVersion.trim().isEmpty() ? "unknown" : appVersion));
+      String namespace =
+          activeAccountNamespace == null || activeAccountNamespace.trim().isEmpty()
+              ? "UNBOUND"
+              : activeAccountNamespace.trim().toUpperCase(Locale.US);
+      screenDeviceMetaText.setText(
+          namespace
+              + "  ·  "
+              + deviceId
+              + "  ·  v"
+              + (appVersion == null || appVersion.trim().isEmpty() ? "unknown" : appVersion));
     }
   }
 

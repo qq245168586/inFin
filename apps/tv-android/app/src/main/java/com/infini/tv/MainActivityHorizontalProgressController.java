@@ -277,7 +277,7 @@ abstract class MainActivityHorizontalProgressController extends MainActivityHori
             getResources().getDisplayMetrics().widthPixels,
             getResources().getDisplayMetrics().heightPixels);
     int statusHeight =
-        clamp(Math.round(shortSide * 0.213f), dp(100), dp(226));
+        clamp(Math.round(shortSide * 0.22f), dp(150), dp(238));
     if (playbackStatusGroup != null) {
       ViewGroup.LayoutParams statusParams = playbackStatusGroup.getLayoutParams();
       if (statusParams != null) {
@@ -292,6 +292,7 @@ abstract class MainActivityHorizontalProgressController extends MainActivityHori
         (LinearLayout.LayoutParams) playbackStageCard.getLayoutParams();
     if (previewHeader) {
       playbackTimerCard.setVisibility(View.GONE);
+      if (playbackTimerRing != null) playbackTimerRing.setVisibility(View.GONE);
       if (timerParams != null) {
         timerParams.width = 0;
         timerParams.weight = 0f;
@@ -306,6 +307,7 @@ abstract class MainActivityHorizontalProgressController extends MainActivityHori
       playbackStageCard.setPadding(dp(16), dp(8), dp(16), dp(8));
     } else {
       playbackTimerCard.setVisibility(View.VISIBLE);
+      if (playbackTimerRing != null) playbackTimerRing.setVisibility(View.VISIBLE);
       if (timerParams != null) {
         timerParams.width = 0;
         timerParams.weight = 0.28f;
@@ -326,12 +328,12 @@ abstract class MainActivityHorizontalProgressController extends MainActivityHori
     if (playbackCountdownText != null) {
       playbackCountdownText.setTextSize(
           TypedValue.COMPLEX_UNIT_PX,
-          previewHeader ? clampPx(statusHeight * 0.30f, sp(34), sp(58)) : clampPx(statusHeight * 0.82f, sp(84), sp(156)));
+          previewHeader ? clampPx(statusHeight * 0.24f, sp(30), sp(52)) : clampPx(statusHeight * 0.22f, sp(30), sp(54)));
     }
     if (playbackStageProgress != null) {
       playbackStageProgress.setTextSize(
           TypedValue.COMPLEX_UNIT_PX,
-          previewHeader ? clampPx(statusHeight * 0.30f, sp(34), sp(58)) : clampPx(statusHeight * 0.38f, sp(44), sp(72)));
+          previewHeader ? clampPx(statusHeight * 0.24f, sp(30), sp(52)) : clampPx(statusHeight * 0.29f, sp(38), sp(64)));
     }
     if (playbackStageSecondary != null) {
       playbackStageSecondary.setTextSize(
@@ -339,19 +341,19 @@ abstract class MainActivityHorizontalProgressController extends MainActivityHori
           previewHeader ? sp(20) : clampPx(statusHeight * 0.20f, sp(22), sp(34)));
     }
     if (playbackStageCard instanceof LinearLayout) {
-      ((LinearLayout) playbackStageCard).setGravity(android.view.Gravity.CENTER);
+      ((LinearLayout) playbackStageCard).setGravity(android.view.Gravity.CENTER_VERTICAL);
     }
     if (playbackStageLabel != null) {
-      playbackStageLabel.setGravity(android.view.Gravity.CENTER);
+      playbackStageLabel.setGravity(android.view.Gravity.START);
     }
     if (playbackStageProgress != null) {
-      playbackStageProgress.setGravity(android.view.Gravity.CENTER);
+      playbackStageProgress.setGravity(android.view.Gravity.START | android.view.Gravity.CENTER_VERTICAL);
     }
     if (playbackStageSecondary != null) {
-      playbackStageSecondary.setGravity(android.view.Gravity.CENTER);
+      playbackStageSecondary.setGravity(android.view.Gravity.START);
     }
     if (playbackStageDotsRow != null) {
-      playbackStageDotsRow.setGravity(android.view.Gravity.CENTER);
+      playbackStageDotsRow.setGravity(android.view.Gravity.START);
     }
   }
 
@@ -401,13 +403,14 @@ abstract class MainActivityHorizontalProgressController extends MainActivityHori
       }
       if (stateColumn instanceof LinearLayout) {
         LinearLayout column = (LinearLayout) stateColumn;
-        column.setGravity(android.view.Gravity.CENTER);
+        column.setGravity(android.view.Gravity.CENTER_VERTICAL);
         column.setPadding(0, 0, 0, 0);
         if (column.getChildCount() > 0 && column.getChildAt(0) instanceof LinearLayout) {
-          ((LinearLayout) column.getChildAt(0)).setGravity(android.view.Gravity.CENTER);
+          ((LinearLayout) column.getChildAt(0)).setGravity(
+              android.view.Gravity.START | android.view.Gravity.CENTER_VERTICAL);
         }
       }
-      horizontalStateText.setGravity(android.view.Gravity.CENTER);
+      horizontalStateText.setGravity(android.view.Gravity.START);
       horizontalStateText.setSingleLine(false);
       horizontalStateText.setMaxLines(3);
       if (horizontalStateDotsRow != null) {

@@ -114,7 +114,7 @@ abstract class MainActivityTrainingTimelineController extends MainActivityTraini
               false,
               false,
               "",
-              "SET " + (setIndex + 1) + "/" + setConfigs.size(),
+              buildPlaybackContext(pod, setIndex + 1, setConfigs.size(), cardA, cardB),
               setIndex * 2 + 1,
               totalSwitchDots,
               rowLayouts);
@@ -159,7 +159,7 @@ abstract class MainActivityTrainingTimelineController extends MainActivityTraini
               false,
               false,
               "",
-              "SET " + (setIndex + 1) + "/" + setConfigs.size(),
+              buildPlaybackContext(pod, setIndex + 1, setConfigs.size(), cardA, cardB),
               setIndex * 2 + 2,
               totalSwitchDots,
               rowLayouts);
@@ -273,7 +273,11 @@ abstract class MainActivityTrainingTimelineController extends MainActivityTraini
               false,
               false,
               "",
-              "SET " + (setIndex + 1),
+              buildPlaybackContext(
+                  pod,
+                  setIndex + 1,
+                  setConfigs.size(),
+                  baseCards.toArray(new CourseScript.VideoCard[0])),
               0,
               0,
               rowLayouts);

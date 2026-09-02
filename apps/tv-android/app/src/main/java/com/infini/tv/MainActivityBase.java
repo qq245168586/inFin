@@ -166,6 +166,7 @@ abstract class MainActivityBase extends MainActivityContracts {
   protected FrameLayout settingsPanel;
   protected View updateCard;
   protected View playbackTimerCard;
+  protected View playbackTimerRing;
   protected View playbackStageCard;
   protected ScrollView scheduleScrollView;
   protected ScrollView playbackScrollView;
@@ -372,5 +373,10 @@ abstract class MainActivityBase extends MainActivityContracts {
 
   protected String formatCountdownSeconds(int seconds) {
     return TimeDisplayFormatter.formatCountdownSeconds(seconds);
+  }
+
+  /** Formats the compact playback header as a stable MM:SS clock. */
+  protected String formatHeaderCountdown(int seconds) {
+    return TimeDisplayFormatter.formatClockCountdown(seconds);
   }
 }

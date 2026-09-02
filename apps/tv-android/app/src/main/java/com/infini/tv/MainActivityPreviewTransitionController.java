@@ -192,7 +192,7 @@ abstract class MainActivityPreviewTransitionController extends MainActivityWater
     }
     hideTransitionDesign();
     if (horizontalCountdownText != null) {
-      horizontalCountdownText.setText(formatCountdownSeconds(remainingSeconds));
+      horizontalCountdownText.setText(formatHeaderCountdown(remainingSeconds));
     }
     String safePrimary = primaryText == null || primaryText.trim().isEmpty() ? "WAITING" : primaryText;
     if (horizontalRingProgress != null) {
@@ -223,17 +223,15 @@ abstract class MainActivityPreviewTransitionController extends MainActivityWater
       horizontalStateText.setText(safePrimary);
       applyHorizontalStateTextSize(safePrimary);
       horizontalStateText.setMaxLines(totalDots > 0 ? 2 : 3);
-      if (horizontalStateIcon != null) {
-        horizontalStateIcon.setVisibility("WORK".equalsIgnoreCase(safePrimary.trim()) ? View.VISIBLE : View.GONE);
-      }
+      if (horizontalStateIcon != null) horizontalStateIcon.setVisibility(View.GONE);
     }
     if (horizontalStateSecondary != null) {
-      if (secondaryText == null || secondaryText.trim().isEmpty() || totalDots > 0) {
+      if (secondaryText == null || secondaryText.trim().isEmpty()) {
         horizontalStateSecondary.setVisibility(View.GONE);
       } else {
         horizontalStateSecondary.setVisibility(View.VISIBLE);
         horizontalStateSecondary.setText(secondaryText);
-        horizontalStateSecondary.setGravity(android.view.Gravity.CENTER);
+        horizontalStateSecondary.setGravity(android.view.Gravity.START);
       }
     }
     renderHorizontalDots(completedDots, totalDots);
@@ -254,10 +252,10 @@ abstract class MainActivityPreviewTransitionController extends MainActivityWater
     horizontalStateText.setTextSize(
         TypedValue.COMPLEX_UNIT_PX,
         ready
-            ? clampPx(shortSide * 0.118f, sp(82), sp(132))
+            ? clampPx(shortSide * 0.052f, sp(42), sp(62))
             : compact
-            ? clampPx(shortSide * 0.068f, sp(42), sp(74))
-            : clampPx(shortSide * 0.112f, sp(72), sp(124)));
+            ? clampPx(shortSide * 0.048f, sp(38), sp(58))
+            : clampPx(shortSide * 0.060f, sp(48), sp(72)));
   }
 
   protected boolean isHorizontalReadyRingState(String primaryText) {

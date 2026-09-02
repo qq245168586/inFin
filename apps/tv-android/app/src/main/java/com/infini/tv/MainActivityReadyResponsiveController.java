@@ -89,7 +89,7 @@ abstract class MainActivityReadyResponsiveController extends MainActivityHorizon
         "WARMUP_READY",
         "热身即将开始");
     applyPlaybackTheme(PlaybackTheme.READY);
-    playbackCountdownText.setText(formatCountdownSeconds(remainingSeconds));
+    playbackCountdownText.setText(formatHeaderCountdown(remainingSeconds));
     playbackStageLabel.setText("");
     playbackStageProgress.setText("READY FOR\nWARM UP");
     renderStageMeta("", 0, 0);
@@ -117,7 +117,7 @@ abstract class MainActivityReadyResponsiveController extends MainActivityHorizon
     }
     rememberTrainingCuePhase("workout-ready", "READY");
     applyPlaybackTheme(PlaybackTheme.READY);
-    playbackCountdownText.setText(formatCountdownSeconds(remainingSeconds));
+    playbackCountdownText.setText(formatHeaderCountdown(remainingSeconds));
     playbackStageLabel.setText("");
     playbackStageProgress.setText("READY FOR\nWORKOUT");
     renderStageMeta("", 0, 0);
@@ -205,14 +205,14 @@ abstract class MainActivityReadyResponsiveController extends MainActivityHorizon
       screenTag.setTextSize(TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.03f, sp(12), sp(18)));
     }
 
-    // Keep the vertical workout header at two thirds of the original tall status area.
+    // The playback header follows the compact timer-and-state band from the product design.
     boolean previewHeader =
         playbackStatusGroup != null
             && playbackStatusGroup.getVisibility() == View.VISIBLE
             && playbackTimerCard != null
             && playbackTimerCard.getVisibility() == View.GONE;
     int statusHeight =
-        clamp(Math.round(shortSide * 0.213f), dp(100), dp(226));
+        clamp(Math.round(shortSide * 0.22f), dp(150), dp(238));
     if (playbackStatusGroup != null) {
       ViewGroup.LayoutParams params = playbackStatusGroup.getLayoutParams();
       if (params != null) {
@@ -227,6 +227,15 @@ abstract class MainActivityReadyResponsiveController extends MainActivityHorizon
         params.width = 0;
         params.weight = previewHeader ? 0f : 0.28f;
         playbackTimerCard.setLayoutParams(params);
+      }
+    }
+    if (playbackTimerRing != null) {
+      ViewGroup.LayoutParams params = playbackTimerRing.getLayoutParams();
+      if (params != null) {
+        int size = clamp(Math.round(statusHeight * 0.72f), dp(112), dp(172));
+        params.width = size;
+        params.height = size;
+        playbackTimerRing.setLayoutParams(params);
       }
     }
     if (playbackStageCard != null) {
@@ -247,16 +256,16 @@ abstract class MainActivityReadyResponsiveController extends MainActivityHorizon
 
     if (playbackCountdownText != null) {
       playbackCountdownText.setTextSize(
-          TypedValue.COMPLEX_UNIT_PX, clampPx(statusHeight * 0.82f, sp(84), sp(156)));
+          TypedValue.COMPLEX_UNIT_PX, clampPx(statusHeight * 0.22f, sp(30), sp(54)));
     }
     if (playbackStageProgress != null) {
-      playbackStageProgress.setGravity(android.view.Gravity.CENTER);
+      playbackStageProgress.setGravity(android.view.Gravity.START | android.view.Gravity.CENTER_VERTICAL);
       playbackStageProgress.setTextSize(
           TypedValue.COMPLEX_UNIT_PX,
-          previewHeader ? clampPx(statusHeight * 0.30f, sp(34), sp(58)) : clampPx(statusHeight * 0.38f, sp(44), sp(72)));
+          previewHeader ? clampPx(statusHeight * 0.24f, sp(30), sp(52)) : clampPx(statusHeight * 0.29f, sp(38), sp(64)));
     }
     if (playbackStageSecondary != null) {
-      playbackStageSecondary.setGravity(android.view.Gravity.CENTER);
+      playbackStageSecondary.setGravity(android.view.Gravity.START);
       playbackStageSecondary.setTextSize(
           TypedValue.COMPLEX_UNIT_PX, previewHeader ? sp(20) : clampPx(statusHeight * 0.20f, sp(22), sp(34)));
     }
@@ -293,17 +302,17 @@ abstract class MainActivityReadyResponsiveController extends MainActivityHorizon
       ViewGroup.LayoutParams rawParams = horizontalRingContainer.getLayoutParams();
       if (rawParams instanceof FrameLayout.LayoutParams) {
         FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) rawParams;
-        int ringSize = clamp(Math.round(shortSide * 0.64f), dp(500), dp(780));
+        int ringSize = clamp(Math.round(shortSide * 0.22f), dp(190), dp(280));
         params.width = ringSize;
         params.height = ringSize;
         params.gravity = android.view.Gravity.TOP | android.view.Gravity.LEFT;
-        params.leftMargin = clamp(Math.round(screenWidth * 0.07f), dp(72), dp(150));
-        params.topMargin = clamp(Math.round(shortSide * 0.10f), dp(48), dp(116));
+        params.leftMargin = clamp(Math.round(screenWidth * 0.045f), dp(48), dp(96));
+        params.topMargin = clamp(Math.round(shortSide * 0.055f), dp(42), dp(68));
         horizontalRingContainer.setLayoutParams(params);
       }
     }
     if (horizontalRingProgress != null) {
-      horizontalRingProgress.setStrokeWidthPx(clampPx(shortSide * 0.047f, dp(34), dp(60)));
+      horizontalRingProgress.setStrokeWidthPx(clampPx(shortSide * 0.010f, dp(8), dp(14)));
       horizontalRingProgress.setColors(
           getColor(R.color.tv_horizontal_progress_inactive),
           getColor(R.color.tv_horizontal_progress_active),
@@ -312,17 +321,17 @@ abstract class MainActivityReadyResponsiveController extends MainActivityHorizon
     }
     if (horizontalCountdownText != null) {
       horizontalCountdownText.setTextSize(
-          TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.22f, sp(150), sp(260)));
+          TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.050f, sp(42), sp(62)));
     }
     if (horizontalStateColumn != null) {
       ViewGroup.LayoutParams rawParams = horizontalStateColumn.getLayoutParams();
       if (rawParams instanceof FrameLayout.LayoutParams) {
         FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) rawParams;
-        int ringSize = clamp(Math.round(shortSide * 0.64f), dp(500), dp(780));
-        int ringTop = clamp(Math.round(shortSide * 0.10f), dp(48), dp(116));
-        int stateTop = ringTop + Math.round(ringSize * 0.25f);
-        int ringLeft = clamp(Math.round(screenWidth * 0.07f), dp(72), dp(150));
-        int left = ringLeft + ringSize + clamp(Math.round(screenWidth * 0.035f), dp(42), dp(92));
+        int ringSize = clamp(Math.round(shortSide * 0.22f), dp(190), dp(280));
+        int ringTop = clamp(Math.round(shortSide * 0.055f), dp(42), dp(68));
+        int stateTop = ringTop + Math.round(ringSize * 0.18f);
+        int ringLeft = clamp(Math.round(screenWidth * 0.045f), dp(48), dp(96));
+        int left = ringLeft + ringSize + clamp(Math.round(screenWidth * 0.025f), dp(28), dp(54));
         int right = clamp(Math.round(screenWidth * 0.045f), dp(42), dp(90));
         params.width = Math.max(screenWidth - left - right, dp(520));
         params.height = FrameLayout.LayoutParams.WRAP_CONTENT;
@@ -335,21 +344,15 @@ abstract class MainActivityReadyResponsiveController extends MainActivityHorizon
       }
     }
     if (horizontalStateIcon != null) {
-      ViewGroup.LayoutParams params = horizontalStateIcon.getLayoutParams();
-      if (params != null) {
-        int iconSize = clamp(Math.round(shortSide * 0.078f), dp(62), dp(92));
-        params.width = iconSize;
-        params.height = iconSize;
-        horizontalStateIcon.setLayoutParams(params);
-      }
+      horizontalStateIcon.setVisibility(View.GONE);
     }
     if (horizontalStateText != null) {
       horizontalStateText.setTextSize(
-          TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.126f, sp(86), sp(142)));
+          TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.060f, sp(48), sp(72)));
     }
     if (horizontalStateSecondary != null) {
       horizontalStateSecondary.setTextSize(
-          TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.064f, sp(24), sp(42)));
+          TypedValue.COMPLEX_UNIT_PX, clampPx(shortSide * 0.026f, sp(22), sp(32)));
     }
     if (horizontalStateDotsRow != null) {
       horizontalStateDotsRow.removeAllViews();
@@ -376,9 +379,9 @@ abstract class MainActivityReadyResponsiveController extends MainActivityHorizon
         horizontalTransitionCircle.setLayoutParams(params);
       }
     }
-    int horizontalProgressBottomMargin = clamp(Math.round(shortSide * 0.055f), dp(42), dp(76));
+    int horizontalProgressBottomMargin = clamp(Math.round(shortSide * 0.055f), dp(46), dp(64));
     int horizontalProgressWidth =
-        clamp(Math.round(screenWidth * 0.86f), dp(760), Math.max(screenWidth - dp(80), dp(760)));
+        clamp(Math.round(screenWidth * 0.90f), dp(760), Math.max(screenWidth - dp(72), dp(760)));
     if (horizontalProgressRow != null) {
       ViewGroup.LayoutParams rawParams = horizontalProgressRow.getLayoutParams();
       if (rawParams instanceof FrameLayout.LayoutParams) {

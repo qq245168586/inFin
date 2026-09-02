@@ -129,7 +129,7 @@ abstract class MainActivityWaterfallPlaybackController extends MainActivityHoriz
       return;
     }
 
-    playbackCountdownText.setText(formatCountdownSeconds(remainingSeconds));
+    playbackCountdownText.setText(formatHeaderCountdown(remainingSeconds));
     playbackStageLabel.setText(stageLabel);
     playbackStageProgress.setText((currentIndex + 1) + " / " + items.size());
     playbackHint.setText("");
@@ -278,7 +278,25 @@ abstract class MainActivityWaterfallPlaybackController extends MainActivityHoriz
     dimOverlay.setBackgroundColor(getColor(R.color.tv_playback_dim));
     container.addView(dimOverlay);
 
-    return new WaterfallRowView(container, videoView, placeholder, dimOverlay);
+    TextView caption = new TextView(this);
+    FrameLayout.LayoutParams captionParams =
+        new FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+    captionParams.gravity = android.view.Gravity.BOTTOM;
+    captionParams.leftMargin = dp(1);
+    captionParams.rightMargin = dp(1);
+    captionParams.bottomMargin = dp(1);
+    caption.setLayoutParams(captionParams);
+    caption.setTextColor(getColor(R.color.tv_text_main));
+    caption.setTextSize(24f);
+    caption.setTypeface(caption.getTypeface(), android.graphics.Typeface.BOLD);
+    caption.setMaxLines(2);
+    caption.setEllipsize(TextUtils.TruncateAt.END);
+    caption.setPadding(dp(16), dp(9), dp(16), dp(10));
+    caption.setBackgroundResource(R.drawable.bg_playback_caption);
+    container.addView(caption);
+
+    return new WaterfallRowView(container, videoView, placeholder, dimOverlay, caption);
   }
 
   protected void bindWaterfallRowContent(WaterfallRowView row) {
@@ -291,6 +309,7 @@ abstract class MainActivityWaterfallPlaybackController extends MainActivityHoriz
       placeholderText = row.item.actionName;
     }
     row.placeholderText.setText(placeholderText);
+    row.captionText.setText(placeholderText);
     row.placeholderText.setVisibility(View.VISIBLE);
     row.videoView.setVisibility(View.GONE);
     row.dimOverlay.setAlpha(0.54f);

@@ -12,4 +12,9 @@ public final class TimeDisplayFormatter {
     }
     return String.format(Locale.US, "%d:%02d", safeSeconds / 60, safeSeconds % 60);
   }
+
+  public static String formatClockCountdown(int seconds) {
+    int safeSeconds = Math.max(seconds, 0);
+    return String.format(Locale.US, "%02d:%02d", safeSeconds / 60, safeSeconds % 60);
+  }
 }

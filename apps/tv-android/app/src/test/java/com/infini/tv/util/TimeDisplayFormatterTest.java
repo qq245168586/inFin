@@ -18,4 +18,11 @@ public class TimeDisplayFormatterTest {
     assertEquals("1:01", TimeDisplayFormatter.formatCountdownSeconds(61));
     assertEquals("60:00", TimeDisplayFormatter.formatCountdownSeconds(3600));
   }
+
+  @Test
+  public void formatClockCountdown_usesStableMinuteSecondWidth() {
+    assertEquals("00:00", TimeDisplayFormatter.formatClockCountdown(-1));
+    assertEquals("00:07", TimeDisplayFormatter.formatClockCountdown(7));
+    assertEquals("01:01", TimeDisplayFormatter.formatClockCountdown(61));
+  }
 }

@@ -162,6 +162,7 @@ abstract class MainActivityTrainingCardRendererController extends MainActivityTr
     wrapper.addView(preview);
 
     bindTrainingPreview(preview, card);
+    wrapper.addView(createTrainingActionCaption(card, true));
     wrapper.addView(
         createTrainingStationBadge(
             safeStationLabel(card == null ? null : card.stationNumber, cardIndex + 1), true));
@@ -194,6 +195,7 @@ abstract class MainActivityTrainingCardRendererController extends MainActivityTr
     wrapper.addView(preview);
 
     bindTrainingPreview(preview, card);
+    wrapper.addView(createTrainingActionCaption(card, false));
     wrapper.addView(
         createTrainingStationBadge(
             safeStationLabel(card == null ? null : card.stationNumber, cardIndex + 1), false));
@@ -207,6 +209,29 @@ abstract class MainActivityTrainingCardRendererController extends MainActivityTr
       return;
     }
     wrapper.addView(createTrainingTargetDot(card.target, isWide));
+  }
+
+  protected TextView createTrainingActionCaption(CourseScript.VideoCard card, boolean isWide) {
+    TextView caption = new TextView(this);
+    FrameLayout.LayoutParams params =
+        new FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+    params.gravity = android.view.Gravity.BOTTOM;
+    params.leftMargin = dp(1);
+    params.rightMargin = dp(1);
+    params.bottomMargin = dp(1);
+    caption.setLayoutParams(params);
+    String actionName = card == null || card.actionName == null ? "" : card.actionName.trim();
+    caption.setText(actionName.isEmpty() ? "未命名动作" : actionName);
+    caption.setTextColor(getColor(R.color.tv_text_main));
+    caption.setTextSize(isWide ? 27f : 23f);
+    caption.setTypeface(caption.getTypeface(), android.graphics.Typeface.BOLD);
+    caption.setMaxLines(2);
+    caption.setEllipsize(TextUtils.TruncateAt.END);
+    caption.setGravity(android.view.Gravity.START | android.view.Gravity.CENTER_VERTICAL);
+    caption.setPadding(dp(isWide ? 18 : 14), dp(10), dp(isWide ? 18 : 14), dp(11));
+    caption.setBackgroundResource(R.drawable.bg_playback_caption);
+    return caption;
   }
 
   protected TextView createTrainingStationBadge(String label, boolean isWide) {
@@ -248,9 +273,9 @@ abstract class MainActivityTrainingCardRendererController extends MainActivityTr
     int baseSize = isWide ? 76 : 66;
     int size = dp(length > 8 ? baseSize + 12 : length > 5 ? baseSize + 6 : baseSize);
     FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(size, size);
-    params.gravity = android.view.Gravity.BOTTOM | android.view.Gravity.START;
-    params.leftMargin = dp(isWide ? 24 : 20);
-    params.bottomMargin = dp(isWide ? 16 : 12);
+    params.gravity = android.view.Gravity.TOP | android.view.Gravity.END;
+    params.rightMargin = dp(isWide ? 20 : 16);
+    params.topMargin = dp(isWide ? 14 : 12);
     dot.setLayoutParams(params);
     dot.setText(label);
     dot.setTextColor(getColor(R.color.tv_accent_gold_bright));
