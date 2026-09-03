@@ -11,10 +11,6 @@
       "description": "Production API domain"
     },
     {
-      "url": "http://8.130.65.113",
-      "description": "Production IP / TV HTTP compatibility"
-    },
-    {
       "url": "http://127.0.0.1:3100",
       "description": "Local development"
     }

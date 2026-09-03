@@ -2,7 +2,7 @@
 set -euo pipefail
 
 API_BASE="${API_BASE:-http://127.0.0.1:3100}"
-PUBLIC_BASE="${PUBLIC_BASE:-http://8.130.65.113}"
+PUBLIC_BASE="${PUBLIC_BASE:-https://api.infintraining.work}"
 META_WARN_MS="${META_WARN_MS:-1200}"
 COURSES_WARN_MS="${COURSES_WARN_MS:-1200}"
 SENDQ_WARN="${SENDQ_WARN:-20}"

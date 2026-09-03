@@ -12,8 +12,7 @@
 
 | 环境 | 地址 | 说明 |
 | --- | --- | --- |
-| 生产域名 | `https://api.infintraining.work` | Web 端优先使用 |
-| 生产 IP | `http://8.130.65.113` | TV 盒子兼容 HTTP 时使用 |
+| 生产域名 | `https://api.infintraining.work` | 所有生产客户端统一使用 HTTPS/443 |
 | 本地开发 | `http://127.0.0.1:3100` | 本地 server |
 
 ## 认证说明
