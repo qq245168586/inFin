@@ -177,6 +177,7 @@ TV APK 下载页：
 
 - Server 和 Web 端部署到 Aliyun。
 - TV APK 包放在 `/home/REDACTED_CONFIGURE_LOCALLY/infini-data/app-packages`。
+- API 与 Web 网关使用 RSA 2048 证书；acme.sh 的 root 定时任务负责续签、安装到 Nginx证书目录并 reload。
 - `1.0.35` 之前的 TV 包已清理。
 - 每个项目单独构建、单独提交、单独 push。
 

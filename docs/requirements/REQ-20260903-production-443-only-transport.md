@@ -129,6 +129,8 @@ Expected:
 - Build order: Server/ops 配置检查，随后 TV 1.0.76。
 - Deploy order: Nginx 与静态下载页，Server 配置，最后登记 TV 安装包。
 - Version bump: TV `1.0.76` / `76`。
+- Deployment result: 2026-09-03 已部署 Nginx/EMQX 安全配置和下载页；TV 1.0.76 已登记为 package `93`，未强推设备。
+- Certificate result: API 单域名和 Web 六域名均使用新 RSA 2048 证书，有效期到 2026-12-02；root cron 分别每日检查续签，续签成功后自动安装并 reload Nginx。
 - Rollback: 回滚应用与 Nginx版本；不恢复公网明文回退。
 
 ## Documentation Updates
