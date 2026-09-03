@@ -152,7 +152,7 @@ final class ApiClient {
 
   List<String> resolveMediaUrlCandidates(String url) {
     return ConnectionFallbackPolicy.resolveMediaUrlCandidates(
-        url,
+        ServerConfig.normalizeRemoteUrl(url),
         ServerConfig.BASE_URL,
         ServerConfig.API_BASE_URL,
         ServerConfig.BACKUP_BASE_URL,

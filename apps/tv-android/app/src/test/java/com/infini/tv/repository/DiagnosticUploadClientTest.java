@@ -83,14 +83,14 @@ public class DiagnosticUploadClientTest {
     assertEquals(1, calls.get()); assertFalse(transport.shouldUseHttpBackup());
   }
 
-  @Test public void transportFailureUsesExistingTwoFailureFallbackOnlyForThisClient() throws Exception {
+  @Test public void transportFailureDoesNotRetryTheSameSecureOriginAsBackup() throws Exception {
     JSONObject record = event(); File file = file(record); AtomicInteger calls = new AtomicInteger();
     ApiClient transport = client(chain -> { calls.incrementAndGet(); throw new IOException("offline"); });
     DiagnosticUploadClient uploader = new DiagnosticUploadClient(transport);
     assertThrows(IOException.class, () -> uploader.upload(file, record, "credential"));
     assertEquals(1, calls.get());
     assertThrows(IOException.class, () -> uploader.upload(file, record, "credential"));
-    assertEquals(3, calls.get()); assertTrue(transport.shouldUseHttpBackup());
+    assertEquals(2, calls.get()); assertTrue(transport.shouldUseHttpBackup());
     assertFalse(new ApiClient(null).shouldUseHttpBackup());
   }
 

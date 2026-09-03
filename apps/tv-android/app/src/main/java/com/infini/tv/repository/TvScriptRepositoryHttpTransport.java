@@ -174,6 +174,7 @@ abstract class TvScriptRepositoryHttpTransport extends TvScriptRepositoryMediaCa
     if (url == null) {
       return "";
     }
+    url = ServerConfig.normalizeRemoteUrl(url);
     if (url.startsWith("http://") || url.startsWith("https://")) {
       return url;
     }

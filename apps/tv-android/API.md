@@ -7,8 +7,10 @@
 TV 端 Base URL：
 
 - `ServerConfig.BASE_URL`（当前实现：`https://api.infintraining.work`）
-- `ServerConfig.BACKUP_BASE_URL`（当前实现：`http://8.130.65.113`，HTTPS API 连续失败 2 次后临时启用）
+- `ServerConfig.BACKUP_BASE_URL`（生产包只允许 `https://`；当前与主地址一致，避免回退到明文链路）
 - API 前缀：`/api`
+
+生产构建会拒绝任何 HTTP API 或非 WSS MQTT 配置，并在 Android manifest 中关闭明文流量。旧数据中如仍存在 `http://` 媒体地址，TV 会先升级为 HTTPS；历史公网 IP 地址会归一到 `https://api.infintraining.work`。
 
 TV 端不携带登录 token；屏幕状态与绑定信息通过 body 字段上报（见下文）。
 
@@ -110,14 +112,14 @@ TV 端不携带登录 token；屏幕状态与绑定信息通过 body 字段上�
 
 ## MQTT（EMQX / Mosquitto）
 
-TV 端使用 Paho MQTT client 通过 WebSocket Secure 连接 MQTT。WSS 连续失败 2 次后，临时启用 TCP 1883 作为 backup。
+TV 端使用 Paho MQTT client 通过 WebSocket Secure 连接 MQTT。生产环境不再启用 TCP 1883；主地址和备用地址都必须是 WSS/443。
 
 ### 连接参数（当前实现）
 
 见 `apps/tv-android/app/src/main/java/com/infini/tv/repository/ServerConfig.java`：
 
 - URL: `wss://api.infintraining.work/mqtt`
-- Backup URL: `tcp://8.130.65.113:1883`
+- Backup URL: `wss://api.infintraining.work/mqtt`（当前与主地址一致，不产生明文回退）
 - Username: 空
 - Password: `e10adc...`
 

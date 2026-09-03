@@ -62,7 +62,7 @@ abstract class TvMqttManagerBase extends TvMqttManagerContracts {
     return value == null ? "" : value.trim();
   }
 
-  protected synchronized boolean shouldUseMqttTcpBackup() {
+  protected synchronized boolean shouldUseMqttBackup() {
     return secureMqttFailureCount >= ServerConfig.SECURE_FALLBACK_FAILURE_THRESHOLD;
   }
 

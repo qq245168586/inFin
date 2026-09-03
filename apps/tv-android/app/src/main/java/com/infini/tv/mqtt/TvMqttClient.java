@@ -192,7 +192,7 @@ abstract class TvMqttClient extends TvMqttManagerBase {
                 MqttConnectOptions options = new MqttConnectOptions();
                 options.setAutomaticReconnect(true);
                 options.setCleanSession(true);
-                options.setServerURIs(ServerConfig.mqttBrokerUris(shouldUseMqttTcpBackup()));
+                options.setServerURIs(ServerConfig.mqttBrokerUris(shouldUseMqttBackup()));
                 options.setConnectionTimeout(8);
                 options.setKeepAliveInterval(60);
                 if (connectUsername != null && !connectUsername.trim().isEmpty()) {

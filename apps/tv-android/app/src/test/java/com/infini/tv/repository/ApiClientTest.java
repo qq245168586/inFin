@@ -22,10 +22,10 @@ public class ApiClientTest {
     client.recordSecureApiFailure();
     assertTrue(client.shouldUseHttpBackup());
     assertEquals(
-        Arrays.asList(ServerConfig.API_BASE_URL, ServerConfig.BACKUP_API_BASE_URL),
+        Arrays.asList(ServerConfig.API_BASE_URL),
         client.apiBaseUrlCandidates());
     assertEquals(
-        Arrays.asList(ServerConfig.BASE_URL, ServerConfig.BACKUP_BASE_URL),
+        Arrays.asList(ServerConfig.BASE_URL),
         client.baseUrlCandidates());
   }
 

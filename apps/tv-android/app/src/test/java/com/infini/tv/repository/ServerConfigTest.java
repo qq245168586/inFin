@@ -30,7 +30,17 @@ public class ServerConfigTest {
         new String[] {ServerConfig.MQTT_WSS_URL},
         ServerConfig.mqttBrokerUris(false));
     assertArrayEquals(
-        new String[] {ServerConfig.MQTT_WSS_URL, ServerConfig.MQTT_TCP_BACKUP_URL},
+        new String[] {ServerConfig.MQTT_WSS_URL},
         ServerConfig.mqttBrokerUris(true));
+  }
+
+  @Test
+  public void normalizeRemoteUrl_upgradesLegacyProductionHttpUrls() {
+    assertEquals(
+        ServerConfig.BASE_URL + "/api/media/example.mp4",
+        ServerConfig.normalizeRemoteUrl("http://8.130.65.113:80/api/media/example.mp4"));
+    assertEquals(
+        "https://cdn.example.test/example.mp4",
+        ServerConfig.normalizeRemoteUrl("http://cdn.example.test/example.mp4"));
   }
 }

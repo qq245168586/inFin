@@ -260,7 +260,7 @@ abstract class TvScriptRepositoryAppPackages extends TvScriptRepositoryCoreApi {
   }
 
   protected List<String> resolveAbsoluteUrlCandidates(String downloadUrl) {
-    String url = downloadUrl == null ? "" : downloadUrl.trim();
+    String url = ServerConfig.normalizeRemoteUrl(downloadUrl);
     if (url.isEmpty()) {
       return Collections.emptyList();
     }

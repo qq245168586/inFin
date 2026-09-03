@@ -11,7 +11,7 @@ import org.junit.Test;
 public class ConnectionFallbackPolicyTest {
   private static final String BASE = "https://primary.example.test";
   private static final String API = BASE + "/api";
-  private static final String BACKUP = "http://backup.example.test";
+  private static final String BACKUP = "https://backup.example.test";
   private static final String BACKUP_API = BACKUP + "/api";
 
   @Test
@@ -51,10 +51,10 @@ public class ConnectionFallbackPolicyTest {
     assertArrayEquals(
         new String[] {"wss://primary.example.test/mqtt"},
         ConnectionFallbackPolicy.brokerUris(
-            "wss://primary.example.test/mqtt", "tcp://backup.example.test:1883", false));
+            "wss://primary.example.test/mqtt", "wss://backup.example.test/mqtt", false));
     assertArrayEquals(
-        new String[] {"wss://primary.example.test/mqtt", "tcp://backup.example.test:1883"},
+        new String[] {"wss://primary.example.test/mqtt", "wss://backup.example.test/mqtt"},
         ConnectionFallbackPolicy.brokerUris(
-            "wss://primary.example.test/mqtt", "tcp://backup.example.test:1883", true));
+            "wss://primary.example.test/mqtt", "wss://backup.example.test/mqtt", true));
   }
 }

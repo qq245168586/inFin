@@ -89,9 +89,7 @@ abstract class MainActivityLifecycleController extends MainActivityBase {
         "Cleartext policy all="
             + NetworkSecurityPolicy.getInstance().isCleartextTrafficPermitted()
             + " domain="
-            + NetworkSecurityPolicy.getInstance().isCleartextTrafficPermitted("infintraining.work")
-            + " ip="
-            + NetworkSecurityPolicy.getInstance().isCleartextTrafficPermitted("8.130.65.113"));
+            + NetworkSecurityPolicy.getInstance().isCleartextTrafficPermitted("infintraining.work"));
     repository = new TvScriptRepository(this);
     mqttManager =
         TvMqttManager.getInstance(
