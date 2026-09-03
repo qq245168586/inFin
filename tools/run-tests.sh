@@ -59,16 +59,18 @@ run_vitest_step() {
 
 overall=0
 
+run_step "production-transports" "$ROOT_DIR" bash tools/check-production-transports.sh || overall=1
+
 if [[ "$MODE" == "coverage" ]]; then
   run_vitest_step "server" "$ROOT_DIR/apps/server" test:coverage || overall=1
   run_vitest_step "course-web" "$ROOT_DIR/apps/course-web" test:coverage || overall=1
   run_vitest_step "coach-web" "$ROOT_DIR/apps/coach-web" test:coverage || overall=1
-  run_step "tv-android" "$ROOT_DIR/apps/tv-android" ./gradlew testDebugUnitTest jacocoDebugUnitTestReport || overall=1
+  run_step "tv-android" "$ROOT_DIR/apps/tv-android" env GRADLE_USER_HOME="$ROOT_DIR/apps/tv-android/.gradle-home" ./gradlew testDebugUnitTest jacocoDebugUnitTestReport || overall=1
 else
   run_vitest_step "server" "$ROOT_DIR/apps/server" test || overall=1
   run_vitest_step "course-web" "$ROOT_DIR/apps/course-web" test || overall=1
   run_vitest_step "coach-web" "$ROOT_DIR/apps/coach-web" test || overall=1
-  run_step "tv-android" "$ROOT_DIR/apps/tv-android" ./gradlew testDebugUnitTest || overall=1
+  run_step "tv-android" "$ROOT_DIR/apps/tv-android" env GRADLE_USER_HOME="$ROOT_DIR/apps/tv-android/.gradle-home" ./gradlew testDebugUnitTest || overall=1
 fi
 
 if [[ "$ALLURE" -eq 1 ]]; then

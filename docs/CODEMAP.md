@@ -158,7 +158,8 @@ TV APK 下载页：
 | `coach.infintraining.work` | Coach Web |
 | `download.infintraining.work` | Download Web |
 | `ops.infintraining.work` | Ops Web |
-| `git.infintraining.work` | Git service |
+
+生产客户端只允许通过 HTTPS/443 访问 API 和媒体，通过 `wss://api.infintraining.work/mqtt` 访问 MQTT。Nginx 的 80 监听只负责跳转到 HTTPS 和 ACME 证书续期；`127.0.0.1:3100`、`3205`、`8083` 是同机内部 upstream，不是公网入口。EMQX 的 TCP/1883 listener 必须关闭，WebSocket listener 只绑定 `127.0.0.1:8083`。本地调试构建可显式使用局域网 HTTP/MQTT TCP，不进入生产包。
 
 ## MQTT Isolation
 
@@ -170,6 +171,7 @@ TV APK 下载页：
 - Coach/Admin 发控制指令时必须带场馆 namespace。
 - 服务端/网关负责根据场馆发送到对应 topic。
 - 不同场馆之间不共享控制消息。
+- 生产 MQTT 仅暴露 WSS/443，不提供 TCP/1883 或明文 WebSocket 回退。
 
 ## Deployment Notes
 
