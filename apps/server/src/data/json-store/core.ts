@@ -40,7 +40,7 @@ export const DEFAULT_ACCOUNT_NAMESPACE = "13689547720";
 export const DEFAULT_COURSE_PACKAGE_NAME = "默认课程包";
 export const COURSE_PACKAGE_ACCESS_SCOPE_PACKAGE_ONLY = "PACKAGE_ONLY";
 export const COURSE_PACKAGE_ACCESS_SCOPE_GLOBAL = "GLOBAL";
-export const SUPERADMIN_USERNAMES = new Set(["13689547720"]);
+export const SUPERADMIN_USERNAMES = new Set(["13689547720", "zhiyou"]);
 export const CONSOLE_ACCOUNT_PRESETS = [
   {
     username: "13689547720",
@@ -48,6 +48,15 @@ export const CONSOLE_ACCOUNT_PRESETS = [
     nickname: "13689547720",
     accountNamespace: "13689547720",
     environmentLabel: "13689547720",
+    allowedClients: ["coach-web", "editor-web"],
+    role: "superadmin"
+  },
+  {
+    username: "zhiyou",
+    password: "REDACTED_CONFIGURE_LOCALLY",
+    nickname: "zhiyou",
+    accountNamespace: "zhiyou",
+    environmentLabel: "zhiyou",
     allowedClients: ["coach-web", "editor-web"],
     role: "superadmin"
   }

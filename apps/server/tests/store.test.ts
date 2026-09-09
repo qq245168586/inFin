@@ -141,11 +141,11 @@ test("explicit PACKAGE_ONLY scope also isolates super administrators", async (t)
   );
 });
 
-test("retired zhiyou super administrator is not recreated from account presets", async (t) => {
+test("zhiyou super administrator is recreated from account presets", async (t) => {
   const store = await importStore(t, createMockDatabaseState());
 
   assert.ok(store.getUserByUsername("13689547720"));
-  assert.equal(store.getUserByUsername("zhiyou"), null);
+  assert.equal(store.getUserByUsername("zhiyou")?.role, "superadmin");
 });
 
 test("GLOBAL cross-package edits preserve the existing resource ownership", async (t) => {
