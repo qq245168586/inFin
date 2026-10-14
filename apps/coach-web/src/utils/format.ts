@@ -1,5 +1,6 @@
 import type { CoachPreviewItem, TvDailySchedule } from "../models/schedule";
 import type { CoachSessionState } from "../models/playback";
+import { resolvePublicUrl } from "../config/runtime";
 
 export function getErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message) {
@@ -54,7 +55,7 @@ export function buildFormalPreviews(schedule: TvDailySchedule | null): CoachPrev
     const orderedScreens = [...(group.screens || [])].sort((left, right) => left.screenIndex - right.screenIndex);
     for (const screen of orderedScreens) {
       for (const card of screen.videoCards || []) {
-        const mediaUrl = pickPreviewMediaUrl(card);
+        const mediaUrl = resolvePublicUrl(pickPreviewMediaUrl(card));
         if (!mediaUrl) {
           continue;
         }
