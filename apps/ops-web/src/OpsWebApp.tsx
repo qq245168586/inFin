@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { resolveApiUrl } from "./runtime";
 
 type NoticeTone = "success" | "error";
 
@@ -186,7 +187,7 @@ function removeStorageItem(key: string) {
 }
 
 async function requestJson<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(path, {
+  const response = await fetch(resolveApiUrl(path), {
     cache: "no-store",
     ...options,
     headers: {
@@ -569,7 +570,7 @@ export default function OpsWebApp() {
     params.set("accessToken", authSession.access_token);
     params.set("tokenType", authSession.token_type);
 
-    const source = new EventSource(`/api/ops/mqtt/stream?${params.toString()}`);
+    const source = new EventSource(resolveApiUrl(`/api/ops/mqtt/stream?${params.toString()}`));
     streamRef.current = source;
     setStreaming(true);
 
