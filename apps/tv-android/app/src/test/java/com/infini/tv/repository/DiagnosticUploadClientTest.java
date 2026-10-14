@@ -55,7 +55,7 @@ public class DiagnosticUploadClientTest {
     DiagnosticUploadClient uploader = new DiagnosticUploadClient(client(chain -> {
       calls.incrementAndGet();
       assertEquals("POST", chain.request().method());
-      assertEquals("/api/tv/diagnostics", chain.request().url().encodedPath());
+      assertEquals("/infini/api/tv/diagnostics", chain.request().url().encodedPath());
       assertEquals("TV-TEST", chain.request().header("X-Infini-Device-Id"));
       assertEquals("venue-test", chain.request().header("X-Infini-Namespace"));
       assertEquals("CREDENTIAL", chain.request().header("X-Infini-Pair-Token"));

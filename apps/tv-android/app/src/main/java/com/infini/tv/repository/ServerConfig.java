@@ -32,7 +32,11 @@ public final class ServerConfig {
 
   public static String normalizeRemoteUrl(String value) {
     String normalized = value == null ? "" : value.trim();
-    if (!"production".equalsIgnoreCase(ENV) || !normalized.startsWith("http://")) {
+    if ("production".equalsIgnoreCase(ENV) && normalized.startsWith("/infini/")) {
+      URI base = URI.create(BASE_URL);
+      return base.getScheme() + "://" + base.getRawAuthority() + normalized;
+    }
+    if (!"production".equalsIgnoreCase(ENV) || !(normalized.startsWith("http://") || normalized.startsWith("https://"))) {
       return normalized;
     }
     try {
@@ -41,10 +45,22 @@ public final class ServerConfig {
       if (host == null || host.isEmpty()) {
         return normalized;
       }
-      String origin = "8.130.65.113".equals(host) ? BASE_URL : "https://" + host;
       String path = parsed.getRawPath() == null ? "" : parsed.getRawPath();
       String query = parsed.getRawQuery() == null ? "" : "?" + parsed.getRawQuery();
       String fragment = parsed.getRawFragment() == null ? "" : "#" + parsed.getRawFragment();
+      String baseHost = URI.create(BASE_URL).getHost();
+      boolean isLegacyHost = "8.130.65.113".equals(host)
+          || "api.infintraining.work".equalsIgnoreCase(host)
+          || "course.infintraining.work".equalsIgnoreCase(host)
+          || "admin.infintraining.work".equalsIgnoreCase(host)
+          || "coach.infintraining.work".equalsIgnoreCase(host)
+          || "download.infintraining.work".equalsIgnoreCase(host);
+      boolean hasInfiniPrefix = "/infini".equals(path) || path.startsWith("/infini/");
+      boolean isUnprefixedNewHost = host.equalsIgnoreCase(baseHost) && !hasInfiniPrefix;
+      if (!isLegacyHost && !isUnprefixedNewHost && normalized.startsWith("https://")) {
+        return normalized;
+      }
+      String origin = isLegacyHost || isUnprefixedNewHost ? BASE_URL : "https://" + host;
       return origin + path + query + fragment;
     } catch (IllegalArgumentException ignored) {
       return normalized;

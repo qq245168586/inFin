@@ -12,10 +12,10 @@ android {
   }
 
   def infiniEnv = (project.findProperty("infiniEnv") ?: "production").toString()
-  def infiniBaseUrl = (project.findProperty("infiniBaseUrl") ?: "https://api.infintraining.work").toString()
-  def infiniBackupBaseUrl = (project.findProperty("infiniBackupBaseUrl") ?: "https://api.infintraining.work").toString()
-  def infiniMqttPrimaryUrl = (project.findProperty("infiniMqttPrimaryUrl") ?: "wss://api.infintraining.work/mqtt").toString()
-  def infiniMqttBackupUrl = (project.findProperty("infiniMqttBackupUrl") ?: "wss://api.infintraining.work/mqtt").toString()
+  def infiniBaseUrl = (project.findProperty("infiniBaseUrl") ?: "https://114.215.185.184/infini").toString()
+  def infiniBackupBaseUrl = (project.findProperty("infiniBackupBaseUrl") ?: "https://114.215.185.184/infini").toString()
+  def infiniMqttPrimaryUrl = (project.findProperty("infiniMqttPrimaryUrl") ?: "wss://114.215.185.184/infini/mqtt").toString()
+  def infiniMqttBackupUrl = (project.findProperty("infiniMqttBackupUrl") ?: "wss://114.215.185.184/infini/mqtt").toString()
 
   if (infiniEnv == "production") {
     [infiniBaseUrl, infiniBackupBaseUrl].each { url ->
@@ -34,8 +34,8 @@ android {
     applicationId "com.infini.tv"
     minSdk 26
     targetSdk 34
-        versionCode 76
-        versionName "1.0.76"
+        versionCode 77
+        versionName "1.0.77"
     manifestPlaceholders = [usesCleartextTraffic: infiniEnv != "production"]
     buildConfigField "String", "INFINI_ENV", "\"${infiniEnv}\""
     buildConfigField "String", "INFINI_BASE_URL", "\"${infiniBaseUrl}\""

@@ -46,10 +46,10 @@ case "$ENV_NAME" in
   production)
     ./gradlew ":app:${BUILD_TASK}" \
       -PinfiniEnv=production \
-      -PinfiniBaseUrl="https://api.infintraining.work" \
-      -PinfiniBackupBaseUrl="https://api.infintraining.work" \
-      -PinfiniMqttPrimaryUrl="wss://api.infintraining.work/mqtt" \
-      -PinfiniMqttBackupUrl="wss://api.infintraining.work/mqtt"
+      -PinfiniBaseUrl="https://114.215.185.184/infini" \
+      -PinfiniBackupBaseUrl="https://114.215.185.184/infini" \
+      -PinfiniMqttPrimaryUrl="wss://114.215.185.184/infini/mqtt" \
+      -PinfiniMqttBackupUrl="wss://114.215.185.184/infini/mqtt"
     ;;
   *)
     usage

@@ -42,5 +42,20 @@ public class ServerConfigTest {
     assertEquals(
         "https://cdn.example.test/example.mp4",
         ServerConfig.normalizeRemoteUrl("http://cdn.example.test/example.mp4"));
+    assertEquals(
+        ServerConfig.BASE_URL + "/api/media/example.mp4",
+        ServerConfig.normalizeRemoteUrl("https://api.infintraining.work/api/media/example.mp4"));
+    assertEquals(
+        ServerConfig.BASE_URL + "/api/media/example.mp4",
+        ServerConfig.normalizeRemoteUrl("https://114.215.185.184/api/media/example.mp4"));
+    assertEquals(
+        ServerConfig.BASE_URL + "/api/media/example.mp4",
+        ServerConfig.normalizeRemoteUrl("https://course.infintraining.work/api/media/example.mp4"));
+    assertEquals(
+        ServerConfig.BASE_URL + "/api/media/example.mp4",
+        ServerConfig.normalizeRemoteUrl("/infini/api/media/example.mp4"));
+    assertEquals(
+        "https://cdn.example.test:8443/example.mp4",
+        ServerConfig.normalizeRemoteUrl("https://cdn.example.test:8443/example.mp4"));
   }
 }
