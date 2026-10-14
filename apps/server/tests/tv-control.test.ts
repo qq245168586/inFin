@@ -28,7 +28,7 @@ test("getTvControlConfig normalizes account namespaces and topic suffixes", asyn
   const tvControl = await importTvControl();
 
   assert.deepEqual(tvControl.getTvControlConfig(" Venue-A "), {
-    url: "wss://api.infintraining.work/mqtt",
+    url: "wss://114.215.185.184/infini/mqtt",
     accountNamespace: "venue-a",
     topic: "infini/tv/control/venue-a",
     sessionTopic: "infini/tv/session/venue-a",

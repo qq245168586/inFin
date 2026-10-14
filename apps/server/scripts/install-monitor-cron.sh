@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_DIR="${APP_DIR:-/home/REDACTED_CONFIGURE_LOCALLY/infini-platform-refactor/apps/server}"
-LOG_FILE="${LOG_FILE:-/home/REDACTED_CONFIGURE_LOCALLY/infini-monitor.log}"
+APP_DIR="${APP_DIR:-/srv/infini-platform/apps/server}"
+LOG_FILE="${LOG_FILE:-/var/lib/infini/monitor.log}"
 CRON_LINE="*/1 * * * * cd $APP_DIR && bash scripts/monitor-server.sh >> $LOG_FILE 2>&1"
 
 existing="$(mktemp)"

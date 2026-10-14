@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { publicResourceReplacer } from "./public-resource-url.js";
 
 /**
  * 读取 request buffer，把底层数据转成调用方可直接使用的结构。
@@ -56,7 +57,7 @@ export function sendJson(response, statusCode, payload) {
       "Content-Type": "application/json; charset=utf-8"
     })
   );
-  response.end(JSON.stringify(payload, null, 2));
+  response.end(JSON.stringify(payload, publicResourceReplacer, 2));
 }
 
 /**

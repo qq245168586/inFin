@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MQTT_URL="${MQTT_URL:-wss://api.infintraining.work/mqtt}"
+MQTT_URL="${MQTT_URL:-wss://114.215.185.184/infini/mqtt}"
 
 if command -v npx >/dev/null 2>&1; then
   now="$(date -Iseconds 2>/dev/null || date '+%Y-%m-%dT%H:%M:%S%z')"

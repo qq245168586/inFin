@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "https://api.infintraining.work",
+      "url": "https://114.215.185.184/infini",
       "description": "Production API domain"
     },
     {

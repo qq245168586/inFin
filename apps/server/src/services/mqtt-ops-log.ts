@@ -16,7 +16,7 @@ const LOG_RETENTION_DAYS = Math.max(
 
 const MQTT_USERNAME = process.env.MQTT_USERNAME || "tv1";
 const MQTT_PASSWORD = process.env.MQTT_PASSWORD || "REDACTED_CONFIGURE_LOCALLY";
-const MQTT_WSS_URL = process.env.MQTT_WSS_URL || "wss://api.infintraining.work/mqtt";
+const MQTT_WSS_URL = process.env.MQTT_WSS_URL || "wss://114.215.185.184/infini/mqtt";
 const MQTT_URL = process.env.MQTT_URL || MQTT_WSS_URL;
 
 const DEFAULT_TOPICS = [

@@ -1,10 +1,11 @@
 import mqtt from "mqtt";
 import { recordOutboundMqtt } from "./mqtt-ops-log.js";
 import { createJsonHttpClient } from "../utils/http-client.js";
+import { publicResourceReplacer } from "../utils/public-resource-url.js";
 
 const MQTT_USERNAME = process.env.MQTT_USERNAME || "tv1";
 const MQTT_PASSWORD = process.env.MQTT_PASSWORD || "REDACTED_CONFIGURE_LOCALLY";
-const MQTT_WSS_URL = process.env.MQTT_WSS_URL || "wss://api.infintraining.work/mqtt";
+const MQTT_WSS_URL = process.env.MQTT_WSS_URL || "wss://114.215.185.184/infini/mqtt";
 const MQTT_URL = process.env.MQTT_URL || MQTT_WSS_URL;
 const MQTT_CONTROL_TOPIC = process.env.MQTT_TOPIC_CONTROL || "infini/tv/control";
 const MQTT_SESSION_TOPIC = process.env.MQTT_TOPIC_SESSION || "infini/tv/session";
@@ -160,6 +161,7 @@ async function publishWithGatewayFallback(pathname, body, topic, payloadObject, 
  * 发布 tv control，优先走网关并在允许时回退直连。
  */
 export async function publishTvControl(payload, accountNamespace = "") {
+  payload = JSON.parse(JSON.stringify(payload, publicResourceReplacer));
   const normalizedAccountNamespace = String(accountNamespace || "").trim().toLowerCase();
   const shouldInjectNamespace = normalizedAccountNamespace && normalizedAccountNamespace !== "__unbound__";
   const nextPayload = shouldInjectNamespace
