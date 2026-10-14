@@ -19,7 +19,7 @@
 ## Environment
 
 - `PORT` / `MQTT_CLIENT_PORT`：HTTP 端口，默认 `3205`。
-- `MQTT_URL`：MQTT broker URL，默认使用 `wss://api.infintraining.work/mqtt`。
+- `MQTT_URL`：MQTT broker URL，默认使用 `wss://114.215.185.184/infini/mqtt`。
 - `MQTT_WSS_URL`：未设置 `MQTT_URL` 时使用的 WSS 地址。
 - `MQTT_USERNAME` / `MQTT_PASSWORD`：MQTT 账号。
 - `MQTT_CLIENT_HTTP_TOKEN`：可选 HTTP Bearer token。
