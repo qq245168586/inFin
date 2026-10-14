@@ -302,7 +302,7 @@ export default function WebSimulatorApp() {
             <span>{loading ? "Loading" : "Error"}</span>
             <h2>{loading ? "正在准备课程资源..." : error}</h2>
             <MediaCacheStatus progress={mediaCacheProgress} />
-            {!loading && error ? <a href="/">回到课程端</a> : null}
+            {!loading && error ? <a href="../">回到课程端</a> : null}
           </div>
         </main>
       ) : (

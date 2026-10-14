@@ -1,6 +1,7 @@
 import type { ActionRecord, CourseRecord, MetaPayload } from "./types.ts";
+import { resolvePublicUrl } from "./runtime.ts";
 
-const AUTH_STORAGE_KEY = "infini-admin-auth";
+const AUTH_STORAGE_KEY = "infini-course-web-auth";
 const LEGACY_BASIC_AUTH = "Basic REDACTED_CONFIGURE_LOCALLY";
 
 interface AuthSession {
@@ -60,7 +61,7 @@ async function refreshStoredAuthHeader(): Promise<string> {
     throw new Error("请先在课程端登录。");
   }
 
-  const response = await fetch("/api/app/refresh", {
+  const response = await fetch(resolvePublicUrl("/api/app/refresh"), {
     method: "POST",
     headers: {
       Authorization: LEGACY_BASIC_AUTH,
@@ -94,7 +95,7 @@ export function hasStoredAuthSession(): boolean {
 export async function requestJson<T>(path: string, options: RequestInit = {}, retry = true): Promise<T> {
   const session = readStoredAuthSession();
   const authHeader = authHeaderFromSession(session);
-  const response = await fetch(path, {
+  const response = await fetch(resolvePublicUrl(path), {
     ...options,
     headers: {
       ...(options.body ? { "Content-Type": "application/json" } : {}),
@@ -130,7 +131,7 @@ export async function requestJson<T>(path: string, options: RequestInit = {}, re
 export async function requestBlobWithMeta(path: string, options: RequestInit = {}, retry = true): Promise<RequestBlobResult> {
   const session = readStoredAuthSession();
   const authHeader = authHeaderFromSession(session);
-  const response = await fetch(path, {
+  const response = await fetch(resolvePublicUrl(path), {
     ...options,
     headers: {
       ...(authHeader ? { Authorization: authHeader } : {}),

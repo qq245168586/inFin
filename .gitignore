@@ -13,6 +13,9 @@
 !tools/generate-test-report.mjs
 !tools/install-test-hooks.sh
 !tools/junit-to-allure.mjs
+!tools/check-production-transports.sh
+!tools/migration/
+!tools/migration/**
 
 !docs/
 !docs/**

@@ -150,16 +150,17 @@ TV APK 下载页：
 
 ## Runtime Domains
 
-| Domain | Service |
+| URL Path On `https://114.215.185.184` | Service |
 | --- | --- |
-| `api.infintraining.work` | Server API |
-| `admin.infintraining.work` | Admin Web |
-| `course.infintraining.work` | Course Web |
-| `coach.infintraining.work` | Coach Web |
-| `download.infintraining.work` | Download Web |
-| `ops.infintraining.work` | Ops Web |
+| `/infini/api/*` | Server API |
+| `/infini/admin/` | Admin Web |
+| `/infini/course/` | Course Web |
+| `/infini/coach/` | Coach Web |
+| `/infini/download/` | Download Web |
+| `/infini/ops/` | Ops Web |
+| `/infini/course/simulator/` | Web Simulator |
 
-生产客户端只允许通过 HTTPS/443 访问 API 和媒体，通过 `wss://api.infintraining.work/mqtt` 访问 MQTT。Nginx 的 80 监听只负责跳转到 HTTPS 和 ACME 证书续期；`127.0.0.1:3100`、`3205`、`8083` 是同机内部 upstream，不是公网入口。EMQX 的 TCP/1883 listener 必须关闭，WebSocket listener 只绑定 `127.0.0.1:8083`。本地调试构建可显式使用局域网 HTTP/MQTT TCP，不进入生产包。
+生产客户端通过 HTTPS/443 访问 API 和媒体，通过 `wss://114.215.185.184/infini/mqtt` 访问 MQTT。Nginx 的 80 监听负责 HTTPS 跳转和 IP 证书续期；内部 API/网关/broker 仅监听 `127.0.0.1:3100/3205/8083`。本地调试构建可使用局域网 HTTP/MQTT TCP，不进入生产包。
 
 ## MQTT Isolation
 
@@ -175,9 +176,13 @@ TV APK 下载页：
 
 ## Deployment Notes
 
-- Server 和 Web 端部署到 Aliyun。
-- TV APK 包放在 `/home/REDACTED_CONFIGURE_LOCALLY/infini-data/app-packages`。
-- API 与 Web 网关使用 RSA 2048 证书；acme.sh 的 root 定时任务负责续签、安装到 Nginx证书目录并 reload。
+- 生产运行目标迁移到 Aliyun ECS `i-bp1gy4to0n4dh5gk7tuw`；运维和部署通过 Workbench 连接，不再把旧公网 SSH 地址作为部署目标。
+- 新 ECS 与 TMY 服务共用 Nginx 80/443，通过 `/infini/*` 路径分流；Infini 内部端口为 `127.0.0.1:3100/3205/8083`。
+- 生产数据目录迁移为 `/var/lib/infini`，TV APK 位于 `/var/lib/infini/app-packages`；旧服务器目录在迁移观察期内只作为回滚源保留。
+- API 和 Web 使用新 ECS 已有 IP SAN 证书，`tmy-certificate-renew.timer` 自动续期并验证/reload Nginx。
+- API Base 为 `https://114.215.185.184/infini`，MQTT 为 `wss://114.215.185.184/infini/mqtt`；TV 1.0.77 和所有 Web 重建到该地址。
+- `src/utils/public-resource-url.ts` 在 Server JSON/MQTT 输出边界转换资源链接，不修改数据库中的媒体记录。Web request/upload/SSE 使用统一 resolver，模拟器和 Course 共用独立的 `infini-course-web-auth` 登录缓存。
+- `tools/migration/workbench-deploy-web.sh`、`workbench-deploy-server.sh` 以实例 ID 发布，保存构建备份并检查健康状态；新机配置与回滚步骤见 `tools/migration/ecs-20261014/`。
 - `1.0.35` 之前的 TV 包已清理。
 - 每个项目单独构建、单独提交、单独 push。
 

@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 
-export default defineConfig({
-  base: process.env.VITE_BASE_PATH || "/simulator/",
+export default defineConfig(({ command }) => ({
+  base: process.env.VITE_BASE_PATH || (command === "build" ? "/infini/course/simulator/" : "/simulator/"),
   server: {
     port: 3206,
     proxy: {
@@ -15,4 +15,4 @@ export default defineConfig({
     outDir: "dist",
     sourcemap: true
   }
-});
+}));

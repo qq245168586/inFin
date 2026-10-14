@@ -1,0 +1,29 @@
+[Unit]
+Description=Infini MQTT Gateway
+After=network-online.target emqx.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=infini
+Group=infini
+WorkingDirectory=/srv/infini-platform/apps/mqtt-client
+Environment=NODE_ENV=production
+Environment=MQTT_CLIENT_PORT=3205
+Environment=INFINI_DATA_ROOT=/var/lib/infini
+Environment=MQTT_CLIENT_LOG_ROOT=/var/lib/infini/mqtt-logs
+Environment=NODE_OPTIONS=--max-old-space-size=160
+EnvironmentFile=-/etc/infini/mqtt-client.env
+ExecStart=/usr/bin/node src/server.js
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=20
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/infini
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

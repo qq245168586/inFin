@@ -13,6 +13,7 @@ import type {
   WaterfallItem,
   WaterfallScreenState
 } from "./types.ts";
+import { resolvePublicUrl } from "./runtime.ts";
 
 export const SCRIPT_VERTICAL_SCREENS = [1, 2, 3] as const;
 export const SIMULATED_VERTICAL_SCREENS = [1, 3, 5] as const;
@@ -41,28 +42,12 @@ function text(value: unknown): string {
 function normalizeMediaUrl(url: unknown): string {
   const raw = text(url);
   if (!raw) return "";
-  if (/^https?:\/\//i.test(raw)) {
-    try {
-      const parsed = new URL(raw);
-      const current = globalThis.location;
-      if (
-        current?.origin &&
-        (parsed.host === current.host || parsed.hostname === "8.130.65.113" || parsed.hostname === "course.infintraining.work")
-      ) {
-        return `${current.origin}${parsed.pathname}${parsed.search}`;
-      }
-    } catch {
-      return raw;
-    }
-    return raw;
-  }
+  if (/^https?:\/\//i.test(raw)) return resolvePublicUrl(raw);
   if (raw.startsWith("//")) {
     return `${globalThis.location?.protocol || "https:"}${raw}`;
   }
-  if (raw.startsWith("/")) {
-    return raw;
-  }
-  return raw.startsWith("api/") ? `/${raw}` : `/api/${raw}`;
+  if (raw.startsWith("/")) return resolvePublicUrl(raw);
+  return resolvePublicUrl(raw.startsWith("api/") ? `/${raw}` : `/api/${raw}`);
 }
 
 function mediaRecordUrl(media: ActionRecord["media"]): string {

@@ -1,0 +1,35 @@
+[Unit]
+Description=Infini Platform API
+After=network-online.target emqx.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=infini
+Group=infini
+WorkingDirectory=/srv/infini-platform/apps/server
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=3100
+Environment=INFINI_DATA_ROOT=/var/lib/infini
+Environment=INFINI_PUBLIC_BASE_URL=https://114.215.185.184/infini
+Environment=MQTT_URL=ws://127.0.0.1:8083/mqtt
+Environment=MQTT_WSS_URL=wss://114.215.185.184/infini/mqtt
+Environment=MQTT_CLIENT_HTTP_URL=http://127.0.0.1:3205
+Environment=MQTT_CLIENT_FALLBACK_DIRECT=0
+Environment=INFINI_MEDIA_X_ACCEL_PREFIX=/_infini_media/
+Environment=NODE_OPTIONS=--max-old-space-size=384
+EnvironmentFile=-/etc/infini/server.env
+ExecStart=/usr/bin/node dist/main.js
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/infini
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

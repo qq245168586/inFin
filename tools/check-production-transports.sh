@@ -24,20 +24,16 @@ if printf '%s\n' "$tv_production_block" | rg -n "$forbidden"; then
   exit 1
 fi
 
-if ! rg -q 'wss://api\.infintraining\.work/mqtt' \
+if ! rg -q 'wss://114\.215\.185\.184/infini/mqtt' \
   "$ROOT_DIR/apps/tv-android/app/build.gradle" \
   "$ROOT_DIR/apps/server/.env.example"; then
   echo "Production transport check failed: WSS/443 endpoint is missing." >&2
   exit 1
 fi
 
-nginx_http_block="$(sed -n '1,25p' "$ROOT_DIR/apps/ops-web/scripts/infini-platform.nginx.conf")"
-if printf '%s\n' "$nginx_http_block" | rg -q 'proxy_pass'; then
-  echo "Production transport check failed: port 80 still proxies application traffic." >&2
-  exit 1
-fi
-if ! printf '%s\n' "$nginx_http_block" | rg -q 'return 301 https://\$host\$request_uri'; then
-  echo "Production transport check failed: HTTP to HTTPS redirect is missing." >&2
+nginx_routes="$ROOT_DIR/tools/migration/ecs-20261014/infini-routes.conf"
+if rg -q 'listen[[:space:]]+80|location[[:space:]]+/api/' "$nginx_routes"; then
+  echo "Production transport check failed: Infini must use the existing TLS server and isolated routes." >&2
   exit 1
 fi
 
