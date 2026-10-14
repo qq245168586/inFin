@@ -1,7 +1,7 @@
 import { refreshWithToken, type AuthSession } from "./api/auth.ts";
 import { readStorageJson, removeStorageItem, saveStorageJson } from "../utils/storage.ts";
 
-const AUTH_STORAGE_KEY = "infini-admin-auth";
+const AUTH_STORAGE_KEY = "infini-course-web-auth";
 let refreshSessionPromise: Promise<AuthSession> | null = null;
 
 function enrichSession(session: AuthSession): AuthSession {

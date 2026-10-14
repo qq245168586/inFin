@@ -1,4 +1,5 @@
 import type { MediaRecord } from "../models/media.ts";
+import { resolvePublicUrl } from "../config/runtime.ts";
 import { clearStoredAuthSession, refreshStoredAuthHeader, withStoredAuthHeader } from "./authSessionStorage.ts";
 
 export async function uploadBinary(kind: "image" | "video", file: File): Promise<MediaRecord> {
@@ -27,7 +28,7 @@ export async function uploadBinary(kind: "image" | "video", file: File): Promise
 }
 
 function uploadWithAuth(endpoint: string, file: File, authHeader = "") {
-  return fetch(`${endpoint}?filename=${encodeURIComponent(file.name)}`, {
+  return fetch(resolvePublicUrl(`${endpoint}?filename=${encodeURIComponent(file.name)}`), {
     method: "POST",
     headers: withStoredAuthHeader({
       "Content-Type": file.type || "application/octet-stream",

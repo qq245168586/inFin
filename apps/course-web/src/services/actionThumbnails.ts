@@ -1,4 +1,5 @@
 import { clearStoredAuthSession, refreshStoredAuthHeader, withStoredAuthHeader } from "./authSessionStorage.ts";
+import { resolvePublicUrl } from "../config/runtime.ts";
 
 export async function fetchActionThumbnailBlob(actionId: number | string | null | undefined): Promise<Blob | null> {
   const normalizedActionId = String(actionId || "").trim();
@@ -25,7 +26,7 @@ export async function fetchActionThumbnailBlob(actionId: number | string | null 
 }
 
 function fetchThumbnailWithAuth(endpoint: string, authHeader = "") {
-  return fetch(endpoint, {
+  return fetch(resolvePublicUrl(endpoint), {
     method: "GET",
     headers: withStoredAuthHeader({
       Accept: "image/jpeg",

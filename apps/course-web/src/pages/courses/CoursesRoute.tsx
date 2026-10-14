@@ -172,7 +172,7 @@ export default function CoursesRoute({
       pushNotice("课程 ID 无效，无法打开模拟器。", "error");
       return;
     }
-    window.open(`/simulator/?courseId=${encodeURIComponent(String(courseId))}`, "_blank", "noopener,noreferrer");
+    window.open(`${import.meta.env.BASE_URL}simulator/?courseId=${encodeURIComponent(String(courseId))}`, "_blank", "noopener,noreferrer");
   }
 
   useEffect(() => {

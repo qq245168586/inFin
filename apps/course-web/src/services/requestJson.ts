@@ -1,4 +1,5 @@
 import { clearStoredAuthSession, refreshStoredAuthHeader, withStoredAuthHeader } from "./authSessionStorage.ts";
+import { resolvePublicUrl } from "../config/runtime.ts";
 
 export class RequestJsonError extends Error {
   status: number;
@@ -42,7 +43,7 @@ export async function requestJson<T>(path: string, options: RequestInit = {}): P
 }
 
 function fetchWithAuth(path: string, options: RequestInit = {}) {
-  return fetch(path, {
+  return fetch(resolvePublicUrl(path), {
     ...options,
     headers: withStoredAuthHeader({
       ...(options.body ? { "Content-Type": "application/json" } : {}),

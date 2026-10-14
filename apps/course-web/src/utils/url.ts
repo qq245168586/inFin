@@ -1,10 +1,12 @@
+import { resolvePublicUrl } from "../config/runtime.ts";
+
 export function withCacheToken(url: string, token?: string | number | null): string {
   if (!url) {
     return "";
   }
 
   if (!token) {
-    return url;
+    return resolvePublicUrl(url);
   }
 
   const lowerUrl = url.toLowerCase();
@@ -15,8 +17,9 @@ export function withCacheToken(url: string, token?: string | number | null): str
     lowerUrl.includes("x-amz-signature=") ||
     lowerUrl.includes("x-amz-credential=")
   ) {
-    return url;
+    return resolvePublicUrl(url);
   }
 
-  return `${url}${url.includes("?") ? "&" : "?"}v=${encodeURIComponent(String(token))}`;
+  const resolvedUrl = resolvePublicUrl(url);
+  return `${resolvedUrl}${resolvedUrl.includes("?") ? "&" : "?"}v=${encodeURIComponent(String(token))}`;
 }
