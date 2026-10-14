@@ -2,7 +2,7 @@ const packageList = document.querySelector("#packageList");
 const statusBox = document.querySelector("#statusBox");
 const packageCount = document.querySelector("#packageCount");
 const refreshButton = document.querySelector("#refreshButton");
-const API_ORIGIN = window.location.protocol === "file:" ? "https://api.infintraining.work" : "";
+const API_ORIGIN = window.location.protocol === "file:" ? "https://114.215.185.184/infini" : "/infini";
 
 function buildApiUrl(path) {
   return `${API_ORIGIN}${path}`;
