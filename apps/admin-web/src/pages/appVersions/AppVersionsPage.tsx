@@ -1,3 +1,4 @@
+import { browserSession } from "../../services/browserSession";
 import { useEffect, useMemo, useState } from "react";
 import { resolvePublicUrl } from "../../config/runtime.ts";
 import { requestJson } from "../../services/requestJson.ts";
@@ -138,7 +139,7 @@ export default function AppVersionsPage({ tokenType, accessToken, onBusyTextChan
     });
 
     try {
-      const response = await fetch(resolvePublicUrl(`/api/app-packages/upload?${params.toString()}`), {
+      const response = await browserSession.fetch(resolvePublicUrl(`/api/app-packages/upload?${params.toString()}`), {
         method: "POST",
         headers: {
           "Content-Type": form.file.type || "application/vnd.android.package-archive"

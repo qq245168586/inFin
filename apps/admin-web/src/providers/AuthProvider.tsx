@@ -1,18 +1,9 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getErrorMessage } from "../utils/errors.ts";
-import { readStorageJson, removeStorageItem, saveStorageJson } from "../utils/storage.ts";
-import { fetchProfile, loginWithPassword, refreshWithToken, type AuthSession } from "../services/api/auth.ts";
+import type { AuthSession } from "../services/api/auth.ts";
+import { browserSession } from "../services/browserSession";
 
-const AUTH_STORAGE_KEY = "infini-admin-auth";
-const ACTIVE_SESSION_WINDOW_MS = 12 * 60 * 60 * 1000;
-const REFRESH_BEFORE_EXPIRE_MS = 10 * 60 * 1000;
-const REFRESH_CHECK_MS = 60 * 1000;
-
-export interface LoginFormState {
-  username: string;
-  password: string;
-}
-
+export interface LoginFormState { username: string; password: string; }
 interface AuthContextValue {
   authReady: boolean;
   authSession: AuthSession | null;
@@ -22,23 +13,15 @@ interface AuthContextValue {
   login: () => Promise<void>;
   logout: (message?: string) => void;
 }
-
 const AuthContext = createContext<AuthContextValue | null>(null);
-
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error("useAuth must be used within AuthProvider");
-  }
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 }
 
-export default function AuthProvider({
-  children,
-  onNotice,
-  onBusyText,
-  onAuthExpired
-}: {
+/** UI mirrors the shared cookie session; storage and retries belong to the request layer. */
+export default function AuthProvider({ children, onNotice, onBusyText, onAuthExpired }: {
   children: ReactNode;
   onNotice: (message: string, tone?: "success" | "error") => void;
   onBusyText: (text: string) => void;
@@ -47,163 +30,56 @@ export default function AuthProvider({
   const [authReady, setAuthReady] = useState(false);
   const [authSession, setAuthSession] = useState<AuthSession | null>(null);
   const [loginForm, setLoginForm] = useState<LoginFormState>({ username: "", password: "" });
-  const lastActivityAtRef = useRef(Date.now());
-  const refreshingRef = useRef(false);
-
-  const enrichSession = useCallback((session: AuthSession): AuthSession => {
-    const issuedAt = Date.now();
-    return {
-      ...session,
-      issued_at: issuedAt,
-      expires_at: issuedAt + Math.max(0, Number(session.expires_in) || 0) * 1000
-    };
-  }, []);
-
-  const expireSession = useCallback((message = "登录已过期，请重新登录。") => {
-    removeStorageItem(AUTH_STORAGE_KEY);
-    setAuthSession(null);
-    setLoginForm({ username: "", password: "" });
-    onNotice(message, "error");
-    onAuthExpired?.();
-  }, [onAuthExpired, onNotice]);
-
-  const refreshSession = useCallback(async (current: AuthSession | null, silent = true) => {
-    if (!current?.refresh_token || refreshingRef.current) return;
-    refreshingRef.current = true;
-    try {
-      const token = await refreshWithToken(current.refresh_token);
-      const profile = await fetchProfile(token.token_type, token.access_token).catch(() => ({}));
-      setAuthSession(enrichSession({ ...token, ...profile }));
-    } catch (error) {
-      expireSession(silent ? "登录已过期，请重新登录。" : getErrorMessage(error));
-    } finally {
-      refreshingRef.current = false;
-    }
-  }, [enrichSession, expireSession]);
 
   useEffect(() => {
     let cancelled = false;
-    const storedAuth = readStorageJson<AuthSession>(AUTH_STORAGE_KEY);
-    if (!storedAuth?.refresh_token) {
-      setAuthReady(true);
-      return () => {
-        cancelled = true;
-      };
-    }
+    const unsubscribe = browserSession.subscribe(session => {
+      if (cancelled) return;
+      setAuthSession(session);
+      if (!session) onAuthExpired?.();
+    });
     onBusyText("正在恢复登录...");
-    (async () => {
-      try {
-        const token = await refreshWithToken(storedAuth.refresh_token);
-        const profile = await fetchProfile(token.token_type, token.access_token).catch(() => ({}));
-        if (!cancelled) {
-          setAuthSession(enrichSession({ ...token, ...profile }));
-        }
-      } catch {
-        if (!cancelled) {
-          removeStorageItem(AUTH_STORAGE_KEY);
-          setAuthSession(null);
-        }
-      } finally {
-        if (!cancelled) {
-          onBusyText("");
-          setAuthReady(true);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [enrichSession, onBusyText]);
+    browserSession.restore().then(session => {
+      if (!cancelled) setAuthSession(session);
+    }).catch(error => {
+      if (!cancelled) onNotice(getErrorMessage(error), "error");
+    }).finally(() => {
+      if (!cancelled) { setAuthReady(true); onBusyText(""); }
+    });
+    return () => { cancelled = true; unsubscribe(); };
+  }, [onBusyText, onNotice, onAuthExpired]);
 
-  useEffect(() => {
-    if (!authReady) {
-      return;
-    }
-    if (authSession) {
-      saveStorageJson(AUTH_STORAGE_KEY, authSession);
-      return;
-    }
-    removeStorageItem(AUTH_STORAGE_KEY);
-  }, [authReady, authSession]);
-
-  useEffect(() => {
-    const markActivity = () => {
-      lastActivityAtRef.current = Date.now();
-    };
-    const events = ["click", "keydown", "pointerdown", "touchstart", "input", "focus"];
-    events.forEach((eventName) => window.addEventListener(eventName, markActivity, { passive: true }));
-    return () => events.forEach((eventName) => window.removeEventListener(eventName, markActivity));
-  }, []);
-
+  // No per-tab idle logout: another tab can still be actively editing.
   useEffect(() => {
     if (!authSession) return;
-    const tick = () => {
-      const now = Date.now();
-      if (now - lastActivityAtRef.current > ACTIVE_SESSION_WINDOW_MS) {
-        expireSession("登录已超过 12 小时未操作，请重新登录。");
-        return;
+    const timer = window.setInterval(() => {
+      const current = browserSession.read();
+      if (current && Number(current.expires_at) - Date.now() < 10 * 60_000) {
+        void browserSession.refresh().catch(() => {});
       }
-      const expiresAt = Number(authSession.expires_at || 0);
-      if (expiresAt && expiresAt - now <= REFRESH_BEFORE_EXPIRE_MS) {
-        void refreshSession(authSession);
-      }
-    };
-    tick();
-    const timer = window.setInterval(tick, REFRESH_CHECK_MS);
+    }, 60_000);
     return () => window.clearInterval(timer);
-  }, [authSession, expireSession, refreshSession]);
-
-  useEffect(() => {
-    function handleAuthExpired(event: Event) {
-      const detail = (event as CustomEvent<{ message?: string }>).detail;
-      const message = String(detail?.message || "");
-      if (!message.includes("登录已失效") && !message.includes("refresh token 已失效")) {
-        return;
-      }
-      expireSession("登录已过期，请重新登录。");
-    }
-
-    window.addEventListener("infini-auth-expired", handleAuthExpired as EventListener);
-    return () => window.removeEventListener("infini-auth-expired", handleAuthExpired as EventListener);
-  }, [expireSession]);
-
-  const authHeader = useMemo(() => {
-    if (!authSession?.access_token) return "";
-    return `${authSession.token_type} ${authSession.access_token}`;
-  }, [authSession?.access_token, authSession?.token_type]);
+  }, [authSession?.access_token]);
 
   const login = useCallback(async () => {
     onBusyText("正在登录...");
     try {
-      const token = await loginWithPassword(loginForm.username, loginForm.password);
-      const profile = await fetchProfile(token.token_type, token.access_token).catch(() => ({}));
-      const nextAuth: AuthSession = enrichSession({ ...token, ...profile });
-      setAuthSession(nextAuth);
-      lastActivityAtRef.current = Date.now();
+      await browserSession.login(loginForm.username, loginForm.password);
       setLoginForm({ username: "", password: "" });
       onNotice("登录成功。");
-    } catch (error) {
-      onNotice(getErrorMessage(error), "error");
-    } finally {
-      onBusyText("");
-    }
-  }, [enrichSession, loginForm.password, loginForm.username, onBusyText, onNotice]);
+    } catch (error) { onNotice(getErrorMessage(error), "error"); }
+    finally { onBusyText(""); }
+  }, [loginForm, onBusyText, onNotice]);
 
-  const logout = useCallback(
-    (message = "已退出登录。") => {
-      removeStorageItem(AUTH_STORAGE_KEY);
-      setAuthSession(null);
+  const logout = useCallback((message = "已退出登录。") => {
+    void browserSession.logout().then(() => {
       setLoginForm({ username: "", password: "" });
       onNotice(message);
-      onAuthExpired?.();
-    },
-    [onNotice, onAuthExpired]
-  );
+    }).catch(error => onNotice(getErrorMessage(error), "error"));
+  }, [onNotice]);
 
-  const value = useMemo(
-    () => ({ authReady, authSession, authHeader, loginForm, setLoginForm, login, logout }),
-    [authReady, authSession, authHeader, loginForm, login, logout]
-  );
-
+  const authHeader = authSession ? `${authSession.token_type} ${authSession.access_token}` : "";
+  const value = useMemo(() => ({ authReady, authSession, authHeader, loginForm, setLoginForm, login, logout }),
+    [authReady, authSession, authHeader, loginForm, login, logout]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -1,3 +1,4 @@
+import { browserSession } from "./services/browserSession";
 import { useEffect, useMemo, useState } from "react";
 import { resolvePublicUrl } from "./config/runtime.ts";
 
@@ -38,7 +39,7 @@ interface AccountDraft {
 const emptyDraft: AccountDraft = { username: "", password: "" };
 
 async function requestJson<T>(url: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(resolvePublicUrl(url), { cache: "no-store", ...options });
+  const response = await browserSession.fetch(resolvePublicUrl(url), { cache: "no-store", ...options });
   if (!response.ok) {
     const text = await response.text().catch(() => "");
     let message = "";
