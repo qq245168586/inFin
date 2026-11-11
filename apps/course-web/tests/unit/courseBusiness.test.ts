@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { afterEach, describe, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, test, vi } from "vitest";
+import { browserFixture } from "../../../../packages/shared/tests/browser-fixture";
+beforeEach(() => vi.stubGlobal("window", browserFixture()));
 
 import {
   filterActionsByCoursePackage,

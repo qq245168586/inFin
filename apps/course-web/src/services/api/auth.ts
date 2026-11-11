@@ -1,12 +1,4 @@
-import { requestJson } from "../requestJson.ts";
-
-interface LegacyEnvelope<T> {
-  code: number;
-  data: T;
-  message?: string;
-  msg?: string;
-}
-
+import { browserSession } from "../browserSession";
 export interface AuthTokenPayload {
   access_token: string;
   token_type: string;
@@ -26,43 +18,9 @@ export interface UserProfile {
 
 export type AuthSession = AuthTokenPayload & Partial<UserProfile>;
 
-const LEGACY_BASIC_AUTH = "Basic REDACTED_CONFIGURE_LOCALLY";
 
-export async function loginWithPassword(username: string, password: string): Promise<AuthTokenPayload> {
-  const response = await requestJson<LegacyEnvelope<AuthTokenPayload>>("/api/app/login", {
-    method: "POST",
-    headers: {
-      Authorization: LEGACY_BASIC_AUTH
-    },
-    body: JSON.stringify({
-      username,
-      password,
-      grant_type: "password",
-      client: "editor-web"
-    })
-  });
-  return response.data;
-}
-
-export async function refreshWithToken(refreshToken: string): Promise<AuthTokenPayload> {
-  const response = await requestJson<LegacyEnvelope<AuthTokenPayload>>("/api/app/refresh", {
-    method: "POST",
-    headers: {
-      Authorization: LEGACY_BASIC_AUTH
-    },
-    body: JSON.stringify({
-      refresh_token: refreshToken,
-      client: "editor-web"
-    })
-  });
-  return response.data;
-}
-
-export async function fetchProfile(tokenType: string, accessToken: string): Promise<Partial<UserProfile>> {
-  const response = await requestJson<LegacyEnvelope<UserProfile>>("/api/user/info", {
-    headers: {
-      Authorization: `${tokenType} ${accessToken}`
-    }
-  });
-  return response.data || {};
+export const loginWithPassword = browserSession.login;
+export const refreshWithToken = (_token?: string) => browserSession.refresh();
+export async function fetchProfile(_type?: string, _token?: string): Promise<Partial<UserProfile>> {
+  return (await browserSession.requestJson<{data: UserProfile}>("/api/user/info")).data;
 }
