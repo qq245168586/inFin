@@ -8,6 +8,8 @@
 
 | ID | Title | Status | Apps | Owner Notes |
 | --- | --- | --- | --- | --- |
+| [REQ-20261111-browser-sessions](REQ-20261111-browser-sessions.md) | 分端 Cookie 会话与可靠续期 | Ready for QA | `server`, `course-web`, `admin-web`, `coach-web`, `ops-web`, `websimulator`, `shared` | 163 项回归测试、11 项真实浏览器检查通过；会话模块行覆盖率 95.39%，未发布；首次升级需各端重新登录一次。 |
+| [REQ-20261108-simulator-diagnostics](REQ-20261108-simulator-diagnostics.md) | 模拟器错误日志上传与 Ops 来源分类 | Shipped | `websimulator`, `server`, `ops-web` | 错误文件回传及 Ops 来源分类已发布，保留 10 天；OSS 视频代理已修复，76 项测试通过，不改 DB。 |
 | [REQ-20261014-production-ecs-migration](REQ-20261014-production-ecs-migration.md) | 生产环境迁移到新 ECS | In Progress | `server`, `mqtt-client`, `admin-web`, `course-web`, `coach-web`, `ops-web`, `download-web`, `tv-android`, `websimulator` | 新实例与 TMY 通过 `/infini/*` 共存，API/WSS 改用 `114.215.185.184`；完整 staging 和验收通过，生产终切待确认。 |
 | [REQ-20260903-production-443-only-transport](REQ-20260903-production-443-only-transport.md) | 生产通信统一使用 443 | Ready for QA | `tv-android`, `server`, `mqtt-client`, `download-web`, `ops-web` | 生产 API/媒体仅 HTTPS/443，MQTT 仅 WSS/443；80 仅跳转和 ACME，本地回环与局域网调试不变。 |
 | [REQ-20260826-tv-diagnostic-log-upload](REQ-20260826-tv-diagnostic-log-upload.md) | TV 错误文件回传、分类查询与 10 天保留 | Ready for QA | `tv-android`, `server`, `ops-web` | 本地实现和回归通过；Ops 可按六类、日期、场馆、设备、屏幕和错误码只读查询；不改 DB 或课程控制。 |

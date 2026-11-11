@@ -6,6 +6,13 @@
 !package.json
 !pnpm-lock.yaml
 
+!packages/
+!packages/shared/
+!packages/shared/src/
+!packages/shared/src/browser-session.ts
+!packages/shared/tests/
+!packages/shared/tests/browser-fixture.ts
+
 !.githooks/
 !.githooks/**
 !tools/

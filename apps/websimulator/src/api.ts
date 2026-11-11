@@ -1,26 +1,11 @@
+import { browserSession } from "./browserSession";
 import type { ActionRecord, CourseRecord, MetaPayload } from "./types.ts";
 import { resolvePublicUrl } from "./runtime.ts";
-
-const AUTH_STORAGE_KEY = "infini-course-web-auth";
-const LEGACY_BASIC_AUTH = "Basic REDACTED_CONFIGURE_LOCALLY";
-
-interface AuthSession {
-  access_token?: string;
-  token_type?: string;
-  refresh_token?: string;
-  expires_in?: number;
-  issued_at?: number;
-  expires_at?: number;
-}
-
-interface LegacyEnvelope<T> {
-  data: T;
-  message?: string;
-  msg?: string;
-}
+import { reportDiagnostic } from "./diagnostics.ts";
 
 export class RequestJsonError extends Error {
   status: number;
+  contentType = "";
 
   constructor(status: number, message: string) {
     super(message);
@@ -37,126 +22,32 @@ export interface RequestBlobResult {
   responseUrl: string;
 }
 
-function readStoredAuthSession(): AuthSession | null {
-  try {
-    const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as AuthSession) : null;
-  } catch {
-    return null;
-  }
-}
-
-function saveStoredAuthSession(session: AuthSession) {
-  window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
-}
-
-function authHeaderFromSession(session: AuthSession | null): string {
-  if (!session?.access_token) return "";
-  return `${session.token_type || "Bearer"} ${session.access_token}`;
-}
-
-async function refreshStoredAuthHeader(): Promise<string> {
-  const current = readStoredAuthSession();
-  if (!current?.refresh_token) {
-    throw new Error("请先在课程端登录。");
-  }
-
-  const response = await fetch(resolvePublicUrl("/api/app/refresh"), {
-    method: "POST",
-    headers: {
-      Authorization: LEGACY_BASIC_AUTH,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      refresh_token: current.refresh_token,
-      client: "editor-web"
-    })
-  });
-  const payload = (await response.json().catch(() => null)) as LegacyEnvelope<AuthSession> | null;
-  if (!response.ok || !payload?.data?.access_token) {
-    throw new RequestJsonError(response.status, payload?.message || payload?.msg || "登录已失效，请回到课程端重新登录。");
-  }
-
-  const issuedAt = Date.now();
-  const nextSession = {
-    ...current,
-    ...payload.data,
-    issued_at: issuedAt,
-    expires_at: issuedAt + Math.max(0, Number(payload.data.expires_in) || 0) * 1000
-  };
-  saveStoredAuthSession(nextSession);
-  return authHeaderFromSession(nextSession);
-}
-
 export function hasStoredAuthSession(): boolean {
-  return Boolean(readStoredAuthSession()?.refresh_token || readStoredAuthSession()?.access_token);
+  return Boolean(browserSession.read());
+}
+async function requestJsonInternal<T>(path: string, options: RequestInit = {}, _retry = true): Promise<T> {
+  return browserSession.requestJson<T>(path, options);
 }
 
+/** Report only terminal API errors, after the existing auth refresh/retry completes. */
 export async function requestJson<T>(path: string, options: RequestInit = {}, retry = true): Promise<T> {
-  const session = readStoredAuthSession();
-  const authHeader = authHeaderFromSession(session);
-  const response = await fetch(resolvePublicUrl(path), {
-    ...options,
-    headers: {
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
-      ...(authHeader ? { Authorization: authHeader } : {}),
-      ...(options.headers || {})
-    }
-  });
-  const payload = (await response.json().catch(() => null)) as T | { message?: string; msg?: string } | null;
-
-  if (!response.ok && retry && (response.status === 401 || response.status === 403)) {
-    const refreshedAuthHeader = await refreshStoredAuthHeader();
-    return requestJson<T>(
-      path,
-      {
-        ...options,
-        headers: {
-          ...(options.headers || {}),
-          Authorization: refreshedAuthHeader
-        }
-      },
-      false
-    );
+  try { return await requestJsonInternal<T>(path, options, retry); }
+  catch (error) {
+    reportDiagnostic("API_ERROR", error instanceof Error && "status" in error ? `HTTP_${error.status}` : "NETWORK_ERROR", error,
+      { endpoint: resolvePublicUrl(path).split(/[?#]/)[0], method: options.method || "GET", component: "api",
+        stage: "course_request", httpStatus: error instanceof Error && "status" in error ? Number(error.status) : 0 });
+    throw error;
   }
-
-  if (!response.ok) {
-    const message = (payload as { message?: string; msg?: string } | null)?.message || (payload as { msg?: string } | null)?.msg || `请求失败 (${response.status})`;
-    throw new RequestJsonError(response.status, message);
-  }
-
-  return payload as T;
 }
 
 export async function requestBlobWithMeta(path: string, options: RequestInit = {}, retry = true): Promise<RequestBlobResult> {
-  const session = readStoredAuthSession();
-  const authHeader = authHeaderFromSession(session);
-  const response = await fetch(resolvePublicUrl(path), {
-    ...options,
-    headers: {
-      ...(authHeader ? { Authorization: authHeader } : {}),
-      ...(options.headers || {})
-    }
-  });
-
-  if (!response.ok && retry && (response.status === 401 || response.status === 403)) {
-    const refreshedAuthHeader = await refreshStoredAuthHeader();
-    return requestBlobWithMeta(
-      path,
-      {
-        ...options,
-        headers: {
-          ...(options.headers || {}),
-          Authorization: refreshedAuthHeader
-        }
-      },
-      false
-    );
-  }
+  const response = await browserSession.fetch(path, options);
 
   if (!response.ok) {
     const message = await response.text().catch(() => "");
-    throw new RequestJsonError(response.status, message || `资源下载失败 (${response.status})`);
+    const error = new RequestJsonError(response.status, message || `资源下载失败 (${response.status})`);
+    error.contentType = response.headers.get("content-type") || "";
+    throw error;
   }
 
   const blob = await response.blob();
@@ -183,7 +74,9 @@ export async function fetchSimulatorCourse(courseId: number): Promise<{ course: 
   const payload = await requestJson<MetaPayload>(`/api/meta?${params.toString()}`);
   const course = (payload.courses || []).find((item) => Number(item.id) === Number(courseId));
   if (!course) {
-    throw new Error("课程不存在，或当前账号没有权限查看。");
+    const error = new Error("课程不存在，或当前账号没有权限查看。");
+    reportDiagnostic("API_ERROR", "COURSE_UNAVAILABLE", error, { courseId, stage: "resolve_course", component: "api" });
+    throw error;
   }
   return {
     course,

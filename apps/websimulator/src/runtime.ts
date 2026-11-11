@@ -11,6 +11,7 @@ export function resolvePublicUrl(value: string): string {
   const raw = String(value || "").trim();
   if (!raw || raw.startsWith("blob:") || raw.startsWith("data:")) return raw;
   if (raw === "/api" || raw.startsWith("/api/")) return `${API_BASE_PATH}${raw}`;
+  if (raw.startsWith("/simulator-media/")) return `${API_BASE_PATH}${raw}`;
   if (!/^https?:\/\//i.test(raw)) return raw;
 
   try {

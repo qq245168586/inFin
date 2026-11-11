@@ -35,6 +35,11 @@ flowchart LR
 
 内部结构约定：
 
+- `src/data/json-store/browser-session-store.ts`：独立 Web 会话域；按 `browserClient`/浏览器 Cookie 分离，固定随机 Cookie 的 hash 持久化，12h 访问租约、15d 绝对上限；续期/退出只作用于对应会话，不改课程和场馆数据。
+- `src/interfaces/http/browser-session-auth.ts`：请求入口的 Cookie/CSRF 适配，`/api/browser-auth/{client}/{login,refresh,logout}` 与明确的 client/session header；角色权限在服务端校验，TV/旧 Bearer 兼容路径不变。
+- `packages/shared/src/browser-session.ts`：所有 Web 的 Cookie 请求、一次鉴权重试、同页续期合并、跨标签页公开身份同步、迟到响应保护；`course/admin/coach` 的 `src/services/browserSession.ts` 为各端配置；Ops 与模拟器使用同一工具，模拟器复用 course 会话。
+- `tests/browser-sessions.test.ts`、`tests/browser-session-client.test.ts`：分端/跨浏览器会话、权限/CSRF、续期、网络失败和竞态回归；`tests/browser-session-smoke.ts` 使用临时 DB、已构建 Web 与本机 Chrome 验证真实 Cookie、多标签与登录 UI，不连接生产。
+
 - `src/interfaces/http/compat-request-handler.ts`：承载现有 REST API 和旧客户端协议兼容，请求兼容逻辑集中放在这里。
 - `src/data/json-file-store.ts`：JSON DB store public barrel，只 re-export 业务域 store。
 - `src/data/json-store/core.ts`：共享 JSON DB state、storage root、备份、normalize/derive/scope helper。
@@ -42,7 +47,10 @@ flowchart LR
 - `src/services/media-thumbnails.ts`：动作视频服务端缩略图派生缓存，按 action/media 版本生成 JPG，不写入 DB。
 - `src/services/media-delivery.ts`：校验本地媒体路径、生成 immutable/ETag/Last-Modified 响应并在配置开启时通过 `X-Accel-Redirect` 把文件发送交给 Nginx；未开启时回退到 Node Range 流。
 - `src/interfaces/http/tv-diagnostic-upload.ts`：`POST /api/tv/diagnostics` 接收有大小/超时限制的 JSONL 文件；通过 `tv-store.authenticateTvDiagnosticUpload` 只读验证设备私有绑定，不暴露 pair token、不写 DB。
-- `src/services/tv-diagnostic-schema.ts`：错误类型/code/message/时间 schema、context 白名单、敏感信息脱敏及设备身份校验。
+- `src/services/tv-diagnostic-schema.ts`：错误类型/code/message/时间 schema、context 白名单、敏感信息脱敏及设备身份校验；`simulatorDiagnosticIdentity` 从已认证账号构造网页模拟器身份。
+- `POST /api/websimulator/diagnostics`：复用有界 JSONL 上传/10 天文件保留，不写 DB；`GET /api/ops/tv-diagnostics?source=websimulator` 仅 super admin 查询，旧 TV 文件 source 默认 tv。
+- `apps/websimulator/src/diagnostics.ts`：统一脱敏、短期去重、20 条本地补传队列、独立有超时的上传和 JS/播放器错误捕获；`api.ts` 记录最终接口错误，`mediaCache.ts` 记录下载/校验错误及课程/动作上下文。Ops 可按来源筛选。
+- `tools/migration/ecs-20261014/infini-routes.conf`：`/infini/simulator-media/oss-shanghai/*` 固定代理公共 OSS Bucket，HTTPS 校验、剥离 Authorization/Cookie；旧 `/simulator-media/oss-shanghai/*` 同源 307 到新前缀，兼容已打开的模拟器页面。
 - `src/services/tv-diagnostic-files.ts`：诊断文件落入 `INFINI_DATA_ROOT/tv-diagnostics`，以北京时间/场馆/设备分目录，带屏幕和版本文件名；原子写入、幂等、限流/额度、32 个待处理操作上限，启动与每小时清理接收时间满 10 天的日志；为 Ops 提供有文件数/字节上限的只读分类查询，不返回路径和校验摘要。
 - `src/interfaces/http/compat-request-handler.ts`：`GET /api/ops/tv-diagnostics` 仅允许 super admin，按日期、场馆、设备、屏幕、六类错误和错误码过滤脱敏记录。
 - `scripts/nginx-infini-media-*.conf`：Nginx http/server 两层媒体配置；通过 `/srv/infini-media` bind mount 读取应用媒体，不放宽 home 权限；用设备 ID + 屏幕号 + URI 识别同资源并发，静态 `sendfile` 和独立 JSON access log 只作用于 TV 媒体内部 location。

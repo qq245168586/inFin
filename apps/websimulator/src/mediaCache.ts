@@ -1,4 +1,6 @@
-import { requestBlobWithMeta } from "./api.ts";
+import { requestBlobWithMeta, RequestJsonError, type RequestBlobResult } from "./api.ts";
+import { reportDiagnostic } from "./diagnostics.ts";
+import { resolvePublicUrl } from "./runtime.ts";
 import type { CourseRecord, VideoCard, WaterfallItem } from "./types.ts";
 
 const MEDIA_CACHE_CONCURRENCY = 4;
@@ -36,6 +38,7 @@ export interface MediaCacheProgress {
 interface MediaResource {
   url: string;
   name: string;
+  actionId: string;
 }
 
 interface CachedResource {
@@ -90,7 +93,7 @@ function resolveDownloadUrl(value: string): { mode: MediaCacheMode; url: string 
     const objectPath = parsed.pathname.replace(/^\/+/, "");
     return {
       mode: "proxy-blob",
-      url: `${OSS_SHANGHAI_PROXY_PREFIX}${objectPath}${parsed.search}`
+      url: resolvePublicUrl(`${OSS_SHANGHAI_PROXY_PREFIX}${objectPath}${parsed.search}`)
     };
   }
   return { mode: "blob", url: value };
@@ -144,11 +147,12 @@ function createDiagnostic({
   };
 }
 
-function pushResource(resources: MediaResource[], seen: Set<string>, mediaUrl: unknown, name: unknown) {
+function pushResource(resources: MediaResource[], seen: Set<string>, mediaUrl: unknown, name: unknown, actionId?: unknown) {
   const url = text(mediaUrl);
   if (!url || url.startsWith("blob:") || seen.has(url)) return;
   seen.add(url);
   resources.push({
+    actionId: text(actionId),
     url,
     name: text(name) || "课程视频"
   });
@@ -156,13 +160,13 @@ function pushResource(resources: MediaResource[], seen: Set<string>, mediaUrl: u
 
 function collectWaterfallResources(items: WaterfallItem[] | undefined, resources: MediaResource[], seen: Set<string>) {
   for (const item of items || []) {
-    pushResource(resources, seen, item.mediaUrl, item.actionName);
+    pushResource(resources, seen, item.mediaUrl, item.actionName, item.actionId);
   }
 }
 
 function collectTrainingResources(cards: VideoCard[] | undefined, resources: MediaResource[], seen: Set<string>) {
   for (const card of cards || []) {
-    pushResource(resources, seen, card.mediaUrl, card.actionName || card.stationNumber);
+    pushResource(resources, seen, card.mediaUrl, card.actionName || card.stationNumber, card.actionId);
   }
 }
 
@@ -235,7 +239,8 @@ async function cacheOneResource({
   record,
   resource,
   signal,
-  total
+  total,
+  courseId
 }: {
   diagnostics: MediaCacheDiagnostic[];
   index: number;
@@ -243,15 +248,17 @@ async function cacheOneResource({
   resource: MediaResource;
   signal?: AbortSignal;
   total: number;
+  courseId: number;
 }): Promise<CachedResource> {
   if (signal?.aborted) throw abortError();
   const startAt = nowMs();
   const download = resolveDownloadUrl(resource.url);
+  let result: RequestBlobResult | undefined;
 
   record(createDiagnostic({ event: "start", index, mode: download.mode, name: resource.name, total, url: resource.url }));
 
   try {
-    const result = await requestBlobWithMeta(download.url, { signal });
+    result = await requestBlobWithMeta(download.url, { signal });
     await validateVideoBlob(resource, result.blob, result.contentType);
 
     const durationMs = Math.max(1, nowMs() - startAt);
@@ -275,6 +282,13 @@ async function cacheOneResource({
       objectUrl
     };
   } catch (error) {
+    if (signal?.aborted || (error as Error)?.name === "AbortError") throw error;
+    const httpStatus = error instanceof RequestJsonError ? error.status : result?.status || 0;
+    reportDiagnostic("DOWNLOAD_ERROR", error instanceof RequestJsonError ? `HTTP_${httpStatus}` : result ? "INVALID_VIDEO" : "NETWORK_ERROR",
+      error, { courseId, actionId: resource.actionId, actionName: resource.name, component: "media-cache",
+        endpoint: download.url.split(/[?#]/)[0], sourceUrl: resource.url, httpStatus,
+        contentType: error instanceof RequestJsonError ? error.contentType : result?.contentType || "",
+        stage: result ? "validate_video" : "download", elapsedMs: nowMs() - startAt });
     const cause = errorMessage(error);
     const message = isCrossOriginUrl(resource.url) && download.mode === "blob"
       ? `跨域视频无法完整下载，请配置同源代理或 CORS：${cause}`
@@ -283,6 +297,7 @@ async function cacheOneResource({
       createDiagnostic({
         durationMs: Math.max(1, nowMs() - startAt),
         error: message,
+        httpStatus,
         event: "failed",
         index,
         mode: download.mode,
@@ -356,7 +371,8 @@ export async function cacheCourseMedia(
           record,
           resource,
           signal,
-          total
+          total,
+          courseId: course.id
         });
         cachedResources[index] = cachedResource;
         if (cachedResource.objectUrl) objectUrls.push(cachedResource.objectUrl);
