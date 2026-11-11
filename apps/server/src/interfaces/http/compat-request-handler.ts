@@ -93,7 +93,8 @@ import { readOpsEvents, startOpsMqttSubscriber, subscribeOpsEvents } from "../..
 import { readJsonBody, readRequestBuffer, sendFile, sendJson, sendNoContent } from "../../utils/http.js";
 import { handleTvDiagnosticUpload } from "./tv-diagnostic-upload.js";
 import { startTvDiagnosticRetention, tvDiagnosticFiles } from "../../services/tv-diagnostic-files.js";
-import { DiagnosticError } from "../../services/tv-diagnostic-schema.js";
+import { DiagnosticError, simulatorDiagnosticIdentity } from "../../services/tv-diagnostic-schema.js";
+import { handleBrowserAuthentication } from "./browser-session-auth.js";
 
 const host = process.env.HOST || "127.0.0.1";
 const port = Number(process.env.PORT || 3100);
@@ -744,6 +745,13 @@ export async function handleCompatRequest(request, response) {
   }
 
   try {
+    if (await handleBrowserAuthentication(request, response, url)) { request.resume(); return; }
+    if (request.method === "POST" && url.pathname === "/api/websimulator/diagnostics") {
+      const user = requireAuthorizedConsoleUser(request, response);
+      if (!user) { request.resume(); return; }
+      await handleTvDiagnosticUpload(request, response, () => simulatorDiagnosticIdentity(user));
+      return;
+    }
     if (request.method === "POST" && url.pathname === "/api/tv/diagnostics") {
       await handleTvDiagnosticUpload(request, response, () => authenticateTvDiagnosticUpload(request.headers));
       return;
@@ -826,6 +834,7 @@ export async function handleCompatRequest(request, response) {
       if (!user) return;
       try {
         const data = await tvDiagnosticFiles.query({
+          source: url.searchParams.get("source") || "",
           namespace: url.searchParams.get("namespace") || "",
           deviceId: url.searchParams.get("deviceId") || "",
           date: url.searchParams.get("date") || "",

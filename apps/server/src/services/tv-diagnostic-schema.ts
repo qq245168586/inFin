@@ -9,14 +9,25 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CONTEXT_FIELDS = new Set([
   "courseId", "scheduleId", "sessionId", "sessionVersion", "playbackState", "component",
   "endpoint", "method", "httpStatus", "mediaFile", "cardId", "station", "what", "extra",
-  "exceptionClass", "thread", "androidVersion", "model", "elapsedMs"
+  "exceptionClass", "thread", "androidVersion", "model", "elapsedMs",
+  "actionId", "actionName", "stage", "sourceUrl", "contentType", "page", "userId"
 ]);
 
 export interface DiagnosticIdentity {
+  source?: "tv" | "websimulator";
   deviceId: string;
   accountNamespace: string;
   screenNumber: number;
   appVersion: string;
+}
+
+/** Uses only the authenticated account, never browser-supplied device or venue identifiers. */
+export function simulatorDiagnosticIdentity(user: { id: number }): DiagnosticIdentity {
+  if (!Number.isSafeInteger(user.id) || user.id < 1) {
+    throw new DiagnosticError(403, "INVALID_LOG_USER", "Authenticated user required.");
+  }
+  return { source: "websimulator", deviceId: `websimulator-user-${user.id}`,
+    accountNamespace: "websimulator", screenNumber: 0, appVersion: "web" };
 }
 
 export class DiagnosticError extends Error {
@@ -34,6 +45,7 @@ export function redactDiagnosticText(value: string, limit: number): string {
         return `${url.protocol}//${url.host}${url.pathname}`;
       } catch { return "[redacted-url]"; }
     })
+    .replace(/\/(?:infini\/|api\/|simulator-media\/)[^\s"'<>]+/g, text => text.split(/[?#]/)[0])
     .replace(/\b(?:Bearer|Basic)\s+[A-Za-z0-9+/_=.:-]+/gi, "[redacted-auth]")
     .replace(/(["']?(?:authorization|cookie|password|pairToken|accessToken|refreshToken|token|secret|signature|accessKeyId|accessKeySecret)["']?\s*[:=]\s*)(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s,;}]+)/gi, "$1[redacted]")
     .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "")

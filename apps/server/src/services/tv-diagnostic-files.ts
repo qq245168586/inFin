@@ -7,12 +7,13 @@ import {
   parseDiagnosticEvents, validateDiagnosticLogId, type DiagnosticIdentity
 } from "./tv-diagnostic-schema.js";
 
-const GENERATED_FILE = /^\d{8}T\d{9}_screen-[1-5]_[A-Za-z0-9_-]+_v[A-Za-z0-9._-]+_[a-f0-9-]{36}\.jsonl$/;
+const GENERATED_FILE = /^\d{8}T\d{9}_(?:screen-[1-5]|websimulator)_[A-Za-z0-9_-]+_v[A-Za-z0-9._-]+_[a-f0-9-]{36}\.jsonl$/;
 const TEMP_FILE = /^\.[a-f0-9-]{36}\.tmp$/;
 const MAX_QUERY_FILES = 2048;
 const MAX_QUERY_BYTES = 64 * 1024 * 1024;
 
 export interface TvDiagnosticQuery {
+  source?: string;
   namespace?: string;
   deviceId?: string;
   date?: string;
@@ -23,6 +24,7 @@ export interface TvDiagnosticQuery {
 }
 
 export interface TvDiagnosticRecord {
+  source?: "tv" | "websimulator";
   id: string;
   occurredAt: string;
   receivedAt: string;
@@ -97,7 +99,8 @@ export class TvDiagnosticFiles {
       }
       const directory = path.join(this.root, relativeDir);
       await fs.mkdir(directory, { recursive: true, mode: 0o700 });
-      const filename = `${stamp}_screen-${identity.screenNumber}_${identity.deviceId}_v${identity.appVersion}_${logId}.jsonl`;
+      const origin = identity.source === "websimulator" ? "websimulator" : `screen-${identity.screenNumber}`;
+      const filename = `${stamp}_${origin}_${identity.deviceId}_v${identity.appVersion}_${logId}.jsonl`;
       const target = path.join(directory, filename);
       const temp = path.join(directory, `.${randomUUID()}.tmp`);
       try {
@@ -114,6 +117,7 @@ export class TvDiagnosticFiles {
 
   /** Reads bounded, sanitized records for the super-admin ops console without exposing file paths. */
   async query(input: TvDiagnosticQuery = {}) {
+    const source = String(input.source || "");
     const namespace = String(input.namespace || "").trim();
     const deviceId = String(input.deviceId || "").trim();
     const date = String(input.date || "").trim();
@@ -122,7 +126,8 @@ export class TvDiagnosticFiles {
     const code = String(input.code || "").trim().toLowerCase();
     const limit = Math.max(10, Math.min(Number(input.limit) || 200, 1000));
     const safe = /^[A-Za-z0-9_-]{1,80}$/;
-    if ((namespace && !safe.test(namespace)) || (deviceId && !safe.test(deviceId))
+    if ((source && !["tv", "websimulator"].includes(source))
+        || (namespace && !safe.test(namespace)) || (deviceId && !safe.test(deviceId))
         || (date && !/^\d{4}-\d{2}-\d{2}$/.test(date))
         || (screenText && (!/^[1-5]$/.test(screenText)))
         || (type && !DIAGNOSTIC_TYPES.has(type)) || code.length > 80) {
@@ -164,6 +169,8 @@ export class TvDiagnosticFiles {
         for (const line of content.split(/\r?\n/)) {
           if (!line) continue;
           const event = JSON.parse(line) as TvDiagnosticRecord & { batchChecksum?: string };
+          const eventSource = event.source || "tv";
+          if (source && source !== eventSource) continue;
           if (screenText && Number(event.screenNumber) !== Number(screenText)) continue;
           if (code && !String(event.code || "").toLowerCase().includes(code)) continue;
           if (!DIAGNOSTIC_TYPES.has(String(event.type || ""))) continue;
@@ -173,6 +180,7 @@ export class TvDiagnosticFiles {
           if (type && event.type !== type) continue;
           filteredTotal++;
           records.push({
+            source: eventSource,
             id: event.id,
             occurredAt: event.occurredAt,
             receivedAt: event.receivedAt,

@@ -6,7 +6,7 @@ import { randomUUID } from "node:crypto";
 import { PassThrough } from "node:stream";
 import { test, onTestFinished, vi } from "vitest";
 import { TvDiagnosticFiles } from "../src/services/tv-diagnostic-files.ts";
-import { authenticateDiagnosticDevice, DiagnosticError, DIAGNOSTIC_RETENTION_MS,
+import { authenticateDiagnosticDevice, simulatorDiagnosticIdentity, DiagnosticError, DIAGNOSTIC_RETENTION_MS,
   parseDiagnosticEvents, redactDiagnosticText } from "../src/services/tv-diagnostic-schema.ts";
 import { handleTvDiagnosticUpload } from "../src/interfaces/http/tv-diagnostic-upload.ts";
 import { importStore } from "./helpers/store.ts";
@@ -130,6 +130,24 @@ test("concurrent retries and next-day retries are idempotent; changed content co
   assert.equal((await f.files.receive(identity, id, body)).duplicate, true);
   await assert.rejects(f.files.receive(identity, id, bytes()), status(409));
   assert.equal((await savedFiles(f.root)).length, 1);
+});
+
+test("simulator and old TV records share retention but are correctly source-filtered", async () => {
+  const f = await fixture();
+  await f.files.receive(identity, randomUUID(), bytes());
+  await f.files.receive(simulatorDiagnosticIdentity({ id: 2 }), randomUUID(), bytes(event({
+    type: "DOWNLOAD_ERROR", code: "HTTP_404", context: { courseId: 41, actionId: "491", stage: "download" }
+  })));
+  const web = await f.files.query({ source: "websimulator" });
+  assert.equal(web.items.length, 1);
+  assert.equal(web.items[0].source, "websimulator");
+  assert.equal(web.items[0].screenNumber, 0);
+  assert.equal(web.items[0].context.courseId, 41);
+  assert.equal((await f.files.query({ source: "tv" })).items.length, 1);
+  assert.ok((await savedFiles(f.root)).some(name => name.includes("_websimulator_websimulator-user-2_")));
+  await assert.rejects(f.files.query({ source: "../db.json" }), status(400));
+  f.advance(DIAGNOSTIC_RETENTION_MS);
+  assert.equal(await f.files.cleanup(), 2);
 });
 
 test("retention uses server receipt time, survives restart, and leaves foreign files/symlinks untouched", async () => {

@@ -1402,7 +1402,7 @@ export function createAuthPayload(userId, clientName = "editor-web") {
   };
 
   state.authSessions = state.authSessions.filter(
-    (item) => item.userId !== userId || normalizeClientName(item.client) !== normalizedClient
+    (item) => item.kind === "browser" || item.userId !== userId || normalizeClientName(item.client) !== normalizedClient
   );
   state.authSessions.push(session);
   persist();
