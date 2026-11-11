@@ -1,9 +1,9 @@
+import { browserSession } from "../services/browserSession";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { AuthSession, CoachPageKey, LoginFormState, NoticeState, NoticeTone } from "../models/common";
 import type { WeekScheduleRecord } from "../models/schedule";
-import { AUTH_STORAGE_KEY, loginCoach, refreshCoachSession } from "../services/authService";
+import { loginCoach } from "../services/authService";
 import { fetchCurrentWeekSchedules } from "../services/metaService";
-import { readStorageJson, removeStorageItem, saveStorageJson } from "../services/storage";
 import { getErrorMessage, isAuthExpiredMessage } from "../utils/format";
 import { useI18n } from "./I18nProvider";
 
@@ -27,15 +27,10 @@ interface CoachAppContextValue {
 }
 
 const CoachAppContext = createContext<CoachAppContextValue | null>(null);
-const ACTIVE_SESSION_WINDOW_MS = 12 * 60 * 60 * 1000;
-const REFRESH_BEFORE_EXPIRE_MS = 10 * 60 * 1000;
-const REFRESH_CHECK_MS = 60 * 1000;
 
 export function CoachAppProvider({ children }: { children: ReactNode }) {
   const { t } = useI18n();
   const noticeTimerRef = useRef<number | null>(null);
-  const lastActivityAtRef = useRef(Date.now());
-  const refreshingRef = useRef(false);
   const [authReady, setAuthReady] = useState(false);
   const [authSession, setAuthSession] = useState<AuthSession | null>(null);
   const [currentWeekSchedules, setCurrentWeekSchedules] = useState<WeekScheduleRecord[]>([]);
@@ -53,17 +48,8 @@ export function CoachAppProvider({ children }: { children: ReactNode }) {
     noticeTimerRef.current = window.setTimeout(() => setNotice(null), 3200);
   }, []);
 
-  const enrichSession = useCallback((session: AuthSession): AuthSession => {
-    const issuedAt = Date.now();
-    return {
-      ...session,
-      issued_at: issuedAt,
-      expires_at: issuedAt + Math.max(0, Number(session.expires_in) || 0) * 1000
-    };
-  }, []);
-
   const handleSessionExpired = useCallback((message = t("登录已失效，请重新登录。")) => {
-    removeStorageItem(AUTH_STORAGE_KEY);
+    if (browserSession.read()) return;
     setAuthSession(null);
     setCurrentWeekSchedules([]);
     setActivePage("console");
@@ -73,72 +59,30 @@ export function CoachAppProvider({ children }: { children: ReactNode }) {
     pushNotice(message, "error");
   }, [pushNotice, t]);
 
-  const refreshSession = useCallback(async (current: AuthSession | null) => {
-    if (!current?.refresh_token || refreshingRef.current) return;
-    refreshingRef.current = true;
-    try {
-      const nextAuth = await refreshCoachSession(current.refresh_token);
-      setAuthSession(enrichSession(nextAuth));
-    } catch (error) {
-      const message = getErrorMessage(error);
-      if (isAuthExpiredMessage(message)) {
-        handleSessionExpired(t("登录已过期，请重新登录。"));
-      } else {
-        pushNotice(message, "error");
-      }
-    } finally {
-      refreshingRef.current = false;
-    }
-  }, [enrichSession, handleSessionExpired, pushNotice, t]);
-
   useEffect(() => {
     let cancelled = false;
-    async function restoreSession() {
-      const storedAuth = readStorageJson<AuthSession>(AUTH_STORAGE_KEY);
-      if (!storedAuth?.refresh_token) {
-        setAuthReady(true);
-        return;
+    const unsubscribe = browserSession.subscribe(session => {
+      if (!cancelled) {
+        setAuthSession(session as AuthSession | null);
+        if (!session) { setCurrentWeekSchedules([]); setActivePage("console"); }
       }
-      setBusyText(t("正在恢复登录..."));
-      try {
-        const nextAuth = await refreshCoachSession(storedAuth.refresh_token);
-        if (!cancelled) {
-          setAuthSession(enrichSession(nextAuth));
-        }
-      } catch {
-        if (!cancelled) {
-          removeStorageItem(AUTH_STORAGE_KEY);
-          setAuthSession(null);
-        }
-      } finally {
-        if (!cancelled) {
-          setBusyText("");
-          setAuthReady(true);
-        }
-      }
-    }
-    void restoreSession();
-    return () => {
-      cancelled = true;
-    };
-  }, [enrichSession]);
+    });
+    setBusyText(t("正在恢复登录..."));
+    browserSession.restore().then(session => {
+      if (!cancelled) setAuthSession(session as AuthSession | null);
+    }).catch(error => {
+      if (!cancelled) pushNotice(getErrorMessage(error), "error");
+    }).finally(() => {
+      if (!cancelled) { setAuthReady(true); setBusyText(""); }
+    });
+    return () => { cancelled = true; unsubscribe(); };
+  }, []);
 
   useEffect(() => () => {
     if (noticeTimerRef.current) {
       window.clearTimeout(noticeTimerRef.current);
     }
   }, []);
-
-  useEffect(() => {
-    if (!authReady) {
-      return;
-    }
-    if (authSession) {
-      saveStorageJson(AUTH_STORAGE_KEY, authSession);
-      return;
-    }
-    removeStorageItem(AUTH_STORAGE_KEY);
-  }, [authReady, authSession]);
 
   useEffect(() => {
     if (!authReady || !authSession) {
@@ -148,42 +92,15 @@ export function CoachAppProvider({ children }: { children: ReactNode }) {
   }, [authReady, authSession?.access_token]);
 
   useEffect(() => {
-    const markActivity = () => {
-      lastActivityAtRef.current = Date.now();
-    };
-    const events = ["click", "keydown", "pointerdown", "touchstart", "input", "focus"];
-    events.forEach((eventName) => window.addEventListener(eventName, markActivity, { passive: true }));
-    return () => events.forEach((eventName) => window.removeEventListener(eventName, markActivity));
-  }, []);
-
-  useEffect(() => {
     if (!authSession) return;
-    const tick = () => {
-      const now = Date.now();
-      if (now - lastActivityAtRef.current > ACTIVE_SESSION_WINDOW_MS) {
-      handleSessionExpired(t("登录已超过 12 小时未操作，请重新登录。"));
-        return;
+    const timer = window.setInterval(() => {
+      const current = browserSession.read();
+      if (current && Number(current.expires_at) - Date.now() < 10 * 60_000) {
+        void browserSession.refresh().catch(() => {});
       }
-      const expiresAt = Number(authSession.expires_at || 0);
-      if (expiresAt && expiresAt - now <= REFRESH_BEFORE_EXPIRE_MS) {
-        void refreshSession(authSession);
-      }
-    };
-    tick();
-    const timer = window.setInterval(tick, REFRESH_CHECK_MS);
+    }, 60_000);
     return () => window.clearInterval(timer);
-  }, [authSession, handleSessionExpired, refreshSession]);
-
-  useEffect(() => {
-    function handleAuthExpired(event: Event) {
-      const message = String((event as CustomEvent<{ message?: string }>).detail?.message || t("登录已过期，请重新登录。"));
-      if (!isAuthExpiredMessage(message)) return;
-      handleSessionExpired(t("登录已过期，请重新登录。"));
-    }
-
-    window.addEventListener("infini-auth-expired", handleAuthExpired as EventListener);
-    return () => window.removeEventListener("infini-auth-expired", handleAuthExpired as EventListener);
-  }, [handleSessionExpired]);
+  }, [authSession?.access_token]);
 
   async function handleLogin() {
     if (!loginForm.username.trim() || !loginForm.password.trim()) {
@@ -193,8 +110,7 @@ export function CoachAppProvider({ children }: { children: ReactNode }) {
     setBusyText(t("正在登录..."));
     try {
       const nextAuth = await loginCoach(loginForm.username.trim(), loginForm.password.trim());
-      setAuthSession(enrichSession(nextAuth));
-      lastActivityAtRef.current = Date.now();
+      setAuthSession(nextAuth);
       setActivePage("console");
       setLoginForm({ username: "", password: "" });
       pushNotice(t("登录成功。"));
@@ -206,13 +122,13 @@ export function CoachAppProvider({ children }: { children: ReactNode }) {
   }
 
   function handleLogout() {
-    removeStorageItem(AUTH_STORAGE_KEY);
-    setAuthSession(null);
-    setCurrentWeekSchedules([]);
-    setActivePage("console");
-    setLoginForm({ username: "", password: "" });
-    setPasswordVisible(false);
-    pushNotice(t("已退出登录。"));
+    void browserSession.logout().then(() => {
+      setCurrentWeekSchedules([]);
+      setActivePage("console");
+      setLoginForm({ username: "", password: "" });
+      setPasswordVisible(false);
+      pushNotice(t("已退出登录。"));
+    }).catch(error => pushNotice(getErrorMessage(error), "error"));
   }
 
   async function loadMeta(label = "") {

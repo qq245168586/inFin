@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
-import { test } from "vitest";
+import { test, beforeEach, afterEach, vi } from "vitest";
+import { browserFixture } from "../../../../packages/shared/tests/browser-fixture";
+beforeEach(() => vi.stubGlobal("window", browserFixture()));
+afterEach(() => vi.unstubAllGlobals());
 import { mockAuthSession, mockSchedule } from "../fixtures/coachData.ts";
 import { bundleUrl, fetchVenueCoursePackages, switchActiveCoursePackage, venueBody, venueQuery } from "../../src/services/consoleService.ts";
 import { buildCourseLogo, buildFormalPreviews, formatStorageBytes, isActiveSessionState, isAuthExpiredMessage, shortSessionId } from "../../src/utils/format.ts";

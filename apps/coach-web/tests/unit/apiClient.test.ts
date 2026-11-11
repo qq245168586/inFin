@@ -1,95 +1,47 @@
 import assert from "node:assert/strict";
-import { afterEach, test } from "vitest";
+import { beforeEach, afterEach, test, vi } from "vitest";
 import { authHeaders, requestJson } from "../../src/services/apiClient.ts";
+import { browserSession } from "../../src/services/browserSession";
+import { browserFixture } from "../../../../packages/shared/tests/browser-fixture";
 
-const originalFetch = globalThis.fetch;
-const originalWindow = globalThis.window;
-const originalCustomEvent = globalThis.CustomEvent;
+beforeEach(() => vi.stubGlobal("window", browserFixture()));
+afterEach(() => vi.unstubAllGlobals());
 
-afterEach(() => {
-  globalThis.fetch = originalFetch;
-  if (originalWindow === undefined) {
-    delete globalThis.window;
-  } else {
-    globalThis.window = originalWindow;
-  }
-  if (originalCustomEvent === undefined) {
-    delete globalThis.CustomEvent;
-  } else {
-    globalThis.CustomEvent = originalCustomEvent;
-  }
+test("authHeaders preserves caller identity for request guards", () => {
+  assert.deepEqual(authHeaders("Session", "public-id"), { Authorization: "Session public-id" });
 });
 
-test("authHeaders builds the bearer-style Authorization header", () => {
-  assert.deepEqual(authHeaders("Bearer", "access-token"), {
-    Authorization: "Bearer access-token"
-  });
-});
-
-test("requestJson adds JSON content type only when a request body is present", async () => {
-  const calls: Array<{ path: string; init: RequestInit }> = [];
-  globalThis.fetch = async (path: string, init: RequestInit = {}) => {
-    calls.push({ path, init });
-    return new Response(JSON.stringify({ ok: true }), { status: 200 });
-  };
-
-  const payload = await requestJson<{ ok: boolean }>("/api/tv/control", {
-    method: "POST",
-    headers: {
-      Authorization: "Bearer access-token",
-      "X-Trace": "trace-1"
-    },
+test("requestJson adds JSON headers and cookie client identity, removing legacy credentials", async () => {
+  const fetcher = vi.fn(async () => new Response(JSON.stringify({ ok: true })));
+  vi.stubGlobal("fetch", fetcher);
+  const payload = await requestJson("/api/tv/control", {
+    method: "POST", headers: { Authorization: "Bearer old", "X-Trace": "trace-1" },
     body: JSON.stringify({ action: "refresh" })
   });
-
   assert.deepEqual(payload, { ok: true });
-  assert.equal(calls[0].path, "/api/tv/control");
-  assert.deepEqual(calls[0].init.headers, {
-    "Content-Type": "application/json",
-    Authorization: "Bearer access-token",
-    "X-Trace": "trace-1"
+  const options = fetcher.mock.calls[0][1] as RequestInit;
+  const headers = new Headers(options.headers);
+  assert.equal(headers.get("Content-Type"), "application/json");
+  assert.equal(headers.get("X-Infini-Client"), "coach-web");
+  assert.equal(headers.get("Authorization"), null);
+  assert.equal(headers.get("X-Trace"), "trace-1");
+  assert.equal(options.credentials, "same-origin");
+});
+
+test("requestJson surfaces API errors without losing status or payload", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ msg: "设备离线" }), { status: 409 })));
+  await assert.rejects(() => requestJson("/api/tv/screens/install-package"), (error: any) => {
+    assert.equal(error.message, "设备离线");
+    assert.equal(error.status, 409);
+    assert.deepEqual(error.payload, { msg: "设备离线" });
+    return true;
   });
 });
 
-test("requestJson surfaces API error messages with status and payload", async () => {
-  globalThis.fetch = async () =>
-    new Response(JSON.stringify({ msg: "设备离线" }), {
-      status: 409
-    });
-
-  await assert.rejects(
-    () => requestJson("/api/tv/screens/install-package"),
-    (error: Error & { status?: number; payload?: unknown }) => {
-      assert.equal(error.message, "设备离线");
-      assert.equal(error.status, 409);
-      assert.deepEqual(error.payload, { msg: "设备离线" });
-      return true;
-    }
-  );
-});
-
-test("requestJson dispatches auth-expired events for expired token responses", async () => {
-  let expiredDetail: unknown = null;
-  const target = new EventTarget();
-  target.addEventListener("infini-auth-expired", (event) => {
-    expiredDetail = (event as CustomEvent).detail;
-  });
-  globalThis.window = target as Window & typeof globalThis;
-  if (typeof globalThis.CustomEvent === "undefined") {
-    globalThis.CustomEvent = class CustomEvent<T = unknown> extends Event {
-      detail: T;
-
-      constructor(type: string, init?: CustomEventInit<T>) {
-        super(type);
-        this.detail = init?.detail as T;
-      }
-    } as typeof CustomEvent;
-  }
-  globalThis.fetch = async () =>
-    new Response(JSON.stringify({ message: "refresh token 已失效" }), {
-      status: 401
-    });
-
-  await assert.rejects(() => requestJson("/api/user/info"), /refresh token 已失效/);
-  assert.deepEqual(expiredDetail, { message: "refresh token 已失效" });
+test("only confirmed SESSION_EXPIRED notifies session subscribers", async () => {
+  const listener = vi.fn(); const stop = browserSession.subscribe(listener);
+  vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ code: "SESSION_EXPIRED", message: "登录已失效" }), { status: 401 })));
+  await assert.rejects(() => requestJson("/api/user/info"), /登录已失效/);
+  assert.equal(listener.mock.calls[0][0], null);
+  stop();
 });
