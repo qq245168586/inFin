@@ -1,3 +1,4 @@
+import { createBrowserSessionClient } from "../../../packages/shared/src/browser-session";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { resolveApiUrl } from "./runtime";
 
@@ -46,6 +47,7 @@ interface OpsEvent {
 type DiagnosticType = "PLAYBACK_ERROR" | "NETWORK_ERROR" | "API_ERROR" | "DOWNLOAD_ERROR" | "CRASH" | "MQTT_ERROR";
 
 interface TvDiagnosticEvent {
+  source?: "tv" | "websimulator";
   id: string;
   occurredAt: string;
   receivedAt: string;
@@ -143,8 +145,7 @@ interface OpsOverview {
   };
 }
 
-const AUTH_STORAGE_KEY = "infini-ops-web-auth";
-const LEGACY_BASIC_AUTH = "Basic REDACTED_CONFIGURE_LOCALLY";
+const AUTH_STORAGE_KEY = "infini-ops-web-session-v2";
 const DIAGNOSTIC_TYPES: Array<{ value: DiagnosticType; label: string }> = [
   { value: "PLAYBACK_ERROR", label: "播放" },
   { value: "DOWNLOAD_ERROR", label: "下载" },
@@ -169,44 +170,8 @@ function diagnosticTypeLabel(type: string): string {
   return DIAGNOSTIC_TYPES.find((item) => item.value === type)?.label || type || "未知";
 }
 
-function readStorageJson<T>(key: string): T | null {
-  try {
-    const raw = window.localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : null;
-  } catch {
-    return null;
-  }
-}
-
-function saveStorageJson(key: string, value: unknown) {
-  window.localStorage.setItem(key, JSON.stringify(value));
-}
-
-function removeStorageItem(key: string) {
-  window.localStorage.removeItem(key);
-}
-
-async function requestJson<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(resolveApiUrl(path), {
-    cache: "no-store",
-    ...options,
-    headers: {
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
-      ...(options.headers || {})
-    }
-  });
-  const payload = (await response.json().catch(() => null)) as T | { message?: string; msg?: string } | null;
-
-  if (!response.ok) {
-    throw new Error(
-      (payload as { message?: string; msg?: string } | null)?.message
-        || (payload as { msg?: string } | null)?.msg
-        || `请求失败 (${response.status})`
-    );
-  }
-
-  return payload as T;
-}
+const browserSession = createBrowserSessionClient("ops-web", AUTH_STORAGE_KEY, resolveApiUrl, "infini-ops-web-auth");
+const requestJson = browserSession.requestJson;
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message) {
@@ -268,6 +233,7 @@ function buildFilterParams({
 }
 
 function buildDiagnosticParams({
+  source,
   namespace,
   deviceId,
   date,
@@ -276,6 +242,7 @@ function buildDiagnosticParams({
   code,
   limit
 }: {
+  source: string;
   namespace: string;
   deviceId: string;
   date: string;
@@ -285,6 +252,7 @@ function buildDiagnosticParams({
   limit: number;
 }) {
   const params = new URLSearchParams();
+  if (source) params.set("source", source);
   if (namespace.trim()) params.set("namespace", namespace.trim());
   if (deviceId.trim()) params.set("deviceId", deviceId.trim());
   if (date.trim()) params.set("date", date.trim());
@@ -320,6 +288,7 @@ export default function OpsWebApp() {
 
   const [activeView, setActiveView] = useState<"overview" | "diagnostics">("diagnostics");
   const [diagnosticNamespace, setDiagnosticNamespace] = useState("");
+  const [diagnosticSource, setDiagnosticSource] = useState("");
   const [diagnosticDeviceId, setDiagnosticDeviceId] = useState("");
   const [diagnosticDate, setDiagnosticDate] = useState(currentBeijingDate);
   const [diagnosticScreen, setDiagnosticScreen] = useState("");
@@ -349,7 +318,7 @@ export default function OpsWebApp() {
 
   const handleSessionExpired = useCallback((message = "登录已失效，请重新登录。") => {
     diagnosticRequestRef.current++;
-    removeStorageItem(AUTH_STORAGE_KEY);
+    if (browserSession.read()) return;
     setAuthSession(null);
     setOverview(null);
     setEvents([]);
@@ -361,92 +330,38 @@ export default function OpsWebApp() {
 
   useEffect(() => {
     let cancelled = false;
-
-    async function restoreSession() {
-      const storedAuth = readStorageJson<AuthSession>(AUTH_STORAGE_KEY);
-      if (!storedAuth?.refresh_token) {
-        setAuthReady(true);
-        return;
+    const unsubscribe = browserSession.subscribe(session => {
+      if (!cancelled) {
+        setAuthSession(session as unknown as AuthSession | null);
+        if (!session) { stopStream(); setOverview(null); setEvents([]); setDiagnostics(null); }
       }
+    });
+    setBusyText("正在恢复登录...");
+    browserSession.restore().then(session => {
+      if (!cancelled) setAuthSession(session as unknown as AuthSession | null);
+    }).catch(error => {
+      if (!cancelled) pushNotice(getErrorMessage(error), "error");
+    }).finally(() => {
+      if (!cancelled) { setBusyText(""); setAuthReady(true); }
+    });
+    return () => { cancelled = true; unsubscribe(); };
+  }, []);
 
-      setBusyText("正在恢复登录...");
-
-      try {
-        const refreshResponse = await requestJson<LegacyEnvelope<AuthTokenPayload>>("/api/app/refresh", {
-          method: "POST",
-          headers: {
-            Authorization: LEGACY_BASIC_AUTH
-          },
-          body: JSON.stringify({
-            refresh_token: storedAuth.refresh_token,
-            client: "ops-web"
-          })
-        });
-
-        const profileResponse = await requestJson<LegacyEnvelope<UserProfile>>("/api/user/info", {
-          headers: {
-            Authorization: `${refreshResponse.data.token_type} ${refreshResponse.data.access_token}`
-          }
-        });
-
-        if (cancelled) {
-          return;
-        }
-
-        const nextAuth = {
-          ...refreshResponse.data,
-          ...profileResponse.data
-        };
-
-        setAuthSession(nextAuth);
-        setLoginUsername(nextAuth.username || "");
-      } catch {
-        if (!cancelled) {
-          removeStorageItem(AUTH_STORAGE_KEY);
-          setAuthSession(null);
-        }
-      } finally {
-        if (!cancelled) {
-          setBusyText("");
-          setAuthReady(true);
-        }
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const current = browserSession.read();
+      if (current && Number(current.expires_at) - Date.now() < 10 * 60_000) {
+        void browserSession.refresh().catch(() => {});
       }
-    }
-
-    void restoreSession();
-    return () => {
-      cancelled = true;
-    };
+    }, 60_000);
+    return () => window.clearInterval(timer);
   }, []);
 
   async function handleLogin() {
     setBusyText("正在登录...");
     try {
-      const loginResponse = await requestJson<LegacyEnvelope<AuthTokenPayload>>("/api/app/login", {
-        method: "POST",
-        headers: {
-          Authorization: LEGACY_BASIC_AUTH
-        },
-        body: JSON.stringify({
-          username: loginUsername.trim(),
-          password: loginPassword,
-          client: "ops-web"
-        })
-      });
-
-      const profileResponse = await requestJson<LegacyEnvelope<UserProfile>>("/api/user/info", {
-        headers: {
-          Authorization: `${loginResponse.data.token_type} ${loginResponse.data.access_token}`
-        }
-      });
-
-      const nextAuth = {
-        ...loginResponse.data,
-        ...profileResponse.data
-      };
-
-      saveStorageJson(AUTH_STORAGE_KEY, nextAuth);
-      setAuthSession(nextAuth);
+      await browserSession.login(loginUsername.trim(), loginPassword);
+      setLoginPassword("");
       pushNotice("登录成功。");
     } catch (error) {
       pushNotice(getErrorMessage(error), "error");
@@ -456,15 +371,12 @@ export default function OpsWebApp() {
   }
 
   function handleLogout() {
-    diagnosticRequestRef.current++;
-    removeStorageItem(AUTH_STORAGE_KEY);
-    setAuthSession(null);
-    stopStream();
-    setOverview(null);
-    setEvents([]);
-    setDiagnostics(null);
-    setSelectedDiagnosticId("");
-    pushNotice("已退出登录。");
+    void browserSession.logout().then(() => {
+      diagnosticRequestRef.current++;
+      stopStream();
+      setOverview(null); setEvents([]); setDiagnostics(null); setSelectedDiagnosticId("");
+      pushNotice("已退出登录。");
+    }).catch(error => pushNotice(getErrorMessage(error), "error"));
   }
 
   async function fetchOverview({ silent = false } = {}) {
@@ -518,9 +430,10 @@ export default function OpsWebApp() {
   async function fetchDiagnostics({ silent = false } = {}) {
     if (!authSession) return;
     const requestId = ++diagnosticRequestRef.current;
-    if (!silent) setBusyText("正在加载 TV 错误日志...");
+    if (!silent) setBusyText("正在加载错误日志...");
     try {
       const params = buildDiagnosticParams({
+        source: diagnosticSource,
         namespace: diagnosticNamespace,
         deviceId: diagnosticDeviceId,
         date: diagnosticDate,
@@ -537,7 +450,7 @@ export default function OpsWebApp() {
       setSelectedDiagnosticId((current) =>
         payload.data.items.some((item) => item.id === current) ? current : (payload.data.items[0]?.id || "")
       );
-      if (!silent) pushNotice("TV 错误日志已加载。");
+      if (!silent) pushNotice("错误日志已加载。");
     } catch (error) {
       if (requestId !== diagnosticRequestRef.current) return;
       const message = getErrorMessage(error);
@@ -566,9 +479,8 @@ export default function OpsWebApp() {
 
     const params = buildFilterParams({ namespace, deviceId, topicContains, typeContains, date, limit });
 
-    // NOTE: EventSource cannot send Authorization header. We pass access token as query for ops-only usage.
-    params.set("accessToken", authSession.access_token);
-    params.set("tokenType", authSession.token_type);
+    // EventSource sends the HttpOnly cookie; never place credentials in a URL.
+    params.set("browserClient", "ops-web");
 
     const source = new EventSource(resolveApiUrl(`/api/ops/mqtt/stream?${params.toString()}`));
     streamRef.current = source;
@@ -689,7 +601,7 @@ export default function OpsWebApp() {
               className={activeView === "diagnostics" ? "active" : ""}
               onClick={() => setActiveView("diagnostics")}
             >
-              TV 错误日志
+              客户端错误日志
             </button>
             <button
               type="button"
@@ -894,8 +806,16 @@ export default function OpsWebApp() {
 
           <div className={`ops-view-content ${activeView === "diagnostics" ? "active" : ""}`}>
             <div className="ops-panel">
-              <div className="ops-section-title">TV 错误日志查询</div>
+              <div className="ops-section-title">客户端错误日志查询</div>
               <div className="ops-diagnostic-filter-grid">
+                <div className="ops-field">
+                  <label>来源</label>
+                  <select value={diagnosticSource} onChange={event => setDiagnosticSource(event.target.value)}>
+                    <option value="">全部来源</option>
+                    <option value="tv">TV</option>
+                    <option value="websimulator">网页模拟器</option>
+                  </select>
+                </div>
                 <div className="ops-field">
                   <label>场馆 Namespace</label>
                   <input
@@ -950,6 +870,7 @@ export default function OpsWebApp() {
                   className="ops-btn"
                   onClick={() => {
                     setDiagnosticNamespace("");
+                    setDiagnosticSource("");
                     setDiagnosticDeviceId("");
                     setDiagnosticDate(currentBeijingDate());
                     setDiagnosticScreen("");
@@ -1024,12 +945,12 @@ export default function OpsWebApp() {
                         >
                           <td className="ops-mono">{formatDateTime(item.occurredAt)}</td>
                           <td><span className={`ops-error-type type-${item.type.toLowerCase()}`}>{diagnosticTypeLabel(item.type)}</span></td>
-                          <td><b>屏幕 {item.screenNumber}</b><span className="ops-table-sub">{item.deviceId}</span></td>
+                          <td><b>{item.source === "websimulator" ? "网页模拟器" : `屏幕 ${item.screenNumber}`}</b><span className="ops-table-sub">{item.deviceId}</span></td>
                           <td className="ops-mono">{item.code}</td>
                           <td className="ops-message-cell">{item.message}</td>
                         </tr>
                       )) : (
-                        <tr><td colSpan={5} className="ops-empty-state">当前条件下没有 TV 错误日志。</td></tr>
+                        <tr><td colSpan={5} className="ops-empty-state">当前条件下没有错误日志。</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -1049,8 +970,9 @@ export default function OpsWebApp() {
                     <dl className="ops-detail-grid">
                       <dt>发生时间</dt><dd>{formatDateTime(selectedDiagnostic.occurredAt)}</dd>
                       <dt>接收时间</dt><dd>{formatDateTime(selectedDiagnostic.receivedAt)}</dd>
+                      <dt>来源</dt><dd>{selectedDiagnostic.source === "websimulator" ? "网页模拟器" : "TV"}</dd>
                       <dt>场馆</dt><dd className="ops-mono">{selectedDiagnostic.accountNamespace}</dd>
-                      <dt>设备</dt><dd className="ops-mono">{selectedDiagnostic.deviceId} / 屏幕 {selectedDiagnostic.screenNumber}</dd>
+                      <dt>设备</dt><dd className="ops-mono">{selectedDiagnostic.deviceId}{selectedDiagnostic.source === "websimulator" ? "" : ` / 屏幕 ${selectedDiagnostic.screenNumber}`}</dd>
                       <dt>APP</dt><dd>{selectedDiagnostic.appVersion}</dd>
                       <dt>日志 ID</dt><dd className="ops-mono">{selectedDiagnostic.logId}</dd>
                     </dl>
