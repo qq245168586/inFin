@@ -1,7 +1,7 @@
 # REQ-20261111-browser-sessions: 分端浏览器会话与可靠续期
 
 ## Status
-- Status: Ready for QA (implemented locally, not deployed)
+- Status: Shipped (2026-11-11; production smoke passed, manual acceptance pending)
 - Created: 2026-11-11
 - Related: REQ-20261108-simulator-diagnostics; docs/CODEMAP.md
 
@@ -53,7 +53,7 @@ web request:
 - Concurrent refresh: stable cookie, idempotent lease extension; no token rotation race even without browser Web Locks.
 - Logout/login races: local revision guards and public session identity; stale responses cannot clear/restore newer UI state or replay writes under another account.
 - API build must precede all web builds. Never fall back to old token auth on temporary failures.
-- Revert Web/API together if necessary; browser sessions remain additive inert records, no data rollback required. No production modification in this task.
+- Revert Web/API together if necessary; browser sessions remain additive inert records, no data rollback required. Never restore the business DB merely to roll back this release.
 
 ## Manual E2E Acceptance
 1. 同账号同时登录 admin/course/coach/ops，分别操作、刷新、退出一个端，其他端不掉线。
@@ -72,4 +72,12 @@ web request:
 - HTML report: `outputs/test-results/browser-sessions-20261111/coverage/index.html`; command from server: `pnpm exec vitest run --config vitest.browser-sessions.config.mjs --coverage`.
 - Real Chrome smoke: 11 checks passed. Actual course/admin/coach/ops UI login, two course tabs, HttpOnly visibility, independent renewals, 503 recovery, cross-tab logout, simulator content API, Ops SSE without URL token.
 - Browser report/screenshots: `outputs/test-results/browser-sessions-20261111/`; local-only runner: `apps/server/tests/browser-session-smoke.ts` (`PLAYWRIGHT_MODULE` points at installed Playwright; defaults to installed Chrome channel).
-- Server build plus all five Web builds/typechecks passed. All tests use isolated fixtures; no production DB writes, restart, publish, commit or push in this task.
+- Server build plus all five Web builds/typechecks passed. Automated tests use isolated fixtures. Commit hook reran server/course/coach tests, production transport checks and Android unit-test task successfully.
+
+## Deployment
+- Published 2026-11-11 20:35 CST to ECS `i-bp1gy4to0n4dh5gk7tuw`: server, course, admin, coach, ops and course simulator. Only `infini-platform` restarted; MQTT, TV and other projects were not restarted or upgraded.
+- Code commits: root `d3f0100`, server `140fcfa`, course `840b605`, admin `9307630`, coach `0338ad4`, ops `4e1d0c9`.
+- Production checks: all five HTML pages match deployed artifacts, referenced JS/CSS return 200; four clients return expected `SESSION_EXPIRED` without credentials and reject foreign origins with `CSRF_REJECTED`; health 200; video proxy Range 206; all five checked services active. Authenticated multi-client acceptance was verified locally, not by logging into production accounts.
+- Business data compared before/after: media 533, actions 411, courses 47, templates 36, schedules 191, venues 3, users 11, coursePackages 3; contents unchanged.
+- Rollback archive: `/var/lib/infini/deploy-backups/browser-sessions-20261111/runtime.tgz`. DB snapshot stored separately in the same restricted directory; rollback script restores code only.
+- First visit after upgrade requires one login per web client. Close or refresh old tabs before testing independent sessions.
