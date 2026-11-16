@@ -1,0 +1,64 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bgGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(704 276) rotate(134) scale(760)">
+      <stop stop-color="#35104F"/>
+      <stop offset="0.46" stop-color="#100716"/>
+      <stop offset="1" stop-color="#05030A"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="256" y1="154" x2="742" y2="840" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF0A8"/>
+      <stop offset="0.38" stop-color="#E6B848"/>
+      <stop offset="0.72" stop-color="#9D6A18"/>
+      <stop offset="1" stop-color="#F7D66C"/>
+    </linearGradient>
+    <linearGradient id="purple" x1="192" y1="96" x2="858" y2="932" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#A225FF"/>
+      <stop offset="0.5" stop-color="#5A1A91"/>
+      <stop offset="1" stop-color="#1C0730"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="260" y1="208" x2="760" y2="790" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FEEA95"/>
+      <stop offset="0.54" stop-color="#C68C24"/>
+      <stop offset="1" stop-color="#FFE47E"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="30" stdDeviation="34" flood-color="#000000" flood-opacity="0.55"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="28" flood-color="#A225FF" flood-opacity="0.22"/>
+    </filter>
+    <filter id="goldGlow" x="-40%" y="-40%" width="180%" height="180%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="0" stdDeviation="14" flood-color="#F6D76D" flood-opacity="0.45"/>
+    </filter>
+    <clipPath id="softSquare">
+      <rect width="1024" height="1024" rx="216"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#softSquare)">
+    <rect width="1024" height="1024" fill="url(#bgGlow)"/>
+    <path opacity="0.22" d="M-96 792L782 -86H1054L176 792H-96Z" fill="url(#purple)"/>
+    <path opacity="0.18" d="M232 1096L1110 218H1306L428 1096H232Z" fill="#A225FF"/>
+    <circle cx="512" cy="512" r="404" stroke="#7C34C6" stroke-width="4" opacity="0.24"/>
+    <circle cx="512" cy="512" r="330" stroke="#F6D76D" stroke-width="2" opacity="0.12"/>
+
+    <g filter="url(#shadow)">
+      <path d="M512 182C667.5 182 794 308.5 794 464C794 619.5 667.5 746 512 746C356.5 746 230 619.5 230 464C230 308.5 356.5 182 512 182ZM512 264C401.8 264 312 353.8 312 464C312 574.2 401.8 664 512 664C622.2 664 712 574.2 712 464C712 353.8 622.2 264 512 264Z" fill="#1A0A27"/>
+      <path d="M512 182C667.5 182 794 308.5 794 464C794 497.4 788.2 529.5 777.5 559.3L700.5 530.7C707.9 509.8 712 487.4 712 464C712 353.8 622.2 264 512 264V182Z" fill="url(#ring)" filter="url(#goldGlow)"/>
+      <path d="M512 746C356.5 746 230 619.5 230 464C230 360.6 286.1 270.1 369.4 221.1L410.8 292C351.7 326.6 312 390.8 312 464C312 574.2 401.8 664 512 664V746Z" fill="#6322A0"/>
+    </g>
+
+    <g filter="url(#goldGlow)">
+      <path d="M320 448C320 400.5 358.5 362 406 362H500V448H410C398.9 448 390 456.9 390 468V556H320V448Z" fill="url(#gold)"/>
+      <path d="M704 556C704 603.5 665.5 642 618 642H524V556H614C625.1 556 634 547.1 634 536V448H704V556Z" fill="url(#gold)"/>
+      <path d="M448 362H576V642H448V362Z" fill="url(#gold)"/>
+      <path d="M398 586L456 542L514 586L456 630L398 586Z" fill="#FFF2B8" opacity="0.88"/>
+      <path d="M626 418L568 462L510 418L568 374L626 418Z" fill="#FFF2B8" opacity="0.88"/>
+    </g>
+
+    <path d="M462 485C462 469.6 478.7 460 492 467.7L562 508.1C575.3 515.8 575.3 535 562 542.7L492 583.1C478.7 590.8 462 581.2 462 565.8V485Z" fill="#09040D"/>
+
+    <g opacity="0.98">
+      <text x="512" y="844" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-size="104" font-weight="900" letter-spacing="18" fill="#F7D66C">TV</text>
+      <rect x="356" y="878" width="312" height="8" rx="4" fill="#7C34C6" opacity="0.72"/>
+    </g>
+  </g>
+</svg>

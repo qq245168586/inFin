@@ -1,0 +1,391 @@
+/* Page hierarchy */
+.page-card-head,
+.page-section,
+.page-content,
+.editor-layout,
+.editor-form {
+  padding-right: 24px;
+  padding-left: 24px;
+}
+
+.page-card-head {
+  min-height: 86px;
+  border-bottom: 1px solid #252c34;
+  background: #12171c;
+}
+
+.page-card-head h1,
+.section-head h2,
+.editor-header h2 {
+  color: var(--text-main);
+  letter-spacing: 0;
+}
+
+.page-eyebrow,
+.section-kicker,
+.eyebrow {
+  color: var(--accent-gold);
+  letter-spacing: 0.14em;
+}
+
+.section-subtitle,
+.section-copy,
+.venue-muted,
+.course-list-nav span {
+  color: var(--text-subtle);
+}
+
+.divider,
+.editor-divider {
+  border-color: #252c34;
+  background: #252c34;
+}
+
+.page-section + .page-section,
+.section-card + .section-card {
+  border-top-color: #252c34;
+}
+
+.section-head,
+.section-card-head,
+.module-card-head,
+.asset-panel-head {
+  border-color: #252c34;
+}
+
+/* Controls */
+.course-shell .primary-button,
+.course-shell .upload-button,
+.course-shell .save-button,
+.course-shell .modal-confirm,
+.primary-button,
+.login-submit {
+  border: 1px solid #4a91ff;
+  border-radius: 6px;
+  color: #fff;
+  background: #2d7dff;
+  box-shadow: none;
+}
+
+.primary-button:hover,
+.course-shell .primary-button:hover {
+  border-color: #70a9ff;
+  background: #3b87ff;
+}
+
+.primary-button:disabled,
+.ghost-button:disabled {
+  color: #66717e;
+  border-color: #29313a;
+  background: #161b21;
+}
+
+.ghost-button,
+.tab-button,
+.filter-chip,
+.inner-tab,
+.table-link,
+.action-picker-mini-button {
+  border-radius: 6px;
+}
+
+.ghost-button,
+.tab-button,
+.filter-chip,
+.inner-tab,
+.action-picker-mini-button {
+  color: #b8c1cb;
+  border-color: #323b45;
+  background: #151a20;
+}
+
+.ghost-button:hover,
+.tab-button:hover,
+.filter-chip:hover,
+.inner-tab:hover,
+.action-picker-mini-button:hover {
+  color: #fff;
+  border-color: #4a5664;
+  background: #1b2128;
+}
+
+.tab-button.is-active,
+.filter-chip.is-active,
+.inner-tab.is-active,
+.type-chip.is-active,
+.course-shell .pill-button.is-active,
+.course-shell .home-tab.is-active,
+.course-shell .date-pill.is-active {
+  color: #fff;
+  border-color: #2d7dff;
+  background: rgba(45, 125, 255, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(45, 125, 255, 0.12);
+}
+
+.danger-button,
+.danger-link,
+.table-link.danger,
+.row-delete-button {
+  color: #ff7a72;
+  border-color: rgba(255, 98, 89, 0.35);
+  background: rgba(255, 98, 89, 0.08);
+}
+
+.danger-button:hover,
+.row-delete-button:hover {
+  color: #fff;
+  background: #d94b44;
+}
+
+.field input,
+.field select,
+.field textarea,
+.toolbar-field select,
+.venue-search,
+.venue-package-select select,
+.versions-upload-grid input,
+.versions-upload-grid select,
+.versions-upload-grid textarea,
+.action-description-input,
+.readonly-field {
+  border: 1px solid #323b46;
+  border-radius: 6px;
+  color: #eef2f6;
+  background: #0d1116;
+  box-shadow: none;
+}
+
+.field input::placeholder,
+.field textarea::placeholder,
+.venue-search::placeholder {
+  color: #626d79;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus,
+.toolbar-field select:focus,
+.venue-search:focus {
+  border-color: #4b91ff;
+  box-shadow: 0 0 0 3px rgba(45, 125, 255, 0.14);
+}
+
+.field-error,
+.inline-warning {
+  color: #ff9b70;
+  border-color: rgba(255, 150, 90, 0.3);
+  border-radius: 6px;
+  background: rgba(255, 127, 69, 0.09);
+}
+
+/* Schedule and calendar */
+.schedule-loading-strip {
+  border: 1px solid rgba(45, 125, 255, 0.3);
+  border-radius: 6px;
+  color: #9fc3ff;
+  background: rgba(45, 125, 255, 0.1);
+}
+
+.calendar-date-picker-pill,
+.calendar-date-pill {
+  border-color: #303945;
+  border-radius: 6px;
+  color: #aab4c0;
+  background: #14191f;
+}
+
+.calendar-date-picker-pill input {
+  color: var(--text-main);
+}
+
+.calendar-date-pill:hover {
+  border-color: #4b91ff;
+  background: #1a2027;
+}
+
+.calendar-date-pill.is-active,
+.calendar-date-pill.has-schedules.is-active {
+  color: #fff;
+  border-color: #2d7dff;
+  background: #1b4f9f;
+}
+
+.calendar-date-pill.has-schedules {
+  color: var(--accent-gold);
+  border-color: rgba(217, 188, 114, 0.5);
+  background: var(--accent-gold-soft);
+}
+
+.calendar-date-pill.is-past,
+.calendar-date-pill.is-past.has-schedules {
+  color: #68737f;
+  border-color: #272e36;
+  background: #101419;
+}
+
+.schedule-day-section {
+  border-color: #2a323c;
+  border-radius: 8px;
+  background: #11161b;
+}
+
+.schedule-day-head {
+  border-bottom-color: #2a323c;
+  background: #151a20;
+}
+
+.schedule-list-card {
+  border: 1px solid #303945;
+  border-left: 3px solid #2d7dff;
+  border-radius: 6px;
+  color: var(--text-main);
+  background: #171c22;
+}
+
+.schedule-list-card.tone-0,
+.schedule-list-card.tone-2,
+.schedule-list-card.tone-4 {
+  border-left-color: var(--accent-gold);
+  background: #181a1b;
+}
+
+.schedule-list-card.tone-1,
+.schedule-list-card.tone-3,
+.schedule-list-card.tone-5 {
+  border-left-color: #2d7dff;
+  background: #151b24;
+}
+
+.schedule-list-card.is-past {
+  border-left-color: #4b5561;
+  background: #12161a;
+  opacity: 0.72;
+}
+
+.schedule-version-badge,
+.course-version-badge,
+.course-inline-version,
+.course-series-count,
+.schedule-course-count {
+  border-radius: 999px;
+  color: #17140d;
+  background: var(--accent-gold);
+}
+
+.schedule-edit-course-button {
+  border-radius: 5px;
+  color: #fff;
+  background: #2d7dff;
+}
+
+.schedule-day-empty,
+.calendar-empty-state,
+.empty-block,
+.venue-empty,
+.action-picker-empty,
+.course-plan-empty,
+.screen-empty,
+.asset-placeholder,
+.table-empty {
+  color: #7f8995;
+  border-color: #303945;
+  border-radius: 6px;
+  background: #0f1318;
+}
+
+.calendar-board-wrap,
+.calendar-head,
+.calendar-time-column {
+  border-color: #29313a;
+  border-radius: 8px;
+  background: #101419;
+}
+
+.calendar-time-corner,
+.calendar-day-head {
+  border-color: #29313a;
+  color: #c3ccd5;
+  background: #151a20;
+}
+
+.calendar-time-cell,
+.calendar-day-column,
+.calendar-hour-line {
+  border-color: #252d36;
+}
+
+.calendar-day-column {
+  background: #0f1318;
+}
+
+.calendar-event {
+  border: 1px solid #303945;
+  border-left-width: 3px;
+  border-radius: 5px;
+  color: #edf2f7;
+  background: #171c22;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.24);
+}
+
+.calendar-event.tone-0,
+.calendar-event.tone-2,
+.calendar-event.tone-4 {
+  border-left-color: var(--accent-gold);
+  background: #1b1a17;
+}
+
+.calendar-event.tone-1,
+.calendar-event.tone-3,
+.calendar-event.tone-5 {
+  border-left-color: #2d7dff;
+  background: #141b24;
+}
+
+.calendar-event-time {
+  color: #9ca7b3;
+}
+
+.calendar-empty-state {
+  color: #7f8995;
+  background: rgba(10, 12, 15, 0.84);
+}
+
+.schedule-meta-row span {
+  color: #b9c2cc;
+  background: #20262e;
+}
+
+.schedule-dialog-selected-course {
+  border-color: rgba(217, 188, 114, 0.38);
+  border-radius: 6px;
+  background: var(--accent-gold-soft);
+}
+
+.schedule-course-picker,
+.schedule-course-flyout {
+  border-color: #323b46;
+  border-radius: 6px;
+  background: #11161b;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.38);
+}
+
+.schedule-course-option,
+.schedule-course-version-option {
+  border-color: #29313a;
+  color: #d9e0e7;
+  background: #14191f;
+}
+
+.schedule-course-option:hover,
+.schedule-course-option:focus-within,
+.schedule-course-option.is-active,
+.schedule-course-version-option:hover,
+.schedule-course-version-option.is-active {
+  color: #fff;
+  background: rgba(45, 125, 255, 0.14);
+}
+
+.schedule-course-empty {
+  color: #7f8995;
+}
+

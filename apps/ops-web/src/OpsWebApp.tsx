@@ -1,0 +1,998 @@
+import { createBrowserSessionClient } from "../../../packages/shared/src/browser-session";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { resolveApiUrl } from "./runtime";
+
+type NoticeTone = "success" | "error";
+
+interface LegacyEnvelope<T> {
+  code: number;
+  data: T;
+  message?: string;
+  msg?: string;
+}
+
+interface AuthTokenPayload {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+  expires_in: number;
+}
+
+interface UserProfile {
+  id: number;
+  username: string;
+  nickname: string;
+  accountNamespace: string;
+  role?: string;
+}
+
+interface AuthSession extends AuthTokenPayload, UserProfile {}
+
+interface NoticeState {
+  tone: NoticeTone;
+  message: string;
+}
+
+interface OpsEvent {
+  id: string;
+  receivedAt: string;
+  topic: string;
+  direction: "in" | "out";
+  deviceId: string;
+  namespace: string;
+  type: string;
+  payload: unknown;
+}
+
+type DiagnosticType = "PLAYBACK_ERROR" | "NETWORK_ERROR" | "API_ERROR" | "DOWNLOAD_ERROR" | "CRASH" | "MQTT_ERROR";
+
+interface TvDiagnosticEvent {
+  source?: "tv" | "websimulator";
+  id: string;
+  occurredAt: string;
+  receivedAt: string;
+  type: DiagnosticType;
+  code: string;
+  message: string;
+  stackTrace: string;
+  context: Record<string, string | number | boolean>;
+  deviceId: string;
+  accountNamespace: string;
+  screenNumber: number;
+  appVersion: string;
+  logId: string;
+}
+
+interface TvDiagnosticPayload {
+  items: TvDiagnosticEvent[];
+  summary: {
+    total: number;
+    filteredTotal: number;
+    uniqueDevices: number;
+    latestAt: string;
+    types: Record<DiagnosticType, number>;
+    retentionDays: number;
+    scannedFiles: number;
+    scannedBytes: number;
+    truncated: boolean;
+  };
+}
+
+interface CountItem {
+  name: string;
+  count: number;
+}
+
+interface TvScreenItem {
+  screenNumber: number;
+  deviceId: string;
+  appVersion: string;
+  online: boolean;
+  playbackState: string;
+  updateState: string;
+  updateTargetVersion?: string;
+  updateProgressPercent?: number;
+  lastSeenAt: string;
+  accountNamespace?: string;
+}
+
+interface OpsOverview {
+  generatedAt: string;
+  server: {
+    dbSafety?: {
+      usingExternalDataRoot?: boolean;
+      backupCount?: number;
+      latestBackupAt?: string;
+      dbSizeBytes?: number;
+    };
+    mediaStorage?: unknown;
+    tvControl?: unknown;
+  };
+  mqtt: {
+    total: number;
+    inbound: number;
+    outbound: number;
+    uniqueDevices: number;
+    namespaces: string[];
+    latestAt: string;
+    topTypes: CountItem[];
+    topTopics: CountItem[];
+  };
+  screens: {
+    generatedAt: string;
+    requiresNamespace: boolean;
+    summary: {
+      slots: number;
+      bound: number;
+      online: number;
+      preview: number;
+      running: number;
+      updating: number;
+      states: Record<string, number>;
+      updates: Record<string, number>;
+      versions: Record<string, number>;
+    };
+    items: TvScreenItem[];
+  };
+  appPackages: {
+    tv: Array<{
+      id: number;
+      version: string;
+      label?: string;
+      updateTime?: string;
+      notes?: string;
+    }>;
+  };
+}
+
+const AUTH_STORAGE_KEY = "infini-ops-web-session-v2";
+const DIAGNOSTIC_TYPES: Array<{ value: DiagnosticType; label: string }> = [
+  { value: "PLAYBACK_ERROR", label: "播放" },
+  { value: "DOWNLOAD_ERROR", label: "下载" },
+  { value: "NETWORK_ERROR", label: "网络" },
+  { value: "API_ERROR", label: "接口" },
+  { value: "MQTT_ERROR", label: "MQTT" },
+  { value: "CRASH", label: "崩溃" }
+];
+
+function currentBeijingDate(): string {
+  const parts = new Intl.DateTimeFormat("en", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(new Date());
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
+}
+
+function diagnosticTypeLabel(type: string): string {
+  return DIAGNOSTIC_TYPES.find((item) => item.value === type)?.label || type || "未知";
+}
+
+const browserSession = createBrowserSessionClient("ops-web", AUTH_STORAGE_KEY, resolveApiUrl, "infini-ops-web-auth");
+const requestJson = browserSession.requestJson;
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return "请求失败，请稍后重试。";
+}
+
+function isAuthExpiredMessage(message: string): boolean {
+  return /登录已失效|重新登录|refresh token 已失效|用户名或密码错误/i.test(String(message || ""));
+}
+
+function formatJson(value: unknown): string {
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value ?? "");
+  }
+}
+
+function formatDateTime(value?: string): string {
+  if (!value) return "--";
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return value;
+  return date.toLocaleString("zh-CN", { hour12: false });
+}
+
+function formatBytes(value?: number): string {
+  if (!Number.isFinite(value)) return "--";
+  const bytes = Number(value || 0);
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function buildFilterParams({
+  namespace,
+  deviceId,
+  topicContains,
+  typeContains,
+  date,
+  limit
+}: {
+  namespace: string;
+  deviceId: string;
+  topicContains: string;
+  typeContains: string;
+  date: string;
+  limit?: number;
+}) {
+  const params = new URLSearchParams();
+  if (namespace.trim()) params.set("namespace", namespace.trim());
+  if (deviceId.trim()) params.set("deviceId", deviceId.trim());
+  if (topicContains.trim()) params.set("topic", topicContains.trim());
+  if (typeContains.trim()) params.set("type", typeContains.trim());
+  if (date.trim()) params.set("date", date.trim());
+  if (limit) params.set("limit", String(Math.max(10, Math.min(limit || 200, 2000))));
+  return params;
+}
+
+function buildDiagnosticParams({
+  source,
+  namespace,
+  deviceId,
+  date,
+  screenNumber,
+  type,
+  code,
+  limit
+}: {
+  source: string;
+  namespace: string;
+  deviceId: string;
+  date: string;
+  screenNumber: string;
+  type: string;
+  code: string;
+  limit: number;
+}) {
+  const params = new URLSearchParams();
+  if (source) params.set("source", source);
+  if (namespace.trim()) params.set("namespace", namespace.trim());
+  if (deviceId.trim()) params.set("deviceId", deviceId.trim());
+  if (date.trim()) params.set("date", date.trim());
+  if (screenNumber) params.set("screenNumber", screenNumber);
+  if (type) params.set("type", type);
+  if (code.trim()) params.set("code", code.trim());
+  params.set("limit", String(Math.max(10, Math.min(limit || 200, 1000))));
+  return params;
+}
+
+export default function OpsWebApp() {
+  const noticeTimerRef = useRef<number | null>(null);
+  const diagnosticRequestRef = useRef(0);
+  const [authReady, setAuthReady] = useState(false);
+  const [authSession, setAuthSession] = useState<AuthSession | null>(null);
+  const [busyText, setBusyText] = useState("");
+  const [notice, setNotice] = useState<NoticeState | null>(null);
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [loginUsername, setLoginUsername] = useState("13689547720");
+  const [loginPassword, setLoginPassword] = useState("REDACTED_CONFIGURE_LOCALLY");
+
+  const [namespace, setNamespace] = useState("");
+  const [deviceId, setDeviceId] = useState("");
+  const [topicContains, setTopicContains] = useState("");
+  const [typeContains, setTypeContains] = useState("");
+  const [date, setDate] = useState("");
+  const [limit, setLimit] = useState(200);
+
+  const [overview, setOverview] = useState<OpsOverview | null>(null);
+  const [events, setEvents] = useState<OpsEvent[]>([]);
+  const [streaming, setStreaming] = useState(false);
+  const streamRef = useRef<EventSource | null>(null);
+
+  const [activeView, setActiveView] = useState<"overview" | "diagnostics">("diagnostics");
+  const [diagnosticNamespace, setDiagnosticNamespace] = useState("");
+  const [diagnosticSource, setDiagnosticSource] = useState("");
+  const [diagnosticDeviceId, setDiagnosticDeviceId] = useState("");
+  const [diagnosticDate, setDiagnosticDate] = useState(currentBeijingDate);
+  const [diagnosticScreen, setDiagnosticScreen] = useState("");
+  const [diagnosticType, setDiagnosticType] = useState("");
+  const [diagnosticCode, setDiagnosticCode] = useState("");
+  const [diagnosticLimit, setDiagnosticLimit] = useState(200);
+  const [diagnostics, setDiagnostics] = useState<TvDiagnosticPayload | null>(null);
+  const [selectedDiagnosticId, setSelectedDiagnosticId] = useState("");
+
+  const selectedDiagnostic = useMemo(
+    () => diagnostics?.items.find((item) => item.id === selectedDiagnosticId) || diagnostics?.items[0] || null,
+    [diagnostics, selectedDiagnosticId]
+  );
+
+  const authHeader = useMemo(() => {
+    if (!authSession) return "";
+    return `${authSession.token_type} ${authSession.access_token}`;
+  }, [authSession]);
+
+  const pushNotice = useCallback((message: string, tone: NoticeTone = "success") => {
+    setNotice({ message, tone });
+    if (noticeTimerRef.current) {
+      window.clearTimeout(noticeTimerRef.current);
+    }
+    noticeTimerRef.current = window.setTimeout(() => setNotice(null), 3200);
+  }, []);
+
+  const handleSessionExpired = useCallback((message = "登录已失效，请重新登录。") => {
+    diagnosticRequestRef.current++;
+    if (browserSession.read()) return;
+    setAuthSession(null);
+    setOverview(null);
+    setEvents([]);
+    setDiagnostics(null);
+    setSelectedDiagnosticId("");
+    setBusyText("");
+    pushNotice(message, "error");
+  }, [pushNotice]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const unsubscribe = browserSession.subscribe(session => {
+      if (!cancelled) {
+        setAuthSession(session as unknown as AuthSession | null);
+        if (!session) { stopStream(); setOverview(null); setEvents([]); setDiagnostics(null); }
+      }
+    });
+    setBusyText("正在恢复登录...");
+    browserSession.restore().then(session => {
+      if (!cancelled) setAuthSession(session as unknown as AuthSession | null);
+    }).catch(error => {
+      if (!cancelled) pushNotice(getErrorMessage(error), "error");
+    }).finally(() => {
+      if (!cancelled) { setBusyText(""); setAuthReady(true); }
+    });
+    return () => { cancelled = true; unsubscribe(); };
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const current = browserSession.read();
+      if (current && Number(current.expires_at) - Date.now() < 10 * 60_000) {
+        void browserSession.refresh().catch(() => {});
+      }
+    }, 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  async function handleLogin() {
+    setBusyText("正在登录...");
+    try {
+      await browserSession.login(loginUsername.trim(), loginPassword);
+      setLoginPassword("");
+      pushNotice("登录成功。");
+    } catch (error) {
+      pushNotice(getErrorMessage(error), "error");
+    } finally {
+      setBusyText("");
+    }
+  }
+
+  function handleLogout() {
+    void browserSession.logout().then(() => {
+      diagnosticRequestRef.current++;
+      stopStream();
+      setOverview(null); setEvents([]); setDiagnostics(null); setSelectedDiagnosticId("");
+      pushNotice("已退出登录。");
+    }).catch(error => pushNotice(getErrorMessage(error), "error"));
+  }
+
+  async function fetchOverview({ silent = false } = {}) {
+    if (!authSession) return;
+    if (!silent) setBusyText("正在刷新总览...");
+    try {
+      const params = buildFilterParams({ namespace, deviceId, topicContains, typeContains, date });
+      const payload = await requestJson<{ data: OpsOverview }>(`/api/ops/overview?${params.toString()}`, {
+        headers: {
+          Authorization: authHeader
+        }
+      });
+      setOverview(payload.data || null);
+      if (!silent) pushNotice("总览已刷新。");
+    } catch (error) {
+      const message = getErrorMessage(error);
+      if (isAuthExpiredMessage(message)) {
+        handleSessionExpired(message);
+        return;
+      }
+      if (!silent) pushNotice(message, "error");
+    } finally {
+      if (!silent) setBusyText("");
+    }
+  }
+
+  async function fetchRecentEvents() {
+    if (!authSession) return;
+    setBusyText("正在加载日志...");
+    try {
+      const params = buildFilterParams({ namespace, deviceId, topicContains, typeContains, date, limit });
+      const payload = await requestJson<{ data: { items: OpsEvent[] } }>(`/api/ops/mqtt/events?${params.toString()}`, {
+        headers: {
+          Authorization: authHeader
+        }
+      });
+      setEvents(payload.data.items || []);
+      pushNotice("已加载。");
+    } catch (error) {
+      const message = getErrorMessage(error);
+      if (isAuthExpiredMessage(message)) {
+        handleSessionExpired(message);
+        return;
+      }
+      pushNotice(message, "error");
+    } finally {
+      setBusyText("");
+    }
+  }
+
+  async function fetchDiagnostics({ silent = false } = {}) {
+    if (!authSession) return;
+    const requestId = ++diagnosticRequestRef.current;
+    if (!silent) setBusyText("正在加载错误日志...");
+    try {
+      const params = buildDiagnosticParams({
+        source: diagnosticSource,
+        namespace: diagnosticNamespace,
+        deviceId: diagnosticDeviceId,
+        date: diagnosticDate,
+        screenNumber: diagnosticScreen,
+        type: diagnosticType,
+        code: diagnosticCode,
+        limit: diagnosticLimit
+      });
+      const payload = await requestJson<{ data: TvDiagnosticPayload }>(`/api/ops/tv-diagnostics?${params.toString()}`, {
+        headers: { Authorization: authHeader }
+      });
+      if (requestId !== diagnosticRequestRef.current) return;
+      setDiagnostics(payload.data);
+      setSelectedDiagnosticId((current) =>
+        payload.data.items.some((item) => item.id === current) ? current : (payload.data.items[0]?.id || "")
+      );
+      if (!silent) pushNotice("错误日志已加载。");
+    } catch (error) {
+      if (requestId !== diagnosticRequestRef.current) return;
+      const message = getErrorMessage(error);
+      if (isAuthExpiredMessage(message)) {
+        handleSessionExpired(message);
+        return;
+      }
+      if (!silent) pushNotice(message, "error");
+    } finally {
+      if (!silent && requestId === diagnosticRequestRef.current) setBusyText("");
+    }
+  }
+
+  function stopStream() {
+    if (streamRef.current) {
+      streamRef.current.close();
+      streamRef.current = null;
+    }
+    setStreaming(false);
+  }
+
+  function startStream() {
+    if (!authSession) return;
+    stopStream();
+    setEvents([]);
+
+    const params = buildFilterParams({ namespace, deviceId, topicContains, typeContains, date, limit });
+
+    // EventSource sends the HttpOnly cookie; never place credentials in a URL.
+    params.set("browserClient", "ops-web");
+
+    const source = new EventSource(resolveApiUrl(`/api/ops/mqtt/stream?${params.toString()}`));
+    streamRef.current = source;
+    setStreaming(true);
+
+    source.onmessage = (event) => {
+      try {
+        const next = JSON.parse(event.data) as OpsEvent;
+        setEvents((current) => {
+          const merged = [next, ...current];
+          return merged.slice(0, Math.max(10, Math.min(limit || 200, 2000)));
+        });
+      } catch {
+        // ignore
+      }
+    };
+
+    source.onerror = () => {
+      // Browser will retry automatically; keep the UI stable.
+      setStreaming(true);
+    };
+  }
+
+  useEffect(() => {
+    return () => stopStream();
+  }, []);
+
+  useEffect(() => {
+    if (!authSession) return;
+    if (activeView === "diagnostics") void fetchDiagnostics({ silent: true });
+    else void fetchOverview({ silent: true });
+  }, [authSession?.access_token, activeView]);
+
+  useEffect(() => {
+    if (!authSession || activeView !== "diagnostics" || !diagnostics) return;
+    void fetchDiagnostics({ silent: true });
+  }, [diagnosticType]);
+
+  if (!authReady) {
+    return (
+      <div className="ops-shell">
+        <div className="ops-card">
+          <div className="ops-topbar">
+            <div className="ops-title">INFini Ops Console</div>
+            <div className="ops-subtitle">正在加载...</div>
+          </div>
+          <div className="ops-body">
+            <div className="ops-panel ops-mono">正在初始化会话...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!authSession) {
+    return (
+      <div className="ops-shell">
+        <div className="ops-card">
+          <div className="ops-topbar">
+            <div className="ops-title">Infini Ops Console</div>
+            <div className="ops-subtitle">独立调试后台，用于查看 MQTT 指令与 TV 端事件流。</div>
+          </div>
+          <div className="ops-body">
+            <div className="ops-panel">
+              <div className="ops-row">
+                <div className="ops-field">
+                  <label>账号</label>
+                  <input value={loginUsername} onChange={(e) => setLoginUsername(e.target.value)} inputMode="text" />
+                </div>
+                <div className="ops-field">
+                  <label>密码</label>
+                  <input
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    type={passwordVisible ? "text" : "password"}
+                  />
+                </div>
+              </div>
+              <div className="ops-actions">
+                <button className="ops-btn primary" onClick={handleLogin} disabled={Boolean(busyText)}>
+                  登录
+                </button>
+                <button className="ops-btn" onClick={() => setPasswordVisible((v) => !v)} disabled={Boolean(busyText)}>
+                  {passwordVisible ? "隐藏密码" : "显示密码"}
+                </button>
+              </div>
+              {busyText ? <div className="ops-subtitle" style={{ marginTop: 10 }}>{busyText}</div> : null}
+            </div>
+            {notice ? (
+              <div className={`ops-panel ops-mono ${notice.tone === "error" ? "ops-pill err" : ""}`}>{notice.message}</div>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const screenSummary = overview?.screens.summary;
+  const latestTvPackage = overview?.appPackages.tv?.[0] || null;
+  const dbSafety = overview?.server.dbSafety;
+  const mediaStorageText = overview?.server.mediaStorage ? formatJson(overview.server.mediaStorage) : "--";
+  const tvControlText = overview?.server.tvControl ? formatJson(overview.server.tvControl) : "--";
+
+  return (
+    <div className="ops-shell">
+      <div className="ops-card">
+        <div className="ops-topbar">
+          <div className="ops-title">Infini Ops Console</div>
+          <div className="ops-subtitle">
+            登录账号：{authSession.username}（{authSession.role || "unknown"}） | MQTT、TV 同步与设备错误排查
+          </div>
+        </div>
+
+        <div className="ops-body">
+          <div className="ops-view-tabs" role="tablist" aria-label="运维视图">
+            <button
+              type="button"
+              className={activeView === "diagnostics" ? "active" : ""}
+              onClick={() => setActiveView("diagnostics")}
+            >
+              客户端错误日志
+            </button>
+            <button
+              type="button"
+              className={activeView === "overview" ? "active" : ""}
+              onClick={() => setActiveView("overview")}
+            >
+              MQTT 与设备总览
+            </button>
+            <button type="button" className="ops-view-logout" onClick={handleLogout}>退出</button>
+          </div>
+
+          <div className={`ops-view-content ${activeView === "overview" ? "active" : ""}`}>
+          <div className="ops-panel">
+            <div className="ops-section-title">查询条件</div>
+            <div className="ops-row ops-row-four">
+              <div className="ops-field">
+                <label>命名空间（namespace / 场馆）</label>
+                <input value={namespace} onChange={(e) => setNamespace(e.target.value)} placeholder="例如：zhiyou 或 venue-xxxx" />
+              </div>
+              <div className="ops-field">
+                <label>设备 ID</label>
+                <input value={deviceId} onChange={(e) => setDeviceId(e.target.value)} placeholder="例如：TV-ABCDEF12" />
+              </div>
+              <div className="ops-field">
+                <label>日期</label>
+                <input value={date} onChange={(e) => setDate(e.target.value)} type="date" />
+              </div>
+              <div className="ops-field">
+                <label>日志条数</label>
+                <input
+                  value={limit}
+                  onChange={(e) => setLimit(Number(e.target.value) || 200)}
+                  type="number"
+                  min={10}
+                  max={2000}
+                />
+              </div>
+            </div>
+            <div className="ops-row" style={{ marginTop: 10 }}>
+              <div className="ops-field">
+                <label>Topic 包含</label>
+                <input value={topicContains} onChange={(e) => setTopicContains(e.target.value)} placeholder="例如：control 或 pairing" />
+              </div>
+              <div className="ops-field">
+                <label>Type 包含</label>
+                <input value={typeContains} onChange={(e) => setTypeContains(e.target.value)} placeholder="例如：start_course / ack / heartbeat" />
+              </div>
+            </div>
+            <div className="ops-actions">
+              <button className="ops-btn primary" onClick={() => fetchOverview()} disabled={Boolean(busyText)}>
+                刷新总览
+              </button>
+              <button className="ops-btn" onClick={fetchRecentEvents} disabled={Boolean(busyText)}>
+                拉取最近日志
+              </button>
+              <button className="ops-btn" onClick={startStream} disabled={Boolean(busyText)}>
+                开始实时流
+              </button>
+              <button className="ops-btn danger" onClick={stopStream}>
+                停止实时流
+              </button>
+              <button className="ops-btn" onClick={() => setEvents([])}>
+                清空
+              </button>
+              {busyText ? <span className="ops-subtitle">{busyText}</span> : null}
+              {notice ? (
+                <span className={notice.tone === "error" ? "ops-pill err" : "ops-pill ok"}>{notice.message}</span>
+              ) : null}
+              {streaming ? <span className="ops-pill ok">Streaming</span> : <span className="ops-pill">Stopped</span>}
+            </div>
+          </div>
+
+          <div className="ops-metric-grid">
+            <div className="ops-metric-card">
+              <div className="ops-metric-label">MQTT 日志</div>
+              <div className="ops-metric-value">{overview?.mqtt.total ?? "--"}</div>
+              <div className="ops-metric-sub">IN {overview?.mqtt.inbound ?? "--"} / OUT {overview?.mqtt.outbound ?? "--"}</div>
+            </div>
+            <div className="ops-metric-card">
+              <div className="ops-metric-label">交互设备</div>
+              <div className="ops-metric-value">{overview?.mqtt.uniqueDevices ?? "--"}</div>
+              <div className="ops-metric-sub">最近：{formatDateTime(overview?.mqtt.latestAt)}</div>
+            </div>
+            <div className="ops-metric-card">
+              <div className="ops-metric-label">TV 在线</div>
+              <div className="ops-metric-value">{screenSummary ? `${screenSummary.online}/${screenSummary.bound}` : "--"}</div>
+              <div className="ops-metric-sub">{overview?.screens.requiresNamespace ? "输入 namespace 后统计屏幕" : "已绑定屏幕在线数"}</div>
+            </div>
+            <div className="ops-metric-card">
+              <div className="ops-metric-label">TV 状态</div>
+              <div className="ops-metric-value">{screenSummary ? `${screenSummary.running} RUN` : "--"}</div>
+              <div className="ops-metric-sub">PREVIEW {screenSummary?.preview ?? "--"} / 更新中 {screenSummary?.updating ?? "--"}</div>
+            </div>
+            <div className="ops-metric-card">
+              <div className="ops-metric-label">最新 TV 包</div>
+              <div className="ops-metric-value">{latestTvPackage?.version || "--"}</div>
+              <div className="ops-metric-sub">{latestTvPackage?.label || latestTvPackage?.notes || "服务器发布包"}</div>
+            </div>
+            <div className="ops-metric-card">
+              <div className="ops-metric-label">数据库</div>
+              <div className="ops-metric-value">{formatBytes(dbSafety?.dbSizeBytes)}</div>
+              <div className="ops-metric-sub">备份 {dbSafety?.backupCount ?? "--"} / {dbSafety?.usingExternalDataRoot ? "外部数据目录" : "本地数据目录"}</div>
+            </div>
+          </div>
+
+          <div className="ops-dashboard-grid">
+            <div className="ops-panel">
+              <div className="ops-section-title">MQTT 类型分布</div>
+              <div className="ops-chip-list">
+                {(overview?.mqtt.topTypes || []).length ? (
+                  overview?.mqtt.topTypes.map((item) => (
+                    <span className="ops-chip" key={item.name}>
+                      {item.name}<b>{item.count}</b>
+                    </span>
+                  ))
+                ) : (
+                  <span className="ops-subtitle">暂无统计，先刷新总览。</span>
+                )}
+              </div>
+            </div>
+
+            <div className="ops-panel">
+              <div className="ops-section-title">运行配置</div>
+              <div className="ops-kv">
+                <span>Media</span>
+                <code>{mediaStorageText}</code>
+                <span>TV Control</span>
+                <code>{tvControlText}</code>
+              </div>
+            </div>
+          </div>
+
+          <div className="ops-panel">
+            <div className="ops-section-title">TV 屏幕</div>
+            {overview?.screens.requiresNamespace ? (
+              <div className="ops-subtitle">输入场馆 namespace 后刷新，可以查看该场馆 TV 在线、状态、版本和更新时间。</div>
+            ) : overview?.screens.items.length ? (
+              <div className="ops-screen-grid">
+                {overview.screens.items.map((screen) => (
+                  <div className="ops-screen-card" key={`${screen.screenNumber}-${screen.deviceId}`}>
+                    <div className="ops-screen-head">
+                      <strong>屏幕 {screen.screenNumber}</strong>
+                      <span className={screen.online ? "ops-pill ok" : "ops-pill err"}>{screen.online ? "ONLINE" : "OFFLINE"}</span>
+                    </div>
+                    <div className="ops-mono">{screen.deviceId}</div>
+                    <div className="ops-screen-line">
+                      <span>版本 {screen.appVersion || "--"}</span>
+                      <span>{screen.playbackState || "IDLE"}</span>
+                    </div>
+                    <div className="ops-screen-line">
+                      <span>{screen.updateState || "IDLE"}</span>
+                      <span>{formatDateTime(screen.lastSeenAt)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="ops-subtitle">该 namespace 暂无已绑定屏幕。</div>
+            )}
+          </div>
+
+          <div className="ops-panel">
+            <div className="ops-section-title">MQTT 交互日志</div>
+            <div className="ops-table-wrap">
+              <table className="ops-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: 170 }}>时间</th>
+                    <th style={{ width: 70 }}>方向</th>
+                    <th style={{ width: 160 }}>设备</th>
+                    <th style={{ width: 140 }}>Namespace</th>
+                    <th style={{ width: 220 }}>Topic</th>
+                    <th style={{ width: 160 }}>Type</th>
+                    <th>Payload</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {events.length ? (
+                    events.map((item) => (
+                      <tr key={item.id}>
+                        <td className="ops-mono">{item.receivedAt}</td>
+                        <td>{item.direction === "out" ? <span className="ops-pill ok">OUT</span> : <span className="ops-pill">IN</span>}</td>
+                        <td className="ops-mono">{item.deviceId || "--"}</td>
+                        <td className="ops-mono">{item.namespace || "--"}</td>
+                        <td className="ops-mono">{item.topic}</td>
+                        <td className="ops-mono">{item.type || "--"}</td>
+                        <td className="ops-mono">{formatJson(item.payload)}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={7} className="ops-mono" style={{ color: "rgba(255,255,255,0.55)" }}>
+                        暂无日志。你可以点击“拉取最近日志”或“开始实时流”。
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          </div>
+
+          <div className={`ops-view-content ${activeView === "diagnostics" ? "active" : ""}`}>
+            <div className="ops-panel">
+              <div className="ops-section-title">客户端错误日志查询</div>
+              <div className="ops-diagnostic-filter-grid">
+                <div className="ops-field">
+                  <label>来源</label>
+                  <select value={diagnosticSource} onChange={event => setDiagnosticSource(event.target.value)}>
+                    <option value="">全部来源</option>
+                    <option value="tv">TV</option>
+                    <option value="websimulator">网页模拟器</option>
+                  </select>
+                </div>
+                <div className="ops-field">
+                  <label>场馆 Namespace</label>
+                  <input
+                    value={diagnosticNamespace}
+                    onChange={(event) => setDiagnosticNamespace(event.target.value)}
+                    placeholder="全部场馆"
+                  />
+                </div>
+                <div className="ops-field">
+                  <label>设备 ID</label>
+                  <input
+                    value={diagnosticDeviceId}
+                    onChange={(event) => setDiagnosticDeviceId(event.target.value)}
+                    placeholder="全部设备"
+                  />
+                </div>
+                <div className="ops-field">
+                  <label>日期</label>
+                  <input value={diagnosticDate} onChange={(event) => setDiagnosticDate(event.target.value)} type="date" />
+                </div>
+                <div className="ops-field">
+                  <label>屏幕</label>
+                  <select value={diagnosticScreen} onChange={(event) => setDiagnosticScreen(event.target.value)}>
+                    <option value="">全部屏幕</option>
+                    {[1, 2, 3, 4, 5].map((screen) => <option value={screen} key={screen}>屏幕 {screen}</option>)}
+                  </select>
+                </div>
+                <div className="ops-field">
+                  <label>错误码包含</label>
+                  <input
+                    value={diagnosticCode}
+                    onChange={(event) => setDiagnosticCode(event.target.value)}
+                    placeholder="例如 MEDIA / HTTP_503"
+                  />
+                </div>
+                <div className="ops-field">
+                  <label>日志条数</label>
+                  <input
+                    value={diagnosticLimit}
+                    onChange={(event) => setDiagnosticLimit(Number(event.target.value) || 200)}
+                    type="number"
+                    min={10}
+                    max={1000}
+                  />
+                </div>
+              </div>
+              <div className="ops-actions">
+                <button className="ops-btn primary" onClick={() => fetchDiagnostics()} disabled={Boolean(busyText)}>
+                  查询日志
+                </button>
+                <button
+                  className="ops-btn"
+                  onClick={() => {
+                    setDiagnosticNamespace("");
+                    setDiagnosticSource("");
+                    setDiagnosticDeviceId("");
+                    setDiagnosticDate(currentBeijingDate());
+                    setDiagnosticScreen("");
+                    setDiagnosticType("");
+                    setDiagnosticCode("");
+                  }}
+                  disabled={Boolean(busyText)}
+                >
+                  重置条件
+                </button>
+                {busyText ? <span className="ops-subtitle">{busyText}</span> : null}
+                {notice ? (
+                  <span className={notice.tone === "error" ? "ops-pill err" : "ops-pill ok"}>{notice.message}</span>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="ops-diagnostic-summary">
+              <div><span>匹配日志</span><strong>{diagnostics?.summary.filteredTotal ?? "--"}</strong></div>
+              <div><span>涉及设备</span><strong>{diagnostics?.summary.uniqueDevices ?? "--"}</strong></div>
+              <div><span>最近发生</span><strong className="small-value">{formatDateTime(diagnostics?.summary.latestAt)}</strong></div>
+              <div><span>读取数据</span><strong>{formatBytes(diagnostics?.summary.scannedBytes)}</strong></div>
+            </div>
+
+            <div className="ops-panel">
+              <div className="ops-section-title">错误分类</div>
+              <div className="ops-diagnostic-types">
+                <button
+                  type="button"
+                  className={!diagnosticType ? "active" : ""}
+                  onClick={() => setDiagnosticType("")}
+                >
+                  <span>全部</span><b>{diagnostics?.summary.total ?? 0}</b>
+                </button>
+                {DIAGNOSTIC_TYPES.map((item) => (
+                  <button
+                    type="button"
+                    className={diagnosticType === item.value ? `active type-${item.value.toLowerCase()}` : `type-${item.value.toLowerCase()}`}
+                    onClick={() => setDiagnosticType(item.value)}
+                    key={item.value}
+                  >
+                    <span>{item.label}</span><b>{diagnostics?.summary.types?.[item.value] ?? 0}</b>
+                  </button>
+                ))}
+              </div>
+              <div className="ops-subtitle" style={{ marginTop: 10 }}>
+                分类切换后点击“查询日志”应用筛选。日志按服务端接收时间保留 {diagnostics?.summary.retentionDays ?? 10} 天。
+                {diagnostics?.summary.truncated ? " 本次数据达到安全扫描上限，请缩小查询范围。" : ""}
+              </div>
+            </div>
+
+            <div className="ops-diagnostic-layout">
+              <div className="ops-panel">
+                <div className="ops-section-title">错误明细</div>
+                <div className="ops-table-wrap">
+                  <table className="ops-table ops-diagnostic-table">
+                    <thead>
+                      <tr>
+                        <th>发生时间</th>
+                        <th>分类</th>
+                        <th>设备</th>
+                        <th>错误码</th>
+                        <th>消息</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {diagnostics?.items.length ? diagnostics.items.map((item) => (
+                        <tr
+                          className={selectedDiagnostic?.id === item.id ? "selected" : ""}
+                          onClick={() => setSelectedDiagnosticId(item.id)}
+                          key={`${item.logId}-${item.id}`}
+                        >
+                          <td className="ops-mono">{formatDateTime(item.occurredAt)}</td>
+                          <td><span className={`ops-error-type type-${item.type.toLowerCase()}`}>{diagnosticTypeLabel(item.type)}</span></td>
+                          <td><b>{item.source === "websimulator" ? "网页模拟器" : `屏幕 ${item.screenNumber}`}</b><span className="ops-table-sub">{item.deviceId}</span></td>
+                          <td className="ops-mono">{item.code}</td>
+                          <td className="ops-message-cell">{item.message}</td>
+                        </tr>
+                      )) : (
+                        <tr><td colSpan={5} className="ops-empty-state">当前条件下没有错误日志。</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <aside className="ops-panel ops-diagnostic-detail">
+                <div className="ops-section-title">日志详情</div>
+                {selectedDiagnostic ? (
+                  <>
+                    <div className="ops-detail-header">
+                      <span className={`ops-error-type type-${selectedDiagnostic.type.toLowerCase()}`}>
+                        {diagnosticTypeLabel(selectedDiagnostic.type)}
+                      </span>
+                      <b>{selectedDiagnostic.code}</b>
+                    </div>
+                    <dl className="ops-detail-grid">
+                      <dt>发生时间</dt><dd>{formatDateTime(selectedDiagnostic.occurredAt)}</dd>
+                      <dt>接收时间</dt><dd>{formatDateTime(selectedDiagnostic.receivedAt)}</dd>
+                      <dt>来源</dt><dd>{selectedDiagnostic.source === "websimulator" ? "网页模拟器" : "TV"}</dd>
+                      <dt>场馆</dt><dd className="ops-mono">{selectedDiagnostic.accountNamespace}</dd>
+                      <dt>设备</dt><dd className="ops-mono">{selectedDiagnostic.deviceId}{selectedDiagnostic.source === "websimulator" ? "" : ` / 屏幕 ${selectedDiagnostic.screenNumber}`}</dd>
+                      <dt>APP</dt><dd>{selectedDiagnostic.appVersion}</dd>
+                      <dt>日志 ID</dt><dd className="ops-mono">{selectedDiagnostic.logId}</dd>
+                    </dl>
+                    <div className="ops-detail-label">错误消息</div>
+                    <div className="ops-detail-message">{selectedDiagnostic.message}</div>
+                    <div className="ops-detail-label">上下文</div>
+                    <pre className="ops-detail-code">{formatJson(selectedDiagnostic.context)}</pre>
+                    {selectedDiagnostic.stackTrace ? (
+                      <>
+                        <div className="ops-detail-label">堆栈</div>
+                        <pre className="ops-detail-code">{selectedDiagnostic.stackTrace}</pre>
+                      </>
+                    ) : null}
+                  </>
+                ) : <div className="ops-empty-state">选择一条日志查看详情。</div>}
+              </aside>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

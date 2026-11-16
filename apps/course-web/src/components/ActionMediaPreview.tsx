@@ -1,0 +1,507 @@
+import { useEffect, useRef, useState, type MutableRefObject } from "react";
+import {
+  buildVideoThumbnailCacheKey,
+  readCachedVideoThumbnail,
+  writeCachedVideoThumbnail
+} from "../utils/videoThumbnailCache.ts";
+import { fetchActionThumbnailBlob } from "../services/actionThumbnails.ts";
+import { withCacheToken } from "../utils/url.ts";
+import { useI18n } from "../providers/I18nProvider.tsx";
+
+interface ActionMedia {
+  url: string;
+}
+
+export interface ActionMediaPreviewAction {
+  id: number;
+  name: string;
+  typeIds?: number[];
+  courseTags?: string[];
+  updateTime?: string;
+  media?: ActionMedia | null;
+}
+
+interface CachedVideoThumbnailProps {
+  src: string;
+  cacheKey: string;
+  actionId?: number | string;
+  alt: string;
+  className?: string;
+  interactive?: boolean;
+  inlinePlayback?: boolean;
+  lazy?: boolean;
+  playLabel?: string;
+  onPreviewClick?: () => void;
+}
+
+interface ActionVideoThumbnailProps {
+  action: ActionMediaPreviewAction | null;
+  className?: string;
+  emptyCopy?: string;
+  interactive?: boolean;
+  inlinePlayback?: boolean;
+  lazy?: boolean;
+  playLabel?: string;
+  onPreviewClick?: () => void;
+}
+
+const thumbnailRequests = new Map<string, Promise<Blob | null>>();
+
+function findActionRecord(actions: ActionMediaPreviewAction[], actionId: string): ActionMediaPreviewAction | null {
+  return actions.find((item) => String(item.id) === String(actionId)) ?? null;
+}
+
+function getVideoPreviewCaptureTime(video: HTMLVideoElement) {
+  const duration = Number(video.duration);
+  if (!Number.isFinite(duration) || duration <= 0) {
+    return 0.08;
+  }
+
+  return Math.min(0.12, Math.max(duration * 0.02, 0.04), Math.max(duration - 0.01, 0));
+}
+
+function createObjectUrl(blob: Blob) {
+  if (typeof URL === "undefined" || typeof URL.createObjectURL !== "function") {
+    return "";
+  }
+  return URL.createObjectURL(blob);
+}
+
+function releaseObjectUrl(url: string) {
+  if (url && typeof URL !== "undefined" && typeof URL.revokeObjectURL === "function") {
+    URL.revokeObjectURL(url);
+  }
+}
+
+async function getOrCreateVideoThumbnail(
+  cacheKey: string,
+  actionId: number | string | undefined,
+  sourceUrl: string
+): Promise<Blob | null> {
+  if (!actionId) {
+    return null;
+  }
+
+  const cached = cacheKey ? await readCachedVideoThumbnail(cacheKey) : null;
+  if (cached) {
+    return cached;
+  }
+
+  const requestKey = `${cacheKey || "uncached"}|${actionId}`;
+  const existingRequest = thumbnailRequests.get(requestKey);
+  if (existingRequest) {
+    return existingRequest;
+  }
+
+  const request = fetchActionThumbnailBlob(actionId)
+    .then(async (blob) => {
+      if (blob && cacheKey) {
+        await writeCachedVideoThumbnail(cacheKey, blob, sourceUrl);
+      }
+      return blob;
+    })
+    .finally(() => {
+      thumbnailRequests.delete(requestKey);
+    });
+
+  thumbnailRequests.set(requestKey, request);
+  return request;
+}
+
+function useLazyThumbnailGate(lazy: boolean) {
+  const nodeRef = useRef<HTMLElement | null>(null);
+  const [ready, setReady] = useState(!lazy);
+
+  useEffect(() => {
+    setReady(!lazy);
+  }, [lazy]);
+
+  useEffect(() => {
+    const node = nodeRef.current;
+    if (!lazy || ready || !node) {
+      return;
+    }
+
+    if (typeof IntersectionObserver === "undefined") {
+      setReady(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setReady(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "360px" }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [lazy, ready]);
+
+  return { nodeRef, ready };
+}
+
+export function FirstFrameVideo({
+  src,
+  className,
+  interactive = true,
+  autoPlayPreview = false
+}: {
+  src: string;
+  className?: string;
+  interactive?: boolean;
+  autoPlayPreview?: boolean;
+}) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const captureStateRef = useRef<"idle" | "seeking" | "done">("idle");
+  const [posterUrl, setPosterUrl] = useState("");
+
+  useEffect(() => {
+    setPosterUrl("");
+    captureStateRef.current = "idle";
+  }, [src]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !src) {
+      return;
+    }
+
+    if (autoPlayPreview) {
+      const playMutedPreview = () => {
+        video.muted = true;
+        video.loop = true;
+        video.playsInline = true;
+        const playPromise = video.play();
+        if (playPromise && typeof playPromise.catch === "function") {
+          playPromise.catch(() => {
+            // Autoplay can still be blocked by the browser; retry on media readiness events.
+          });
+        }
+      };
+
+      playMutedPreview();
+      video.addEventListener("loadeddata", playMutedPreview);
+      video.addEventListener("canplay", playMutedPreview);
+
+      return () => {
+        video.removeEventListener("loadeddata", playMutedPreview);
+        video.removeEventListener("canplay", playMutedPreview);
+      };
+    }
+
+    let cancelled = false;
+
+    const finalize = () => {
+      if (cancelled) {
+        return;
+      }
+
+      captureStateRef.current = "done";
+      video.pause();
+    };
+
+    const capturePoster = () => {
+      if (captureStateRef.current === "done") {
+        return;
+      }
+
+      try {
+        if (video.videoWidth > 0 && video.videoHeight > 0) {
+          const canvas = document.createElement("canvas");
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          const context = canvas.getContext("2d");
+
+          if (context) {
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const nextPosterUrl = canvas.toDataURL("image/jpeg", 0.86);
+            if (!cancelled) {
+              setPosterUrl(nextPosterUrl);
+            }
+          }
+        }
+      } catch {
+        // Direct OSS links may not always allow canvas export. In that case we still
+        // keep the preview parked on the first visible frame instead of a black panel.
+      }
+
+      finalize();
+    };
+
+    const handleLoadedData = () => {
+      const nextTime = getVideoPreviewCaptureTime(video);
+      if (captureStateRef.current === "idle" && nextTime > 0 && Math.abs(video.currentTime - nextTime) > 0.01) {
+        captureStateRef.current = "seeking";
+        try {
+          video.currentTime = nextTime;
+          return;
+        } catch {
+          // Ignore seek failures and fall through to direct capture.
+        }
+      }
+
+      capturePoster();
+    };
+
+    const handleSeeked = () => {
+      if (captureStateRef.current === "seeking") {
+        capturePoster();
+      }
+    };
+
+    const handleError = () => {
+      finalize();
+    };
+
+    video.addEventListener("loadeddata", handleLoadedData);
+    video.addEventListener("seeked", handleSeeked);
+    video.addEventListener("error", handleError);
+
+    return () => {
+      cancelled = true;
+      video.removeEventListener("loadeddata", handleLoadedData);
+      video.removeEventListener("seeked", handleSeeked);
+      video.removeEventListener("error", handleError);
+    };
+  }, [src, autoPlayPreview]);
+
+  return (
+    <video
+      key={src}
+      ref={videoRef}
+      className={className}
+      src={src}
+      poster={posterUrl || undefined}
+      controls={interactive}
+      autoPlay={autoPlayPreview}
+      muted={autoPlayPreview}
+      loop={autoPlayPreview}
+      playsInline
+      preload="auto"
+      tabIndex={interactive ? undefined : -1}
+      aria-hidden={interactive ? undefined : true}
+      onPlay={() => {
+        const video = videoRef.current;
+        if (!video) {
+          return;
+        }
+
+        if (video.currentTime > 0 && video.currentTime < 0.2) {
+          video.currentTime = 0;
+        }
+      }}
+    />
+  );
+}
+
+export function CachedVideoThumbnail({
+  src,
+  cacheKey,
+  actionId,
+  alt,
+  className = "",
+  interactive = true,
+  inlinePlayback = true,
+  lazy = true,
+  playLabel = "播放",
+  onPreviewClick
+}: CachedVideoThumbnailProps) {
+  const { t } = useI18n();
+  const { nodeRef, ready } = useLazyThumbnailGate(lazy);
+  const [thumbnailUrl, setThumbnailUrl] = useState("");
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setThumbnailUrl("");
+    setIsPlaying(false);
+    setFailed(false);
+  }, [src, cacheKey]);
+
+  useEffect(() => {
+    if (!ready || !src) {
+      return;
+    }
+
+    let cancelled = false;
+    let objectUrl = "";
+
+    getOrCreateVideoThumbnail(cacheKey, actionId, src).then((blob) => {
+      if (cancelled) {
+        return;
+      }
+      if (!blob) {
+        setFailed(true);
+        return;
+      }
+      objectUrl = createObjectUrl(blob);
+      if (objectUrl) {
+        setThumbnailUrl(objectUrl);
+      } else {
+        setFailed(true);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      releaseObjectUrl(objectUrl);
+    };
+  }, [actionId, cacheKey, ready, src]);
+
+  const classes = [
+    "cached-video-thumbnail",
+    className,
+    interactive ? "is-interactive" : "",
+    thumbnailUrl ? "has-frame" : "",
+    failed ? "has-failed" : "",
+    isPlaying ? "is-playing" : ""
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const placeholderText = failed
+    ? interactive
+      ? t("缩略图暂不可用，点击播放")
+      : t("缩略图暂不可用")
+    : interactive
+      ? t("点击播放视频")
+      : ready
+        ? t("生成缩略图...")
+        : t("视频缩略图");
+
+  const content = isPlaying ? (
+    <video key={src} src={src} controls autoPlay playsInline preload="auto" />
+  ) : (
+    <>
+      {thumbnailUrl ? <img src={thumbnailUrl} alt={alt} /> : <span className="cached-video-thumbnail-placeholder">{placeholderText}</span>}
+      {interactive ? <span className="action-thumb-play">{t(playLabel)}</span> : null}
+    </>
+  );
+
+  if (!interactive) {
+    return (
+      <div ref={nodeRef as MutableRefObject<HTMLDivElement | null>} className={classes} aria-label={alt}>
+        {content}
+      </div>
+    );
+  }
+
+  if (isPlaying && inlinePlayback && !onPreviewClick) {
+    return (
+      <div ref={nodeRef as MutableRefObject<HTMLDivElement | null>} className={classes} aria-label={`${t(playLabel)} ${alt}`}>
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      ref={nodeRef as MutableRefObject<HTMLButtonElement | null>}
+      type="button"
+      className={classes}
+      onClick={(event) => {
+        event.stopPropagation();
+        if (onPreviewClick) {
+          onPreviewClick();
+          return;
+        }
+        if (inlinePlayback) {
+          setIsPlaying(true);
+        }
+      }}
+      aria-label={`${t(playLabel)} ${alt}`}
+    >
+      {content}
+    </button>
+  );
+}
+
+export function ActionVideoThumbnail({
+  action,
+  className = "",
+  emptyCopy = "无视频",
+  interactive = true,
+  inlinePlayback = true,
+  lazy = true,
+  playLabel = "播放",
+  onPreviewClick
+}: ActionVideoThumbnailProps) {
+  const { t } = useI18n();
+  const sourceUrl = action?.media?.url || "";
+  const mediaUrl = sourceUrl ? withCacheToken(sourceUrl, action?.updateTime) : "";
+  const cacheKey = sourceUrl
+    ? buildVideoThumbnailCacheKey({
+        actionId: action?.id,
+        mediaUrl: sourceUrl,
+        updateTime: action?.updateTime
+      })
+    : "";
+
+  if (!mediaUrl) {
+    const classes = ["cached-video-thumbnail", className, "is-empty"].filter(Boolean).join(" ");
+    if (interactive) {
+      return (
+        <button type="button" className={classes} disabled aria-label={`${action?.name || t("动作")} ${t("暂无视频")}`}>
+          <span>{t(emptyCopy)}</span>
+        </button>
+      );
+    }
+    return (
+      <div className={classes} aria-label={`${action?.name || t("动作")} ${t("暂无视频")}`}>
+        <span>{t(emptyCopy)}</span>
+      </div>
+    );
+  }
+
+  return (
+    <CachedVideoThumbnail
+      src={mediaUrl}
+      cacheKey={cacheKey}
+      actionId={action?.id}
+      alt={`${action?.name || t("动作")}${t("视频缩略图")}`}
+      className={className}
+      interactive={interactive}
+      inlinePlayback={inlinePlayback}
+      lazy={lazy}
+      playLabel={playLabel}
+      onPreviewClick={onPreviewClick}
+    />
+  );
+}
+
+export default function ActionMediaPreview({
+  actionId,
+  actions,
+  emptyCopy = "请选择动作查看视频",
+  compact = false,
+  interactive = true
+}: {
+  actionId: string;
+  actions: ActionMediaPreviewAction[];
+  emptyCopy?: string;
+  compact?: boolean;
+  interactive?: boolean;
+  autoPlayPreview?: boolean;
+}) {
+  const { t } = useI18n();
+  const action = findActionRecord(actions, actionId);
+
+  return (
+    <div className={`action-media-preview${compact ? " is-compact" : ""}`}>
+      <div className="action-media-preview-frame">
+        {action?.media?.url ? (
+          <ActionVideoThumbnail action={action} interactive={interactive} playLabel={t("点击播放")} />
+        ) : (
+          <div className="action-media-preview-empty">{action ? t("该动作暂无视频") : t(emptyCopy)}</div>
+        )}
+      </div>
+      <div className="action-media-preview-copy">
+        <strong>{action?.name || t("未选择动作")}</strong>
+        <span>{action ? t("已选动作缩略图，点击后播放视频") : t("选中动作后显示缩略图，点击后播放视频")}</span>
+      </div>
+    </div>
+  );
+}

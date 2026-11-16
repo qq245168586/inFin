@@ -1,0 +1,480 @@
+/* Base tokens, document defaults, and venue management structure. */
+
+:root {
+  color: #eef1f5;
+  background: #0e1013;
+  font-family: "Avenir Next", "PingFang SC", "Helvetica Neue", sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  --bg-dark: #0e1013;
+  --bg-dark-soft: #171a1f;
+  --bg-panel: #171a1f;
+  --bg-line: #20242a;
+  --text-main: #eef1f5;
+  --text-strong: #f4f6f8;
+  --text-muted: #a4acb8;
+  --text-subtle: #a4acb8;
+  --text-faint: #747e8b;
+  --line: #30363f;
+  --brand: #2f7df4;
+  --brand-soft: rgba(47, 125, 244, 0.14);
+  --brand-line: rgba(47, 125, 244, 0.42);
+  --gold: #d9ad55;
+  --gold-soft: rgba(217, 173, 85, 0.12);
+  --danger: #f0645a;
+  --success: #3ecf8e;
+  --shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 1100px;
+  background: var(--bg-dark);
+  color: var(--text-main);
+}
+
+@media (max-width: 980px) {
+  body {
+    min-width: 0;
+  }
+  .admin-shell {
+    grid-template-columns: 0 minmax(0, 1fr);
+  }
+  .sidebar-edge-toggle {
+    left: 10px;
+    top: 14px;
+  }
+}
+
+.venue-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.venue-top {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 18px 22px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(222, 226, 234, 0.85);
+  border-radius: 22px;
+  box-shadow: 0 16px 40px rgba(18, 26, 44, 0.08);
+}
+
+.venue-top-title h2 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.venue-top-title p {
+  margin: 6px 0 0;
+  color: var(--text-subtle);
+  font-size: 14px;
+}
+
+.venue-top-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.venue-grid {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 16px;
+}
+
+.venue-panel {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(222, 226, 234, 0.85);
+  border-radius: 22px;
+  box-shadow: 0 18px 44px rgba(18, 26, 44, 0.08);
+  overflow: hidden;
+}
+
+.venue-panel-head {
+  padding: 16px 18px;
+  border-bottom: 1px solid rgba(222, 226, 234, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.venue-muted {
+  color: var(--text-subtle);
+  font-size: 13px;
+}
+
+.venue-list-items {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 60vh;
+  overflow: auto;
+}
+
+.venue-list-item {
+  text-align: left;
+  padding: 14px 14px;
+  border-radius: 18px;
+  background: rgba(245, 247, 251, 0.9);
+  border: 1px solid rgba(222, 226, 234, 0.85);
+  transition: transform 120ms ease, border-color 120ms ease;
+}
+
+.venue-list-item strong {
+  display: block;
+  font-size: 15px;
+}
+
+.venue-list-sub {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-subtle);
+  font-size: 12px;
+}
+
+.venue-list-item.is-active {
+  border-color: rgba(47, 125, 244, 0.65);
+  box-shadow: 0 0 0 3px rgba(47, 125, 244, 0.12);
+  background: rgba(47, 125, 244, 0.1);
+}
+
+.venue-detail-body {
+  padding: 18px;
+  display: grid;
+  gap: 16px;
+}
+
+.venue-card {
+  border-radius: 18px;
+  background: rgba(245, 247, 251, 0.85);
+  border: 1px solid rgba(222, 226, 234, 0.85);
+  padding: 14px 14px;
+}
+
+.venue-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.venue-users {
+  display: grid;
+  gap: 10px;
+}
+
+.venue-course-packages,
+.course-package-course-list {
+  display: grid;
+  gap: 10px;
+}
+
+.venue-course-package,
+.course-package-course {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid rgba(222, 226, 234, 0.85);
+  text-align: left;
+}
+
+.venue-course-package.is-active,
+.course-package-course.is-selected {
+  border-color: rgba(47, 125, 244, 0.45);
+  background: rgba(47, 125, 244, 0.08);
+}
+
+.venue-bind-package {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.course-package-grid {
+  grid-template-columns: 320px minmax(0, 1fr);
+}
+
+.account-management-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.venue-form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: end;
+}
+
+.course-package-form {
+  display: grid;
+  gap: 12px;
+}
+
+.course-package-course {
+  justify-content: flex-start;
+}
+
+.course-package-course small {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-subtle);
+}
+
+.course-package-checkbox {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid rgba(47, 125, 244, 0.42);
+  color: var(--brand);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+}
+
+.venue-user {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid rgba(222, 226, 234, 0.85);
+}
+
+.venue-user-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.account-package-row {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.account-package-chip {
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(120, 120, 140, 0.24);
+  background: #f6f7fb;
+  color: var(--text-subtle);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+button.account-package-chip {
+  cursor: pointer;
+}
+
+button.account-package-chip:hover {
+  border-color: rgba(47, 125, 244, 0.52);
+  color: var(--brand);
+}
+
+.account-package-chip.is-selected {
+  border-color: rgba(47, 125, 244, 0.42);
+  background: rgba(47, 125, 244, 0.1);
+  color: var(--brand);
+}
+
+.account-user-row {
+  align-items: flex-start;
+}
+
+.account-user-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.account-password-row {
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 12px;
+  background: rgba(47, 125, 244, 0.07);
+  border: 1px solid rgba(47, 125, 244, 0.14);
+  color: var(--text-subtle);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.account-password-row code {
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.venue-user p {
+  margin: 4px 0 0;
+}
+
+.venue-pill {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(47, 125, 244, 0.3);
+  color: var(--brand);
+  background: rgba(47, 125, 244, 0.08);
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.venue-screens {
+  display: grid;
+  gap: 12px;
+}
+
+.venue-screen {
+  background: #ffffff;
+  border: 1px solid rgba(222, 226, 234, 0.85);
+  border-radius: 18px;
+  padding: 12px 12px;
+}
+
+.venue-screen-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.venue-screen-top-actions,
+.venue-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.venue-package-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.venue-package-select span {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.venue-package-select select {
+  min-width: 180px;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(120, 120, 140, 0.24);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--text-main);
+  font-weight: 800;
+  outline: none;
+}
+
+.venue-screen-command {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(47, 125, 244, 0.24);
+  border-radius: 999px;
+  background: rgba(47, 125, 244, 0.08);
+  color: rgba(47, 125, 244, 0.92);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.venue-screen-command:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.venue-dot {
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  border: 1px solid rgba(47, 125, 244, 0.2);
+  color: rgba(47, 125, 244, 0.8);
+  background: rgba(47, 125, 244, 0.08);
+}
+
+.venue-dot.is-on {
+  border-color: rgba(21, 184, 102, 0.28);
+  color: rgba(21, 184, 102, 0.95);
+  background: rgba(21, 184, 102, 0.08);
+}
+
+.venue-screen-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.venue-screen-meta span {
+  display: block;
+}
+
+.venue-screen-update {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(222, 226, 234, 0.9);
+  display: grid;
+  gap: 4px;
+}
+
+.venue-badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.venue-badge {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(47, 125, 244, 0.08);
+  border: 1px solid rgba(47, 125, 244, 0.2);
+  color: rgba(47, 125, 244, 0.85);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.venue-badge.is-online {
+  background: rgba(21, 184, 102, 0.08);
+  border-color: rgba(21, 184, 102, 0.22);
+  color: rgba(21, 184, 102, 0.95);
+}

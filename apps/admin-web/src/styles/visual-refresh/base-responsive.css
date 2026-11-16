@@ -1,0 +1,164 @@
+/* Original responsive behavior for admin editing surfaces. */
+
+@media (max-width: 1600px) {
+  .admin-shell {
+    grid-template-columns: 320px minmax(0, 1fr);
+  }
+
+  .nav-item {
+    min-height: 88px;
+    padding: 12px 8px;
+    font-size: 14px;
+  }
+
+  .script-summary-grid,
+  .form-row.three,
+  .form-row.four,
+  .form-row.five,
+  .filter-grid.course-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pod-segment-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .pod-rule-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .action-media-preview {
+    grid-template-columns: 150px minmax(0, 1fr);
+  }
+
+  .action-media-preview-frame {
+    width: 150px;
+    height: 84px;
+  }
+}
+
+@media (max-width: 1100px) {
+  body {
+    min-width: 0;
+  }
+
+  .login-shell {
+    padding: 16px;
+  }
+
+  .login-stage {
+    grid-template-columns: 1fr;
+    background:
+      linear-gradient(180deg, rgba(24, 26, 38, 0.98) 0, rgba(24, 26, 38, 0.98) 190px, rgba(255, 255, 255, 0.98) 190px);
+  }
+
+  .login-stage-top {
+    padding-bottom: 14px;
+  }
+
+  .login-panel {
+    padding: 28px 22px 24px;
+  }
+
+  .admin-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar-edge-toggle {
+    left: 14px;
+    top: 18px;
+    width: 26px;
+    height: 42px;
+  }
+
+  .sidebar {
+    padding-bottom: 0;
+  }
+
+  .workspace-body {
+    padding-right: 16px;
+    padding-left: 16px;
+    padding-bottom: 16px;
+  }
+
+  .page-card {
+    border-radius: 18px;
+  }
+
+  .screen-grid,
+  .script-summary-grid,
+  .filter-grid,
+  .filter-grid.course-grid,
+  .form-row.two,
+  .form-row.three,
+  .form-row.four,
+  .form-row.five {
+    grid-template-columns: 1fr;
+  }
+
+  .screen-grid {
+    grid-template-columns: repeat(3, minmax(320px, 1fr));
+    overflow-x: auto;
+  }
+
+  .filter-line,
+  .stack-row,
+  .rule-row,
+  .group-meta-actions,
+  .screen-card-footer,
+  .module-card-head,
+  .section-head-actions,
+  .logo-panel,
+  .page-card-head,
+  .section-head,
+  .toolbar-actions,
+  .workspace-top-main,
+  .workspace-top-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .sidebar-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .calendar-head,
+  .calendar-scroll {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+
+  .calendar-empty-state {
+    inset: 62px 0 0 72px;
+  }
+
+  .schedule-inline-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .calendar-date-pill {
+    min-width: 96px;
+  }
+
+  .pod-segment-row {
+    grid-template-columns: 1fr;
+  }
+
+  .pod-rule-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stack-row-main {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .action-media-preview {
+    grid-template-columns: 1fr;
+  }
+
+.action-media-preview-frame {
+  width: 100%;
+  height: 180px;
+  }
+}

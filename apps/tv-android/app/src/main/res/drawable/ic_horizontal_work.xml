@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+  android:width="72dp"
+  android:height="72dp"
+  android:viewportWidth="72"
+  android:viewportHeight="72">
+  <path
+    android:fillColor="@color/tv_playback_ready"
+    android:pathData="M36,36m-36,0a36,36 0,1 1,72 0a36,36 0,1 1,-72 0" />
+  <path
+    android:fillColor="#FFFFFFFF"
+    android:pathData="M36,55C25.5,45.7 16,37.2 16,27.4C16,20.9 20.7,16 26.9,16C30.5,16 33.9,17.7 36,20.4C38.1,17.7 41.5,16 45.1,16C51.3,16 56,20.9 56,27.4C56,37.2 46.5,45.7 36,55Z" />
+  <path
+    android:fillColor="@color/tv_playback_ready"
+    android:pathData="M35,45.5L27.1,32.6L23.8,38H13V34H21.5L27,25L34.7,37.6L39.2,29.5L44.6,37H59V41H42.5L39.7,37.1Z" />
+</vector>

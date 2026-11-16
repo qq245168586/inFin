@@ -3,7 +3,7 @@
   "private": true,
   "packageManager": "pnpm@10.11.0",
   "scripts": {
-    "workspace:info": "echo \"This root only keeps workspace docs and git submodules. Run build/deploy scripts inside each app.\"",
+    "workspace:info": "echo \"This public monorepo contains all app sources. Read docs/PUBLIC_EXPORT.md before configuring or deploying.\"",
     "test": "bash tools/run-tests.sh",
     "test:coverage": "bash tools/run-tests.sh --coverage",
     "test:report": "bash tools/run-tests.sh --coverage --allure",

@@ -1,0 +1,14 @@
+set timeout 120
+set host "REDACTED_CONFIGURE_LOCALLY@8.130.65.113"
+set password "REDACTED_CONFIGURE_LOCALLY"
+set command "chmod +x /home/REDACTED_CONFIGURE_LOCALLY/nginx-tls12-rescue.sh && echo REDACTED_CONFIGURE_LOCALLY | sudo -S bash /home/REDACTED_CONFIGURE_LOCALLY/nginx-tls12-rescue.sh"
+spawn ssh -o StrictHostKeyChecking=no $host $command
+expect {
+  -re "(?i)password:" {
+    send "$password\r"
+    exp_continue
+  }
+  eof
+}
+catch wait result
+exit [lindex $result 3]

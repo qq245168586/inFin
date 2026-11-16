@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>INFINI Coach 端使用说明</title>
+    <style>
+      @page {
+        size: A4;
+        margin: 18mm 16mm;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        color: #15151f;
+        font-family: "PingFang SC", "Noto Sans SC", "Microsoft YaHei", Arial, sans-serif;
+        line-height: 1.65;
+        background: #ffffff;
+      }
+
+      .cover {
+        min-height: 255mm;
+        padding: 22mm 0 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+
+      .brand {
+        display: inline-flex;
+        width: fit-content;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: #f2e8ff;
+        color: #7a1dff;
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+      }
+
+      h1 {
+        margin: 28px 0 12px;
+        color: #11111b;
+        font-size: 38px;
+        line-height: 1.15;
+      }
+
+      .subtitle {
+        max-width: 520px;
+        margin: 0;
+        color: #5b5b6d;
+        font-size: 17px;
+      }
+
+      .cover-card {
+        margin-top: 38px;
+        padding: 22px;
+        border-radius: 22px;
+        background: linear-gradient(135deg, #141421, #2a1047);
+        color: #ffffff;
+      }
+
+      .cover-card strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 18px;
+      }
+
+      .cover-card p {
+        margin: 0;
+        color: rgba(255, 255, 255, 0.78);
+      }
+
+      .meta {
+        color: #77778a;
+        font-size: 13px;
+      }
+
+      h2 {
+        margin: 0 0 14px;
+        padding-top: 4px;
+        color: #11111b;
+        font-size: 24px;
+        line-height: 1.25;
+        break-after: avoid;
+      }
+
+      h3 {
+        margin: 22px 0 8px;
+        color: #24113d;
+        font-size: 16px;
+        break-after: avoid;
+      }
+
+      p {
+        margin: 0 0 10px;
+      }
+
+      ul,
+      ol {
+        margin: 8px 0 14px;
+        padding-left: 22px;
+      }
+
+      li {
+        margin: 5px 0;
+      }
+
+      .section {
+        break-before: page;
+      }
+
+      .note {
+        margin: 14px 0 18px;
+        padding: 14px 16px;
+        border-radius: 14px;
+        background: #f7f2ff;
+        border: 1px solid #e3d2ff;
+        color: #32185a;
+      }
+
+      .warning {
+        background: #fff7ed;
+        border-color: #ffd6a8;
+        color: #59330a;
+      }
+
+      .steps {
+        display: grid;
+        gap: 10px;
+        margin: 12px 0 18px;
+      }
+
+      .step {
+        padding: 13px 15px;
+        border-radius: 14px;
+        background: #fafafe;
+        border: 1px solid #e7e7f0;
+        break-inside: avoid;
+      }
+
+      .step strong {
+        display: block;
+        margin-bottom: 4px;
+        color: #11111b;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin: 12px 0 18px;
+      }
+
+      .tile {
+        padding: 14px;
+        border-radius: 14px;
+        border: 1px solid #e7e7f0;
+        background: #ffffff;
+        break-inside: avoid;
+      }
+
+      .tile strong {
+        display: block;
+        margin-bottom: 5px;
+        color: #11111b;
+      }
+
+      .tile span {
+        color: #606072;
+        font-size: 13px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 12px 0 20px;
+        break-inside: avoid;
+      }
+
+      th,
+      td {
+        padding: 10px 11px;
+        border: 1px solid #e1e1ec;
+        vertical-align: top;
+        text-align: left;
+        font-size: 13px;
+      }
+
+      th {
+        background: #f2edff;
+        color: #261044;
+        font-weight: 800;
+      }
+
+      .checklist li {
+        list-style: none;
+        position: relative;
+        padding-left: 4px;
+      }
+
+      .checklist li::before {
+        content: "□";
+        margin-right: 8px;
+        color: #8b25ff;
+        font-weight: 900;
+      }
+
+      .footer {
+        margin-top: 18px;
+        padding-top: 12px;
+        border-top: 1px solid #ececf4;
+        color: #77778a;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="cover">
+      <div>
+        <span class="brand">INFINI COACH</span>
+        <h1>Coach 端使用说明</h1>
+        <p class="subtitle">面向现场教练的日常操作手册，覆盖登录、课程预览、开始/暂停/结束课程，以及通过设置入口进行屏幕管理。</p>
+        <div class="cover-card">
+          <strong>核心原则</strong>
+          <p>现场课中优先使用“课程控制”。屏幕绑定、缓存清理和 TV 更新都收在右上角“设置”里，避免误触设备管理操作。</p>
+        </div>
+      </div>
+      <p class="meta">版本：2026-05-29 · 适用对象：INFINI Coach Web 现场教练</p>
+    </section>
+
+    <section class="section">
+      <h2>1. 登录与主界面</h2>
+      <div class="steps">
+        <div class="step">
+          <strong>打开 Coach 端</strong>
+          <span>使用现场提供的 Coach Web 地址进入登录页。输入教练账号和密码后登录。</span>
+        </div>
+        <div class="step">
+          <strong>确认健身房名称</strong>
+          <span>登录后右上角会显示当前账号所属健身房名称。开课前请确认名称正确，避免操作到错误场馆。</span>
+        </div>
+        <div class="step">
+          <strong>默认进入课程控制</strong>
+          <span>登录后默认显示“课程控制”，这里是现场教练开课时的主要工作区。</span>
+        </div>
+      </div>
+      <div class="note">
+        如果系统提示登录过期，会自动回到登录页。重新登录后再继续操作。
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>2. 课程控制</h2>
+      <p>课程控制页面展示当天课表。点击一节课程只会展开该课程的操作按钮和预览画面，不会直接影响 TV 播放。</p>
+      <div class="grid">
+        <div class="tile">
+          <strong>点课程卡片</strong>
+          <span>在 Coach 网页中查看该课程，不会直接发送 TV 指令。</span>
+        </div>
+        <div class="tile">
+          <strong>预览</strong>
+          <span>让 TV 进入该课程的 preview 状态，用于正式开课前确认内容。</span>
+        </div>
+        <div class="tile">
+          <strong>开始</strong>
+          <span>发送开始课程指令。课程开始后按钮会切换为暂停和结束。</span>
+        </div>
+        <div class="tile">
+          <strong>暂停 / 继续 / 结束</strong>
+          <span>课程进行中使用。结束会让 TV 回到课表或待机状态。</span>
+        </div>
+      </div>
+      <h3>推荐操作流程</h3>
+      <ol>
+        <li>选择当天要上的课程。</li>
+        <li>点击“预览”，确认 TV 显示内容正确。</li>
+        <li>准备开课时点击“开始”。</li>
+        <li>课程中需要临时停下时点击“暂停”，恢复时点击“继续”。</li>
+        <li>课程结束后点击“结束”。</li>
+      </ol>
+      <div class="note warning">
+        不要在课程中随意切换到其他课程并点击“开始”。如果当前已有未结束课程，系统会要求确认是否切换。
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>3. 预览视频区域</h2>
+      <p>选中课程后，下方会显示正式组动作预览视频。视频只用于 Coach 网页本地查看，不代表 TV 已经开始上课。</p>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 34%;">操作</th>
+            <th>说明</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>左右箭头</td>
+            <td>切换当前课程正式组中的动作视频。</td>
+          </tr>
+          <tr>
+            <td>手机滑动</td>
+            <td>在视频区域左右滑动，也可以切换动作。</td>
+          </tr>
+          <tr>
+            <td>序号显示</td>
+            <td>例如“3 / 24”，表示当前正在查看第 3 个动作，共 24 个动作。</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="note">
+        视频下面不再显示小点导航，动作数量多时也不会挤占页面空间。
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>4. 设置与屏幕管理</h2>
+      <p>屏幕管理已经归类到右上角“设置”按钮中。现场教练日常开课一般不需要进入这里，只有绑定屏幕、清缓存或更新 TV 时才使用。</p>
+      <h3>进入屏幕管理</h3>
+      <ol>
+        <li>点击右上角带设置图标的“设置”按钮。</li>
+        <li>在设置面板中选择“屏幕管理”。</li>
+        <li>完成设备操作后，再从设置面板切回“课程控制”。</li>
+      </ol>
+      <h3>屏幕管理里可以做什么</h3>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 28%;">功能</th>
+            <th>使用场景</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>绑定屏幕</td>
+            <td>TV 新安装或重新配对时使用。按 TV 上显示的二维码或配对信息完成绑定。</td>
+          </tr>
+          <tr>
+            <td>清除缓存</td>
+            <td>课程视频缓存异常、TV 播放资源不一致时使用。建议确认 TV 空闲后再执行。</td>
+          </tr>
+          <tr>
+            <td>更新 TV</td>
+            <td>需要把 TV App 更新到指定版本时使用。请确保屏幕在线且没有正在上课。</td>
+          </tr>
+          <tr>
+            <td>解绑</td>
+            <td>设备更换或绑定错屏幕时使用。解绑后 TV 会回到待绑定状态。</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="note warning">
+        屏幕管理属于设备维护操作。课程进行中尽量不要清缓存、更新 TV 或解绑设备。
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>5. 开课前检查清单</h2>
+      <ul class="checklist">
+        <li>确认右上角健身房名称正确。</li>
+        <li>确认今天课表中有即将开始的课程。</li>
+        <li>点击课程卡片后，Coach 网页能看到预览视频。</li>
+        <li>点击“预览”后，TV 显示对应课程内容。</li>
+        <li>开课前确认所有屏幕在线，且没有错误的未结束课程。</li>
+      </ul>
+      <h3>常见情况</h3>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 34%;">现象</th>
+            <th>处理方式</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Coach 显示登录过期</td>
+            <td>重新登录。系统会自动回到登录页。</td>
+          </tr>
+          <tr>
+            <td>TV 没有进入预览</td>
+            <td>确认已点击课程卡片里的“预览”，并检查屏幕在线状态。</td>
+          </tr>
+          <tr>
+            <td>课程结束后状态没更新</td>
+            <td>先点击刷新；如果仍异常，确认 TV 是否在线并反馈给管理员。</td>
+          </tr>
+          <tr>
+            <td>视频预览为空</td>
+            <td>可能该课程动作没有配置视频资源，请联系课程编辑或管理员检查课程内容。</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="footer">本文档为 Coach 端现场使用说明，不包含管理员后台配置流程。</p>
+    </section>
+  </body>
+</html>

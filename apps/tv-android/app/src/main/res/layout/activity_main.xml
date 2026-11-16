@@ -1,0 +1,1082 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:app="http://schemas.android.com/apk/res-auto"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent"
+  android:background="@drawable/bg_tv_root_gradient">
+
+  <LinearLayout
+    android:id="@+id/selectorPanel"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:background="@drawable/bg_tv_root_gradient"
+    android:padding="28dp">
+
+    <TextView
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:gravity="center"
+      android:letterSpacing="0"
+      android:maxLines="1"
+      android:text="INFINI TV"
+      android:textColor="@color/tv_text_main"
+      android:textSize="34sp"
+      android:textStyle="bold" />
+
+    <TextView
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="10dp"
+      android:gravity="center"
+      android:maxLines="2"
+      android:text="扫码绑定屏幕，绑定完成后自动进入对应课程画面"
+      android:textColor="@color/tv_accent_gold_bright"
+      android:textSize="16sp"
+      android:textStyle="bold" />
+
+    <TextView
+      android:id="@+id/selectorDeviceIdText"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="10dp"
+      android:gravity="center"
+      android:textColor="@color/tv_text_subtle"
+      android:textSize="13sp" />
+
+    <LinearLayout
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="28dp"
+      android:background="@drawable/bg_qr_panel"
+      android:gravity="center"
+      android:orientation="vertical"
+      android:paddingLeft="24dp"
+      android:paddingTop="24dp"
+      android:paddingRight="24dp"
+      android:paddingBottom="24dp">
+
+      <ImageView
+        android:id="@+id/selectorQrImage"
+        android:layout_width="300dp"
+        android:layout_height="300dp"
+        android:background="@android:color/white"
+        android:padding="8dp" />
+
+      <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="18dp"
+        android:text="配对码"
+        android:textColor="@color/tv_accent_gold_bright"
+        android:textSize="15sp" />
+
+      <TextView
+        android:id="@+id/selectorPairCodeText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:letterSpacing="0"
+        android:maxLines="1"
+        android:textColor="@color/tv_accent_gold_bright"
+        android:textSize="30sp"
+        android:textStyle="bold" />
+
+      <TextView
+        android:id="@+id/selectorPairHintText"
+        android:layout_width="300dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:gravity="center"
+        android:textColor="@color/tv_text_subtle"
+        android:textSize="13sp" />
+    </LinearLayout>
+  </LinearLayout>
+
+  <LinearLayout
+    android:id="@+id/contentPanel"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_tv_root_gradient"
+    android:orientation="vertical"
+    android:padding="18dp"
+    android:visibility="gone">
+
+    <LinearLayout
+      android:id="@+id/contentTopBar"
+      android:layout_width="match_parent"
+      android:layout_height="64dp"
+      android:background="@color/tv_top_bar"
+      android:gravity="center_vertical"
+      android:orientation="horizontal"
+      android:paddingLeft="22dp"
+      android:paddingRight="22dp">
+
+      <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="INFINI."
+        android:textColor="@color/tv_text_main"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+      <Space
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_weight="1" />
+
+      <TextView
+        android:id="@+id/screenDeviceMetaText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="@color/tv_text_subtle"
+        android:textSize="12sp" />
+
+      <TextView
+        android:id="@+id/screenTag"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="10dp"
+        android:text="屏幕 1"
+        android:textColor="@color/tv_text_subtle"
+        android:textSize="12sp" />
+
+      <Button
+        android:id="@+id/changeScreenButton"
+        style="@style/Widget.InfiniTv.GhostButton"
+        android:visibility="gone"
+        android:text="重选屏幕" />
+    </LinearLayout>
+
+    <TextView
+      android:id="@+id/pageTitle"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="22dp"
+      android:ellipsize="end"
+      android:gravity="center"
+      android:maxLines="2"
+      android:text="今日课程表"
+      android:textColor="@color/tv_text_main"
+      android:textSize="38sp"
+      android:textStyle="bold" />
+
+    <TextView
+      android:id="@+id/pageSubtitle"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="10dp"
+      android:ellipsize="end"
+      android:gravity="center"
+      android:maxLines="2"
+      android:textColor="@color/tv_text_subtle"
+      android:textSize="15sp" />
+
+    <LinearLayout
+      android:id="@+id/pageDividerRow"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="16dp"
+      android:gravity="center_vertical"
+      android:orientation="horizontal">
+
+      <View
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_weight="1"
+        android:alpha="0.8"
+        android:background="@color/tv_divider" />
+
+      <Space
+        android:layout_width="22dp"
+        android:layout_height="1dp" />
+
+      <View
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_weight="1"
+        android:alpha="0.8"
+        android:background="@color/tv_divider" />
+    </LinearLayout>
+
+    <FrameLayout
+      android:layout_width="match_parent"
+      android:layout_height="0dp"
+      android:layout_marginTop="20dp"
+      android:layout_weight="1">
+
+      <ScrollView
+        android:id="@+id/scheduleScrollView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true"
+        android:scrollbars="none">
+
+        <LinearLayout
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:orientation="vertical"
+          android:paddingBottom="20dp">
+
+          <LinearLayout
+            android:id="@+id/verticalSchedulePanel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
+
+            <TextView
+              android:id="@+id/scheduleStateText"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:gravity="center"
+              android:maxLines="2"
+              android:paddingTop="34dp"
+              android:paddingBottom="12dp"
+              android:text="正在读取今日排课..."
+              android:textColor="@color/tv_text_subtle"
+              android:textSize="16sp"
+              android:textStyle="bold" />
+
+            <LinearLayout
+              android:id="@+id/scheduleList"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:orientation="vertical" />
+          </LinearLayout>
+
+          <LinearLayout
+            android:id="@+id/horizontalPlaceholderPanel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_tv_panel_glow"
+            android:orientation="vertical"
+            android:padding="24dp"
+            android:visibility="gone">
+
+            <TextView
+              android:id="@+id/horizontalTitle"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:ellipsize="end"
+              android:maxLines="1"
+              android:text="屏幕 2"
+              android:textColor="@color/tv_text_main"
+              android:textSize="28sp"
+              android:textStyle="bold" />
+
+            <TextView
+              android:id="@+id/horizontalCopy"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:layout_marginTop="18dp"
+              android:ellipsize="end"
+              android:lineSpacingExtra="6dp"
+              android:maxLines="5"
+              android:textColor="@color/tv_text_subtle"
+              android:textSize="15sp" />
+          </LinearLayout>
+        </LinearLayout>
+      </ScrollView>
+
+      <LinearLayout
+        android:id="@+id/verticalPlaybackPanel"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <LinearLayout
+          android:id="@+id/playbackStatusGroup"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:baselineAligned="false"
+          android:orientation="horizontal">
+
+          <FrameLayout
+            android:id="@+id/playbackTimerCard"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="0.25">
+
+            <View
+              android:id="@+id/playbackTimerRing"
+              android:layout_width="150dp"
+              android:layout_height="150dp"
+              android:layout_gravity="center"
+              android:background="@drawable/bg_playback_timer_ring" />
+
+            <TextView
+              android:id="@+id/playbackCountdownText"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:autoSizeMaxTextSize="62sp"
+              android:autoSizeMinTextSize="28sp"
+              android:autoSizeStepGranularity="1sp"
+              android:autoSizeTextType="uniform"
+              android:gravity="center"
+              android:text="00:38"
+              android:textColor="@color/tv_text_main"
+              android:textSize="44sp"
+              android:textStyle="bold" />
+          </FrameLayout>
+
+          <LinearLayout
+            android:id="@+id/playbackStageCard"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginLeft="10dp"
+            android:layout_weight="0.75"
+            android:gravity="center_vertical"
+            android:orientation="vertical"
+            android:paddingLeft="18dp"
+            android:paddingTop="12dp"
+            android:paddingRight="18dp"
+            android:paddingBottom="12dp">
+
+            <TextView
+              android:id="@+id/playbackStageLabel"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:visibility="gone"
+              android:gravity="center"
+              android:text="WARM UP"
+              android:textColor="@color/tv_text_main"
+              android:textSize="18sp"
+              android:textStyle="bold" />
+
+            <TextView
+              android:id="@+id/playbackStageProgress"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:autoSizeMaxTextSize="92sp"
+              android:autoSizeMinTextSize="20sp"
+              android:autoSizeStepGranularity="1sp"
+              android:autoSizeTextType="uniform"
+              android:ellipsize="end"
+              android:gravity="start|center_vertical"
+              android:maxLines="2"
+              android:text="WORK"
+              android:textColor="@color/tv_text_main"
+              android:textSize="48sp"
+              android:textStyle="bold" />
+
+            <TextView
+              android:id="@+id/playbackStageSecondary"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:layout_marginTop="6dp"
+              android:ellipsize="end"
+              android:gravity="start"
+              android:maxLines="1"
+              android:textColor="@color/tv_text_main"
+              android:textSize="22sp"
+              android:textStyle="bold"
+              android:visibility="gone" />
+
+            <LinearLayout
+              android:id="@+id/playbackStageDotsRow"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:layout_marginTop="8dp"
+              android:gravity="center"
+              android:orientation="horizontal"
+              android:visibility="gone" />
+          </LinearLayout>
+        </LinearLayout>
+
+        <TextView
+          android:id="@+id/playbackHint"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:layout_marginTop="14dp"
+          android:lineSpacingExtra="4dp"
+          android:textColor="@color/tv_text_subtle"
+          android:textSize="15sp"
+          android:textStyle="bold" />
+
+        <LinearLayout
+          android:id="@+id/getReadyPanel"
+          android:layout_width="match_parent"
+          android:layout_height="0dp"
+          android:layout_weight="1"
+          android:gravity="center"
+          android:maxLines="2"
+          android:orientation="vertical"
+          android:paddingLeft="24dp"
+          android:paddingRight="24dp"
+          android:visibility="gone">
+
+          <FrameLayout
+            android:id="@+id/getReadyCircle"
+            android:layout_width="170dp"
+            android:layout_height="170dp"
+            android:background="@drawable/bg_get_ready_circle">
+
+            <TextView
+              android:id="@+id/getReadyCountdownText"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:gravity="center"
+              android:maxLines="1"
+              android:text="10"
+              android:textColor="@color/tv_text_main"
+              android:textSize="58sp"
+              android:textStyle="bold" />
+          </FrameLayout>
+
+          <TextView
+            android:id="@+id/getReadyLabelText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="22dp"
+            android:gravity="center"
+            android:text="READY"
+            android:textColor="@color/tv_text_main"
+            android:textSize="30sp"
+            android:textStyle="bold" />
+
+          <TextView
+            android:id="@+id/getReadySubtext"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:gravity="center"
+            android:text="正式训练即将开始"
+            android:textColor="@color/tv_text_subtle"
+            android:textSize="16sp" />
+        </LinearLayout>
+
+        <FrameLayout
+          android:id="@+id/finishPanel"
+          android:layout_width="match_parent"
+          android:layout_height="0dp"
+          android:layout_marginTop="6dp"
+          android:layout_weight="1"
+          android:paddingLeft="24dp"
+          android:paddingTop="24dp"
+          android:paddingRight="24dp"
+          android:paddingBottom="24dp"
+          android:visibility="gone">
+
+          <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+              android:id="@+id/finishLogoImage"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              android:adjustViewBounds="true"
+              android:maxWidth="560dp"
+              android:maxHeight="320dp"
+              android:scaleType="fitCenter"
+              android:visibility="gone" />
+
+            <TextView
+              android:id="@+id/finishFallbackText"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              android:layout_marginTop="18dp"
+              android:gravity="center"
+              android:maxLines="2"
+              android:text="CONGRATULATION"
+              android:textColor="@color/tv_text_main"
+              android:textSize="44sp"
+              android:textStyle="bold"
+              android:visibility="gone" />
+          </LinearLayout>
+        </FrameLayout>
+
+        <ScrollView
+          android:id="@+id/playbackScrollView"
+          android:layout_width="match_parent"
+          android:layout_height="0dp"
+          android:layout_marginTop="6dp"
+          android:layout_weight="1"
+          android:fillViewport="true"
+          android:scrollbars="none">
+
+          <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="20dp">
+
+            <LinearLayout
+              android:id="@+id/warmupRowsContainer"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:orientation="vertical" />
+
+            <LinearLayout
+              android:id="@+id/trainingCardsContainer"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:layout_marginTop="16dp"
+              android:orientation="vertical"
+              android:visibility="gone" />
+          </LinearLayout>
+        </ScrollView>
+      </LinearLayout>
+
+      <FrameLayout
+        android:id="@+id/horizontalPlaybackPanel"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/bg_tv_root_gradient"
+        android:paddingLeft="24dp"
+        android:paddingTop="24dp"
+        android:paddingRight="24dp"
+        android:paddingBottom="24dp"
+        android:visibility="gone">
+
+        <TextView
+          android:id="@+id/horizontalLoadingText"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:layout_gravity="center"
+          android:gravity="center"
+          android:text="正在同步今日课程资源..."
+          android:textColor="@color/tv_text_subtle"
+          android:textSize="24sp"
+          android:textStyle="bold" />
+
+        <ScrollView
+          android:id="@+id/horizontalScheduleScroll"
+          android:layout_width="match_parent"
+          android:layout_height="match_parent"
+          android:fillViewport="true"
+          android:scrollbars="none"
+          android:visibility="gone">
+
+          <LinearLayout
+            android:id="@+id/horizontalSchedulePanel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:paddingBottom="10dp">
+
+            <TextView
+              android:id="@+id/horizontalScheduleTitle"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:gravity="center"
+              android:maxLines="2"
+              android:text="今日课程表"
+              android:textColor="@color/tv_text_main"
+              android:textSize="34sp"
+              android:textStyle="bold" />
+
+            <TextView
+              android:id="@+id/horizontalScheduleSubtitle"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:layout_marginTop="10dp"
+              android:gravity="center"
+              android:textColor="@color/tv_text_subtle"
+              android:textSize="16sp" />
+
+            <LinearLayout
+              android:id="@+id/horizontalScheduleList"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:layout_marginTop="18dp"
+              android:orientation="vertical" />
+          </LinearLayout>
+        </ScrollView>
+
+        <FrameLayout
+          android:id="@+id/horizontalContentPanel"
+          android:layout_width="match_parent"
+          android:layout_height="match_parent"
+          android:visibility="gone">
+
+          <FrameLayout
+            android:id="@+id/horizontalMainRow"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <FrameLayout
+              android:id="@+id/horizontalRingContainer"
+              android:layout_width="220dp"
+              android:layout_height="220dp"
+              android:layout_gravity="top|left"
+              android:layout_marginLeft="54dp"
+              android:layout_marginTop="54dp"
+              android:foregroundGravity="center">
+
+              <com.infini.tv.ui.RingProgressView
+                android:id="@+id/horizontalRingProgress"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+              <TextView
+                android:id="@+id/horizontalCountdownText"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:maxLines="1"
+                android:text="00:45"
+                android:textColor="@color/tv_text_main"
+                android:textSize="54sp"
+                android:textStyle="bold" />
+            </FrameLayout>
+
+            <LinearLayout
+              android:id="@+id/horizontalStateColumn"
+              android:layout_width="980dp"
+              android:layout_height="wrap_content"
+              android:layout_gravity="top|left"
+              android:layout_marginLeft="310dp"
+              android:layout_marginTop="76dp"
+              android:gravity="center_vertical"
+              android:orientation="vertical">
+
+              <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <ImageView
+                android:id="@+id/horizontalStateIcon"
+                  android:layout_width="86dp"
+                  android:layout_height="86dp"
+                  android:layout_marginRight="28dp"
+                  android:src="@drawable/ic_horizontal_work"
+                  android:visibility="gone" />
+
+                <TextView
+                  android:id="@+id/horizontalStateText"
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:gravity="start"
+                  android:maxLines="2"
+                  android:ellipsize="end"
+                  android:text="WORK"
+                  android:textColor="@color/tv_text_main"
+                  android:textSize="60sp"
+                  android:textStyle="bold" />
+              </LinearLayout>
+
+              <TextView
+                android:id="@+id/horizontalStateSecondary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:maxLines="1"
+                android:text="SET 1 · POD 1 · 状态屏"
+                android:textColor="@color/tv_text_subtle"
+                android:textSize="28sp"
+                android:visibility="gone" />
+
+              <LinearLayout
+                android:id="@+id/horizontalStateDotsRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:visibility="gone" />
+            </LinearLayout>
+          </FrameLayout>
+
+          <LinearLayout
+            android:id="@+id/horizontalProgressRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:layout_marginLeft="28dp"
+            android:layout_marginRight="28dp"
+            android:layout_marginBottom="78dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal" />
+
+          <TextView
+            android:id="@+id/horizontalWorkTimeText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|center_horizontal"
+            android:layout_marginLeft="28dp"
+            android:layout_marginRight="28dp"
+            android:layout_marginBottom="42dp"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:text="00:00/00:00"
+            android:textColor="@color/tv_text_subtle"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+          <TextView
+            android:id="@+id/horizontalLogoText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|center_horizontal"
+            android:layout_marginBottom="22dp"
+            android:gravity="center"
+            android:text=""
+            android:textColor="@color/tv_accent_gold_bright"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+        </FrameLayout>
+
+        <LinearLayout
+          android:id="@+id/horizontalTransitionPanel"
+          android:layout_width="match_parent"
+          android:layout_height="match_parent"
+          android:baselineAligned="false"
+          android:gravity="center_vertical"
+          android:orientation="horizontal"
+          android:background="@drawable/bg_tv_root_gradient"
+          android:paddingLeft="40dp"
+          android:paddingTop="40dp"
+          android:paddingRight="40dp"
+          android:paddingBottom="40dp"
+          android:visibility="gone">
+
+          <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="0.38"
+            android:foregroundGravity="center"
+            android:padding="12dp">
+
+            <FrameLayout
+              android:id="@+id/horizontalTransitionCircle"
+              android:layout_width="280dp"
+              android:layout_height="280dp"
+              android:layout_gravity="center"
+              android:background="@drawable/bg_horizontal_transition_circle">
+
+              <TextView
+                android:id="@+id/horizontalTransitionCountdownText"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:maxLines="1"
+                android:text="24"
+                android:textColor="@color/tv_text_main"
+                android:textSize="124sp"
+                android:textStyle="bold" />
+            </FrameLayout>
+          </FrameLayout>
+
+          <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="0.62"
+            android:gravity="center_vertical"
+            android:orientation="vertical"
+            android:paddingLeft="18dp">
+
+            <ImageView
+              android:id="@+id/horizontalTransitionIcon"
+              android:layout_width="116dp"
+              android:layout_height="116dp"
+              android:adjustViewBounds="true"
+              android:scaleType="fitCenter"
+              android:src="@drawable/ic_horizontal_drop"
+              app:tint="@color/tv_text_main"
+              android:visibility="gone" />
+
+            <TextView
+              android:id="@+id/horizontalTransitionTitle"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:layout_marginTop="12dp"
+              android:autoSizeMaxTextSize="78sp"
+              android:autoSizeMinTextSize="42sp"
+              android:autoSizeStepGranularity="1sp"
+              android:autoSizeTextType="uniform"
+              android:ellipsize="end"
+              android:maxLines="2"
+              android:text="HYDRATE"
+              android:textColor="@color/tv_text_main"
+              android:textSize="78sp"
+              android:textStyle="bold" />
+
+            <TextView
+              android:id="@+id/horizontalTransitionHint"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:layout_marginTop="12dp"
+              android:maxLines="2"
+              android:textColor="@color/tv_text_main"
+              android:textSize="32sp"
+              android:visibility="gone" />
+          </LinearLayout>
+        </LinearLayout>
+
+      </FrameLayout>
+
+    </FrameLayout>
+  </LinearLayout>
+
+  <FrameLayout
+    android:id="@+id/transitionDesignPanel"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_tv_root_gradient"
+    android:clickable="true"
+    android:elevation="24dp"
+    android:focusable="false"
+    android:visibility="gone">
+
+    <ImageView
+      android:id="@+id/transitionDesignIcon"
+      android:layout_width="160dp"
+      android:layout_height="160dp"
+      android:adjustViewBounds="true"
+      android:scaleType="fitCenter" />
+
+    <FrameLayout
+      android:id="@+id/transitionDesignRingContainer"
+      android:layout_width="360dp"
+      android:layout_height="360dp">
+
+      <com.infini.tv.ui.RingProgressView
+        android:id="@+id/transitionDesignRing"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+      <TextView
+        android:id="@+id/transitionDesignCountdown"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:maxLines="1"
+        android:textColor="@color/tv_text_main"
+        android:textSize="150sp"
+        android:textStyle="bold" />
+    </FrameLayout>
+
+    <TextView
+      android:id="@+id/transitionDesignTitle"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:gravity="center"
+      android:ellipsize="end"
+      android:maxLines="2"
+      android:text="HYDRATE"
+      android:textColor="@color/tv_text_main"
+      android:textSize="96sp"
+      android:textStyle="bold" />
+
+    <TextView
+      android:id="@+id/transitionDesignSubtitle"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:gravity="center"
+      android:ellipsize="end"
+      android:maxLines="1"
+      android:textColor="@color/tv_text_main"
+      android:textSize="42sp"
+      android:textStyle="bold"
+      android:visibility="gone" />
+
+    <TextView
+      android:id="@+id/transitionDesignLogo"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_gravity="bottom|center_horizontal"
+      android:layout_marginBottom="22dp"
+      android:gravity="center"
+      android:text=""
+      android:textColor="@color/tv_text_main"
+      android:textSize="28sp"
+      android:textStyle="bold"
+      android:visibility="gone" />
+  </FrameLayout>
+
+  <FrameLayout
+    android:id="@+id/coursePlanPanel"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_tv_root_gradient"
+    android:visibility="gone" />
+
+  <FrameLayout
+    android:id="@+id/settingsPanel"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_tv_root_gradient"
+    android:padding="28dp"
+    android:visibility="gone">
+
+    <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="match_parent"
+      android:orientation="vertical">
+
+      <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <Button
+          android:id="@+id/settingsBackButton"
+          style="@style/Widget.InfiniTv.GhostButton"
+          android:text="返回" />
+
+        <TextView
+          android:id="@+id/settingsTitle"
+          android:layout_width="0dp"
+          android:layout_height="wrap_content"
+          android:layout_marginLeft="18dp"
+          android:layout_weight="1"
+          android:ellipsize="end"
+          android:maxLines="1"
+          android:text="设置"
+          android:textColor="@color/tv_text_main"
+          android:textSize="30sp"
+          android:textStyle="bold" />
+      </LinearLayout>
+
+      <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="24dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+          android:id="@+id/settingsContent"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:orientation="vertical" />
+      </ScrollView>
+    </LinearLayout>
+  </FrameLayout>
+
+  <FrameLayout
+    android:id="@+id/updatePanel"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/tv_overlay"
+    android:padding="28dp"
+    android:visibility="gone">
+
+    <LinearLayout
+      android:id="@+id/updateCard"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_gravity="center"
+      android:background="@drawable/bg_tv_panel_glow"
+      android:clickable="true"
+      android:focusable="true"
+      android:gravity="center_horizontal"
+      android:orientation="vertical"
+      android:padding="32dp">
+
+      <TextView
+        android:id="@+id/updateTitleText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="TV 正在准备更新"
+        android:textColor="@color/tv_accent_gold_bright"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:maxLines="2" />
+
+      <TextView
+        android:id="@+id/updateVersionText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:gravity="center"
+        android:maxLines="2"
+        android:text="目标版本"
+        android:textColor="@color/tv_text_subtle"
+        android:textSize="16sp" />
+
+      <ProgressBar
+        android:id="@+id/updateProgressBar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="16dp"
+        android:layout_marginTop="24dp"
+        android:max="100"
+        android:progress="0"
+        android:progressBackgroundTint="@color/tv_outline"
+        android:progressTint="@color/tv_playback_blue" />
+
+      <TextView
+        android:id="@+id/updateProgressText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:text="0%"
+        android:textColor="@color/tv_text_main"
+        android:textSize="30sp"
+        android:textStyle="bold" />
+
+      <TextView
+        android:id="@+id/updateStatusText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="3"
+        android:text="请稍候..."
+        android:textColor="@color/tv_text_subtle"
+        android:textSize="16sp" />
+
+      <LinearLayout
+        android:id="@+id/updateActionRow"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <Button
+          android:id="@+id/updatePermissionButton"
+          style="@style/Widget.InfiniTv.GhostButton"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:text="安装权限"
+          android:visibility="gone" />
+
+        <Space
+          android:id="@+id/updateActionSpacer"
+          android:layout_width="14dp"
+          android:layout_height="1dp"
+          android:visibility="gone" />
+
+        <Button
+          android:id="@+id/updateManualInstallButton"
+          style="@style/Widget.InfiniTv.GhostButton"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:text="手动安装"
+          android:visibility="gone" />
+      </LinearLayout>
+    </LinearLayout>
+  </FrameLayout>
+
+  <TextView
+    android:id="@+id/settingsButton"
+    android:layout_width="44dp"
+    android:layout_height="44dp"
+    android:layout_gravity="top|right"
+    android:layout_marginTop="8dp"
+    android:layout_marginRight="8dp"
+    android:alpha="0.62"
+    android:background="@drawable/bg_screen_chip"
+    android:gravity="center"
+    android:text="⚙"
+    android:textColor="@color/tv_text_main"
+    android:textSize="16sp" />
+</FrameLayout>

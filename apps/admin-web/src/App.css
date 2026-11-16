@@ -1,0 +1,16 @@
+@import "./styles/visual-refresh/base-foundation.css";
+@import "./styles/visual-refresh/device-management.css";
+@import "./styles/visual-refresh/authentication-shell.css";
+@import "./styles/visual-refresh/scheduling-calendar.css";
+@import "./styles/visual-refresh/tables-forms.css";
+@import "./styles/visual-refresh/course-editors.css";
+@import "./styles/visual-refresh/dialogs-feedback.css";
+@import "./styles/visual-refresh/base-responsive.css";
+@import "./styles/visual-refresh/coach-console.css";
+@import "./styles/visual-refresh/version-management.css";
+@import "./styles/visual-refresh/tokens-foundation.css";
+@import "./styles/visual-refresh/shell-navigation.css";
+@import "./styles/visual-refresh/management-content.css";
+@import "./styles/visual-refresh/tables-dialogs.css";
+@import "./styles/visual-refresh/authentication.css";
+@import "./styles/visual-refresh/responsive.css";

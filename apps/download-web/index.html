@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Cache-Control" content="no-store" />
+    <title>INFini TV APK 下载</title>
+    <link rel="stylesheet" href="./styles.css?v=20260504b" />
+  </head>
+  <body>
+    <main class="page-shell">
+      <section class="hero-card">
+        <p class="eyebrow">INFini Download</p>
+        <h1>TV APK 下载</h1>
+        <p class="hero-copy">这里会自动列出服务器 APK 目录中的 TV 端版本，选择需要的版本下载即可。</p>
+        <button id="refreshButton" class="ghost-button" type="button">刷新版本</button>
+      </section>
+
+      <section class="content-card">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">TV Packages</p>
+            <h2>可下载版本</h2>
+          </div>
+          <span id="packageCount" class="count-pill">--</span>
+        </div>
+
+        <div id="statusBox" class="status-box">正在读取 APK 版本...</div>
+        <div id="packageList" class="package-list" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <script src="./main.js?v=20260504b"></script>
+  </body>
+</html>

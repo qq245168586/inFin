@@ -1,19 +1,19 @@
 # Infini Workspace
 
-这个仓库是 Infini 项目的顶层 workspace，只负责记录项目文档、代码地图和各端仓库的 submodule 指针。
+这个公开仓库汇总 Infini 各端源码、共享模块、需求文档和经过脱敏的 Git 提交历史。所有源码直接放在本仓库，不再依赖旧 Git 服务的 submodule。
 
-业务代码仍然分别维护在各自独立仓库里，workspace 不直接管理各端源码内容。
+这是脱敏公开副本，不包含生产数据库、登录会话、备份或有效密码。部署前必须配置自己的凭据；请先阅读 [公开迁移说明](docs/PUBLIC_EXPORT.md)。
 
 ## Clone
 
 ```bash
-git clone --recurse-submodules https://git.infintraining.work/13689547720/workspace.git
+git clone https://github.com/qq245168586/inFin.git
 ```
 
-如果已经 clone 了 workspace：
+查看历史项目分支：
 
 ```bash
-git submodule update --init --recursive
+git branch -r --list 'origin/codex/history/*'
 ```
 
 ## Projects
@@ -28,6 +28,9 @@ git submodule update --init --recursive
 | `apps/tv-android` | `tv-android` | Android TV 原生 Java 客户端 |
 | `apps/download-web` | `download-web` | TV APK 下载页面 |
 | `apps/ops-web` | `ops-web` | 运维调试页面，查看 MQTT/TV 运行日志 |
+| `apps/websimulator` | 本仓库 | 浏览器课程模拟器 |
+| `apps/coach-ios` | 本仓库 | SwiftUI Coach MVP，Workspace + Swift Package Manager |
+| `packages/shared` | 本仓库 | 共享课程脚本与浏览器会话逻辑 |
 
 ## Code Map
 
@@ -39,7 +42,7 @@ git submodule update --init --recursive
 
 ## Workspace Rules
 
-- workspace 只提交 `.gitmodules`、文档和 submodule 指针。
-- 各项目代码改动要在对应子仓库内提交。
-- 更新 workspace 指针前，先确认对应子仓库已经 commit。
+- `main` 包含完整源码；`codex/history/<项目>/<原分支>` 保存脱敏后的项目分支，标签采用 `<项目>/<原标签>`。
+- 脱敏重写影响 commit ID；提交作者、说明和历史拓扑保留。不要将未脱敏的旧分支合并或推送到本公开仓库。
+- 通过 `pnpm run hooks:install` 安装提交测试钩子；根测试入口为 `bash tools/run-tests.sh`。
 - 不要把 `node_modules`、构建产物、运行数据或本地备份提交到 workspace。

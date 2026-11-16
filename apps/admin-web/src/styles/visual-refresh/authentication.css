@@ -1,0 +1,57 @@
+/* Visual refresh for the login experience. */
+
+.login-shell {
+  padding: 24px;
+  background: #0e1013;
+}
+
+.login-stage {
+  width: min(100%, 1040px);
+  min-height: min(680px, calc(100vh - 48px));
+  grid-template-columns: 280px minmax(0, 1fr);
+  color: var(--text-main);
+  background: #111419;
+  border: 1px solid #30363f;
+  border-radius: 8px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.42);
+}
+
+.login-stage-top {
+  padding: 34px 28px;
+  background: #111419;
+  border-right: 1px solid #30363f;
+}
+
+.login-stage-top::after {
+  content: "OPERATIONS CONSOLE";
+  display: block;
+  margin-top: 18px;
+  color: #747e8b;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.login-panel {
+  padding: 72px 72px 42px;
+  color: var(--text-main);
+  background: #171a1f;
+}
+
+.login-panel-copy h1 {
+  color: #f4f6f8;
+  font-size: 34px;
+}
+
+.login-select-field span {
+  color: var(--text-subtle);
+}
+
+.old-login-submit {
+  border-radius: 6px;
+}
+
+.login-mark {
+  color: var(--gold);
+  letter-spacing: 0;
+}

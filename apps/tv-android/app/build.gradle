@@ -1,0 +1,132 @@
+plugins {
+  id "com.android.application"
+  id "jacoco"
+}
+
+android {
+  namespace "com.infini.tv"
+  compileSdk 34
+
+  buildFeatures {
+    buildConfig true
+  }
+
+  def infiniEnv = (project.findProperty("infiniEnv") ?: "production").toString()
+  def infiniBaseUrl = (project.findProperty("infiniBaseUrl") ?: "https://114.215.185.184/infini").toString()
+  def infiniBackupBaseUrl = (project.findProperty("infiniBackupBaseUrl") ?: "https://114.215.185.184/infini").toString()
+  def infiniMqttPrimaryUrl = (project.findProperty("infiniMqttPrimaryUrl") ?: "wss://114.215.185.184/infini/mqtt").toString()
+  def infiniMqttBackupUrl = (project.findProperty("infiniMqttBackupUrl") ?: "wss://114.215.185.184/infini/mqtt").toString()
+
+  if (infiniEnv == "production") {
+    [infiniBaseUrl, infiniBackupBaseUrl].each { url ->
+      if (!url.startsWith("https://")) {
+        throw new GradleException("Production API endpoints must use HTTPS: ${url}")
+      }
+    }
+    [infiniMqttPrimaryUrl, infiniMqttBackupUrl].each { url ->
+      if (!url.startsWith("wss://")) {
+        throw new GradleException("Production MQTT endpoints must use WSS: ${url}")
+      }
+    }
+  }
+
+  defaultConfig {
+    applicationId "com.infini.tv"
+    minSdk 26
+    targetSdk 34
+        versionCode 77
+        versionName "1.0.77"
+    manifestPlaceholders = [usesCleartextTraffic: infiniEnv != "production"]
+    buildConfigField "String", "INFINI_ENV", "\"${infiniEnv}\""
+    buildConfigField "String", "INFINI_BASE_URL", "\"${infiniBaseUrl}\""
+    buildConfigField "String", "INFINI_BACKUP_BASE_URL", "\"${infiniBackupBaseUrl}\""
+    buildConfigField "String", "INFINI_MQTT_PRIMARY_URL", "\"${infiniMqttPrimaryUrl}\""
+    buildConfigField "String", "INFINI_MQTT_BACKUP_URL", "\"${infiniMqttBackupUrl}\""
+  }
+
+  buildTypes {
+    release {
+      minifyEnabled false
+      signingConfig signingConfigs.debug
+    }
+  }
+
+  testOptions {
+    unitTests {
+      returnDefaultValues true
+    }
+  }
+
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
+  }
+}
+
+jacoco {
+  toolVersion = "0.8.12"
+}
+
+dependencies {
+  implementation "androidx.appcompat:appcompat:1.7.0"
+  implementation "com.google.android.material:material:1.12.0"
+  implementation "com.google.zxing:core:3.5.3"
+  implementation "com.squareup.okhttp3:okhttp:4.12.0"
+  implementation "org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5"
+
+  testImplementation "junit:junit:4.13.2"
+  testImplementation "org.json:json:20240303"
+}
+
+tasks.withType(Test).configureEach {
+  testLogging {
+    events "failed", "skipped"
+    exceptionFormat "full"
+  }
+}
+
+tasks.register("jacocoDebugUnitTestReport", JacocoReport) {
+  dependsOn "testDebugUnitTest"
+
+  reports {
+    xml.required = true
+    html.required = true
+  }
+
+  def excludes = [
+      '**/R.class',
+      '**/R$*.class',
+      '**/BuildConfig.*',
+      '**/Manifest*.*',
+      '**/*Test*.*'
+  ]
+  def businessIncludes = [
+      'com/infini/tv/EffectivePodScreen*.class',
+      'com/infini/tv/RemoteScheduleAction*.class',
+      'com/infini/tv/SilentInstallResult*.class',
+      'com/infini/tv/TrainingPlaybackState*.class',
+      'com/infini/tv/model/**/*.class',
+      'com/infini/tv/diagnostics/**/*.class',
+      'com/infini/tv/mqtt/**/*.class',
+      'com/infini/tv/mvi/**/*.class',
+      'com/infini/tv/player/**/*.class',
+      'com/infini/tv/repository/**/*.class',
+      'com/infini/tv/util/**/*.class'
+  ]
+
+  classDirectories.setFrom(files([
+      fileTree(
+          dir: "${buildDir}/intermediates/javac/debug/compileDebugJavaWithJavac/classes",
+          includes: businessIncludes,
+          excludes: excludes),
+      fileTree(
+          dir: "${buildDir}/intermediates/javac/debug/classes",
+          includes: businessIncludes,
+          excludes: excludes)
+  ]))
+  sourceDirectories.setFrom(files("src/main/java"))
+  executionData.setFrom(fileTree(dir: buildDir, includes: [
+      "jacoco/testDebugUnitTest.exec",
+      "outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec"
+  ]))
+}

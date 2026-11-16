@@ -2,6 +2,8 @@
 
 这个文档是 workspace 级别的代码地图，用来快速判断“某个需求应该改哪个仓库”。
 
+公开版本中以下项目直接位于同一个仓库内，不再使用 submodule。业务边界不变；脱敏、历史分支及部署配置限制见 [PUBLIC_EXPORT.md](PUBLIC_EXPORT.md)。
+
 需求进入开发前，先在 [requirements 工作区](requirements/README.md) 建立或更新对应文档，再根据本代码地图判断影响端。
 
 ## System Topology
