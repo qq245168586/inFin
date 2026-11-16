@@ -73,6 +73,10 @@ else
   run_step "tv-android" "$ROOT_DIR/apps/tv-android" env GRADLE_USER_HOME="$ROOT_DIR/apps/tv-android/.gradle-home" ./gradlew testDebugUnitTest || overall=1
 fi
 
+if [[ -f "$ROOT_DIR/apps/coach-ios/InfiniCoach.xcworkspace/contents.xcworkspacedata" && "$(uname -s)" == "Darwin" ]]; then
+  run_step "coach-ios" "$ROOT_DIR/apps/coach-ios" bash scripts/test.sh -only-testing:InfiniCoachTests || overall=1
+fi
+
 if [[ "$ALLURE" -eq 1 ]]; then
   node "$ROOT_DIR/tools/junit-to-allure.mjs" \
     "$ROOT_DIR/apps/tv-android/app/build/test-results/testDebugUnitTest" \

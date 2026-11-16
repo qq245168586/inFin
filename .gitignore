@@ -38,3 +38,10 @@
 !apps/tv-android
 !apps/websimulator
 !apps/websimulator/**
+!apps/coach-ios/
+!apps/coach-ios/**
+apps/coach-ios/**/.build/
+apps/coach-ios/**/xcuserdata/
+apps/coach-ios/.derivedData/
+apps/coach-ios/.swiftpm/
+apps/coach-ios/**/.DS_Store

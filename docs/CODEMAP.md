@@ -103,6 +103,16 @@ flowchart LR
 - 排课后的课程会被 TV/Coach 按当前场馆课程包读取。
 - 基础历史样式仍由 `src/App.css` 加载，新版视觉覆盖集中在 `src/styles/visual-refresh/*`，按令牌、壳层导航、排课编辑、动作/模板、弹窗管理和响应式职责拆分。新增界面必须放入对应语义模块，保持炭黑工作台、金色信息和蓝色操作层级。
 
+### `apps/coach-ios`
+
+- 独立 SwiftUI iOS 17+ 学习版，入口 `InfiniCoach.xcworkspace`；不改变 Server/TV/Web 协议。
+- `InfiniCoach/InfiniCoachApp.swift` 为 App 入口；`Packages/CoachKit` 本地 Swift Package 按 Models/Networking/Services/Features 分层。
+- `APIClient.swift` 统一 Alamofire 请求、Cookie/Origin/client header、一次续期重试；`CredentialStore.swift` 使用独立 Keychain 凭据，不与网页会话共用。
+- `CoachService.swift` 复用 Coach API；`DemoCoachService.swift` 仅本机数据，不下发真实 TV 命令。
+- `CoachModel.swift` 管理前台 session 同步、日期请求代次、至少 2 秒全局控制锁；仅绑定场馆账号可操作真实环境。
+- TabView/NavigationStack 原生导航；课程/动作详情 push，日期 sheet，危险操作 confirmationDialog；Kingfisher 缓存图片，AVKit 点击后加载视频。
+- `InfiniCoachTests` / `InfiniCoachUITests` 覆盖假接口与原生导航，`scripts/test.sh` 在模拟器执行，无生产写入。
+
 ### `apps/coach-web`
 
 教练端：

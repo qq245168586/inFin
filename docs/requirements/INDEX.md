@@ -8,6 +8,7 @@
 
 | ID | Title | Status | Apps | Owner Notes |
 | --- | --- | --- | --- | --- |
+| [REQ-20261111-coach-ios-mvp](REQ-20261111-coach-ios-mvp.md) | SwiftUI 原生 Coach 学习版 MVP | Ready for QA | `coach-ios` | Workspace + SPM；最终签名版 23 项测试通过，SE 小屏回归 22 项通过，已安装模拟器；未改线上服务，真实账号与视频播放待手工验收。 |
 | [REQ-20261111-browser-sessions](REQ-20261111-browser-sessions.md) | 分端 Cookie 会话与可靠续期 | Shipped | `server`, `course-web`, `admin-web`, `coach-web`, `ops-web`, `websimulator`, `shared` | 2026-11-11 已发布并通过线上冒烟；163 项回归、11 项本地真实浏览器检查通过；会话模块行覆盖率 95.39%；首次升级需各端重新登录一次。 |
 | [REQ-20261108-simulator-diagnostics](REQ-20261108-simulator-diagnostics.md) | 模拟器错误日志上传与 Ops 来源分类 | Shipped | `websimulator`, `server`, `ops-web` | 错误文件回传及 Ops 来源分类已发布，保留 10 天；OSS 视频代理已修复，76 项测试通过，不改 DB。 |
 | [REQ-20261014-production-ecs-migration](REQ-20261014-production-ecs-migration.md) | 生产环境迁移到新 ECS | In Progress | `server`, `mqtt-client`, `admin-web`, `course-web`, `coach-web`, `ops-web`, `download-web`, `tv-android`, `websimulator` | 新实例与 TMY 通过 `/infini/*` 共存，API/WSS 改用 `114.215.185.184`；完整 staging 和验收通过，生产终切待确认。 |
